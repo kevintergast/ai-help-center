@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* White-Label-Standardtheme. Pro Tenant werden diese Variablen im <html>-Tag
+   überschrieben (siehe src/app/layout.tsx + src/lib/theme/brand.ts). */
+:root {
+  --brand-primary: #4f46e5;
+  --brand-accent: #06b6d4;
+  --brand-primary-fg: #ffffff;
+}

@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js / build output
+.next/
+out/
+dist/
+.open-next/
+
+# Cloudflare / Wrangler
+.wrangler/
+.dev.vars
+.dev.vars.*
+
+# Env & secrets (niemals committen)
+.env
+.env.*
+!.env.example
+
+# Tests / coverage
+coverage/
+junit.xml
+
+# Editor / OS
+.DS_Store
+*.log
+.turbo/
+.idea/
+.vscode/*
+!.vscode/extensions.json

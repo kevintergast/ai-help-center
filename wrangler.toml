@@ -1,0 +1,62 @@
+# HallofHelp — Cloudflare Worker (Next.js via OpenNext)
+# IDs nach dem Anlegen der Ressourcen einsetzen (siehe README / Chat).
+name = "hallofhelp"
+main = ".open-next/worker.js"
+compatibility_date = "2026-07-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Von OpenNext erzeugte Next.js-Static-Assets:
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# ─── STAGING (Default-Env) ─────────────────────────────────────────
+[[d1_databases]]
+binding = "DB"
+database_name = "hallofhelp-staging"
+database_id = "<FILL: aus `wrangler d1 create hallofhelp-staging`>"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "MEDIA"                       # Artikel-Bilder/-Assets (nicht mit ASSETS = Next-Static verwechseln)
+bucket_name = "hallofhelp-assets-staging"
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "hallofhelp-articles-staging"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "<FILL: aus `wrangler kv namespace create CACHE`>"
+
+[ai]
+binding = "AI"
+
+# Queues/Durable Objects brauchen Workers Paid ($5/Mo) → später (Re-Embedding-Pipeline).
+
+# ─── PRODUCTION ────────────────────────────────────────────────────
+[env.production]
+[env.production.assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "hallofhelp-prod"
+database_id = "<FILL später>"
+migrations_dir = "migrations"
+
+[[env.production.r2_buckets]]
+binding = "MEDIA"
+bucket_name = "hallofhelp-assets-prod"
+
+[[env.production.vectorize]]
+binding = "VECTORIZE"
+index_name = "hallofhelp-articles-prod"
+
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = "<FILL später>"
+
+[env.production.ai]
+binding = "AI"
