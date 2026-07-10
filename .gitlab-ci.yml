@@ -29,6 +29,10 @@ typecheck:
   stage: validate
   script: [pnpm run typecheck]
 
+i18n:
+  stage: validate
+  script: [pnpm run i18n:check]
+
 unit-test:
   stage: test
   script: [pnpm run test]
@@ -46,7 +50,7 @@ migrate:staging:
   rules:
     - if: '$CI_COMMIT_BRANCH == "develop"'
   script:
-    - pnpm exec wrangler d1 migrations apply hallofhelp-staging --env staging --remote
+    - pnpm exec wrangler d1 migrations apply hallofhelp-staging --remote
 
 deploy:staging:
   stage: deploy
@@ -57,7 +61,7 @@ deploy:staging:
     name: staging
     url: https://staging.hallofhelp.app
   script:
-    - pnpm exec wrangler deploy --env staging
+    - pnpm exec wrangler deploy
 
 # ---------- PRODUCTION (nur main, manuelles Gate) ----------
 migrate:production:

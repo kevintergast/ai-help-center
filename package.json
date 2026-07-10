@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "packageManager": "pnpm@10.15.1",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -15,10 +17,14 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "i18n:check": "node scripts/check-i18n.mjs",
+    "prepare": "husky",
     "db:migrate:local": "wrangler d1 migrations apply hallofhelp-staging --local",
-    "db:migrate:staging": "wrangler d1 migrations apply hallofhelp-staging --env staging --remote"
+    "db:migrate:staging": "wrangler d1 migrations apply hallofhelp-staging --remote"
   },
   "dependencies": {
+    "better-auth": "^1.2.0",
+    "hono": "^4.6.0",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -26,12 +32,15 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260708.1",
     "@opennextjs/cloudflare": "^1.0.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
+    "better-sqlite3": "^12.11.1",
     "eslint": "^9.17.0",
     "eslint-config-next": "^15.1.0",
+    "husky": "^9.1.7",
     "postcss": "^8.4.49",
     "prettier": "^3.4.2",
     "tailwindcss": "^3.4.17",
@@ -40,6 +49,12 @@
     "wrangler": "^4.0.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "workerd", "sharp", "unrs-resolver"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd",
+      "sharp",
+      "unrs-resolver",
+      "better-sqlite3"
+    ]
   }
 }
