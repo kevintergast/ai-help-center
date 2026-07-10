@@ -1,0 +1,16 @@
+# Vorlage für LOKALE Secrets. Kopieren nach `.dev.vars` und Werte einsetzen.
+# `.dev.vars` ist gitignored und wird von OpenNext/`next dev` als Worker-Env geladen.
+# NIEMALS echte Werte committen. Cloud (Staging/Prod): `wrangler secret put <NAME>`.
+
+# Better Auth — Signier-/HKDF-Basis. Selbst generieren, z. B.:  openssl rand -base64 32
+AUTH_SECRET=""
+
+# Resend — E-Mail-Versand (Verifikation/Passwort-Reset). Leer lassen = No-op
+# (kein Versand, kein Fehler). Key aus dem Resend-Dashboard.
+RESEND_API_KEY=""
+
+# Social Login (erst Phase E nötig) — aus Google Cloud Console bzw. Microsoft Entra:
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+MICROSOFT_CLIENT_ID=""
+MICROSOFT_CLIENT_SECRET=""

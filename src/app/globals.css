@@ -2,10 +2,122 @@
 @tailwind components;
 @tailwind utilities;
 
-/* White-Label-Standardtheme. Pro Tenant werden diese Variablen im <html>-Tag
-   überschrieben (siehe src/app/layout.tsx + src/lib/theme/brand.ts). */
+/*
+  HallofHelp Design-Tokens (standardisiert, Lovable-inspiriert — siehe DESIGN.md).
+  Farben sind bewusst neutral gehalten und dürfen angepasst werden.
+  Theming: Light ist Basis (:root). Dark greift über prefers-color-scheme
+  ODER erzwungen via <html data-theme="dark|light"> (Toggle + No-Flash-Script).
+  White-Label: --brand-* wird pro Tenant auf <html> überschrieben.
+*/
+
 :root {
+  /* Flächen & Text (warm) */
+  --surface: #f7f4ed;
+  --surface-2: #fcfbf8;
+  --ink: #1c1c1c;
+  --muted: #5f5f5d;
+  --border: #eceae4;
+  --border-strong: #c9c5ba;
+  --tint: #f0ece2;
+
+  /* Hochkontrast-Button (invertiert je Theme) */
+  --btn-primary-bg: #1c1c1c;
+  --btn-primary-fg: #fcfbf8;
+
+  /* Fokus & Tiefe */
+  --ring: rgba(59, 130, 246, 0.55);
+  --shadow-inset: rgba(255, 255, 255, 0.2) 0 0.5px 0 0 inset,
+    rgba(0, 0, 0, 0.2) 0 0 0 0.5px inset, rgba(0, 0, 0, 0.05) 0 1px 2px 0;
+  --shadow-focus: rgba(0, 0, 0, 0.1) 0 4px 12px;
+
+  /* Semantik (getrennt vom Marken-Akzent) */
+  --sem-ok: #2f7d55;
+  --sem-ok-bg: #eaf2ec;
+  --sem-ok-bd: #cfe3d6;
+  --sem-warn: #9a6011;
+  --sem-warn-bg: #f6efe1;
+  --sem-warn-bd: #e7d8bf;
+  --sem-crit: #a23a2e;
+  --sem-crit-bg: #f6e9e6;
+  --sem-crit-bd: #e6cfc9;
+
+  /* White-Label-Marke (Default; pro Tenant überschrieben) */
   --brand-primary: #4f46e5;
   --brand-accent: #06b6d4;
   --brand-primary-fg: #ffffff;
+}
+
+/* Dark-Token-Satz — als Custom-Properties zweimal referenziert
+   (media-query & erzwungen), da CSS keine Block-Wiederverwendung kennt. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: #1b1915;
+    --surface-2: #232019;
+    --ink: #f3efe6;
+    --muted: #a49e8f;
+    --border: #34302a;
+    --border-strong: #4c473d;
+    --tint: #262218;
+    --btn-primary-bg: #f3efe6;
+    --btn-primary-fg: #1b1915;
+    --ring: rgba(96, 165, 250, 0.6);
+    --shadow-inset: rgba(255, 255, 255, 0.06) 0 0.5px 0 0 inset,
+      rgba(0, 0, 0, 0.5) 0 0 0 0.5px inset, rgba(0, 0, 0, 0.3) 0 1px 2px 0;
+    --shadow-focus: rgba(0, 0, 0, 0.5) 0 4px 14px;
+    --sem-ok: #6cc08b;
+    --sem-ok-bg: #1c2a21;
+    --sem-ok-bd: #2f4636;
+    --sem-warn: #d6a24e;
+    --sem-warn-bg: #2a2417;
+    --sem-warn-bd: #463c25;
+    --sem-crit: #e08375;
+    --sem-crit-bg: #2a1e1b;
+    --sem-crit-bd: #46302b;
+    --brand-primary: #8b83ff;
+    --brand-accent: #22d3ee;
+    --brand-primary-fg: #16130d;
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface: #1b1915;
+  --surface-2: #232019;
+  --ink: #f3efe6;
+  --muted: #a49e8f;
+  --border: #34302a;
+  --border-strong: #4c473d;
+  --tint: #262218;
+  --btn-primary-bg: #f3efe6;
+  --btn-primary-fg: #1b1915;
+  --ring: rgba(96, 165, 250, 0.6);
+  --shadow-inset: rgba(255, 255, 255, 0.06) 0 0.5px 0 0 inset,
+    rgba(0, 0, 0, 0.5) 0 0 0 0.5px inset, rgba(0, 0, 0, 0.3) 0 1px 2px 0;
+  --shadow-focus: rgba(0, 0, 0, 0.5) 0 4px 14px;
+  --sem-ok: #6cc08b;
+  --sem-ok-bg: #1c2a21;
+  --sem-ok-bd: #2f4636;
+  --sem-warn: #d6a24e;
+  --sem-warn-bg: #2a2417;
+  --sem-warn-bd: #463c25;
+  --sem-crit: #e08375;
+  --sem-crit-bg: #2a1e1b;
+  --sem-crit-bd: #46302b;
+  --brand-primary: #8b83ff;
+  --brand-accent: #22d3ee;
+  --brand-primary-fg: #16130d;
+}
+
+@layer base {
+  html {
+    color-scheme: light dark;
+  }
+  body {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.02em;
+  }
 }
