@@ -8,6 +8,7 @@ import { createAuth } from "@/server/auth/runtime";
 import { getAuthSecret } from "@/server/auth/secret";
 import { D1TeamUserRepository } from "@/server/auth/team-users";
 import { D1BrandingRepository, type BrandingDeps } from "@/server/branding/store";
+import { D1ContentRepository, type ContentDeps } from "@/server/content/store";
 import { getDbSafe } from "@/server/db/client";
 import { D1LegalRepository, type LegalDeps } from "@/server/legal/store";
 import { D1TenantRepository } from "@/server/tenant/repository";
@@ -111,6 +112,17 @@ async function getLegalDepsRuntime(): Promise<LegalDeps | null> {
 }
 
 /**
+ * Content-Persistenz (Punkt 2): D1-Repo auf `articles`/`article_versions`/
+ * `roadmap_items`/`changelog_entries`. Ohne D1-Bindung (Unit-Tests, `next dev`
+ * ohne Wrangler) → `null` → die Content-Admin-Routen antworten 503 fail-closed.
+ */
+async function getContentDepsRuntime(): Promise<ContentDeps | null> {
+  const env = await getEnvSafe();
+  if (!env?.DB) return null;
+  return { store: new D1ContentRepository(env.DB) };
+}
+
+/**
  * OAuth-Gateway-Infrastruktur (Phase E): rohes AUTH_SECRET (HKDF-Basis) +
  * KV-basierter, tenant-präfigierter Single-use-Nonce-Store (`CACHE`). Fehlt die
  * Cloudflare-Umgebung (Unit-Tests, `next dev` ohne Wrangler), ist der Gateway
@@ -161,5 +173,6 @@ export const runtimeDeps: ApiDeps = {
   getBrandingDeps: getBrandingDepsRuntime,
   getTeamDeps: getTeamDepsRuntime,
   getLegalDeps: getLegalDepsRuntime,
+  getContentDeps: getContentDepsRuntime,
   oauthGateway: buildOAuthGatewayDeps(),
 };

@@ -185,5 +185,138 @@ export const en: Record<MessageKey, string> = {
   "editor.confirmPublish": "Publish now",
   "editor.cancel": "Cancel",
   "editor.publishedToast": "Article published.",
+  "editor.saveError": "Saving failed. Please try again.",
   "editor.close": "Close",
+
+  // Auth journey (item 4a) — shared building blocks
+  "auth.or": "or",
+  "auth.email": "Email address",
+  "auth.emailPlaceholder": "name@example.com",
+  "auth.password": "Password",
+  "auth.password.show": "Show password",
+  "auth.password.hide": "Hide password",
+  "auth.name": "Name",
+  "auth.namePlaceholder": "First and last name",
+  "auth.passwordHint": "At least 10 characters.",
+  "auth.submitting": "Please wait …",
+  "auth.social.google": "Continue with Google",
+  "auth.social.microsoft": "Continue with Microsoft",
+
+  // Sign in
+  "auth.login.title": "Sign in",
+  "auth.login.subtitle": "Sign in to your help center.",
+  "auth.login.submit": "Sign in",
+  "auth.login.forgot": "Forgot password?",
+  "auth.login.noAccount": "No account yet?",
+  "auth.login.signupLink": "Sign up",
+
+  // Sign up
+  "auth.signup.title": "Create account",
+  "auth.signup.subtitle": "Sign up to get started.",
+  "auth.signup.submit": "Create account",
+  "auth.signup.haveAccount": "Already registered?",
+  "auth.signup.loginLink": "Sign in",
+
+  // Email verification
+  "auth.verify.title": "Confirm your email",
+  "auth.verify.body":
+    "We sent a confirmation link to {email}. Open it to activate your account.",
+  "auth.verify.bodyNoEmail":
+    "We sent you a confirmation link. Open it to activate your account.",
+  "auth.verify.resend": "Resend email",
+  "auth.verify.resent": "Confirmation email resent.",
+  "auth.verify.successBody": "Your email has been confirmed. You can sign in now.",
+  "auth.verify.toLogin": "Go to sign in",
+
+  // Forgot / reset password
+  "auth.forgot.title": "Reset password",
+  "auth.forgot.subtitle": "Enter your email address — we'll send you a reset link.",
+  "auth.forgot.submit": "Send link",
+  "auth.forgot.sent": "If an account exists for this address, we've sent a reset link.",
+  "auth.forgot.backToLogin": "Back to sign in",
+  "auth.reset.title": "Set a new password",
+  "auth.reset.subtitle": "Choose a new password for your account.",
+  "auth.reset.newPassword": "New password",
+  "auth.reset.confirmPassword": "Confirm password",
+  "auth.reset.submit": "Save password",
+  "auth.reset.success": "Your password has been changed. You can sign in now.",
+  "auth.reset.missingToken": "This link is invalid or incomplete. Request a new one.",
+  "auth.reset.mismatch": "The passwords don't match.",
+
+  // Two-factor challenge (inline / step-up)
+  "auth.twofa.totpPrompt": "Enter the 6-digit code from your authenticator app.",
+  "auth.twofa.otpPrompt": "We'll email you a code. Request it and enter it here.",
+  "auth.twofa.backupPrompt": "Enter one of your backup codes.",
+  "auth.twofa.codeLabel": "Verification code",
+  "auth.twofa.backupLabel": "Backup code",
+  "auth.twofa.verify": "Verify",
+  "auth.twofa.useTotp": "Use authenticator app",
+  "auth.twofa.useOtp": "Request a code by email",
+  "auth.twofa.useBackup": "Use a backup code",
+  "auth.twofa.otpSent": "Code sent. Check your inbox.",
+  "auth.twofa.sendOtp": "Send code",
+  "auth.mfaChallenge.title": "Confirm your identity",
+  "auth.mfaChallenge.body": "This action requires another two-factor confirmation.",
+
+  // MFA setup (TOTP enrollment)
+  "auth.mfa.title": "Set up two-factor authentication",
+  "auth.mfa.teamNote": "Team roles (admin/owner) require an authenticator app (TOTP).",
+  "auth.mfa.passwordPrompt":
+    "Confirm your password to start setup (leave blank for social login).",
+  "auth.mfa.start": "Start setup",
+  "auth.mfa.scanTitle": "1. Set up your authenticator app",
+  "auth.mfa.scanBody": "Enter the key in your authenticator app or open the otpauth link.",
+  "auth.mfa.manualKey": "Setup key",
+  "auth.mfa.otpauthLink": "Open otpauth link",
+  "auth.mfa.verifyBody": "2. Enter the 6-digit code currently shown.",
+  "auth.mfa.verify": "Activate",
+  "auth.mfa.backupTitle": "Backup codes",
+  "auth.mfa.backupBody":
+    "Keep these codes somewhere safe. Each code works once if you can't access your app.",
+  "auth.mfa.enabledBody": "Your two-factor authentication is now active.",
+  "auth.mfa.done": "Done",
+
+  // Accept invitation
+  "auth.invite.title": "Accept invitation",
+  "auth.invite.body": "You've been invited to a team. Accept the invitation to join.",
+  "auth.invite.accept": "Accept invitation",
+  "auth.invite.missingToken": "This invitation is invalid or incomplete.",
+  "auth.invite.needLogin":
+    "Sign in with the invited email address or sign up to accept the invitation.",
+  "auth.invite.login": "Sign in",
+  "auth.invite.signup": "Sign up",
+  "auth.invite.successBody":
+    "The invitation was accepted. Set up two-factor authentication now to use team features.",
+  "auth.invite.setupMfa": "Set up two-factor",
+  "auth.invite.alreadyMember": "You're already part of this team.",
+  "auth.invite.expired": "This invitation has expired. Please request a new one.",
+  "auth.invite.emailMismatch":
+    "This invitation belongs to a different email address. Sign in with the invited address.",
+  "auth.invite.notFound": "This invitation was not found.",
+
+  // Error messages (user-friendly, no account enumeration)
+  "auth.error.invalidCredentials": "Email address or password is incorrect.",
+  "auth.error.emailNotVerified": "Please confirm your email address first.",
+  "auth.error.emailInUse": "An account already exists for this email address.",
+  "auth.error.accountLocked":
+    "Too many failed attempts. Your account is temporarily locked. Try again later.",
+  "auth.error.tooManyAttempts": "Too many attempts. Please request a new code.",
+  "auth.error.invalidCode": "The code is invalid. Please try again.",
+  "auth.error.codeExpired": "The code has expired. Request a new one.",
+  "auth.error.linkInvalid": "This link is invalid or has expired.",
+  "auth.error.banned": "This account has been banned.",
+  "auth.error.passwordCompromised": "This password is considered unsafe. Please choose another.",
+  "auth.error.passwordTooShort": "The password must be at least 10 characters long.",
+  "auth.error.network": "Connection failed. Please check your internet connection.",
+  "auth.error.generic": "Something went wrong. Please try again.",
+  "auth.error.totpRequired":
+    "Your account requires the authenticator app (TOTP). Enter the code from your app.",
+
+  // Form validation
+  "auth.validate.emailRequired": "Please enter your email address.",
+  "auth.validate.emailInvalid": "Please enter a valid email address.",
+  "auth.validate.passwordRequired": "Please enter a password.",
+  "auth.validate.passwordTooShort": "The password must be at least 10 characters long.",
+  "auth.validate.nameRequired": "Please enter your name.",
+  "auth.validate.codeInvalid": "Please enter the 6-digit code.",
 };

@@ -9,12 +9,19 @@ import type {
 } from "./types";
 
 /*
-  Fake-Datenschicht fürs Hilfezentrum. Inhalte sind Beispiel-CONTENT (später aus D1),
-  keine UI-Strings — deshalb bewusst NICHT im i18n-Katalog. Die UI hängt nur an
-  HelpCenterRepository; der Austausch gegen einen echten API-Client ist ein Einzeiler.
+  SAMPLE-CONTENT fürs Hilfezentrum (Beispieldaten, keine UI-Strings — deshalb
+  bewusst NICHT im i18n-Katalog). Zweck heute:
+    1. DEV-Fallback (`sampleHelpCenterRepo`): OHNE Cloudflare-Kontext (reines
+       `next dev`, Unit-Tests) hat kein Tenant echte D1-Artikel — dann liefert
+       das Hilfezentrum diese Beispiele, damit die UI etwas zeigt.
+    2. DEV-SEED (src/server/content/seed.ts): schreibt genau diese Artikel für die
+       Demo-Tenants in die LOKALE D1, damit Admin + Hilfezentrum lokal Inhalte haben.
+
+  `status`/`updatedLabel` sind hier die ANZEIGE-Formen (der Seed mappt sie auf die
+  Storage-Formen draft/published/archived + Zeitstempel).
 */
 
-const ARTICLES: Article[] = [
+export const SAMPLE_ARTICLES: Article[] = [
   {
     id: "start-account",
     slug: "konto-einrichten",
@@ -27,7 +34,14 @@ const ARTICLES: Article[] = [
       "Nach der Registrierung führt dich der Einrichtungs-Assistent in wenigen Minuten zum ersten veröffentlichten Artikel. Du legst Name und Sprache deines Hilfezentrums fest und lädst optional dein Logo hoch.",
       "Deine Farben und dein Logo werden sofort übernommen — das gesamte Hilfezentrum erscheint in deinem Branding, ohne dass du etwas programmieren musst.",
     ],
-    videos: [{ id: "v1", title: "Rundgang: Das Dashboard in 90 Sekunden", durationLabel: "1:30" }],
+    videos: [
+      {
+        id: "v1",
+        title: "Rundgang: Das Dashboard in 90 Sekunden",
+        durationLabel: "1:30",
+        description: "Kurzer Rundgang durch das Dashboard und die wichtigsten Bereiche.",
+      },
+    ],
     relatedIds: ["start-intro", "account-team"],
   },
   {
@@ -58,8 +72,18 @@ const ARTICLES: Article[] = [
       "Auf mobilen Geräten öffnet sich das Widget als Vollbild-Ansicht; auf dem Desktop als eingebettete Seitenleiste. Beides ist ohne weitere Konfiguration einsatzbereit.",
     ],
     videos: [
-      { id: "v2", title: "Widget in unter 2 Minuten einbinden", durationLabel: "1:48" },
-      { id: "v3", title: "Widget an dein Branding anpassen", durationLabel: "2:12" },
+      {
+        id: "v2",
+        title: "Widget in unter 2 Minuten einbinden",
+        durationLabel: "1:48",
+        description: "Schritt-für-Schritt: Snippet kopieren und auf der Seite einbauen.",
+      },
+      {
+        id: "v3",
+        title: "Widget an dein Branding anpassen",
+        durationLabel: "2:12",
+        description: "Farben, Logo und Position des Widgets an dein Branding angleichen.",
+      },
     ],
     relatedIds: ["integration-domain", "start-intro"],
   },
@@ -125,14 +149,14 @@ const ARTICLES: Article[] = [
   },
 ];
 
-const ROADMAP: RoadmapItem[] = [
+export const SAMPLE_ROADMAP: RoadmapItem[] = [
   { id: "r1", title: "Video-Kapitel mit Sprungmarken", status: "in_progress" },
   { id: "r2", title: "Mehr Sprachen für die KI-Antworten", status: "planned" },
   { id: "r3", title: "Statistik-Export als CSV", status: "planned" },
   { id: "r4", title: "Widget-Themes pro Seite", status: "shipped" },
 ];
 
-const CHANGELOG: ChangelogEntry[] = [
+export const SAMPLE_CHANGELOG: ChangelogEntry[] = [
   {
     id: "c1",
     dateLabel: "8. Juli 2026",
@@ -153,7 +177,7 @@ const CHANGELOG: ChangelogEntry[] = [
   },
 ];
 
-const SUGGESTIONS = [
+export const SAMPLE_SUGGESTIONS = [
   "Wie binde ich das Widget ein?",
   "Was passiert, wenn mein Credit-Limit erreicht ist?",
   "Wie lade ich mein Team ein?",
@@ -168,43 +192,50 @@ const toSummary = (a: Article): ArticleSummary => ({
   updatedLabel: a.updatedLabel,
 });
 
-export const fakeHelpCenterRepo: HelpCenterRepository = {
-  listByCategory(): CategoryGroup[] {
-    const order: string[] = [];
-    const byCat = new Map<string, ArticleSummary[]>();
-    for (const a of ARTICLES) {
-      if (!byCat.has(a.category)) {
-        byCat.set(a.category, []);
-        order.push(a.category);
-      }
-      byCat.get(a.category)!.push(toSummary(a));
+export function groupByCategory(articles: Article[]): CategoryGroup[] {
+  const order: string[] = [];
+  const byCat = new Map<string, ArticleSummary[]>();
+  for (const a of articles) {
+    if (!byCat.has(a.category)) {
+      byCat.set(a.category, []);
+      order.push(a.category);
     }
-    return order.map((category) => ({ category, articles: byCat.get(category)! }));
-  },
+    byCat.get(a.category)!.push(toSummary(a));
+  }
+  return order.map((category) => ({ category, articles: byCat.get(category)! }));
+}
 
-  searchItems(): ArticleSummary[] {
-    return ARTICLES.map(toSummary);
-  },
+/**
+ * RAG-STUB (Punkt 3): baut aus den vorhandenen Artikeln eine geerdete
+ * Beispielantwort mit Quellen. Client- UND server-tauglich (keine Bindings).
+ * Wird ersetzt, sobald Vectorize/Workers-AI angebunden sind.
+ */
+export function askStub(question: string, articles: Article[]): AskAnswer {
+  const citations = articles.slice(0, 3).map((a) => ({ id: a.id, title: a.title }));
+  return {
+    question,
+    body: [
+      "Kurz zusammengefasst: Die passenden Schritte findest du in den unten verlinkten Artikeln. Diese Antwort wurde aus deinen eigenen Inhalten zusammengestellt.",
+      "Wenn dir etwas fehlt, verfeinere deine Frage oder öffne den passenden Artikel für alle Details.",
+    ],
+    citations,
+    grounded: citations.length > 0,
+  };
+}
 
-  getArticle(id: string): Article | null {
-    return ARTICLES.find((a) => a.id === id) ?? null;
-  },
-
-  ask(question: string): AskAnswer {
-    // Fake-RAG: liefert eine geerdete Beispielantwort mit Quellen aus den Artikeln.
-    const cites = [ARTICLES[2], ARTICLES[0], ARTICLES[1]].map((a) => ({ id: a.id, title: a.title }));
-    return {
-      question,
-      body: [
-        "Kurz zusammengefasst: Die passenden Schritte findest du in den unten verlinkten Artikeln. Diese Antwort wurde aus deinen eigenen Inhalten zusammengestellt.",
-        "Wenn dir etwas fehlt, verfeinere deine Frage oder öffne den passenden Artikel für alle Details.",
-      ],
-      citations: cites,
-      grounded: true,
-    };
-  },
-
-  roadmap: () => ROADMAP,
-  changelog: () => CHANGELOG,
-  promptSuggestions: () => SUGGESTIONS,
+/**
+ * DEV-Fallback-Repository (async, wie das D1-Facade). Bedient das Hilfezentrum
+ * OHNE Cloudflare-Kontext aus den Sample-Daten. Nur lesend — Pflege läuft
+ * ausschließlich über die (D1-gestützte) Admin-API.
+ */
+export const sampleHelpCenterRepo: HelpCenterRepository = {
+  listByCategory: async () => groupByCategory(SAMPLE_ARTICLES),
+  searchItems: async () => SAMPLE_ARTICLES.map(toSummary),
+  listArticles: async () => SAMPLE_ARTICLES,
+  getArticle: async (slugOrId) =>
+    SAMPLE_ARTICLES.find((a) => a.id === slugOrId || a.slug === slugOrId) ?? null,
+  ask: async (question) => askStub(question, SAMPLE_ARTICLES),
+  roadmap: async () => SAMPLE_ROADMAP,
+  changelog: async () => SAMPLE_CHANGELOG,
+  promptSuggestions: async () => SAMPLE_SUGGESTIONS,
 };

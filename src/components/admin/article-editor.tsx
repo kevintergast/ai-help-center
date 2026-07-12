@@ -42,9 +42,15 @@ export function ArticleEditor({ locale, article }: { locale: Locale; article: Ar
   const [draft, setDraft] = useState<Draft>(current);
   const [editing, setEditing] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(current);
+
+  function showToast(message: string) {
+    setToast(message);
+    window.setTimeout(() => setToast((c) => (c === message ? null : c)), 2600);
+  }
 
   function enterEdit() {
     setDraft(current);
@@ -54,12 +60,40 @@ export function ArticleEditor({ locale, article }: { locale: Locale; article: Ar
     setDraft(current);
     setEditing(false);
   }
-  function publish() {
-    setCurrent(draft);
-    setEditing(false);
-    setConfirmOpen(false);
-    setToast(t("editor.publishedToast"));
-    window.setTimeout(() => setToast((c) => (c === t("editor.publishedToast") ? null : c)), 2600);
+
+  /**
+   * Speichert den Entwurf (PUT) und veröffentlicht ihn (POST /publish) gegen die
+   * tenant-gebundene Content-API. Cookies (Session) gehen bei same-origin
+   * automatisch mit; die API erzwingt requireTeam("content") + Tenant-Scope.
+   * Videos/Verwandte werden hier NICHT gesendet → das Repo behält sie (Teil-Update).
+   */
+  async function publish() {
+    setSaving(true);
+    try {
+      const put = await fetch(`/api/v1/admin/articles/${article.id}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          title: draft.title,
+          category: draft.category,
+          body: draft.blocks,
+        }),
+      });
+      if (!put.ok) throw new Error("save_failed");
+
+      const pub = await fetch(`/api/v1/admin/articles/${article.id}/publish`, { method: "POST" });
+      if (!pub.ok) throw new Error("publish_failed");
+
+      setCurrent(draft);
+      setEditing(false);
+      setConfirmOpen(false);
+      showToast(t("editor.publishedToast"));
+    } catch {
+      setConfirmOpen(false);
+      showToast(t("editor.saveError"));
+    } finally {
+      setSaving(false);
+    }
   }
 
   const setBlock = (i: number, v: string) =>
@@ -203,7 +237,7 @@ export function ArticleEditor({ locale, article }: { locale: Locale; article: Ar
             <Button variant="ghost" size="sm" onClick={() => setConfirmOpen(false)}>
               {t("editor.cancel")}
             </Button>
-            <Button variant="primary" size="sm" onClick={publish}>
+            <Button variant="primary" size="sm" onClick={publish} disabled={saving}>
               {t("editor.confirmPublish")}
             </Button>
           </>

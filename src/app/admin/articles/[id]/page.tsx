@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { getT } from "@/i18n/t";
-import { fakeHelpCenterRepo } from "@/lib/content/fake-repo";
+import { getArticleForEdit } from "@/server/content/runtime";
 import { ArticleEditor } from "@/components/admin/article-editor";
 
 export default async function AdminArticleEditPage({
@@ -13,7 +13,7 @@ export default async function AdminArticleEditPage({
   if (!tenant) return null;
   const { id } = await params;
   const t = getT(tenant.defaultLocale);
-  const article = fakeHelpCenterRepo.getArticle(id);
+  const article = await getArticleForEdit(tenant, id);
 
   if (!article) {
     return (

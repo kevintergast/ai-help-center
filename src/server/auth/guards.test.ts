@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import type { Tenant } from "@/lib/tenant/types";
 import type { ApiEnv, AuthInstance, GuardSessionData } from "@/server/api/context";
-import { requireFreshMfa } from "./guards";
+import { evaluateTeamAccess, requireFreshMfa } from "./guards";
 import { runWithTenant } from "./tenant-context";
 
 /**
@@ -100,5 +100,58 @@ describe("requireFreshMfa (Step-up-Guard)", () => {
     };
     expect((await appWith(data, 30).request("/x")).status).toBe(403);
     expect((await appWith(data, 120).request("/x")).status).toBe(200);
+  });
+});
+
+/**
+ * Reine Entscheidungslogik, die SOWOHL die API-Gate (`requireTeam`) ALS AUCH die
+ * serverseitige Seiten-Gate (`requireTeamPage`, page-guard.ts) teilen. Verhinderter
+ * realer Fehlerfall: ein anonymer/tenant-fremder/nicht-MFA/zu-niedrig-berechtigter
+ * Aufruf darf NIE als "ok" durchgehen (sonst leakt die /admin-Lesefläche Entwürfe).
+ * Läuft im aktiven Tenant-Kontext (`enforceSessionTenant` liest ihn dort).
+ */
+describe("evaluateTeamAccess (geteilte Team-Gate-Logik)", () => {
+  const run = (data: GuardSessionData | null, min: "content" | "admin" | "owner" = "content") =>
+    runWithTenant("t_a", () => evaluateTeamAccess(data, min));
+
+  const full = (over: Partial<GuardSessionData["session"]> = {}, role = "content"): GuardSessionData => ({
+    session: { tenantId: "t_a", mfaVerified: true, ...over },
+    user: { role, twoFactorEnabled: true },
+  });
+
+  it("keine Session → unauthorized/401", () => {
+    expect(run(null)).toEqual({ ok: false, error: "unauthorized", status: 401 });
+  });
+
+  it("tenant-fremde Session → unauthorized/401 (kein Existenz-Orakel)", () => {
+    expect(run(full({ tenantId: "t_other" }))).toEqual({
+      ok: false,
+      error: "unauthorized",
+      status: 401,
+    });
+  });
+
+  it("MFA nicht eingerichtet → mfa_setup_required/403", () => {
+    const data = full();
+    data.user.twoFactorEnabled = false;
+    expect(run(data)).toEqual({ ok: false, error: "mfa_setup_required", status: 403 });
+  });
+
+  it("MFA eingerichtet, aber nicht verifiziert → mfa_verification_required/403", () => {
+    expect(run(full({ mfaVerified: false }))).toEqual({
+      ok: false,
+      error: "mfa_verification_required",
+      status: 403,
+    });
+  });
+
+  it("Rolle < min → forbidden/403", () => {
+    expect(run(full({}, "user"))).toEqual({ ok: false, error: "forbidden", status: 403 });
+  });
+
+  it("content mit MFA → ok (und höhere Rollen erben)", () => {
+    expect(run(full({}, "content"))).toEqual({ ok: true });
+    expect(run(full({}, "owner"))).toEqual({ ok: true });
+    expect(run(full({}, "owner"), "admin")).toEqual({ ok: true });
   });
 });

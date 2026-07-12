@@ -183,7 +183,141 @@ export const de = {
   "editor.confirmPublish": "Jetzt veröffentlichen",
   "editor.cancel": "Abbrechen",
   "editor.publishedToast": "Artikel veröffentlicht.",
+  "editor.saveError": "Speichern fehlgeschlagen. Bitte erneut versuchen.",
   "editor.close": "Schließen",
+
+  // Auth-Journey (Punkt 4a) — gemeinsame Bausteine
+  "auth.or": "oder",
+  "auth.email": "E-Mail-Adresse",
+  "auth.emailPlaceholder": "name@beispiel.de",
+  "auth.password": "Passwort",
+  "auth.password.show": "Passwort anzeigen",
+  "auth.password.hide": "Passwort verbergen",
+  "auth.name": "Name",
+  "auth.namePlaceholder": "Vor- und Nachname",
+  "auth.passwordHint": "Mindestens 10 Zeichen.",
+  "auth.submitting": "Bitte warten …",
+  "auth.social.google": "Mit Google fortfahren",
+  "auth.social.microsoft": "Mit Microsoft fortfahren",
+
+  // Anmelden
+  "auth.login.title": "Anmelden",
+  "auth.login.subtitle": "Melde dich bei deinem Hilfezentrum an.",
+  "auth.login.submit": "Anmelden",
+  "auth.login.forgot": "Passwort vergessen?",
+  "auth.login.noAccount": "Noch kein Konto?",
+  "auth.login.signupLink": "Registrieren",
+
+  // Registrieren
+  "auth.signup.title": "Konto erstellen",
+  "auth.signup.subtitle": "Registriere dich, um loszulegen.",
+  "auth.signup.submit": "Konto erstellen",
+  "auth.signup.haveAccount": "Bereits registriert?",
+  "auth.signup.loginLink": "Anmelden",
+
+  // E-Mail-Verifizierung
+  "auth.verify.title": "Bestätige deine E-Mail",
+  "auth.verify.body":
+    "Wir haben dir einen Bestätigungslink an {email} geschickt. Öffne ihn, um dein Konto zu aktivieren.",
+  "auth.verify.bodyNoEmail":
+    "Wir haben dir einen Bestätigungslink geschickt. Öffne ihn, um dein Konto zu aktivieren.",
+  "auth.verify.resend": "E-Mail erneut senden",
+  "auth.verify.resent": "Bestätigungs-E-Mail erneut gesendet.",
+  "auth.verify.successBody": "Deine E-Mail wurde bestätigt. Du kannst dich jetzt anmelden.",
+  "auth.verify.toLogin": "Zur Anmeldung",
+
+  // Passwort vergessen / zurücksetzen
+  "auth.forgot.title": "Passwort zurücksetzen",
+  "auth.forgot.subtitle": "Gib deine E-Mail-Adresse ein — wir senden dir einen Link zum Zurücksetzen.",
+  "auth.forgot.submit": "Link senden",
+  "auth.forgot.sent":
+    "Falls ein Konto mit dieser Adresse existiert, haben wir einen Link zum Zurücksetzen gesendet.",
+  "auth.forgot.backToLogin": "Zurück zur Anmeldung",
+  "auth.reset.title": "Neues Passwort festlegen",
+  "auth.reset.subtitle": "Wähle ein neues Passwort für dein Konto.",
+  "auth.reset.newPassword": "Neues Passwort",
+  "auth.reset.confirmPassword": "Passwort bestätigen",
+  "auth.reset.submit": "Passwort speichern",
+  "auth.reset.success": "Dein Passwort wurde geändert. Du kannst dich jetzt anmelden.",
+  "auth.reset.missingToken": "Dieser Link ist ungültig oder unvollständig. Fordere einen neuen an.",
+  "auth.reset.mismatch": "Die Passwörter stimmen nicht überein.",
+
+  // Zwei-Faktor-Challenge (inline / Step-up)
+  "auth.twofa.totpPrompt": "Gib den 6-stelligen Code aus deiner Authenticator-App ein.",
+  "auth.twofa.otpPrompt": "Wir senden dir einen Code per E-Mail. Fordere ihn an und gib ihn hier ein.",
+  "auth.twofa.backupPrompt": "Gib einen deiner Backup-Codes ein.",
+  "auth.twofa.codeLabel": "Bestätigungscode",
+  "auth.twofa.backupLabel": "Backup-Code",
+  "auth.twofa.verify": "Bestätigen",
+  "auth.twofa.useTotp": "Authenticator-App verwenden",
+  "auth.twofa.useOtp": "Code per E-Mail anfordern",
+  "auth.twofa.useBackup": "Backup-Code verwenden",
+  "auth.twofa.otpSent": "Code gesendet. Prüfe dein Postfach.",
+  "auth.twofa.sendOtp": "Code senden",
+  "auth.mfaChallenge.title": "Identität bestätigen",
+  "auth.mfaChallenge.body": "Diese Aktion erfordert eine erneute Zwei-Faktor-Bestätigung.",
+
+  // MFA-Einrichtung (TOTP-Enrollment)
+  "auth.mfa.title": "Zwei-Faktor-Authentifizierung einrichten",
+  "auth.mfa.teamNote": "Team-Rollen (Admin/Owner) benötigen eine Authenticator-App (TOTP).",
+  "auth.mfa.passwordPrompt":
+    "Bestätige dein Passwort, um die Einrichtung zu starten (bei Social-Login leer lassen).",
+  "auth.mfa.start": "Einrichtung starten",
+  "auth.mfa.scanTitle": "1. Authenticator-App einrichten",
+  "auth.mfa.scanBody": "Gib den Schlüssel in deiner Authenticator-App ein oder öffne den otpauth-Link.",
+  "auth.mfa.manualKey": "Einrichtungsschlüssel",
+  "auth.mfa.otpauthLink": "otpauth-Link öffnen",
+  "auth.mfa.verifyBody": "2. Gib den aktuell angezeigten 6-stelligen Code ein.",
+  "auth.mfa.verify": "Aktivieren",
+  "auth.mfa.backupTitle": "Backup-Codes",
+  "auth.mfa.backupBody":
+    "Bewahre diese Codes sicher auf. Jeder Code funktioniert einmal, falls du keinen Zugriff auf deine App hast.",
+  "auth.mfa.enabledBody": "Deine Zwei-Faktor-Authentifizierung ist jetzt aktiv.",
+  "auth.mfa.done": "Fertig",
+
+  // Einladung annehmen
+  "auth.invite.title": "Einladung annehmen",
+  "auth.invite.body": "Du wurdest in ein Team eingeladen. Nimm die Einladung an, um beizutreten.",
+  "auth.invite.accept": "Einladung annehmen",
+  "auth.invite.missingToken": "Diese Einladung ist ungültig oder unvollständig.",
+  "auth.invite.needLogin":
+    "Melde dich mit der eingeladenen E-Mail-Adresse an oder registriere dich, um die Einladung anzunehmen.",
+  "auth.invite.login": "Anmelden",
+  "auth.invite.signup": "Registrieren",
+  "auth.invite.successBody":
+    "Die Einladung wurde angenommen. Richte jetzt die Zwei-Faktor-Authentifizierung ein, um Team-Funktionen zu nutzen.",
+  "auth.invite.setupMfa": "Zwei-Faktor einrichten",
+  "auth.invite.alreadyMember": "Du bist bereits Teil dieses Teams.",
+  "auth.invite.expired": "Diese Einladung ist abgelaufen. Bitte fordere eine neue an.",
+  "auth.invite.emailMismatch":
+    "Diese Einladung gehört zu einer anderen E-Mail-Adresse. Melde dich mit der eingeladenen Adresse an.",
+  "auth.invite.notFound": "Diese Einladung wurde nicht gefunden.",
+
+  // Fehlermeldungen (nutzerfreundlich, ohne Account-Enumeration)
+  "auth.error.invalidCredentials": "E-Mail-Adresse oder Passwort ist falsch.",
+  "auth.error.emailNotVerified": "Bitte bestätige zuerst deine E-Mail-Adresse.",
+  "auth.error.emailInUse": "Für diese E-Mail-Adresse besteht bereits ein Konto.",
+  "auth.error.accountLocked":
+    "Zu viele Fehlversuche. Dein Konto ist vorübergehend gesperrt. Versuche es später erneut.",
+  "auth.error.tooManyAttempts": "Zu viele Versuche. Bitte fordere einen neuen Code an.",
+  "auth.error.invalidCode": "Der Code ist ungültig. Bitte versuche es erneut.",
+  "auth.error.codeExpired": "Der Code ist abgelaufen. Fordere einen neuen an.",
+  "auth.error.linkInvalid": "Dieser Link ist ungültig oder abgelaufen.",
+  "auth.error.banned": "Dieses Konto wurde gesperrt.",
+  "auth.error.passwordCompromised": "Dieses Passwort gilt als unsicher. Bitte wähle ein anderes.",
+  "auth.error.passwordTooShort": "Das Passwort muss mindestens 10 Zeichen lang sein.",
+  "auth.error.network": "Verbindung fehlgeschlagen. Bitte prüfe deine Internetverbindung.",
+  "auth.error.generic": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+  "auth.error.totpRequired":
+    "Für dein Konto ist die Authenticator-App (TOTP) erforderlich. Bitte gib den Code aus deiner App ein.",
+
+  // Formular-Validierung
+  "auth.validate.emailRequired": "Bitte gib deine E-Mail-Adresse ein.",
+  "auth.validate.emailInvalid": "Bitte gib eine gültige E-Mail-Adresse ein.",
+  "auth.validate.passwordRequired": "Bitte gib ein Passwort ein.",
+  "auth.validate.passwordTooShort": "Das Passwort muss mindestens 10 Zeichen lang sein.",
+  "auth.validate.nameRequired": "Bitte gib deinen Namen ein.",
+  "auth.validate.codeInvalid": "Bitte gib den 6-stelligen Code ein.",
 } as const;
 
 export type MessageKey = keyof typeof de;

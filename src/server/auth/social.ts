@@ -1,5 +1,5 @@
 import type { BetterAuthOptions } from "better-auth";
-import { gatewayRedirectURI } from "./oauth-gateway";
+import { gatewayRedirectURI, type SocialProviderId } from "./oauth-gateway";
 
 /**
  * PHASE E — Social-Provider-Konfiguration (Google + Microsoft).
@@ -86,6 +86,22 @@ export function buildSocialProviders(
   return Object.keys(out).length > 0
     ? (out as BetterAuthOptions["socialProviders"])
     : undefined;
+}
+
+/**
+ * Leitet aus den (optionalen) Credentials ab, WELCHE Social-Provider für den
+ * Nutzer verfügbar sind (vollständige Client-ID + Secret). Reine, testbare
+ * Ableitung — das Login-/Signup-UI blendet nicht konfigurierte Provider (heute:
+ * Microsoft ohne Key) damit einfach aus, ohne Code-Änderung. Reihenfolge stabil
+ * (google, microsoft), damit die UI deterministisch rendert.
+ */
+export function availableSocialProviders(
+  input: SocialProvidersInput | undefined,
+): SocialProviderId[] {
+  const out: SocialProviderId[] = [];
+  if (hasCredentials(input?.google)) out.push("google");
+  if (hasCredentials(input?.microsoft)) out.push("microsoft");
+  return out;
 }
 
 /** Liest die Provider-Credentials aus der Cloudflare-Umgebung (Phase E). */

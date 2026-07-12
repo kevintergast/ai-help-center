@@ -4,8 +4,15 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { Locale } from "@/lib/tenant/types";
 import type { MessageKey } from "@/i18n/messages/de";
 import { getT } from "@/i18n/t";
-import type { ArticleStatus, ArticleSummary, AskAnswer } from "@/lib/content/types";
-import { fakeHelpCenterRepo as repo } from "@/lib/content/fake-repo";
+import type {
+  Article,
+  ArticleStatus,
+  ArticleSummary,
+  AskAnswer,
+  CategoryGroup,
+  HelpCenterData,
+} from "@/lib/content/types";
+import { askStub } from "@/lib/content/fake-repo";
 import { cn } from "@/lib/ui/cn";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,15 +60,23 @@ export interface HelpCenterProps {
   locale: Locale;
   tenantName: string;
   logoUrl: string | null;
+  /** Serverseitig aufgelöstes Lese-Bundle (D1 oder Sample-Fallback). */
+  data: HelpCenterData;
 }
 
-export function HelpCenter({ locale, tenantName, logoUrl }: HelpCenterProps) {
+export function HelpCenter({ locale, tenantName, logoUrl, data }: HelpCenterProps) {
   const t = getT(locale);
-  const groups = useMemo(() => repo.listByCategory(), []);
+  const groups = data.groups;
   const searchItems = useMemo(
-    () => repo.searchItems().map((a) => ({ id: a.id, title: a.title, category: a.category })),
-    [],
+    () => data.searchItems.map((a) => ({ id: a.id, title: a.title, category: a.category })),
+    [data.searchItems],
   );
+  // Detail-/Verwandten-/Quellen-Lookups laufen lokal über das vorab geladene Bundle.
+  const articleById = useMemo(
+    () => new Map(data.articles.map((a) => [a.id, a])),
+    [data.articles],
+  );
+  const getArticle = (id: string): Article | null => articleById.get(id) ?? null;
 
   const [view, setView] = useState<View>({ kind: "welcome" });
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -73,7 +88,8 @@ export function HelpCenter({ locale, tenantName, logoUrl }: HelpCenterProps) {
     setSidebarOpen(false);
   }
   function ask(text: string) {
-    setView({ kind: "answer", answer: repo.ask(text) });
+    // RAG-STUB (Punkt 3): lokale, geerdete Beispielantwort über das Bundle.
+    setView({ kind: "answer", answer: askStub(text, data.articles) });
     setSidebarOpen(false);
   }
   function goHome() {
@@ -196,9 +212,9 @@ export function HelpCenter({ locale, tenantName, logoUrl }: HelpCenterProps) {
           {view.kind === "welcome" ? (
             <WelcomeView t={t} groups={groups} onOpen={openArticle} />
           ) : view.kind === "article" ? (
-            <ArticleView t={t} id={view.id} onOpen={openArticle} onBack={goHome} />
+            <ArticleView t={t} id={view.id} getArticle={getArticle} onOpen={openArticle} onBack={goHome} />
           ) : (
-            <AnswerView t={t} answer={view.answer} onOpen={openArticle} onBack={goHome} />
+            <AnswerView t={t} answer={view.answer} getArticle={getArticle} onOpen={openArticle} onBack={goHome} />
           )}
         </main>
       </div>
@@ -231,7 +247,7 @@ export function HelpCenter({ locale, tenantName, logoUrl }: HelpCenterProps) {
                   { id: "ask", label: t("hc.modeAsk") },
                   { id: "search", label: t("hc.modeSearch") },
                 ]}
-                suggestions={repo.promptSuggestions()}
+                suggestions={data.suggestions}
                 labels={{ send: t("hc.promptSend"), mic: t("hc.promptMic") }}
                 onSubmit={(text) => ask(text)}
                 className="shadow-focusglow"
@@ -248,7 +264,7 @@ export function HelpCenter({ locale, tenantName, logoUrl }: HelpCenterProps) {
         closeLabel={t("hc.close")}
       >
         <ul className="flex flex-col gap-3">
-          {repo.roadmap().map((it) => (
+          {data.roadmap.map((it) => (
             <li key={it.id} className="flex items-center justify-between gap-3">
               <span className="text-ink">{it.title}</span>
               <Badge tone={it.status === "shipped" ? "ok" : it.status === "in_progress" ? "brand" : "neutral"}>
@@ -266,7 +282,7 @@ export function HelpCenter({ locale, tenantName, logoUrl }: HelpCenterProps) {
         closeLabel={t("hc.close")}
       >
         <ul className="flex flex-col gap-4">
-          {repo.changelog().map((c) => (
+          {data.changelog.map((c) => (
             <li key={c.id}>
               <div className="text-xs text-ink-muted">{c.dateLabel}</div>
               <div className="font-medium text-ink">{c.title}</div>
@@ -287,7 +303,7 @@ function WelcomeView({
   onOpen,
 }: {
   t: T;
-  groups: ReturnType<typeof repo.listByCategory>;
+  groups: CategoryGroup[];
   onOpen: (id: string) => void;
 }) {
   const popular = groups.flatMap((g) => g.articles).slice(0, 4);
@@ -363,18 +379,20 @@ function ArticleMiniList({
 function ArticleView({
   t,
   id,
+  getArticle,
   onOpen,
   onBack,
 }: {
   t: T;
   id: string;
+  getArticle: (id: string) => Article | null;
   onOpen: (id: string) => void;
   onBack: () => void;
 }) {
-  const article = repo.getArticle(id);
+  const article = getArticle(id);
   if (!article) return null;
   const related = article.relatedIds
-    .map((rid) => repo.getArticle(rid))
+    .map((rid) => getArticle(rid))
     .filter((a): a is NonNullable<typeof a> => a !== null);
 
   return (
@@ -448,16 +466,18 @@ function ArticleView({
 function AnswerView({
   t,
   answer,
+  getArticle,
   onOpen,
   onBack,
 }: {
   t: T;
   answer: AskAnswer;
+  getArticle: (id: string) => Article | null;
   onOpen: (id: string) => void;
   onBack: () => void;
 }) {
   const sources = answer.citations
-    .map((c) => repo.getArticle(c.id))
+    .map((c) => getArticle(c.id))
     .filter((a): a is NonNullable<typeof a> => a !== null);
 
   return (

@@ -242,6 +242,7 @@ function makeApp() {
     getBrandingDeps: async () => null,
     getTeamDeps: async () => null,
     getLegalDeps: async () => null,
+    getContentDeps: async () => null,
     oauthGateway: { getSecret: async () => SECRET, nonceStore },
   };
   return { app: buildApiApp(deps), db, nonceStore };
@@ -340,6 +341,7 @@ describe("E2 — Gateway-Route (302 auf Tenant-Origin, fail-closed sonst)", () =
       getBrandingDeps: async () => null,
       getTeamDeps: async () => null,
       getLegalDeps: async () => null,
+      getContentDeps: async () => null,
       oauthGateway: {
         getSecret: async () => SECRET,
         nonceStore,

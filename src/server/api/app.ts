@@ -11,6 +11,7 @@ import {
 import { enforceSessionTenant } from "@/server/auth/session-guard";
 import { runWithTenant } from "@/server/auth/tenant-context";
 import { brandingAdminRouter, brandingPublicRouter } from "./branding";
+import { contentAdminRouter } from "./content";
 import type { ApiDeps, ApiEnv, AuthInstance, GuardSessionData } from "./context";
 import { legalAdminRouter, legalPublicRouter } from "./legal";
 import { isPublicPath } from "./public-routes";
@@ -174,9 +175,12 @@ export function buildApiApp(deps: ApiDeps) {
   app.route("/admin/ownership", ownershipRouter(deps));
   app.route("/invitations", invitationsAcceptRouter(deps));
 
+  // Content-Pflege (Punkt 2): Artikel-CRUD + Lifecycle, requireTeam("content").
+  // Tenant-scoped; ohne D1-Binding 503. Details/Sicherheit: ./content.ts
+  app.route("/admin/articles", contentAdminRouter(deps));
+
   // Kommende Feature-Router (werden mit dem jeweiligen Feature implementiert):
-  // app.route("/articles", articlesRouter);  // Inhalte pflegen (CRUD, admin-scoped)
-  // app.route("/ask", askRouter);            // dynamischen Artikel anfragen (RAG)
+  // app.route("/ask", askRouter);            // dynamischen Artikel anfragen (RAG, Punkt 3)
 
   // (5) 404 erst NACH Tenant- und Auth-Prüfung erreichbar (siehe Default-Deny).
   app.notFound((c) => c.json({ error: "not_found" }, 404));

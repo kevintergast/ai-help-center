@@ -1,7 +1,9 @@
 /**
  * Domänen-Typen der Inhalts-/RAG-Schicht (transport-agnostisch).
- * Die UI baut ausschließlich gegen diese Typen; heute liefert sie ein Fake
- * (src/lib/content/fake-repo.ts), später `/api/v1/articles` + `/ask` (D1/Vectorize).
+ * Die UI baut ausschließlich gegen diese Typen. Gelesen wird über die (async)
+ * `HelpCenterRepository`, die heute entweder D1 (src/server/content) oder — ohne
+ * Cloudflare-Kontext — ein Sample-Fake (src/lib/content/fake-repo.ts) erfüllt.
+ * `ask()`/RAG (D1/Vectorize) ist bewusst noch ein Stub (Punkt 3).
  */
 
 export type ArticleStatus = "current" | "stale" | "ai" | "draft";
@@ -15,6 +17,12 @@ export interface ArticleVideo {
   id: string;
   title: string;
   durationLabel: string;
+  /**
+   * PFLICHT (a11y + KI-Grounding): eine kurze Beschreibung des Videoinhalts.
+   * Wird in der UI aktuell nicht separat gerendert, ist aber Pflichtfeld im
+   * Storage (videos_json) und wird bei der Validierung erzwungen.
+   */
+  description: string;
 }
 
 export interface ArticleSummary {
@@ -60,13 +68,38 @@ export interface ChangelogEntry {
   description: string;
 }
 
-/** Minimaler Lesezugriff aufs Hilfezentrum — implementiert vom Fake und später vom API-Client. */
+/**
+ * Öffentlicher Lesezugriff aufs Hilfezentrum (nur veröffentlichte Inhalte).
+ * Die Instanz ist bereits auf EINEN Tenant + Locale gebunden (daher keine
+ * Parameter) — gebaut über `getHelpCenterRepo(tenant)` (src/server/content).
+ *
+ * ASYNC: D1 ist asynchron; alle Methoden liefern Promises. Alle Aufrufstellen
+ * (Server-Seiten) awaiten. `ask()` (RAG) ist bewusst noch ein Stub (Punkt 3).
+ */
 export interface HelpCenterRepository {
-  listByCategory(): CategoryGroup[];
-  searchItems(): ArticleSummary[];
-  getArticle(id: string): Article | null;
-  ask(question: string): AskAnswer;
-  roadmap(): RoadmapItem[];
-  changelog(): ChangelogEntry[];
-  promptSuggestions(): string[];
+  listByCategory(): Promise<CategoryGroup[]>;
+  searchItems(): Promise<ArticleSummary[]>;
+  /** Alle veröffentlichten Artikel als Volltext (für das Client-Bundle: Detail + Verwandte). */
+  listArticles(): Promise<Article[]>;
+  getArticle(slugOrId: string): Promise<Article | null>;
+  ask(question: string): Promise<AskAnswer>;
+  roadmap(): Promise<RoadmapItem[]>;
+  changelog(): Promise<ChangelogEntry[]>;
+  promptSuggestions(): Promise<string[]>;
+}
+
+/**
+ * Vorab serverseitig aufgelöstes Lese-Bundle fürs Hilfezentrum. Die
+ * (Client-)Komponente `HelpCenter` rendert ausschließlich hieraus und macht KEINE
+ * eigenen async-Repo-Aufrufe mehr — Detail-/Verwandten-/Quellen-Lookups laufen
+ * lokal über `articles`. `ask()` bleibt ein clientseitiger Stub über `articles`
+ * (RAG = Punkt 3), bis Vectorize angebunden ist.
+ */
+export interface HelpCenterData {
+  groups: CategoryGroup[];
+  searchItems: ArticleSummary[];
+  articles: Article[];
+  roadmap: RoadmapItem[];
+  changelog: ChangelogEntry[];
+  suggestions: string[];
 }

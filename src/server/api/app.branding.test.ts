@@ -119,6 +119,7 @@ function makeApp(brandingAvailable = true) {
     getBrandingDeps: async () => (brandingAvailable ? { repo, bucket } : null),
     getTeamDeps: async () => null,
     getLegalDeps: async () => null,
+    getContentDeps: async () => null,
   };
   return { app: buildApiApp(deps), db, bucket, repo };
 }

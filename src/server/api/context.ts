@@ -6,6 +6,7 @@ import type { OAuthGatewayDeps } from "@/server/auth/oauth-gateway";
 import type { InvitationEmailData } from "@/server/auth/resend";
 import type { TeamUserRepository } from "@/server/auth/team-users";
 import type { BrandingDeps } from "@/server/branding/store";
+import type { ContentDeps } from "@/server/content/store";
 import type { LegalDeps } from "@/server/legal/store";
 
 /**
@@ -44,6 +45,12 @@ export interface ApiDeps {
    * Map-basierten Fake — kein globaler Zustand.
    */
   getLegalDeps(): Promise<LegalDeps | null>;
+  /**
+   * Content-Persistenz (Punkt 2, Plan v2 P2) der Request-Runtime (D1). `null` =
+   * Binding fehlt → die Content-Admin-Routen antworten 503 fail-closed. Tests
+   * injizieren einen (sqlite-/Map-basierten) Fake — kein globaler Zustand.
+   */
+  getContentDeps(): Promise<ContentDeps | null>;
   /**
    * OAuth-Gateway (Phase E): Krypto-/Nonce-Infrastruktur für den zentralen
    * Provider-Callback auf `auth.hallofhelp.app`. `null`/fehlend ⇒ der

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { getT } from "@/i18n/t";
-import { fakeAdmin } from "@/lib/admin/fake-admin";
+import { listAdminArticleRows } from "@/server/content/runtime";
 import { AdminPageHeader } from "@/components/admin/admin-shell";
 import { ARTICLE_STATUS } from "@/components/admin/status";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,9 @@ export default async function AdminArticlesPage() {
   if (!tenant) return null;
   const t = getT(tenant.defaultLocale);
   const nf = new Intl.NumberFormat(tenant.defaultLocale === "de" ? "de-DE" : "en-US");
-  const rows = fakeAdmin.articles();
+  // Echte, tenant-gebundene Artikelzeilen aus D1 (Fallback: Sample ohne CF-Kontext).
+  // views/helpfulPct/usedIn sind 0-Platzhalter — echte Analytics sind P5.
+  const rows = await listAdminArticleRows(tenant);
 
   const statusOptions = [
     { value: "all", label: t("admin.articles.filterAll") },

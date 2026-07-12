@@ -100,6 +100,7 @@ function makeApp(legalAvailable = true) {
     getBrandingDeps: async () => null,
     getTeamDeps: async () => null,
     getLegalDeps: async () => (legalAvailable ? { repo } : null),
+    getContentDeps: async () => null,
   };
   return { app: buildApiApp(deps), db, repo };
 }

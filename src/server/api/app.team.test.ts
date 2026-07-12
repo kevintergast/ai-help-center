@@ -232,6 +232,7 @@ function makeApp(opts: { teamAvailable?: boolean; emailMode?: EmailMode } = {}) 
     getBrandingDeps: async () => null,
     getTeamDeps: async () => (teamAvailable ? team : null),
     getLegalDeps: async () => null,
+    getContentDeps: async () => null,
   };
   return { app: buildApiApp(deps), db, invitations, users, audit, sentEmails };
 }
