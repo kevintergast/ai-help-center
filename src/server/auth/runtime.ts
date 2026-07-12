@@ -5,6 +5,7 @@ import type { Tenant } from "@/lib/tenant/types";
 import { tenantAuthOptions } from "./auth";
 import { createEmailSenders } from "./resend";
 import { getAuthSecret } from "./secret";
+import { socialProvidersFromEnv } from "./social";
 import { tenantAwareAdapter } from "./tenant-adapter";
 
 /**
@@ -60,6 +61,17 @@ export function tenantBaseURL(tenant: Tenant): string {
 export async function createAuth(
   env: CloudflareEnv & { RESEND_API_KEY?: string },
   tenant: Tenant,
+  opts?: {
+    /**
+     * Operator-Onboarding (Punkt 4b): Beobachter für die generierte Reset-/
+     * Set-Passwort-URL. better-auths `requestPasswordReset` ruft
+     * `sendResetPassword({ url })` — dieser Hook fängt die URL ab (versandt wird
+     * sie unverändert über Resend, inert ohne Key), damit der Provisioning-Flow
+     * dem Owner einen Onboarding-Link geben und dev-only als `devLink`
+     * zurückreichen kann. Ändert den Versand NICHT.
+     */
+    captureResetUrl?: (url: string) => void;
+  },
 ): Promise<ReturnType<typeof betterAuth>> {
   const secret = await getAuthSecret(env);
   const senders = createEmailSenders(env);
@@ -68,6 +80,9 @@ export async function createAuth(
   const base = tenantAuthOptions(secret, {
     issuer: tenant.slug,
     sendOtpEmail: senders.sendOtpEmail,
+    // Phase E: Google/Microsoft aus der Umgebung; fehlt ein Key-Paar, wird der
+    // Provider in buildSocialProviders NICHT registriert (kein Crash).
+    socialProviders: socialProvidersFromEnv(env),
   });
 
   // Innerer Adapter aus der D1-Bindung (auto-detektiert -> D1SqliteDialect).
@@ -80,7 +95,10 @@ export async function createAuth(
     emailAndPassword: {
       ...base.emailAndPassword,
       enabled: true,
-      sendResetPassword: senders.sendResetPassword,
+      sendResetPassword: async (data) => {
+        opts?.captureResetUrl?.(data.url);
+        await senders.sendResetPassword(data);
+      },
     },
     emailVerification: {
       ...base.emailVerification,

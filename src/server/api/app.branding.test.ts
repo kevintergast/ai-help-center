@@ -118,6 +118,8 @@ function makeApp(brandingAvailable = true) {
       buildAuth({ adapter: memoryAdapter(db)(tenantAuthOptions(TEST_SECRET)), secret: TEST_SECRET }),
     getBrandingDeps: async () => (brandingAvailable ? { repo, bucket } : null),
     getTeamDeps: async () => null,
+    getLegalDeps: async () => null,
+    getContentDeps: async () => null,
   };
   return { app: buildApiApp(deps), db, bucket, repo };
 }

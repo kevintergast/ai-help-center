@@ -1,5 +1,10 @@
 import type { Tenant } from "@/lib/tenant/types";
-import { tenantSlugFromHost, resolveTenant as resolveFromRegistry } from "@/lib/tenant/resolve";
+import {
+  isOperatorHost,
+  OPERATOR_SUBDOMAIN,
+  tenantSlugFromHost,
+  resolveTenant as resolveFromRegistry,
+} from "@/lib/tenant/resolve";
 import { getDbSafe } from "@/server/db/client";
 import { D1TenantRepository } from "./repository";
 
@@ -20,6 +25,11 @@ export async function resolveWithSourceStrict(
   source: TenantSource,
   host: string | null | undefined,
 ): Promise<Tenant | null> {
+  // OPERATOR-INSTANZ zuerst (Punkt 4b): `app.<base>` löst über den festen
+  // Operator-Slug auf (in der generischen Slug-Auflösung ist `app` reserviert →
+  // dort unauffindbar). Damit KANN nur dieser Host-Check die Operator-Instanz
+  // erreichen — kein Kunden-Datensatz kapert sie.
+  if (isOperatorHost(host)) return source.getBySlug(OPERATOR_SUBDOMAIN);
   const slug = tenantSlugFromHost(host);
   const hostname = (host ?? "").split(":")[0].toLowerCase();
   return slug ? source.getBySlug(slug) : source.getByCustomDomain(hostname);

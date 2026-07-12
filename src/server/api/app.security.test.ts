@@ -73,6 +73,8 @@ function makeApp() {
     // 503); Verhaltensfälle testen app.branding.test.ts / app.team.test.ts.
     getBrandingDeps: async () => null,
     getTeamDeps: async () => null,
+    getLegalDeps: async () => null,
+    getContentDeps: async () => null,
   };
   return { app: buildApiApp(deps), db };
 }
@@ -394,6 +396,7 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
         ],
         "prefixes": [
           "/api/v1/auth/",
+          "/api/v1/legal/",
         ],
       }
     `);

@@ -23,7 +23,22 @@ export const PUBLIC_ROUTES = {
   // Tenant-Logo muss ohne Session laden (erster Paint, Widget). Liefert NUR
   // das Logo des per Host aufgelösten Tenants (kein User-Input im R2-Key).
   exact: ["/api/v1/health", "/api/v1/tenant", "/api/v1/branding/logo"],
-  prefixes: [`${AUTH_BASE_PATH}/`],
+  // /api/v1/legal/: BEWUSST public — Besucher müssen Impressum/Datenschutz/AGB
+  // OHNE Login lesen können (rechtliche Pflicht). Der /legal-Subbaum ist
+  // AUSSCHLIESSLICH öffentliches Lesen (GET /legal/:docType); JEDE Pflege läuft
+  // über den getrennten, gegateten /admin/legal-Subbaum (der NICHT mit
+  // /api/v1/legal/ beginnt und damit von diesem Prefix NICHT erfasst wird).
+  // Analog zur /branding- vs. /admin/branding-Trennung — keine Aufweichung.
+  // `${AUTH_BASE_PATH}/` deckt den GESAMTEN better-auth-Subbaum ab — inkl. des
+  // Phase-E-Social-Callbacks `/api/v1/auth/callback/:provider` auf dem
+  // TENANT-Host: der Provider-Rückweg ist zwangsläufig unauthenticated (der
+  // Nutzer kommt ohne Session vom IdP zurück), better-auth validiert dort seine
+  // eigene state-Cookie + Verification-Zeile (CSRF-Anker). Es ist deshalb KEIN
+  // neuer Allowlist-Eintrag nötig und KEINE Aufweichung — der Callback war schon
+  // immer Teil des public Auth-Prefixes. Der GATEWAY-Callback (auf
+  // auth.hallofhelp.app) läuft ohnehin VOR dieser Default-Deny-Schicht
+  // (app.ts (0b), host-diskriminiert) und erreicht sie nie.
+  prefixes: [`${AUTH_BASE_PATH}/`, "/api/v1/legal/"],
 } as const;
 
 /** Ist der Request-Pfad öffentlich (kein Session-Zwang)? */

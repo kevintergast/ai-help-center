@@ -2,6 +2,14 @@
 
 Für GitLab + Cloudflare Workers/D1. Zwei Umgebungen: **`develop` → Staging**, **`main` → Production**. Feature-getrieben, mit automatischen Tests pro Change und automatischem Deploy beim Merge.
 
+> **⚠️ Umsetzung weicht von diesem Dokument ab — maßgeblich ist [`ci-cd-setup.md`](ci-cd-setup.md):**
+> - Das Repo liegt auf **GitHub** → CI läuft über **GitHub Actions** ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)). Die untenstehende `.gitlab-ci.yml` ist nur noch **Referenz** (inert auf GitHub).
+> - Der Dev/Staging-Branch heißt **`development`** (nicht `develop`).
+> - Prod-Gate = **eine** Environment-Freigabe, die Migration → Deploy atomar abdeckt (statt zwei separater manueller Jobs). GitHub Actions kennt kein `when: manual`; das Gate kommt vom GitHub-Environment `production` mit Required-Reviewer.
+> - Staging läuft bis zum Zone-Routing unter der `*.workers.dev`-URL (nicht `staging.hallofhelp.app`).
+>
+> Branching-Modell, Commit-Konventionen, Migrations-Disziplin und MR-Checkliste unten bleiben unverändert gültig.
+
 ## 1. Branching-Modell
 - **`main`** = Production. Geschützt. Deploy nach Prod **nur mit manuellem Gate**.
 - **`develop`** = Dev/Staging. Geschützt. Deploy nach Staging **automatisch** beim Merge.
