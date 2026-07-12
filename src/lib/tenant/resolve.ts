@@ -5,8 +5,21 @@ import type { Tenant } from "./types";
 const BASE_DOMAINS = ["hallofhelp.app", "hallofhelp.com", "localhost"];
 
 /**
+ * Reservierte Subdomains, die NIE einem Tenant gehören (Phase E, OAuth-Gateway).
+ * - `www`  — Apex-Umleitung.
+ * - `auth` — zentraler OAuth-Gateway-Host (auth.hallofhelp.app): bedient den
+ *            Provider-Callback host-neutral, löst den Tenant NUR aus dem
+ *            signierten state auf und darf deshalb selbst NIE zu einem Tenant
+ *            kollabieren (sonst könnte ein Datensatz `tenants.slug='auth'` den
+ *            Gateway-Host kapern).
+ * - `api`  — reserviert für eine spätere dedizierte API-Origin.
+ */
+const RESERVED_SUBDOMAINS: ReadonlySet<string> = new Set(["www", "auth", "api"]);
+
+/**
  * Extrahiert den Tenant-Slug aus dem Host.
- * "acme.hallofhelp.app" → "acme"; Apex/"www" → null; Custom-Domain → null (später via D1).
+ * "acme.hallofhelp.app" → "acme"; Apex/reservierte Subdomain (www/auth/api) →
+ * null; Custom-Domain → null (später via D1).
  */
 export function tenantSlugFromHost(host: string | null | undefined): string | null {
   if (!host) return null;
@@ -17,7 +30,7 @@ export function tenantSlugFromHost(host: string | null | undefined): string | nu
     if (hostname.endsWith(`.${base}`)) {
       const sub = hostname.slice(0, hostname.length - base.length - 1);
       const leftmost = sub.split(".")[0];
-      return leftmost === "www" || leftmost === "" ? null : leftmost;
+      return leftmost === "" || RESERVED_SUBDOMAINS.has(leftmost) ? null : leftmost;
     }
   }
   return null;

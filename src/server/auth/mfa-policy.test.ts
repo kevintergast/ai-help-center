@@ -84,6 +84,7 @@ function makeApp() {
     createAuthForTenant: async () => auth,
     getBrandingDeps: async () => null,
     getTeamDeps: async () => null,
+    getLegalDeps: async () => null,
   };
   return { app: buildApiApp(deps), db, auth, otpOutbox };
 }

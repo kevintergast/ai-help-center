@@ -5,6 +5,7 @@ import type { Tenant } from "@/lib/tenant/types";
 import { tenantAuthOptions } from "./auth";
 import { createEmailSenders } from "./resend";
 import { getAuthSecret } from "./secret";
+import { socialProvidersFromEnv } from "./social";
 import { tenantAwareAdapter } from "./tenant-adapter";
 
 /**
@@ -68,6 +69,9 @@ export async function createAuth(
   const base = tenantAuthOptions(secret, {
     issuer: tenant.slug,
     sendOtpEmail: senders.sendOtpEmail,
+    // Phase E: Google/Microsoft aus der Umgebung; fehlt ein Key-Paar, wird der
+    // Provider in buildSocialProviders NICHT registriert (kein Crash).
+    socialProviders: socialProvidersFromEnv(env),
   });
 
   // Innerer Adapter aus der D1-Bindung (auto-detektiert -> D1SqliteDialect).

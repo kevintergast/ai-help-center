@@ -13,6 +13,16 @@ describe("tenantSlugFromHost", () => {
     expect(tenantSlugFromHost(null)).toBeNull();
   });
 
+  it("reservierte Subdomains (auth/www/api) lösen NIE zu einem Tenant auf (Phase E, Gateway)", () => {
+    // auth.hallofhelp.app ist der zentrale OAuth-Gateway-Host — darf nicht als
+    // Slug "auth" auf einen (potenziell fremden) Tenant kollabieren.
+    expect(tenantSlugFromHost("auth.hallofhelp.app")).toBeNull();
+    expect(tenantSlugFromHost("api.hallofhelp.app")).toBeNull();
+    expect(tenantSlugFromHost("www.hallofhelp.app")).toBeNull();
+    // Gegenprobe: ein regulärer Slug bleibt unberührt.
+    expect(tenantSlugFromHost("acme.hallofhelp.app")).toBe("acme");
+  });
+
   it("gibt null für unbekannte Custom-Domains zurück (später via D1)", () => {
     expect(tenantSlugFromHost("hilfe.kunde.de")).toBeNull();
   });

@@ -231,6 +231,7 @@ function makeApp(opts: { teamAvailable?: boolean; emailMode?: EmailMode } = {}) 
       buildAuth({ adapter: memoryAdapter(db)(tenantAuthOptions(TEST_SECRET)), secret: TEST_SECRET }),
     getBrandingDeps: async () => null,
     getTeamDeps: async () => (teamAvailable ? team : null),
+    getLegalDeps: async () => null,
   };
   return { app: buildApiApp(deps), db, invitations, users, audit, sentEmails };
 }

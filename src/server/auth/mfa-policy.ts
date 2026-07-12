@@ -205,7 +205,7 @@ export const mfaPolicyBefore = createAuthMiddleware(async (ctx) => {
 });
 
 /**
- * GLOBALER after-Hook (options.hooks.after): Step-up-Refresh.
+ * Step-up-Refresh (Teil des GLOBALEN after-Hooks).
  *
  * `verifyTOTP` MIT bestehender Session (Re-Verify) erstellt KEINE neue Session
  * — die Antwort trägt den Token der BESTEHENDEN Session (verifiziert:
@@ -214,7 +214,7 @@ export const mfaPolicyBefore = createAuthMiddleware(async (ctx) => {
  * spätere Owner-Aktionen, M-5). Rotierte/neue Sessions (Token ≠ Session-Token)
  * bekommen den Marker bereits über `mfaSessionCreateBefore`.
  */
-export const mfaStepUpRefreshAfter = createAuthMiddleware(async (ctx) => {
+async function stepUpRefresh(ctx: AnyCtx): Promise<void> {
   if (ctx.path !== "/two-factor/verify-totp") return;
   const session = ctx.context.session;
   const returned = ctx.context.returned as { token?: unknown } | undefined;
@@ -224,6 +224,64 @@ export const mfaStepUpRefreshAfter = createAuthMiddleware(async (ctx) => {
     mfaVerified: true,
     mfaVerifiedAt: nowEpochSec(),
   });
+}
+
+/** Social-Callback/Sign-in-Pfade (Session entsteht OHNE 2. Faktor). */
+function isSocialSessionPath(path: string): boolean {
+  // `/sign-in/social` = idToken-Direktlogin; `/callback/:id` = Authorization-
+  // Code-Rückweg (ctx.path trägt die Route-Vorlage `:id`). `startsWith` fängt
+  // beide Schreibweisen ab, falls better-auth den aufgelösten Pfad liefert.
+  return path === "/sign-in/social" || path === "/callback/:id" || path.startsWith("/callback/");
+}
+
+/**
+ * trustDevice-Neutralisierung auf Social ausweiten (Phase-C-Übertrag, M-3).
+ *
+ * Eine per Google/Microsoft erzeugte Session ist IMMER `mfaVerified=false`
+ * (mfaSessionCreateBefore — Social ist kein Verify-Pfad). Zusätzlich darf ein
+ * per Social authentifizierter Team-User (content/admin/owner) keinen
+ * verwertbaren Trusted-Device-Token zurücklassen, der einem SPÄTEREN Login den
+ * 2. Faktor ersparen würde. Dieser Hook löscht daher nach dem Social-Login
+ * alle `trust-device-*`-Records dieses Users (tenant-gescopet über den Adapter).
+ *
+ * Der Nutzer wird aus `ctx.context.newSession` gelesen (via `setSessionCookie`
+ * gesetzt — verifiziert: cookies/index.mjs → `ctx.context.setNewSession`).
+ */
+async function handleSocialSignIn(ctx: AnyCtx): Promise<void> {
+  if (!isSocialSessionPath(ctx.path ?? "")) return;
+  const newSession = ctx.context.newSession as { user?: RoleCarrier & { id?: unknown } } | null;
+  const user = newSession?.user;
+  if (!user || !isTeam(user)) return;
+  const userId = user.id;
+  if (typeof userId !== "string") return;
+
+  // Trust-Device-Verification-Records tragen `value = userId` und ein
+  // `identifier = trust-device-<rand>` (verifiziert: two-factor/verify-two-factor.mjs).
+  const adapter = ctx.context.adapter as {
+    findMany(args: {
+      model: string;
+      where: Array<{ field: string; value: unknown }>;
+    }): Promise<Array<Record<string, unknown>>>;
+  };
+  const records = await adapter
+    .findMany({ model: "verification", where: [{ field: "value", value: userId }] })
+    .catch(() => [] as Array<Record<string, unknown>>);
+  for (const r of records) {
+    const identifier = r.identifier;
+    if (typeof identifier === "string" && identifier.startsWith("trust-device-")) {
+      await ctx.context.internalAdapter.deleteVerificationByIdentifier(identifier).catch(() => {});
+    }
+  }
+}
+
+/**
+ * GLOBALER after-Hook (options.hooks.after): Step-up-Refresh (M-5) + Social-
+ * Sign-in-Nachbereitung (M-3 auf Social). Ein einziger Hook, weil better-auths
+ * `options.hooks.after` genau EINE Middleware ist.
+ */
+export const authAfterHook = createAuthMiddleware(async (ctx) => {
+  await stepUpRefresh(ctx);
+  await handleSocialSignIn(ctx);
 });
 
 /**

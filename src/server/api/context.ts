@@ -2,9 +2,11 @@ import type { betterAuth } from "better-auth";
 import type { Tenant } from "@/lib/tenant/types";
 import type { AuditRepository } from "@/server/auth/audit";
 import type { InvitationRepository } from "@/server/auth/invitations";
+import type { OAuthGatewayDeps } from "@/server/auth/oauth-gateway";
 import type { InvitationEmailData } from "@/server/auth/resend";
 import type { TeamUserRepository } from "@/server/auth/team-users";
 import type { BrandingDeps } from "@/server/branding/store";
+import type { LegalDeps } from "@/server/legal/store";
 
 /**
  * Gemeinsame Typen der API-Schicht (Hono-Context, injizierbare Deps).
@@ -36,6 +38,18 @@ export interface ApiDeps {
   createAuthForTenant(tenant: Tenant): Promise<AuthInstance>;
   getBrandingDeps(): Promise<BrandingDeps | null>;
   getTeamDeps(): Promise<TeamDeps | null>;
+  /**
+   * Legal-Docs-Persistenz (Design h) der Request-Runtime (D1). `null` = Binding
+   * fehlt → die Legal-Routen antworten 503 fail-closed. Tests injizieren einen
+   * Map-basierten Fake — kein globaler Zustand.
+   */
+  getLegalDeps(): Promise<LegalDeps | null>;
+  /**
+   * OAuth-Gateway (Phase E): Krypto-/Nonce-Infrastruktur für den zentralen
+   * Provider-Callback auf `auth.hallofhelp.app`. `null`/fehlend ⇒ der
+   * Gateway-Host antwortet 503 (Bindings fehlen) — Tenant-Hosts sind unberührt.
+   */
+  oauthGateway?: OAuthGatewayDeps | null;
 }
 
 /**

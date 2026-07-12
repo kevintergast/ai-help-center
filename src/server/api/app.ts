@@ -1,9 +1,18 @@
 import { Hono } from "hono";
+import type { Tenant } from "@/lib/tenant/types";
 import { requireTeam } from "@/server/auth/guards";
+import {
+  handleGatewayCallback,
+  isGatewayHost,
+  type OAuthGatewayDeps,
+  tenantInitiatingOrigin,
+  wrapAuthorizationURL,
+} from "@/server/auth/oauth-gateway";
 import { enforceSessionTenant } from "@/server/auth/session-guard";
 import { runWithTenant } from "@/server/auth/tenant-context";
 import { brandingAdminRouter, brandingPublicRouter } from "./branding";
 import type { ApiDeps, ApiEnv, AuthInstance, GuardSessionData } from "./context";
+import { legalAdminRouter, legalPublicRouter } from "./legal";
 import { isPublicPath } from "./public-routes";
 import { runtimeDeps } from "./runtime-deps";
 import { invitationsAcceptRouter, invitationsAdminRouter, ownershipRouter } from "./team";
@@ -47,6 +56,22 @@ export function buildApiApp(deps: ApiDeps) {
   // (0) Liveness — bewusst VOR der Tenant-Middleware (siehe Kopfkommentar).
   app.get("/health", (c) => c.json({ status: "ok", service: "hallofhelp-api", version: "v1" }));
 
+  // (0b) OAUTH-GATEWAY (Phase E, §c-3): NUR auf dem zentralen, tenant-freien
+  // Host `auth.hallofhelp.app`. Läuft VOR der Tenant-Middleware — der Gateway
+  // löst den Tenant NICHT über den Host, sondern aus dem signierten `state` auf
+  // und leitet den Provider-Callback per 302 an die initiierende Tenant-Origin
+  // weiter (kein DB-Insert hier). Auf allen anderen Hosts fällt die Middleware
+  // sofort durch (`next()`), sodass Tenant-Hosts (inkl. ihr eigener
+  // `/auth/callback/*`) unverändert weiterlaufen.
+  app.use("*", async (c, next) => {
+    if (!isGatewayHost(c.req.header("host"))) return next();
+    // Der Gateway-Host bedient AUSSCHLIESSLICH GET /api/v1/auth/callback/:provider.
+    const m = /^\/api\/v1\/auth\/callback\/([^/]+)$/.exec(c.req.path);
+    if (!m || c.req.method !== "GET") return c.json({ error: "not_found" }, 404);
+    if (!deps.oauthGateway) return c.json({ error: "oauth_gateway_unconfigured" }, 503);
+    return handleGatewayCallback(c.req.raw, m[1], deps.oauthGateway);
+  });
+
   // (1) Tenant-Grenze = ALS-Boundary.
   app.use("*", async (c, next) => {
     const tenant = await deps.resolveTenant(c.req.header("host"));
@@ -89,6 +114,20 @@ export function buildApiApp(deps: ApiDeps) {
     return next();
   });
 
+  // (3a) SIGN-IN-START Social (Phase E, §c-3): better-auth erzeugt im
+  // Nicht-idToken-Zweig eine Authorization-URL, deren `redirect_uri` (via
+  // socialProviders.*.redirectURI) bereits auf den zentralen Gateway zeigt,
+  // deren `state` aber sein eigener roher 32-Zeichen-Wert ist. Damit der Gateway
+  // den Provider-Callback dem richtigen Tenant zuordnen kann, MUSS dieser äußere
+  // state VOR der Weiterleitung an den IdP durch den signierten Gateway-Umschlag
+  // ersetzt werden (wrapAuthorizationURL). Diese spezifische Route ist bewusst
+  // VOR dem generischen /auth/*-Mount registriert (spezifischer Pfad gewinnt).
+  app.post("/auth/sign-in/social", async (c) => {
+    const auth = await c.get("getAuth")();
+    const res = await auth.handler(c.req.raw);
+    return wrapSocialSignIn(res, c.get("tenant"), deps.oauthGateway ?? null);
+  });
+
   // (3) better-auth-HTTP-Mount: /api/v1/auth/* (GET+POST). Der interne Router
   // matcht dank basePath "/api/v1/auth" (tenantAuthOptions) auf den Raw-Request.
   app.on(["GET", "POST"], "/auth/*", async (c) => {
@@ -122,6 +161,12 @@ export function buildApiApp(deps: ApiDeps) {
   app.route("/admin/branding", brandingAdminRouter(deps));
   app.route("/branding", brandingPublicRouter(deps));
 
+  // Legal-Docs pro Instanz (Design h): owner-exklusive Pflege + admin-Lesen +
+  // öffentliches Ausliefern (Impressum/Datenschutz ohne Login). Details/
+  // Sicherheitsentscheidungen (owner vs admin, XSS): ./legal.ts
+  app.route("/admin/legal", legalAdminRouter(deps));
+  app.route("/legal", legalPublicRouter(deps));
+
   // Team-Verwaltung (Phase D): Einladungen + Ownership-Transfer + Audit.
   // /invitations/accept ist BEWUSST nicht public (Session-Pflicht via
   // Default-Deny), aber ohne Team-Gate. Details: ./team.ts
@@ -141,6 +186,74 @@ export function buildApiApp(deps: ApiDeps) {
   });
 
   return app;
+}
+
+/**
+ * Wickelt (falls vorhanden) die von better-auth erzeugte Authorization-URL des
+ * Social-Sign-in-Starts in den signierten Gateway-Umschlag (§c-3).
+ *
+ * - idToken-Direktlogin: die Antwort trägt KEINE `url` → unverändert
+ *   durchgereicht (Session ist bereits erstellt, kein Redirect zum IdP).
+ * - Authorization-Code-Start: die Antwort trägt eine `url` (und ggf. einen
+ *   `Location`-Header). Nur deren `state`-Query wird durch den Umschlag ersetzt;
+ *   better-auths tenant-seitige state-Cookie + verification-Zeile (der eigentliche
+ *   CSRF-Anker, host-scoped auf die Tenant-Origin) bleiben UNANGETASTET — der
+ *   Gateway packt den inneren state wieder aus, bevor er an die Tenant-Origin
+ *   weiterleitet, wo der Code-Exchange abschließt.
+ * - Ohne konfigurierten Gateway ist ein echter Redirect-Start Fehlkonfiguration
+ *   → 503 (fail-closed). Der roundtrip-freie idToken-Pfad bleibt davon unberührt.
+ */
+async function wrapSocialSignIn(
+  res: Response,
+  tenant: Tenant,
+  gateway: OAuthGatewayDeps | null,
+): Promise<Response> {
+  if (!(res.headers.get("content-type") ?? "").includes("application/json")) return res;
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await res.clone().json()) as Record<string, unknown>;
+  } catch {
+    return res;
+  }
+
+  const url = body.url;
+  if (typeof url !== "string" || url.length === 0) return res; // idToken-Zweig: nichts zu wrappen
+
+  if (!gateway) {
+    return new Response(JSON.stringify({ error: "oauth_gateway_unconfigured" }), {
+      status: 503,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  const secret = await gateway.getSecret();
+  const wrappedUrl = await wrapAuthorizationURL(url, {
+    secret,
+    tenantId: tenant.id,
+    initiatingOrigin: tenantInitiatingOrigin(tenant.slug),
+    nonceStore: gateway.nonceStore,
+  });
+  body.url = wrappedUrl;
+
+  // Header 1:1 übernehmen — inkl. ALLER Set-Cookie (die better-auth-state-Cookie
+  // ist der CSRF-Anker, sie DARF nicht verloren gehen). getSetCookie() gibt die
+  // einzelnen Cookies verlustfrei zurück (im Gegensatz zum kommagejointen Copy).
+  const headers = new Headers();
+  res.headers.forEach((value, key) => {
+    if (key.toLowerCase() === "set-cookie") return;
+    headers.set(key, value);
+  });
+  for (const cookie of res.headers.getSetCookie()) headers.append("set-cookie", cookie);
+  if (headers.has("location")) headers.set("location", wrappedUrl);
+  headers.set("content-type", "application/json");
+  headers.delete("content-length"); // Body-Länge hat sich geändert.
+
+  return new Response(JSON.stringify(body), {
+    status: res.status,
+    statusText: res.statusText,
+    headers,
+  });
 }
 
 /**

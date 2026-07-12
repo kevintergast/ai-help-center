@@ -3,12 +3,13 @@ import type { BetterAuthOptions, DBAdapter } from "better-auth";
 import { twoFactor } from "better-auth/plugins";
 import { canonicalizeEmail } from "./email";
 import {
+  authAfterHook,
   mfaPolicyBefore,
   mfaSessionCreateBefore,
-  mfaStepUpRefreshAfter,
   mfaUserUpdateAfter,
   tenantTwoFactorSchemaPlugin,
 } from "./mfa-policy";
+import { buildSocialProviders, type SocialProvidersInput } from "./social";
 import { tenantAwareAdapter } from "./tenant-adapter";
 
 /**
@@ -81,6 +82,13 @@ export interface TenantAuthOptionsOpts {
   issuer?: string;
   /** Email-OTP-Sender; ohne Angabe inert (No-op — wie Resend ohne API-Key). */
   sendOtpEmail?: SendOtpEmail;
+  /**
+   * Social-Login-Credentials (Phase E). Nur vollständig konfigurierte Provider
+   * (Client-ID + Secret) werden registriert (siehe social.ts). In Tests trägt
+   * dieses Objekt zusätzlich die Provider-Mock-Hooks (`verifyIdToken`/
+   * `getUserInfo`), sodass KEIN echter OAuth-HTTP nötig ist.
+   */
+  socialProviders?: SocialProvidersInput;
 }
 
 /**
@@ -104,9 +112,14 @@ export function tenantAuthOptions(
   opts: TenantAuthOptionsOpts = {},
 ): BetterAuthOptions {
   const sendOtpEmail: SendOtpEmail = opts.sendOtpEmail ?? (async () => {});
+  const socialProviders = buildSocialProviders(opts.socialProviders);
   return {
     secret,
     basePath: AUTH_BASE_PATH,
+    // PHASE E: Google/Microsoft. `undefined`, wenn kein Provider vollständig
+    // konfiguriert ist (Key fehlt) → Social ist dann schlicht nicht verfügbar,
+    // Passwort/2FA laufen unverändert weiter. accountLinking bleibt global aus.
+    socialProviders,
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
@@ -206,6 +219,15 @@ export function tenantAuthOptions(
         totpOptions: { period: 30 },
         otpOptions: { sendOTP: async ({ user, otp }) => sendOtpEmail({ user, otp }) },
         accountLockout: { enabled: true, maxFailedAttempts: 5 },
+        // PHASE E: Social-only Team-User haben KEIN Passwort — ohne dies würde
+        // `/two-factor/enable` (Body-Schema verlangt sonst ein Passwort) für sie
+        // dauerhaft 400 liefern und die MFA-Pflicht für Team-Rollen (§d) wäre
+        // für Social-Signups unerfüllbar. WICHTIG (verifiziert:
+        // utils/password.mjs → shouldRequirePassword): bei `allowPasswordless`
+        // wird das Passwort NUR für Konten OHNE credential-Passwort erlassen —
+        // ein Passwort-User muss beim enable/disable/get-totp-uri weiterhin sein
+        // Passwort angeben (Laufzeit-Enforcement bleibt, kein Abschwächen).
+        allowPasswordless: true,
       }),
       // NACH twoFactor, damit das tenantId-Feld ins twoFactor-Schema gemerged
       // wird (getAuthTables merged Plugin-Schemata feld-weise in Array-Folge).
@@ -215,9 +237,9 @@ export function tenantAuthOptions(
       // MFA-Policies in der PIPELINE (D11): OTP-Verbot für admin/owner,
       // trustDevice-Neutralisierung, Step-up-Gate für disable.
       before: mfaPolicyBefore,
-      // Step-up-Refresh: Re-Verify-TOTP in bestehender Session frischt
-      // mfaVerified/mfaVerifiedAt auf.
-      after: mfaStepUpRefreshAfter,
+      // Step-up-Refresh (Re-Verify-TOTP frischt mfaVerified/mfaVerifiedAt auf)
+      // + Social-Sign-in-Nachbereitung (trustDevice-Neutralisierung, M-3).
+      after: authAfterHook,
     },
     databaseHooks: {
       user: {
@@ -271,17 +293,20 @@ export function buildAuth({
   secret,
   issuer,
   sendOtpEmail,
+  socialProviders,
 }: {
   adapter: DBAdapter;
   secret: string;
   issuer?: string;
   sendOtpEmail?: SendOtpEmail;
+  /** Phase E: Social-Credentials + (in Tests) Provider-Mock-Hooks. */
+  socialProviders?: SocialProvidersInput;
 }): ReturnType<typeof betterAuth> {
   // Als `BetterAuthOptions` typisiert, damit `betterAuth` den Basis-Typ
   // inferiert (Rückgabe == `ReturnType<typeof betterAuth>` == `Auth<BetterAuthOptions>`;
   // ohne die Annotation würde ein invarianter, engerer `Auth<...>`-Typ inferiert).
   const options: BetterAuthOptions = {
-    ...tenantAuthOptions(secret, { issuer, sendOtpEmail }),
+    ...tenantAuthOptions(secret, { issuer, sendOtpEmail, socialProviders }),
     database: () => tenantAwareAdapter(adapter),
   };
   return betterAuth(options);
