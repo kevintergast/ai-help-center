@@ -43,6 +43,10 @@ secret_name = "AUTH_SECRET"
 
 # ─── PRODUCTION ────────────────────────────────────────────────────
 [env.production]
+# Expliziter Name (sonst haengt Wrangler "-production" an) → konsistent mit DB/Bucket/Index.
+name = "hallofhelp-prod"
+# TODO(routing): Sobald die Zone in Cloudflare liegt, Custom-Domain ergaenzen:
+#   routes = [{ pattern = "app.hallofhelp.app", custom_domain = true }]
 [env.production.assets]
 directory = ".open-next/assets"
 binding = "ASSETS"

@@ -11,9 +11,11 @@ import { D1BrandingRepository, type BrandingDeps } from "@/server/branding/store
 import { D1ContentRepository, type ContentDeps } from "@/server/content/store";
 import { getDbSafe } from "@/server/db/client";
 import { D1LegalRepository, type LegalDeps } from "@/server/legal/store";
+import { makeSendOwnerSetup } from "@/server/operator/onboarding";
+import { D1OperatorRepository } from "@/server/operator/repository";
 import { D1TenantRepository } from "@/server/tenant/repository";
 import { resolveWithSourceStrict } from "@/server/tenant/resolve-tenant";
-import type { ApiDeps, AuthInstance, TeamDeps } from "./context";
+import type { ApiDeps, AuthInstance, OperatorDeps, TeamDeps } from "./context";
 
 /**
  * ECHTE Runtime-Abhängigkeiten der API-App (Default-Instanz für die Next-Route).
@@ -123,6 +125,22 @@ async function getContentDepsRuntime(): Promise<ContentDeps | null> {
 }
 
 /**
+ * Operator-Provisioning (Punkt 4b): Control-Plane-Repo auf `tenants`/`auth_user`/
+ * `operator_help_centers` + Owner-Setup-Versand über den Reset-Mechanismus.
+ * Ohne D1-Bindung (Unit-Tests, `next dev` ohne Wrangler) → `null` → die
+ * Operator-Routen antworten 503 fail-closed.
+ */
+async function getOperatorDepsRuntime(): Promise<OperatorDeps | null> {
+  const env = await getEnvSafe();
+  if (!env?.DB) return null;
+  const mailEnv = env as CloudflareEnv & { RESEND_API_KEY?: string };
+  return {
+    repo: new D1OperatorRepository(env.DB),
+    sendOwnerSetup: makeSendOwnerSetup(mailEnv),
+  };
+}
+
+/**
  * OAuth-Gateway-Infrastruktur (Phase E): rohes AUTH_SECRET (HKDF-Basis) +
  * KV-basierter, tenant-präfigierter Single-use-Nonce-Store (`CACHE`). Fehlt die
  * Cloudflare-Umgebung (Unit-Tests, `next dev` ohne Wrangler), ist der Gateway
@@ -174,5 +192,6 @@ export const runtimeDeps: ApiDeps = {
   getTeamDeps: getTeamDepsRuntime,
   getLegalDeps: getLegalDepsRuntime,
   getContentDeps: getContentDepsRuntime,
+  getOperatorDeps: getOperatorDepsRuntime,
   oauthGateway: buildOAuthGatewayDeps(),
 };

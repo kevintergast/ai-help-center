@@ -8,6 +8,9 @@ import type { TeamUserRepository } from "@/server/auth/team-users";
 import type { BrandingDeps } from "@/server/branding/store";
 import type { ContentDeps } from "@/server/content/store";
 import type { LegalDeps } from "@/server/legal/store";
+import type { OperatorRepository } from "@/server/operator/repository";
+import type { OwnerSetupResult } from "@/server/operator/onboarding";
+import type { Tenant as OperatorTenant } from "@/lib/tenant/types";
 
 /**
  * Gemeinsame Typen der API-Schicht (Hono-Context, injizierbare Deps).
@@ -57,6 +60,25 @@ export interface ApiDeps {
    * Gateway-Host antwortet 503 (Bindings fehlen) — Tenant-Hosts sind unberührt.
    */
   oauthGateway?: OAuthGatewayDeps | null;
+  /**
+   * Operator-Provisioning (Punkt 4b): Control-Plane-Persistenz + Owner-Setup-
+   * Versand. `null`/fehlend ⇒ die Operator-Routen antworten 503 (Bindings
+   * fehlen). Optional wie `oauthGateway`, damit reine Fach-Test-Fixtures diese
+   * Infrastruktur nicht mitführen müssen. Tests injizieren Map-/DDL-Fakes.
+   */
+  getOperatorDeps?(): Promise<OperatorDeps | null>;
+}
+
+/**
+ * Pro Request aufgelöste Operator-Provisioning-Infrastruktur (Punkt 4b).
+ * `sendOwnerSetup` folgt der resend.ts-Semantik: es versendet den Set-Passwort-/
+ * Onboarding-Link an das frisch angelegte Owner-Konto auf `<slug>.hallofhelp.app`
+ * über den bestehenden Reset-Mechanismus. `devLink` ist NUR ohne Mail-Key und
+ * außerhalb Produktion gesetzt (analog `devAcceptUrl` bei Einladungen).
+ */
+export interface OperatorDeps {
+  repo: OperatorRepository;
+  sendOwnerSetup(input: { tenant: OperatorTenant; ownerEmail: string }): Promise<OwnerSetupResult>;
 }
 
 /**

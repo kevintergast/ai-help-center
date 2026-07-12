@@ -1,0 +1,155 @@
+# HallofHelp — CI/CD (GitHub Actions) für Next.js (OpenNext) auf Cloudflare Workers/D1.
+# Übersetzt die Strategie aus docs/git-strategy.md:
+#   • Push nach `development` → Staging (automatisch)
+#   • Push nach `main`        → Production (manuelles Gate via Environment-Reviewer)
+#   • Pull Requests           → nur Validate/Test/Build-Gate (kein Deploy)
+#
+# Voraussetzungen (Details: docs/ci-cd-setup.md):
+#   • Repo-Secrets:  CLOUDFLARE_API_TOKEN (scoped!), CLOUDFLARE_ACCOUNT_ID
+#   • GitHub-Environment `production`: Required reviewers = das manuelle Prod-Gate,
+#     plus Variable PROD_GATE_CONFIGURED=true (Defense-in-Depth-Guard unten).
+name: CI/CD
+
+on:
+  push:
+    branches: [development, main]
+  pull_request:
+    branches: [development, main]
+
+# Nur überholte PR-Feedback-Runs abbrechen. Push-/Deploy-Runs (development/main) laufen
+# IMMER zu Ende — sonst könnte ein zweiter Push eine laufende D1-Migration abbrechen.
+concurrency:
+  group: cicd-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------- VALIDATE (lint · typecheck · i18n) ----------
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [lint, typecheck, "i18n:check"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run ${{ matrix.task }}
+
+  # ---------- TEST ----------
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run test
+
+  # ---------- BUILD (gate auf allen Events; Artefakt = exakt das, was deployt wird) ----------
+  build:
+    needs: [validate, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec opennextjs-cloudflare build
+      # Der OpenNext-Worker-Bundle ist env-unabhängig (Bindings werden erst beim Deploy
+      # gewählt) → dasselbe Artefakt geht nach Staging UND Prod.
+      - name: Build-Artefakt hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: open-next-build
+          path: .open-next
+          retention-days: 1
+          include-hidden-files: true
+
+  # ---------- STAGING (auto bei Push nach `development`) ----------
+  deploy-staging:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+    needs: [validate, test, build]
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      # TODO(routing): auf https://staging.hallofhelp.app umstellen, sobald die Zone/Route existiert.
+      url: https://hallofhelp.kevin-kvano.workers.dev
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build-Artefakt laden
+        uses: actions/download-artifact@v4
+        with:
+          name: open-next-build
+          path: .open-next
+      - name: D1-Migrationen anwenden (staging)
+        run: pnpm exec wrangler d1 migrations apply hallofhelp-staging --remote
+      - name: Deploy (staging / Top-Level-Env)
+        run: pnpm exec wrangler deploy
+
+  # ---------- PRODUCTION (nur `main`, manuelles Gate) ----------
+  # Das Warten auf Freigabe kommt vom GitHub-Environment `production` (Required reviewers).
+  # Eine Freigabe deckt Migration → Deploy in fester Reihenfolge ab (atomar; kein Deploy ohne
+  # Migration). Der Preflight bricht laut ab, falls das Gate NICHT konfiguriert oder Prod noch
+  # nicht provisioniert ist — statt still/kryptisch zu scheitern.
+  deploy-production:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [validate, test, build]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://app.hallofhelp.app
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preflight — Prod-Gate & Ressourcen verifizieren
+        env:
+          PROD_GATE_CONFIGURED: ${{ vars.PROD_GATE_CONFIGURED }}
+        run: |
+          if [ "${PROD_GATE_CONFIGURED}" != "true" ]; then
+            echo "::error::'production'-Environment ist nicht als Gate konfiguriert (Variable PROD_GATE_CONFIGURED != true). Required reviewers setzen — siehe docs/ci-cd-setup.md."
+            exit 1
+          fi
+          if grep -q "FILL" wrangler.toml; then
+            echo "::error::wrangler.toml enthaelt noch <FILL ...>-Platzhalter — Prod-Ressourcen (D1/KV) nicht provisioniert. Siehe docs/ci-cd-setup.md."
+            exit 1
+          fi
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build-Artefakt laden
+        uses: actions/download-artifact@v4
+        with:
+          name: open-next-build
+          path: .open-next
+      - name: D1-Migrationen anwenden (production)
+        run: pnpm exec wrangler d1 migrations apply hallofhelp-prod --env production --remote
+      - name: Deploy (production)
+        run: pnpm exec wrangler deploy --env production

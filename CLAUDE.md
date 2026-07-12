@@ -34,7 +34,7 @@ lesen diese Variablen. Neue Tenants brauchen daher **keinen** Code — nur einen
 
 ## Konventionen
 - **Commits:** Conventional Commits (`type(scope): subject`, Imperativ, ≤72). Siehe `docs/git-strategy.md`.
-- **Branches:** `feature/<issue>-<slug>` von `develop`; `develop`→Staging, `main`→Prod. Nie direkt pushen.
+- **Branches:** `feature/<issue>-<slug>` von `development`; `development`→Staging, `main`→Prod. Nie direkt pushen. CI = **GitHub Actions** (`.github/workflows/ci.yml`); Setup: `docs/ci-cd-setup.md`.
 - **D1-Migrationen:** forward-only, additiv (expand/contract), eine logische Änderung pro Datei.
 - **Sicherheit:** keine Secrets im Repo/Log. Werte via `wrangler login` (lokal) bzw. Secrets Store/CI.
   Claude bekommt nur scoped/read-only/Staging-Zugänge (siehe Memory `mcp-access-security-boundary`).

@@ -318,6 +318,57 @@ export const de = {
   "auth.validate.passwordTooShort": "Das Passwort muss mindestens 10 Zeichen lang sein.",
   "auth.validate.nameRequired": "Bitte gib deinen Namen ein.",
   "auth.validate.codeInvalid": "Bitte gib den 6-stelligen Code ein.",
+
+  // Operator-Konsole (Punkt 4b) — Betreiber-Onboarding auf app.hallofhelp.app
+  "operator.brand": "HallofHelp",
+  "operator.console.title": "Meine Hilfezentren",
+  "operator.console.subtitle": "Verwalte deine Hilfezentren oder erstelle ein neues.",
+  "operator.console.signInPrompt": "Bitte melde dich an, um deine Hilfezentren zu verwalten.",
+  "operator.console.signIn": "Anmelden",
+  "operator.console.signUp": "Konto erstellen",
+  "operator.console.signOut": "Abmelden",
+  "operator.console.create": "Hilfezentrum erstellen",
+  "operator.console.empty": "Du hast noch kein Hilfezentrum. Erstelle jetzt dein erstes.",
+  "operator.console.emptyCta": "Erstes Hilfezentrum erstellen",
+  "operator.console.open": "Öffnen",
+  "operator.console.loadError": "Deine Hilfezentren konnten nicht geladen werden.",
+
+  "operator.prompt.title": "Eigenes Hilfezentrum erstellen?",
+  "operator.prompt.body":
+    "Richte in wenigen Schritten dein White-Label-Hilfezentrum unter deiner eigenen Subdomain ein.",
+
+  "operator.wizard.title": "Neues Hilfezentrum",
+  "operator.wizard.subtitle": "Name, Subdomain, Sprache und optional dein Branding.",
+  "operator.wizard.nameLabel": "Name des Hilfezentrums",
+  "operator.wizard.namePlaceholder": "z. B. Acme Support",
+  "operator.wizard.slugLabel": "Subdomain",
+  "operator.wizard.slugPlaceholder": "acme",
+  "operator.wizard.slugHint": "Kleinbuchstaben, Zahlen und Bindestriche. 3–63 Zeichen.",
+  "operator.wizard.slugSuffix": ".hallofhelp.app",
+  "operator.wizard.slugChecking": "Verfügbarkeit wird geprüft …",
+  "operator.wizard.slugAvailable": "Verfügbar",
+  "operator.wizard.slugTaken": "Diese Subdomain ist bereits vergeben.",
+  "operator.wizard.slugReserved": "Diese Subdomain ist reserviert.",
+  "operator.wizard.slugInvalid": "Ungültiges Format für die Subdomain.",
+  "operator.wizard.localeLabel": "Standardsprache",
+  "operator.wizard.localeDe": "Deutsch",
+  "operator.wizard.localeEn": "Englisch",
+  "operator.wizard.brandingLabel": "Branding (optional)",
+  "operator.wizard.colorPrimary": "Primärfarbe",
+  "operator.wizard.colorAccent": "Akzentfarbe",
+  "operator.wizard.submit": "Hilfezentrum erstellen",
+  "operator.wizard.submitting": "Wird erstellt …",
+  "operator.wizard.cancel": "Abbrechen",
+  "operator.wizard.error": "Das Hilfezentrum konnte nicht erstellt werden. Bitte prüfe deine Eingaben.",
+
+  "operator.success.title": "Hilfezentrum erstellt",
+  "operator.success.body": "Dein Hilfezentrum ist bereit unter:",
+  "operator.success.setupTitle": "Nächster Schritt: Admin-Zugang einrichten",
+  "operator.success.setupBody":
+    "Richte jetzt Passwort und Zwei-Faktor (MFA) für deinen Owner-Zugang ein. Wir haben dir dafür einen Link geschickt.",
+  "operator.success.devLink": "Dev-Link zum Passwort setzen:",
+  "operator.success.openHelpCenter": "Hilfezentrum öffnen",
+  "operator.success.backToConsole": "Zurück zur Übersicht",
 } as const;
 
 export type MessageKey = keyof typeof de;

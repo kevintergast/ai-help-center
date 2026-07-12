@@ -14,6 +14,7 @@ import { brandingAdminRouter, brandingPublicRouter } from "./branding";
 import { contentAdminRouter } from "./content";
 import type { ApiDeps, ApiEnv, AuthInstance, GuardSessionData } from "./context";
 import { legalAdminRouter, legalPublicRouter } from "./legal";
+import { operatorRouter } from "./operator";
 import { isPublicPath } from "./public-routes";
 import { runtimeDeps } from "./runtime-deps";
 import { invitationsAcceptRouter, invitationsAdminRouter, ownershipRouter } from "./team";
@@ -178,6 +179,12 @@ export function buildApiApp(deps: ApiDeps) {
   // Content-Pflege (Punkt 2): Artikel-CRUD + Lifecycle, requireTeam("content").
   // Tenant-scoped; ohne D1-Binding 503. Details/Sicherheit: ./content.ts
   app.route("/admin/articles", contentAdminRouter(deps));
+
+  // Operator-Onboarding (Punkt 4b): Provisioning der Betreiber-Control-Plane.
+  // NUR im Operator-Kontext (t_operator / app.hallofhelp.app) wirksam — auf
+  // Kunden-Hosts antwortet jede Route 404 (ensureOperatorContext). Session-
+  // Pflicht via Default-Deny; ohne Operator-Bindings 503. Details: ./operator.ts
+  app.route("/operator", operatorRouter(deps));
 
   // Kommende Feature-Router (werden mit dem jeweiligen Feature implementiert):
   // app.route("/ask", askRouter);            // dynamischen Artikel anfragen (RAG, Punkt 3)
