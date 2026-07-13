@@ -45,8 +45,17 @@ secret_name = "AUTH_SECRET"
 [env.production]
 # Expliziter Name (sonst haengt Wrangler "-production" an) → konsistent mit DB/Bucket/Index.
 name = "hallofhelp-prod"
-# TODO(routing): Sobald die Zone in Cloudflare liegt, Custom-Domain ergaenzen:
-#   routes = [{ pattern = "app.hallofhelp.com", custom_domain = true }]
+
+# Wildcard-Routing: ALLE Subdomains (app./auth./<tenant-slug>.) laufen auf diesen Worker
+# → Self-Service-Tenants ohne Zusatzschritt. VORAUSSETZUNGEN vor dem Prod-Deploy
+# (sonst schlaegt die Route-Erstellung fehl):
+#   1) Cloudflare-DNS auf hallofhelp.com: A-Record  Name "*"  Inhalt 192.0.2.0  Proxied (orange).
+#   2) CI-Token braucht zusaetzlich Zone-Scope "Workers Routes: Edit".
+#   3) Zone SSL/TLS-Modus = Full oder Full (strict).
+[[env.production.routes]]
+pattern = "*.hallofhelp.com/*"
+zone_name = "hallofhelp.com"
+
 [env.production.assets]
 directory = ".open-next/assets"
 binding = "ASSETS"
