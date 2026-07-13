@@ -59,7 +59,7 @@ deploy:staging:
     - if: '$CI_COMMIT_BRANCH == "develop"'
   environment:
     name: staging
-    url: https://staging.hallofhelp.app
+    url: https://staging.hallofhelp.com
   script:
     - pnpm exec wrangler deploy
 
@@ -82,6 +82,6 @@ deploy:production:
   allow_failure: false
   environment:
     name: production
-    url: https://app.hallofhelp.app
+    url: https://app.hallofhelp.com
   script:
     - pnpm exec wrangler deploy --env production

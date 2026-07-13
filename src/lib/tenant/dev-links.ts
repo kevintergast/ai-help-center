@@ -1,6 +1,6 @@
 import { DEMO_TENANTS } from "./registry";
 
-const BASE_DOMAINS = ["hallofhelp.app", "hallofhelp.com", "localhost"];
+const BASE_DOMAINS = ["hallofhelp.com", "localhost"];
 
 export interface TenantLink {
   slug: string;

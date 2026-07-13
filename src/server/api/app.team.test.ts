@@ -27,8 +27,8 @@ import type { ApiDeps, TeamDeps } from "./context";
 const TEST_SECRET = "test-only-secret-value-0123456789-ABCDEF";
 const PASSWORD = "correct-horse-battery";
 
-const HOST_A = "tenant-a.hallofhelp.app";
-const HOST_B = "tenant-b.hallofhelp.app";
+const HOST_A = "tenant-a.hallofhelp.com";
+const HOST_B = "tenant-b.hallofhelp.com";
 
 function makeTenant(id: string, slug: string): Tenant {
   return {
@@ -343,7 +343,7 @@ describe("POST /api/v1/admin/invitations (Rollen-Deckel, Token-Disziplin, Versan
     expect(f.sentEmails).toHaveLength(1);
     expect(f.sentEmails[0].to).toBe("invitee@example.com");
     expect(f.sentEmails[0].acceptUrl).toMatch(
-      /^https:\/\/tenant-a\.hallofhelp\.app\/invite\/accept\?token=/,
+      /^https:\/\/tenant-a\.hallofhelp\.com\/invite\/accept\?token=/,
     );
     const token = new URL(f.sentEmails[0].acceptUrl).searchParams.get("token")!;
     const stored = f.invitations.rows.get(body.id as string)!;

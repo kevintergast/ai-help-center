@@ -87,7 +87,7 @@ export async function getSessionRole(): Promise<string | null> {
  * `signIn.social` → POST /api/v1/auth/sign-in/social; diese Route ist
  * serverseitig gewrappt (app.ts): better-auths Authorization-URL wird in den
  * signierten OAuth-Gateway-Umschlag gesteckt und als `data.url` zurückgegeben.
- * Wir navigieren den Browser genau dorthin. Der Gateway (auth.hallofhelp.app)
+ * Wir navigieren den Browser genau dorthin. Der Gateway (auth.hallofhelp.com)
  * packt den Umschlag aus und leitet den Provider-Callback zurück an die
  * Tenant-Origin, wo better-auth den Code-Exchange abschließt.
  */

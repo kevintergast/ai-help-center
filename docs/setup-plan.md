@@ -35,7 +35,7 @@ Ziel: alle Konten, Domains, Infrastruktur und Zugänge **sauber & sicher** aufse
 - [ ] Queue: `embedding-queue-staging`
 - [ ] Workers AI aktiv + **AI Gateway** `hallofhelp` anlegen
 - [ ] **Turnstile**-Site (Keys) für Signup-Schutz
-- [ ] **Cloudflare for SaaS**: Zone für die Subdomain-Basis (`*.hallofhelp.app`) vorbereiten
+- [ ] **Cloudflare for SaaS**: Zone für die Subdomain-Basis (`*.hallofhelp.com`) vorbereiten
 - [ ] **Stream** aktivieren (Video)
 - [ ] **Secrets Store** einrichten — *alle* Secrets nur hier, nie im Repo/Chat
 

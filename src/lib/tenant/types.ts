@@ -15,7 +15,7 @@ export interface TenantBranding {
 /** Ein Mandant (Kunde) = ein Hilfezentrum. */
 export interface Tenant {
   id: string;
-  /** Subdomain-Slug: <slug>.hallofhelp.app */
+  /** Subdomain-Slug: <slug>.hallofhelp.com */
   slug: string;
   name: string;
   /** Optionale eigene Domain (nur auf Paid-Plänen). */

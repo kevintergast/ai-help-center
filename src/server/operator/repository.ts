@@ -112,7 +112,7 @@ export class D1OperatorRepository implements OperatorRepository {
 
     // (b) OWNER-KONTO IM NEUEN TENANT — role='owner', email_verified=1 (aus der
     //     Operator-Verifikation abgeleitet), KEIN Passwort (keine credential;
-    //     Owner setzt es via Reset-Flow auf <slug>.hallofhelp.app). Der
+    //     Owner setzt es via Reset-Flow auf <slug>.hallofhelp.com). Der
     //     Partial-Unique uq_user_tenant_owner erzwingt genau 1 Owner/Tenant.
     const insertOwner = this.db
       .prepare(

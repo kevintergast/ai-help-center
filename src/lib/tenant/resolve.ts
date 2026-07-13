@@ -2,11 +2,11 @@ import { DEMO_TENANTS, DEFAULT_TENANT, OPERATOR_TENANT } from "./registry";
 import type { Tenant } from "./types";
 
 /** Basis-Domains, unter denen Tenant-Subdomains laufen. */
-const BASE_DOMAINS = ["hallofhelp.app", "hallofhelp.com", "localhost"];
+const BASE_DOMAINS = ["hallofhelp.com", "localhost"];
 
 /**
  * Feste Slug/Id der Operator-Instanz (Control-Plane, Punkt 4b).
- * `app.hallofhelp.app` ist KEIN Kunden-Tenant, sondern die Betreiber-Instanz:
+ * `app.hallofhelp.com` ist KEIN Kunden-Tenant, sondern die Betreiber-Instanz:
  * Registrierung/Onboarding/„meine Hilfezentren". Sie nutzt die BESTEHENDE
  * (strikt instanz-isolierte) better-auth-Maschinerie mit `tenantId = t_operator`.
  */
@@ -16,14 +16,14 @@ export const OPERATOR_TENANT_ID = "t_operator";
 /**
  * Reservierte Subdomains, die NIE einem Kunden-Tenant gehören.
  * - `www`  — Apex-Umleitung.
- * - `auth` — zentraler OAuth-Gateway-Host (auth.hallofhelp.app): bedient den
+ * - `auth` — zentraler OAuth-Gateway-Host (auth.hallofhelp.com): bedient den
  *            Provider-Callback host-neutral, löst den Tenant NUR aus dem
  *            signierten state auf und darf deshalb selbst NIE zu einem Tenant
  *            kollabieren (sonst könnte ein Datensatz `tenants.slug='auth'` den
  *            Gateway-Host kapern).
  * - `api`  — reserviert für eine spätere dedizierte API-Origin.
  * - `app`  — Operator-Instanz (Punkt 4b): reserviert, damit KEIN Kunde den
- *            Control-Plane-Host `app.hallofhelp.app` per `tenants.slug='app'`
+ *            Control-Plane-Host `app.hallofhelp.com` per `tenants.slug='app'`
  *            kapern kann. Aufgelöst wird sie ausschließlich über
  *            `isOperatorHost` (nicht über den generischen Slug-Pfad).
  */
@@ -48,7 +48,7 @@ export function isOperatorHost(host: string | null | undefined): boolean {
 
 /**
  * Extrahiert den Tenant-Slug aus dem Host.
- * "acme.hallofhelp.app" → "acme"; Apex/reservierte Subdomain (www/auth/api) →
+ * "acme.hallofhelp.com" → "acme"; Apex/reservierte Subdomain (www/auth/api) →
  * null; Custom-Domain → null (später via D1).
  */
 export function tenantSlugFromHost(host: string | null | undefined): string | null {

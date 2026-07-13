@@ -36,7 +36,7 @@ export const PUBLIC_ROUTES = {
   // eigene state-Cookie + Verification-Zeile (CSRF-Anker). Es ist deshalb KEIN
   // neuer Allowlist-Eintrag nötig und KEINE Aufweichung — der Callback war schon
   // immer Teil des public Auth-Prefixes. Der GATEWAY-Callback (auf
-  // auth.hallofhelp.app) läuft ohnehin VOR dieser Default-Deny-Schicht
+  // auth.hallofhelp.com) läuft ohnehin VOR dieser Default-Deny-Schicht
   // (app.ts (0b), host-diskriminiert) und erreicht sie nie.
   prefixes: [`${AUTH_BASE_PATH}/`, "/api/v1/legal/"],
 } as const;

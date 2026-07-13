@@ -6,7 +6,7 @@ AI-First Hilfezentrum, **Multi-Tenant-SaaS** auf Cloudflare. Details/Entscheidun
 - **Next.js** (App Router, TS) auf **Cloudflare Workers via OpenNext** (`@opennextjs/cloudflare`)
 - **Tailwind** mit CSS-Variablen-Tokens (White-Label)
 - **D1** (SQL), **R2** (Medien, Binding `MEDIA`), **Vectorize** (RAG), **Workers AI**, **KV** (`CACHE`)
-- **Better Auth** (später), **Paddle** (Billing, später)
+- **Better Auth** (implementiert), **Paddle** (Billing, später)
 - Paketmanager: **pnpm**; Node 22
 
 ## Befehle
@@ -20,7 +20,7 @@ AI-First Hilfezentrum, **Multi-Tenant-SaaS** auf Cloudflare. Details/Entscheidun
 - `src/app/` — Routen (App Router), `api/*` = Route Handlers
 - `src/server/api/` — **öffentliche API** (`/api/v1`, Hono), eingehängt via `src/app/api/v1/[[...route]]`
 - `src/server/` — Backend-/Domain-Schicht (transport-agnostisch), Basis für Content-Pflege & RAG-Anfragen
-- `src/lib/tenant/` — Mandanten-Auflösung (Host → Tenant); heute Demo-Registry, später D1
+- `src/lib/tenant/` — Mandanten-Auflösung (Host → Tenant); D1-gestützt (Registry-Fallback nur ohne CF-Kontext/dev)
 - `src/lib/theme/` — Branding → CSS-Variablen
 - `migrations/` — D1-Migrationen (forward-only)
 - `docs/` — Pläne, Git-Strategie, Recherche, ToDos
@@ -47,7 +47,7 @@ lesen diese Variablen. Neue Tenants brauchen daher **keinen** Code — nur einen
 - Prüfung: `pnpm i18n:check` (CI-Gate vor jedem Deploy).
 
 ### Test-/Deploy-Sicherheit
-- Vor jedem Merge/Deploy müssen grün sein: `typecheck` · `lint` · `i18n:check` · `test` · `build` (siehe `.gitlab-ci.yml`, Stage `validate`/`test`/`build`).
+- Vor jedem Merge/Deploy müssen grün sein: `typecheck` · `lint` · `i18n:check` · `test` · `build` (siehe `.github/workflows/ci.yml`, Jobs `validate`/`test`/`build`).
 - Neuer UI-String → DE **und** EN ergänzen. Neue Logik → passenden Test ergänzen.
 - D1-Schemaänderung → neue forward-only-Migration (nie bestehende editieren).
 
@@ -58,7 +58,7 @@ lesen diese Variablen. Neue Tenants brauchen daher **keinen** Code — nur einen
 - **Wie:** Unit-Tests neben der Datei (`*.test.ts`); **Fakes statt echter Bindings** (Repository-/Source-Pattern → Fake einspeisen, keine Netz-/DB-Zugriffe). E2E nur für **wenige kritische Nutzerpfade**, später und sparsam.
 - **Faustregel:** Jeder Test muss einen **benennbaren realen Fehlerfall** verhindern. Wenn nicht → kein Test. **Coverage ist kein Ziel — verhinderte Bugs sind es.**
 - **Bei PRs:** neue Verzweigung/Regel → Test; Bugfix → Regressionstest, der **ohne** den Fix fehlschlägt.
-- **Automatik:** läuft lokal vor jedem `git push` (Husky pre-push: `i18n:check` + `typecheck` + `test`) **und** in CI. **Merge nur bei grüner Pipeline** (GitLab-Setting „Pipelines must succeed").
+- **Automatik:** läuft lokal vor jedem `git push` (Husky pre-push: `i18n:check` + `typecheck` + `test`) **und** in CI. **Merge nur bei grüner Pipeline** (GitHub Branch Protection: „Require status checks to pass").
 
 ## Grundsatz
 Erst saubere Struktur/Plattform (Multi-Tenancy, White-Label), dann Features gemäß Plan v2 (`docs/`).

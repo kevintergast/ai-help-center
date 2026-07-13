@@ -13,7 +13,7 @@ type ResendEnv = { RESEND_API_KEY?: string };
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 /** Absender-Default (kein Secret). Überschreibbar via `createEmailSenders(env,{from})`. */
-const DEFAULT_FROM = "HallofHelp <noreply@hallofhelp.app>";
+const DEFAULT_FROM = "HallofHelp <noreply@hallofhelp.com>";
 
 /** Prozessweit nur EIN Hinweis, wenn kein Key gesetzt ist (kein Log-Spam). */
 let missingKeyWarned = false;

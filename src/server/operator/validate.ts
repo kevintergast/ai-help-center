@@ -1,6 +1,6 @@
 /**
  * VALIDIERUNG der Operator-Provisioning-Eingaben (Punkt 4b) — von Hand, kein Zod
- * (Projektkonvention). Der Slug wird zur Subdomain `<slug>.hallofhelp.app` und
+ * (Projektkonvention). Der Slug wird zur Subdomain `<slug>.hallofhelp.com` und
  * ist Teil des `tenants`-Datensatzes (UNIQUE) — deshalb strikt und fail-closed.
  */
 

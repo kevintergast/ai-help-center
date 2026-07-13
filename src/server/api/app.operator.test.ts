@@ -24,8 +24,8 @@ import type { ApiDeps, OperatorDeps } from "./context";
 const TEST_SECRET = "test-only-secret-value-0123456789-ABCDEF";
 const PASSWORD = "correct-horse-battery";
 
-const OPERATOR_HOST = "app.hallofhelp.app";
-const CUSTOMER_HOST = "acme.hallofhelp.app";
+const OPERATOR_HOST = "app.hallofhelp.com";
+const CUSTOMER_HOST = "acme.hallofhelp.com";
 
 function makeTenant(id: string, slug: string): Tenant {
   return {
@@ -89,7 +89,7 @@ function makeApp(opts: { operatorAvailable?: boolean } = {}) {
     repo,
     sendOwnerSetup: async (input): Promise<OwnerSetupResult> => {
       setupCalls.push(input);
-      return { sent: false, devLink: `https://${input.tenant.slug}.hallofhelp.app/setup#tok` };
+      return { sent: false, devLink: `https://${input.tenant.slug}.hallofhelp.com/setup#tok` };
     },
   };
 
@@ -208,8 +208,8 @@ describe("POST /api/v1/operator/help-centers", () => {
     expect(body).toMatchObject({
       slug: "acme",
       name: "Acme Support",
-      helpCenterUrl: "https://acme.hallofhelp.app",
-      ownerSetupDevLink: "https://acme.hallofhelp.app/setup#tok",
+      helpCenterUrl: "https://acme.hallofhelp.com",
+      ownerSetupDevLink: "https://acme.hallofhelp.com/setup#tok",
     });
 
     // Provisioning: EIN Hilfezentrum, Mapping über die eigene Operator-Id.

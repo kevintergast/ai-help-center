@@ -29,7 +29,7 @@ import {
  */
 
 const SECRET = "test-only-secret-value-0123456789-ABCDEF";
-const TENANT_A_ORIGIN = "https://tenant-a.hallofhelp.app";
+const TENANT_A_ORIGIN = "https://tenant-a.hallofhelp.com";
 
 // --------------------------------------------------------------------------
 // E1 — state sign/verify
@@ -159,12 +159,12 @@ describe("E1 — signState/verifyState", () => {
     });
   });
 
-  it("isAllowedInitiatingOrigin: nur https://<slug>.hallofhelp.app, keine reservierten Slugs", () => {
-    expect(isAllowedInitiatingOrigin("https://acme.hallofhelp.app")).toBe(true);
-    expect(isAllowedInitiatingOrigin("https://auth.hallofhelp.app")).toBe(false);
-    expect(isAllowedInitiatingOrigin("https://www.hallofhelp.app")).toBe(false);
-    expect(isAllowedInitiatingOrigin("http://acme.hallofhelp.app")).toBe(false); // kein https
-    expect(isAllowedInitiatingOrigin("https://acme.hallofhelp.app.evil.com")).toBe(false);
+  it("isAllowedInitiatingOrigin: nur https://<slug>.hallofhelp.com, keine reservierten Slugs", () => {
+    expect(isAllowedInitiatingOrigin("https://acme.hallofhelp.com")).toBe(true);
+    expect(isAllowedInitiatingOrigin("https://auth.hallofhelp.com")).toBe(false);
+    expect(isAllowedInitiatingOrigin("https://www.hallofhelp.com")).toBe(false);
+    expect(isAllowedInitiatingOrigin("http://acme.hallofhelp.com")).toBe(false); // kein https
+    expect(isAllowedInitiatingOrigin("https://acme.hallofhelp.com.evil.com")).toBe(false);
     expect(isAllowedInitiatingOrigin("https://evil.com")).toBe(false);
   });
 });
@@ -206,7 +206,7 @@ describe("wrapAuthorizationURL — Gateway-Umschlag um better-auths state", () =
 // E2 / E7 — Gateway-Route über den echten App-Mount
 // --------------------------------------------------------------------------
 
-const GATEWAY_HOST = "auth.hallofhelp.app";
+const GATEWAY_HOST = "auth.hallofhelp.com";
 
 function makeTenant(id: string, slug: string): Tenant {
   return {
@@ -220,7 +220,7 @@ function makeTenant(id: string, slug: string): Tenant {
 }
 
 const TENANTS: Record<string, Tenant> = {
-  "tenant-a.hallofhelp.app": makeTenant("t_a", "tenant-a"),
+  "tenant-a.hallofhelp.com": makeTenant("t_a", "tenant-a"),
 };
 
 type Row = Record<string, unknown>;
@@ -330,7 +330,7 @@ describe("E2 — Gateway-Route (302 auf Tenant-Origin, fail-closed sonst)", () =
     // deren Resolver liefert t_b. tid (t_a) ≠ Origin-Tenant (t_b) ⇒ harter Reject.
     const state = await signState(SECRET, {
       tenantId: "t_a",
-      initiatingOrigin: "https://tenant-b.hallofhelp.app",
+      initiatingOrigin: "https://tenant-b.hallofhelp.com",
       innerState: "inner",
       nonce: "gw-mismatch",
     });
@@ -347,8 +347,8 @@ describe("E2 — Gateway-Route (302 auf Tenant-Origin, fail-closed sonst)", () =
         nonceStore,
         resolveTenantIdByOrigin: async (origin) =>
           ({
-            "https://tenant-a.hallofhelp.app": "t_a",
-            "https://tenant-b.hallofhelp.app": "t_b",
+            "https://tenant-a.hallofhelp.com": "t_a",
+            "https://tenant-b.hallofhelp.com": "t_b",
           })[origin] ?? null,
       },
     };
@@ -381,7 +381,7 @@ describe("E7 — Gateway-Middleware ist host-diskriminiert (Tenant-Hosts unberü
   it("auf einem Tenant-Host läuft /api/v1/tenant normal (keine Gateway-Interception)", async () => {
     const { app } = makeApp();
     const res = await app.request("/api/v1/tenant", {
-      headers: { host: "tenant-a.hallofhelp.app" },
+      headers: { host: "tenant-a.hallofhelp.com" },
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ id: "t_a", slug: "tenant-a" });

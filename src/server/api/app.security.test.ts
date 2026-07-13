@@ -23,8 +23,8 @@ import { PUBLIC_ROUTES, isPublicPath } from "./public-routes";
 const TEST_SECRET = "test-only-secret-value-0123456789-ABCDEF"; // >= 32 Zeichen
 const PASSWORD = "correct-horse-battery"; // >= 10 Zeichen (minPasswordLength)
 
-const HOST_A = "tenant-a.hallofhelp.app";
-const HOST_B = "tenant-b.hallofhelp.app";
+const HOST_A = "tenant-a.hallofhelp.com";
+const HOST_B = "tenant-b.hallofhelp.com";
 
 function makeTenant(id: string, slug: string): Tenant {
   return {
