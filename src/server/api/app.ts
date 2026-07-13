@@ -59,7 +59,7 @@ export function buildApiApp(deps: ApiDeps) {
   app.get("/health", (c) => c.json({ status: "ok", service: "hallofhelp-api", version: "v1" }));
 
   // (0b) OAUTH-GATEWAY (Phase E, §c-3): NUR auf dem zentralen, tenant-freien
-  // Host `auth.hallofhelp.app`. Läuft VOR der Tenant-Middleware — der Gateway
+  // Host `auth.hallofhelp.com`. Läuft VOR der Tenant-Middleware — der Gateway
   // löst den Tenant NICHT über den Host, sondern aus dem signierten `state` auf
   // und leitet den Provider-Callback per 302 an die initiierende Tenant-Origin
   // weiter (kein DB-Insert hier). Auf allen anderen Hosts fällt die Middleware
@@ -181,7 +181,7 @@ export function buildApiApp(deps: ApiDeps) {
   app.route("/admin/articles", contentAdminRouter(deps));
 
   // Operator-Onboarding (Punkt 4b): Provisioning der Betreiber-Control-Plane.
-  // NUR im Operator-Kontext (t_operator / app.hallofhelp.app) wirksam — auf
+  // NUR im Operator-Kontext (t_operator / app.hallofhelp.com) wirksam — auf
   // Kunden-Hosts antwortet jede Route 404 (ensureOperatorContext). Session-
   // Pflicht via Default-Deny; ohne Operator-Bindings 503. Details: ./operator.ts
   app.route("/operator", operatorRouter(deps));

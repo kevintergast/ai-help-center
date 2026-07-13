@@ -7,7 +7,7 @@
 - [ ] Cloudflare-Account anlegen (privat)
 - [ ] Brand-/Produkt-Domain registrieren via **Cloudflare Registrar** (Einkaufspreis). Falls TLD dort nicht verfügbar: extern kaufen (Porkbun/Namecheap) und **Nameserver auf Cloudflare** zeigen.
 - [ ] WHOIS-Redaction (bei Cloudflare automatisch) prüfen
-- Domain dient gleichzeitig als Basis für Kunden-Subdomains (`*.hallofhelp.app`) und Team-Mail.
+- Domain dient gleichzeitig als Basis für Kunden-Subdomains (`*.hallofhelp.com`) und Team-Mail.
 
 ## 2. E-Mail-Postfach — Zoho Mail Free (EU-Rechenzentrum)
 - [ ] Zoho-Mail **Free-Plan** anlegen, **EU-Datacenter (zoho.eu)** wählen → EU-Datenresidenz

@@ -4,7 +4,7 @@ import type { Locale } from "@/lib/tenant/types";
 
 /**
  * Layout-Rahmen der Operator-Konsole (Punkt 4b) — Betreiber-Instanz
- * `app.hallofhelp.app`. Schlichter Header mit Wortmarke + zentrierte
+ * `app.hallofhelp.com`. Schlichter Header mit Wortmarke + zentrierte
  * Inhaltsspalte. Server-Komponente; das Branding (CSS-Variablen) liegt global
  * auf <html> (Root-Layout).
  */

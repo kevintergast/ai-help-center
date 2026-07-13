@@ -37,7 +37,7 @@ export const DEMO_TENANTS: Tenant[] = [
 export const DEFAULT_TENANT: Tenant = DEMO_TENANTS[0];
 
 /**
- * OPERATOR-INSTANZ (Control-Plane, Punkt 4b) — `app.hallofhelp.app`.
+ * OPERATOR-INSTANZ (Control-Plane, Punkt 4b) — `app.hallofhelp.com`.
  * KEIN Kunden-Tenant: sie trägt Registrierung/Onboarding/„meine Hilfezentren".
  * Als eigener better-auth-Kontext (`tenantId = t_operator`) strikt isoliert.
  * Prod: die zugehörige `tenants`-Zeile wird per Migration 0006 geseedet

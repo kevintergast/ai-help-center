@@ -36,8 +36,8 @@ import { runWithTenant } from "./tenant-context";
 const SECRET = "test-only-secret-value-0123456789-ABCDEF";
 const PASSWORD = "correct-horse-battery";
 
-const HOST_A = "tenant-a.hallofhelp.app";
-const HOST_B = "tenant-b.hallofhelp.app";
+const HOST_A = "tenant-a.hallofhelp.com";
+const HOST_B = "tenant-b.hallofhelp.com";
 
 function makeTenant(id: string, slug: string): Tenant {
   return {
@@ -458,7 +458,7 @@ describe("E8 — sign-in/social-Start wird in den Gateway-Umschlag gewickelt", (
       headers: { host: HOST_A, "content-type": "application/json" },
       body: JSON.stringify({
         provider: "google",
-        callbackURL: "https://tenant-a.hallofhelp.app/dashboard",
+        callbackURL: "https://tenant-a.hallofhelp.com/dashboard",
       }),
     });
     expect(start.status).toBe(200);
@@ -483,7 +483,7 @@ describe("E8 — sign-in/social-Start wird in den Gateway-Umschlag gewickelt", (
     expect(verified).toMatchObject({
       ok: true,
       tenantId: "t_a",
-      initiatingOrigin: "https://tenant-a.hallofhelp.app",
+      initiatingOrigin: "https://tenant-a.hallofhelp.com",
     });
     const innerState = verified.ok ? verified.innerState : "";
 
@@ -496,11 +496,11 @@ describe("E8 — sign-in/social-Start wird in den Gateway-Umschlag gewickelt", (
     //     302 auf die Tenant-Origin, state zurückgetauscht auf den inneren Wert.
     const gw = await app.request(
       `/api/v1/auth/callback/google?code=AUTH_CODE&state=${encodeURIComponent(wrappedState)}`,
-      { headers: { host: "auth.hallofhelp.app" } },
+      { headers: { host: "auth.hallofhelp.com" } },
     );
     expect(gw.status).toBe(302);
     const loc = new URL(gw.headers.get("location")!);
-    expect(loc.origin).toBe("https://tenant-a.hallofhelp.app");
+    expect(loc.origin).toBe("https://tenant-a.hallofhelp.com");
     expect(loc.pathname).toBe("/api/v1/auth/callback/google");
     expect(loc.searchParams.get("code")).toBe("AUTH_CODE");
     expect(loc.searchParams.get("state")).toBe(innerState);

@@ -319,7 +319,7 @@ export const de = {
   "auth.validate.nameRequired": "Bitte gib deinen Namen ein.",
   "auth.validate.codeInvalid": "Bitte gib den 6-stelligen Code ein.",
 
-  // Operator-Konsole (Punkt 4b) — Betreiber-Onboarding auf app.hallofhelp.app
+  // Operator-Konsole (Punkt 4b) — Betreiber-Onboarding auf app.hallofhelp.com
   "operator.brand": "HallofHelp",
   "operator.console.title": "Meine Hilfezentren",
   "operator.console.subtitle": "Verwalte deine Hilfezentren oder erstelle ein neues.",
@@ -344,7 +344,7 @@ export const de = {
   "operator.wizard.slugLabel": "Subdomain",
   "operator.wizard.slugPlaceholder": "acme",
   "operator.wizard.slugHint": "Kleinbuchstaben, Zahlen und Bindestriche. 3–63 Zeichen.",
-  "operator.wizard.slugSuffix": ".hallofhelp.app",
+  "operator.wizard.slugSuffix": ".hallofhelp.com",
   "operator.wizard.slugChecking": "Verfügbarkeit wird geprüft …",
   "operator.wizard.slugAvailable": "Verfügbar",
   "operator.wizard.slugTaken": "Diese Subdomain ist bereits vergeben.",

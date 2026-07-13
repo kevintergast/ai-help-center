@@ -13,7 +13,7 @@ describe("getTenantSwitchLinks", () => {
   });
 
   it("nutzt https ohne Port für Prod-Domains", () => {
-    const links = getTenantSwitchLinks("demo.hallofhelp.app", "https");
-    expect(links.find((l) => l.slug === "acme")!.url).toBe("https://acme.hallofhelp.app");
+    const links = getTenantSwitchLinks("demo.hallofhelp.com", "https");
+    expect(links.find((l) => l.slug === "acme")!.url).toBe("https://acme.hallofhelp.com");
   });
 });

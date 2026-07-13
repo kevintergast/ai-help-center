@@ -320,7 +320,7 @@ export const en: Record<MessageKey, string> = {
   "auth.validate.nameRequired": "Please enter your name.",
   "auth.validate.codeInvalid": "Please enter the 6-digit code.",
 
-  // Operator console (point 4b) — provider onboarding on app.hallofhelp.app
+  // Operator console (point 4b) — provider onboarding on app.hallofhelp.com
   "operator.brand": "HallofHelp",
   "operator.console.title": "My help centers",
   "operator.console.subtitle": "Manage your help centers or create a new one.",
@@ -345,7 +345,7 @@ export const en: Record<MessageKey, string> = {
   "operator.wizard.slugLabel": "Subdomain",
   "operator.wizard.slugPlaceholder": "acme",
   "operator.wizard.slugHint": "Lowercase letters, digits and hyphens. 3–63 characters.",
-  "operator.wizard.slugSuffix": ".hallofhelp.app",
+  "operator.wizard.slugSuffix": ".hallofhelp.com",
   "operator.wizard.slugChecking": "Checking availability …",
   "operator.wizard.slugAvailable": "Available",
   "operator.wizard.slugTaken": "This subdomain is already taken.",

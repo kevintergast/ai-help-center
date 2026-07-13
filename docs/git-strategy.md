@@ -6,7 +6,7 @@ Für GitLab + Cloudflare Workers/D1. Zwei Umgebungen: **`develop` → Staging**,
 > - Das Repo liegt auf **GitHub** → CI läuft über **GitHub Actions** ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)). Die untenstehende `.gitlab-ci.yml` ist nur noch **Referenz** (inert auf GitHub).
 > - Der Dev/Staging-Branch heißt **`development`** (nicht `develop`).
 > - Prod-Gate = **eine** Environment-Freigabe, die Migration → Deploy atomar abdeckt (statt zwei separater manueller Jobs). GitHub Actions kennt kein `when: manual`; das Gate kommt vom GitHub-Environment `production` mit Required-Reviewer.
-> - Staging läuft bis zum Zone-Routing unter der `*.workers.dev`-URL (nicht `staging.hallofhelp.app`).
+> - Staging läuft bis zum Zone-Routing unter der `*.workers.dev`-URL (nicht `staging.hallofhelp.com`).
 >
 > Branching-Modell, Commit-Konventionen, Migrations-Disziplin und MR-Checkliste unten bleiben unverändert gültig.
 
@@ -151,7 +151,7 @@ deploy:staging:
     - if: '$CI_COMMIT_BRANCH == "develop"'
   environment:
     name: staging
-    url: https://staging.hallofhelp.app
+    url: https://staging.hallofhelp.com
   script:
     - pnpm exec wrangler deploy --env staging
 
@@ -174,7 +174,7 @@ deploy:production:
   allow_failure: false
   environment:
     name: production
-    url: https://app.hallofhelp.app
+    url: https://app.hallofhelp.com
   script:
     - pnpm exec wrangler deploy --env production
 ```

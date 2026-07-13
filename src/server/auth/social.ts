@@ -6,7 +6,7 @@ import { gatewayRedirectURI, type SocialProviderId } from "./oauth-gateway";
  *
  * Grundsätze (Design §c-3/§g):
  *  - `redirectURI` je Provider zeigt auf den ZENTRALEN Gateway-Host
- *    (auth.hallofhelp.app). Verifiziert: better-auth setzt die `redirect_uri`
+ *    (auth.hallofhelp.com). Verifiziert: better-auth setzt die `redirect_uri`
  *    sowohl im Authorization-Request als auch im Token-Exchange als
  *    `options.redirectURI || <computed>` — die Provider-Config gewinnt und hält
  *    beide Seiten deckungsgleich.

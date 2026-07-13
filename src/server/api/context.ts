@@ -56,7 +56,7 @@ export interface ApiDeps {
   getContentDeps(): Promise<ContentDeps | null>;
   /**
    * OAuth-Gateway (Phase E): Krypto-/Nonce-Infrastruktur für den zentralen
-   * Provider-Callback auf `auth.hallofhelp.app`. `null`/fehlend ⇒ der
+   * Provider-Callback auf `auth.hallofhelp.com`. `null`/fehlend ⇒ der
    * Gateway-Host antwortet 503 (Bindings fehlen) — Tenant-Hosts sind unberührt.
    */
   oauthGateway?: OAuthGatewayDeps | null;
@@ -72,7 +72,7 @@ export interface ApiDeps {
 /**
  * Pro Request aufgelöste Operator-Provisioning-Infrastruktur (Punkt 4b).
  * `sendOwnerSetup` folgt der resend.ts-Semantik: es versendet den Set-Passwort-/
- * Onboarding-Link an das frisch angelegte Owner-Konto auf `<slug>.hallofhelp.app`
+ * Onboarding-Link an das frisch angelegte Owner-Konto auf `<slug>.hallofhelp.com`
  * über den bestehenden Reset-Mechanismus. `devLink` ist NUR ohne Mail-Key und
  * außerhalb Produktion gesetzt (analog `devAcceptUrl` bei Einladungen).
  */

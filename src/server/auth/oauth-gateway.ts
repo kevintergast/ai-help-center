@@ -4,11 +4,11 @@ import { deriveTenantKey } from "./crypto";
  * PHASE E — OAUTH-GATEWAY (Design §c-3, A-3/T-5).
  *
  * PROBLEM: Google/Microsoft erlauben pro OAuth-Client nur EINE registrierte,
- * exakt-matchende `redirect_uri` — Wildcard-Subdomains (`*.hallofhelp.app`)
+ * exakt-matchende `redirect_uri` — Wildcard-Subdomains (`*.hallofhelp.com`)
  * sind NICHT zulässig. Ein Multi-Tenant-SaaS mit einer Origin pro Tenant kann
- * den Callback deshalb nicht direkt auf `<slug>.hallofhelp.app` empfangen.
+ * den Callback deshalb nicht direkt auf `<slug>.hallofhelp.com` empfangen.
  *
- * LÖSUNG: EIN zentraler, tenant-freier Gateway-Host `auth.hallofhelp.app` ist
+ * LÖSUNG: EIN zentraler, tenant-freier Gateway-Host `auth.hallofhelp.com` ist
  * die einzige registrierte `redirect_uri`. Der Provider ruft IMMER dort zurück.
  * Der Gateway löst den Tenant NICHT über den Host auf (der Host ist neutral),
  * sondern AUSSCHLIESSLICH aus einem signierten `state`, den der Tenant-Host beim
@@ -41,7 +41,7 @@ import { deriveTenantKey } from "./crypto";
  */
 
 /** Zentraler Gateway-Host (die EINZIGE bei Google/Microsoft registrierte redirect_uri-Origin). */
-export const OAUTH_GATEWAY_HOST = "auth.hallofhelp.app";
+export const OAUTH_GATEWAY_HOST = "auth.hallofhelp.com";
 export const OAUTH_GATEWAY_ORIGIN = `https://${OAUTH_GATEWAY_HOST}`;
 
 /** Auth-Mount-Basispfad (identisch zu AUTH_BASE_PATH in auth.ts; hier dupliziert, um Import-Zyklen zu vermeiden). */
@@ -66,14 +66,14 @@ export function isGatewayHost(host: string | null | undefined): boolean {
 // --------------------------------------------------------------------------
 
 /**
- * Erlaubte initiierende Origins: NUR `https://<slug>.hallofhelp.app`, wobei
+ * Erlaubte initiierende Origins: NUR `https://<slug>.hallofhelp.com`, wobei
  * `<slug>` eine gültige (nicht reservierte) Subdomain ist. Damit kann der
  * Gateway NIE auf ein beliebiges Ziel (offener Redirect) weiterleiten — selbst
  * wenn ein Angreifer einen gültig signierten state hätte, müsste die Origin
  * diesem Muster genügen. `auth`/`www`/`api` sind ausgeschlossen.
  */
-const BASE_DOMAIN = "hallofhelp.app";
-const ALLOWED_ORIGIN_RE = /^https:\/\/([a-z0-9](?:[a-z0-9-]*[a-z0-9])?)\.hallofhelp\.app$/;
+const BASE_DOMAIN = "hallofhelp.com";
+const ALLOWED_ORIGIN_RE = /^https:\/\/([a-z0-9](?:[a-z0-9-]*[a-z0-9])?)\.hallofhelp\.com$/;
 const RESERVED_ORIGIN_SLUGS: ReadonlySet<string> = new Set(["www", "auth", "api"]);
 
 export function isAllowedInitiatingOrigin(origin: string): boolean {
@@ -84,7 +84,7 @@ export function isAllowedInitiatingOrigin(origin: string): boolean {
 
 /**
  * Kanonische initiierende Tenant-Origin für einen Slug: IMMER
- * `https://<slug>.hallofhelp.app` (deckungsgleich mit `tenantBaseURL` in
+ * `https://<slug>.hallofhelp.com` (deckungsgleich mit `tenantBaseURL` in
  * runtime.ts — bewusst NICHT die unverifizierte Custom-Domain). Der Gateway
  * leitet den Callback später an genau diese Origin zurück; dort liegen die
  * better-auth-state-Cookie + verification-Zeile (host-scoped), sodass der
@@ -156,7 +156,7 @@ interface StatePayload {
   v: number;
   /** Tenant-ID (interne id, z. B. `t_a`) — wählt den HKDF-Schlüssel. */
   tid: string;
-  /** Initiierende Tenant-Origin (`https://<slug>.hallofhelp.app`). */
+  /** Initiierende Tenant-Origin (`https://<slug>.hallofhelp.com`). */
   o: string;
   /** Single-use Nonce (Replay-Schutz). */
   n: string;
