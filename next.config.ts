@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
 
 export default nextConfig;
 
-// OpenNext: aktiviert Cloudflare-Bindings (D1/R2/KV/AI) bereits in `next dev`.
+// OpenNext: Cloudflare-Bindings NUR im lokalen `next dev` aktivieren — NICHT beim `next build`.
+// Sonst baut OpenNext für nicht-lokale Bindings (z. B. Vectorize) eine Remote-Proxy-Session zu
+// Cloudflare auf; die scheitert in CI mangels Credentials (non-interaktiv, kein CLOUDFLARE_API_TOKEN
+// im build-Job) mit "Could not start remote dev session" und bricht den Build ab.
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
-initOpenNextCloudflareForDev();
+if (process.env.NODE_ENV === "development") {
+  initOpenNextCloudflareForDev();
+}
