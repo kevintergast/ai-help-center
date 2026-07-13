@@ -14,12 +14,13 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"
 database_name = "hallofhelp-staging"
-database_id = "<FILL: aus `wrangler d1 create hallofhelp-staging`>"
+database_id = "436c53cb-7157-411c-8d45-6da439c26033"
 migrations_dir = "migrations"
 
 [[r2_buckets]]
 binding = "MEDIA"                       # Artikel-Bilder/-Assets (nicht mit ASSETS = Next-Static verwechseln)
 bucket_name = "hallofhelp-assets-staging"
+jurisdiction = "eu"
 
 [[vectorize]]
 binding = "VECTORIZE"
@@ -27,15 +28,25 @@ index_name = "hallofhelp-articles-staging"
 
 [[kv_namespaces]]
 binding = "CACHE"
-id = "<FILL: aus `wrangler kv namespace create CACHE`>"
+id = "179988c7d6344221b9a41da8312f2594"
 
 [ai]
 binding = "AI"
+
+# AUTH_SECRET aus Cloudflare Secrets Store (Wert bleibt in Cloudflare, nie im Repo):
+[[secrets_store_secrets]]
+binding = "AUTH_SECRET"
+store_id = "3a87edf96f654271b54858cfbc4c61fc"
+secret_name = "AUTH_SECRET"
 
 # Queues/Durable Objects brauchen Workers Paid ($5/Mo) → später (Re-Embedding-Pipeline).
 
 # ─── PRODUCTION ────────────────────────────────────────────────────
 [env.production]
+# Expliziter Name (sonst haengt Wrangler "-production" an) → konsistent mit DB/Bucket/Index.
+name = "hallofhelp-prod"
+# TODO(routing): Sobald die Zone in Cloudflare liegt, Custom-Domain ergaenzen:
+#   routes = [{ pattern = "app.hallofhelp.app", custom_domain = true }]
 [env.production.assets]
 directory = ".open-next/assets"
 binding = "ASSETS"
@@ -43,12 +54,13 @@ binding = "ASSETS"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "hallofhelp-prod"
-database_id = "<FILL später>"
+database_id = "27ee06db-0320-427a-9c90-c45c673accfc"
 migrations_dir = "migrations"
 
 [[env.production.r2_buckets]]
 binding = "MEDIA"
 bucket_name = "hallofhelp-assets-prod"
+jurisdiction = "eu"
 
 [[env.production.vectorize]]
 binding = "VECTORIZE"
@@ -56,7 +68,13 @@ index_name = "hallofhelp-articles-prod"
 
 [[env.production.kv_namespaces]]
 binding = "CACHE"
-id = "<FILL später>"
+id = "f7ba0390e26c408ea72c4cca14d33856"
 
 [env.production.ai]
 binding = "AI"
+
+# Prod referenziert vorerst denselben Store-Secret; bei Bedarf später eigener Prod-Wert.
+[[env.production.secrets_store_secrets]]
+binding = "AUTH_SECRET"
+store_id = "3a87edf96f654271b54858cfbc4c61fc"
+secret_name = "AUTH_SECRET"

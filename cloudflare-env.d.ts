@@ -8,4 +8,15 @@ interface CloudflareEnv {
   CACHE: KVNamespace;
   AI: Ai;
   ASSETS: Fetcher;
+  // AUTH_SECRET: lokal String (.dev.vars), in Staging/Prod Secrets-Store-Binding (async .get()).
+  AUTH_SECRET: string | { get(): Promise<string> };
+  // Resend API-Key für E-Mail-Versand (Verifikation/Passwort-Reset). Optional:
+  // fehlt er, ist der Versand ein No-op (siehe src/server/auth/resend.ts).
+  RESEND_API_KEY?: string;
+  // Social Login (Phase E). Fehlt ein Client-ID/Secret-Paar, wird der jeweilige
+  // Provider NICHT registriert (kein Crash) — siehe src/server/auth/social.ts.
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  MICROSOFT_CLIENT_ID?: string;
+  MICROSOFT_CLIENT_SECRET?: string;
 }

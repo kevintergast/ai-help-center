@@ -1,0 +1,2 @@
+# HallofHelp pre-push: schnelle Gates lokal vor jedem Push.
+pnpm i18n:check && pnpm typecheck && pnpm test
