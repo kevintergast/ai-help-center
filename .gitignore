@@ -8,6 +8,9 @@ out/
 dist/
 .open-next/
 
+# TypeScript (inkrementeller Build-Cache — nie committen)
+*.tsbuildinfo
+
 # Cloudflare / Wrangler
 .wrangler/
 .dev.vars
