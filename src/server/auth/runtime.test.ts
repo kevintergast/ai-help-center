@@ -22,14 +22,14 @@ function tenant(overrides: Partial<Tenant> = {}): Tenant {
 describe("tenantBaseURL", () => {
   it("leitet die Subdomain aus dem Slug ab", () => {
     expect(tenantBaseURL(tenant({ slug: "acme", customDomain: null }))).toBe(
-      "https://acme.hallofhelp.app",
+      "https://acme.hallofhelp.com",
     );
   });
   it("ignoriert eine gesetzte Custom-Domain (kein Ownership-Beweis → nie Secrets dorthin, A-7)", () => {
     // Regression: vor dem Fix trugen Einladungs-/Reset-Links das Roh-Token auf
     // einen unverifizierten, potenziell fremd-kontrollierten Host.
     expect(tenantBaseURL(tenant({ slug: "acme", customDomain: "help.acme.com" }))).toBe(
-      "https://acme.hallofhelp.app",
+      "https://acme.hallofhelp.com",
     );
   });
 });
@@ -55,7 +55,7 @@ describe("createAuth (D1-Runtime-Factory, SQLite-Stand-in)", () => {
 
   it("setzt baseURL aus dem Tenant (behebt die 'Base URL not set'-Warnung)", async () => {
     const auth = await createAuth(fakeEnv(), tenant());
-    expect(auth.options.baseURL).toBe("https://acme.hallofhelp.app");
+    expect(auth.options.baseURL).toBe("https://acme.hallofhelp.com");
   });
 
   it("erzeugt eine funktionierende, tenant-isolierte Instanz (Insert trägt tenantId, Cross-Tenant-Read = null)", async () => {

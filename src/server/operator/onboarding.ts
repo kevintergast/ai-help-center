@@ -2,7 +2,7 @@
  * OWNER-SETUP / ONBOARDING-VERSAND (Punkt 4b).
  *
  * Nach dem Provisioning bekommt das frisch angelegte Owner-Konto (auf dem NEUEN
- * Tenant `<slug>.hallofhelp.app`, ohne Passwort) einen Set-Passwort-/Onboarding-
+ * Tenant `<slug>.hallofhelp.com`, ohne Passwort) einen Set-Passwort-/Onboarding-
  * Link über den BESTEHENDEN Reset-Mechanismus von better-auth
  * (`requestPasswordReset`): das erzeugt einen tenant-gescopeten Reset-Token,
  * versendet den Link via Resend (inert ohne `RESEND_API_KEY`) und — über den
@@ -55,7 +55,7 @@ export function makeSendOwnerSetup(env: CloudflareEnv & { RESEND_API_KEY?: strin
           body: {
             email: input.ownerEmail,
             // Landing auf der Reset-Seite des NEUEN Tenants (Slug-Host, A-7).
-            redirectTo: `https://${input.tenant.slug}.hallofhelp.app/reset-password`,
+            redirectTo: `https://${input.tenant.slug}.hallofhelp.com/reset-password`,
           },
         });
       } catch (err) {

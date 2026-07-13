@@ -23,7 +23,7 @@ type View = "list" | "wizard" | "success";
  * - Nicht eingeloggt → Anmelde-Prompt (Links zu den 4a-Formularen mit
  *   `?redirect=/console`).
  * - Eingeloggt → Liste der EIGENEN Hilfezentren (Fetch), Wizard, Erfolgsseite
- *   mit Link zu `<slug>.hallofhelp.app` + Hinweis „Passwort + MFA einrichten".
+ *   mit Link zu `<slug>.hallofhelp.com` + Hinweis „Passwort + MFA einrichten".
  */
 export function OperatorConsole({ locale, signedIn }: { locale: Locale; signedIn: boolean }) {
   const t = getT(locale);

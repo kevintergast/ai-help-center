@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: staging
-      # TODO(routing): auf https://staging.hallofhelp.app umstellen, sobald die Zone/Route existiert.
+      # TODO(routing): auf https://staging.hallofhelp.com umstellen, sobald die Zone/Route existiert.
       url: https://hallofhelp.kevin-kvano.workers.dev
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -120,7 +120,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://app.hallofhelp.app
+      url: https://app.hallofhelp.com
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

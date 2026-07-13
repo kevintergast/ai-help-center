@@ -10,7 +10,7 @@ import type { ApiDeps, ApiEnv } from "./context";
 
 /**
  * OPERATOR-ROUTEN (Punkt 4b): Provisioning der Betreiber-Control-Plane auf
- * `app.hallofhelp.app`.
+ * `app.hallofhelp.com`.
  *
  * ENDPUNKTE (alle NUR im Operator-Kontext + nur für eingeloggte Operator-Konten):
  *   GET  /operator/subdomain-available?slug=  — Format/Reserviert/Kollision
@@ -163,7 +163,7 @@ export function operatorRouter(deps: ApiDeps) {
         slug: input.slug,
         name: input.name,
         defaultLocale: input.defaultLocale,
-        helpCenterUrl: `https://${input.slug}.hallofhelp.app`,
+        helpCenterUrl: `https://${input.slug}.hallofhelp.com`,
         // dev-only (kein Mail-Key, NODE_ENV != prod): Set-Passwort-Link inline.
         ...(setup.devLink ? { ownerSetupDevLink: setup.devLink } : {}),
       },
@@ -190,7 +190,7 @@ export function operatorRouter(deps: ApiDeps) {
         name: h.name,
         defaultLocale: h.defaultLocale,
         createdAt: h.createdAt,
-        helpCenterUrl: `https://${h.slug}.hallofhelp.app`,
+        helpCenterUrl: `https://${h.slug}.hallofhelp.com`,
       })),
     });
   });

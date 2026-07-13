@@ -32,7 +32,7 @@ describe("API /api/v1 (Default-Instanz, Dev-Fallback ohne Cloudflare-Kontext)", 
 
   it("fällt bei Apex-Host auf den Default-Tenant zurück (DEV-ONLY-Registry, ohne D1)", async () => {
     const res = await app.request("/api/v1/tenant", {
-      headers: { host: "hallofhelp.app" },
+      headers: { host: "hallofhelp.com" },
     });
     expect(await res.json()).toMatchObject({ slug: "demo" });
   });

@@ -29,10 +29,10 @@ import { tenantAwareAdapter } from "./tenant-adapter";
  */
 
 /** Basis-Domain für Tenant-Subdomains (Slug-Auflösung). */
-const BASE_DOMAIN = "hallofhelp.app";
+const BASE_DOMAIN = "hallofhelp.com";
 
 /**
- * Leitet die Origin/`baseURL` des Tenants ab: IMMER `<slug>.hallofhelp.app`,
+ * Leitet die Origin/`baseURL` des Tenants ab: IMMER `<slug>.hallofhelp.com`,
  * immer HTTPS.
  *
  * BEWUSST OHNE `tenant.customDomain` (A-7, fail-closed): `tenants.custom_domain`

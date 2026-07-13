@@ -19,8 +19,8 @@ import type { ApiDeps } from "./context";
 const TEST_SECRET = "test-only-secret-value-0123456789-ABCDEF";
 const PASSWORD = "correct-horse-battery";
 
-const HOST_A = "tenant-a.hallofhelp.app";
-const HOST_B = "tenant-b.hallofhelp.app";
+const HOST_A = "tenant-a.hallofhelp.com";
+const HOST_B = "tenant-b.hallofhelp.com";
 
 function makeTenant(id: string, slug: string): Tenant {
   return {

@@ -5,7 +5,7 @@ import { OperatorShell } from "@/components/operator/operator-shell";
 
 /**
  * Operator-Konsole (Punkt 4b) — NUR auf der Betreiber-Instanz
- * (`app.hallofhelp.app` → `t_operator`). Auf jedem Kunden-Host ist `/console`
+ * (`app.hallofhelp.com` → `t_operator`). Auf jedem Kunden-Host ist `/console`
  * fail-closed nicht vorhanden (`notFound()`), damit die Control-Plane nirgends
  * sonst erscheint. Das Session-Gate sitzt in der Seite selbst (Anmelde-Prompt
  * statt echter Daten), weil Operator-Konten normale `user` sind (kein Team-Gate,

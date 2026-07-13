@@ -94,13 +94,15 @@ solange Platzhalter in `wrangler.toml` stehen. Vorher erledigen:
 Ohne Custom-Domain ist der Worker nur unter `*.workers.dev` erreichbar — dort scheitert die
 Tenant-Auflösung fail-closed (nur `/health` funktioniert). Für einen **nutzbaren** Stand:
 
-- Domain(s) als **Cloudflare-Zone** hinterlegen. `BASE_DOMAINS` kennt bereits `hallofhelp.app`
-  **und** `hallofhelp.com` → z. B. **`.com` = Staging/Dev, `.app` = Prod** (saubere Trennung ohne
-  Codeänderung; Tenant = `<slug>.<basis>`).
+- Domain als **Cloudflare-Zone** hinterlegen. `BASE_DOMAINS` kennt aktuell nur `hallofhelp.com`
+  (plus `localhost` fürs lokale Dev); die früher angedachte zweite `.app`-TLD wurde **nie
+  registriert** — genutzt wird ausschließlich `hallofhelp.com`. Prod läuft damit unter
+  `hallofhelp.com` (Operator `app.hallofhelp.com`, Tenants `<slug>.hallofhelp.com`).
 - Routen in `wrangler.toml` je Env ergänzen (`routes = [{ pattern = "...", custom_domain = true }]`)
   und die `environment.url` in `ci.yml` von der workers.dev-URL auf die echte Domain umstellen.
-- **Achtung:** `staging.hallofhelp.app` würde vom Tenant-Parser als Slug `staging` gelesen — daher
-  eine eigene Basis-Domain für Staging statt einer `staging.`-Subdomain unter der Prod-Domain.
+- **Achtung:** `staging.hallofhelp.com` würde vom Tenant-Parser als Slug `staging` gelesen — Staging
+  braucht daher eine **eigene Basis-Domain** (separate Zone) und bleibt bis dahin auf der
+  `*.workers.dev`-URL, statt einer `staging.`-Subdomain unter der Prod-Domain.
 
 ---
 
