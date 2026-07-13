@@ -54,7 +54,7 @@ binding = "ASSETS"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "hallofhelp-prod"
-database_id = "<FILL später>"
+database_id = "27ee06db-0320-427a-9c90-c45c673accfc"
 migrations_dir = "migrations"
 
 [[env.production.r2_buckets]]
@@ -68,7 +68,7 @@ index_name = "hallofhelp-articles-prod"
 
 [[env.production.kv_namespaces]]
 binding = "CACHE"
-id = "<FILL später>"
+id = "f7ba0390e26c408ea72c4cca14d33856"
 
 [env.production.ai]
 binding = "AI"

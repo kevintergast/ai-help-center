@@ -13,7 +13,7 @@
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && wrangler deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -31,6 +31,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260708.1",
+    "@eslint/eslintrc": "^3.3.6",
     "@opennextjs/cloudflare": "^1.0.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.10.0",
