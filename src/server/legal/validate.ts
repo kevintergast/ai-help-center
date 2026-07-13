@@ -65,7 +65,6 @@ export function normalizeHttpsUrl(value: unknown): string | null {
   if (v.length === 0 || v.length > MAX_LEGAL_URL_LENGTH) return null;
   // Whitespace UND Steuerzeichen (0x00–0x1F) sperren — sie könnten einen
   // Scheme-Split verschleiern. Bindestriche/normale URL-Zeichen bleiben erlaubt.
-  // eslint-disable-next-line no-control-regex -- Steuerzeichen sind hier bewusst Ziel
   if (/[\s\u0000-\u001f]/.test(v)) return null;
   if (!/^https:\/\//i.test(v)) return null;
   let parsed: URL;
