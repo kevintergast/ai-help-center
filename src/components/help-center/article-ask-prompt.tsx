@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import type { Locale } from "@/lib/tenant/types";
 import { getT } from "@/i18n/t";
 import { PromptBox } from "@/components/ui/prompt-box";
-import { PENDING_ASK_KEY } from "./help-center";
+import { PENDING_ASK_KEY } from "@/lib/content/handoff";
 
 /**
  * Untere KI-Eingabe der (SSR-)Artikelseite. Beim Absenden wird die Frage per

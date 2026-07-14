@@ -1,24 +1,42 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Locale } from "@/lib/tenant/types";
 import { getT } from "@/i18n/t";
 import type { Article, ArticleSummary, AskAnswer, HelpCenterData } from "@/lib/content/types";
 import { askStub } from "@/lib/content/fake-repo";
+import { PENDING_ASK_KEY, OPEN_SAVED_KEY } from "@/lib/content/handoff";
+import {
+  answerId,
+  isSaved,
+  listSaved,
+  removeSaved,
+  saveAnswer,
+  type SavedArticle,
+} from "@/lib/content/saved-articles";
+import { cn } from "@/lib/ui/cn";
 import { HelpShell } from "./help-shell";
 import { Badge } from "@/components/ui/badge";
 import { PromptBox } from "@/components/ui/prompt-box";
 import { AnswerBlock } from "@/components/ui/answer-block";
 import { FeedbackBar } from "@/components/ui/feedback-bar";
-import { ArrowLeftIcon, DocIcon, SparkleIcon } from "@/components/ui/icons";
+import {
+  ArrowLeftIcon,
+  BookmarkCheckIcon,
+  BookmarkIcon,
+  DocIcon,
+  SparkleIcon,
+  TrashIcon,
+} from "@/components/ui/icons";
 
 type T = ReturnType<typeof getT>;
 
-/** Frage-Handoff von einer Artikelseite → hier als Antwort zeigen. */
-export const PENDING_ASK_KEY = "hh-pending-ask";
-
-type View = { kind: "welcome" } | { kind: "answer"; answer: AskAnswer };
+type View =
+  | { kind: "welcome" }
+  | { kind: "answer"; answer: AskAnswer }
+  | { kind: "saved" };
 
 export interface HelpCenterProps {
   locale: Locale;
@@ -26,9 +44,11 @@ export interface HelpCenterProps {
   logoUrl: string | null;
   /** Serverseitig aufgelöstes Lese-Bundle (D1 oder Sample-Fallback). */
   data: HelpCenterData;
+  /** Operator-Instanz (app.*) → CTA „Eigenes Hilfezentrum erstellen". */
+  isOperator?: boolean;
 }
 
-export function HelpCenter({ locale, tenantName, logoUrl, data }: HelpCenterProps) {
+export function HelpCenter({ locale, tenantName, logoUrl, data, isOperator }: HelpCenterProps) {
   const t = getT(locale);
   const router = useRouter();
   const articleById = useMemo(() => new Map(data.articles.map((a) => [a.id, a])), [data.articles]);
@@ -47,14 +67,25 @@ export function HelpCenter({ locale, tenantName, logoUrl, data }: HelpCenterProp
   function openArticle(id: string) {
     router.push(`/${slugById.get(id) ?? id}`);
   }
+  function openSavedAnswer(s: SavedArticle) {
+    setView({
+      kind: "answer",
+      answer: { question: s.question, body: s.body, citations: s.citations, grounded: s.grounded },
+    });
+  }
 
-  // Frage von einer Artikelseite übernommen (Handoff via sessionStorage).
+  // Handoffs anderer Ansichten (Artikelseite / Sidebar) via sessionStorage.
   useEffect(() => {
     try {
       const pending = sessionStorage.getItem(PENDING_ASK_KEY);
       if (pending) {
         sessionStorage.removeItem(PENDING_ASK_KEY);
         setView({ kind: "answer", answer: askStub(pending, data.articles) });
+        return;
+      }
+      if (sessionStorage.getItem(OPEN_SAVED_KEY)) {
+        sessionStorage.removeItem(OPEN_SAVED_KEY);
+        setView({ kind: "saved" });
       }
     } catch {
       /* ignore */
@@ -74,9 +105,11 @@ export function HelpCenter({ locale, tenantName, logoUrl, data }: HelpCenterProp
       tenantName={tenantName}
       logoUrl={logoUrl}
       data={data}
+      isOperator={isOperator}
       onHome={goHome}
+      onOpenSaved={() => setView({ kind: "saved" })}
       footer={
-        view.kind === "answer" ? (
+        view.kind !== "welcome" ? (
           <PromptBox
             expandable
             placeholder={t("hc.promptPlaceholder")}
@@ -96,6 +129,10 @@ export function HelpCenter({ locale, tenantName, logoUrl, data }: HelpCenterProp
           labels={promptLabels}
           onAsk={ask}
         />
+      ) : view.kind === "saved" ? (
+        <div className="px-5 py-8 md:px-10">
+          <SavedView t={t} onOpenAnswer={openSavedAnswer} onBack={goHome} />
+        </div>
       ) : (
         <div className="px-5 py-8 md:px-10">
           <AnswerView
@@ -209,10 +246,15 @@ function AnswerView({
   return (
     <div className="mx-auto max-w-3xl">
       <BackButton t={t} onBack={onBack} />
-      <p className="text-xs uppercase tracking-[0.08em] text-ink-muted">{t("hc.answerHeading")}</p>
-      <h1 className="mb-6 mt-1.5 text-[26px] font-semibold leading-tight tracking-[-0.5px] [text-wrap:balance]">
-        {answer.question}
-      </h1>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-[0.08em] text-ink-muted">{t("hc.answerHeading")}</p>
+          <h1 className="mt-1.5 text-[26px] font-semibold leading-tight tracking-[-0.5px] [text-wrap:balance]">
+            {answer.question}
+          </h1>
+        </div>
+        <SaveToggle t={t} answer={answer} />
+      </div>
       <AnswerBlock
         heading={t("hc.answerHeading")}
         status={
@@ -233,6 +275,12 @@ function AnswerView({
           {t("hc.aiGeneratedNote")}
         </p>
       </AnswerBlock>
+      <p className="mt-3 flex flex-wrap items-center gap-x-1.5 text-xs text-ink-muted">
+        <span>{t("hc.savedLocalHint")}</span>
+        <Link href="/login" className="text-brand hover:underline">
+          {t("hc.savedAccountCta")}
+        </Link>
+      </p>
       <ArticleMiniList heading={t("hc.sourcesHeading")} items={sources} onOpen={onOpen} />
       <div className="mt-8">
         <FeedbackBar
@@ -244,6 +292,103 @@ function AnswerView({
           }}
         />
       </div>
+    </div>
+  );
+}
+
+/** Speichern-Toggle für eine generierte Antwort (localStorage, local-first). */
+function SaveToggle({ t, answer }: { t: T; answer: AskAnswer }) {
+  const id = answerId(answer.question);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    setSaved(isSaved(id));
+  }, [id]);
+
+  function toggle() {
+    if (saved) {
+      removeSaved(id);
+      setSaved(false);
+    } else {
+      saveAnswer(answer);
+      setSaved(true);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-pressed={saved}
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors",
+        saved ? "border-brand text-brand" : "border-hairline text-ink-muted hover:text-ink",
+      )}
+    >
+      {saved ? (
+        <BookmarkCheckIcon width={15} height={15} />
+      ) : (
+        <BookmarkIcon width={15} height={15} />
+      )}
+      {saved ? t("hc.saved") : t("hc.save")}
+    </button>
+  );
+}
+
+/** Liste der lokal gespeicherten Antworten (Öffnen / Entfernen). */
+function SavedView({
+  t,
+  onOpenAnswer,
+  onBack,
+}: {
+  t: T;
+  onOpenAnswer: (s: SavedArticle) => void;
+  onBack: () => void;
+}) {
+  const [items, setItems] = useState<SavedArticle[]>([]);
+  useEffect(() => {
+    setItems(listSaved());
+  }, []);
+
+  function remove(id: string) {
+    removeSaved(id);
+    setItems(listSaved());
+  }
+
+  return (
+    <div className="mx-auto max-w-3xl">
+      <BackButton t={t} onBack={onBack} />
+      <h1 className="mb-6 text-[26px] font-semibold leading-tight tracking-[-0.5px]">
+        {t("hc.savedArticles")}
+      </h1>
+      {items.length === 0 ? (
+        <div className="rounded-card border border-dashed border-hairline-strong bg-tint px-6 py-12 text-center text-sm text-ink-muted">
+          {t("hc.savedEmpty")}
+        </div>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {items.map((s) => (
+            <li
+              key={s.id}
+              className="flex items-center gap-2 rounded-comfy border border-hairline bg-surface"
+            >
+              <button
+                onClick={() => onOpenAnswer(s)}
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-comfy px-4 py-3 text-left transition-colors hover:bg-tint"
+              >
+                <BookmarkCheckIcon width={16} height={16} className="shrink-0 text-brand" />
+                <span className="truncate text-sm font-medium text-ink">{s.question}</span>
+              </button>
+              <button
+                onClick={() => remove(s.id)}
+                aria-label={t("hc.savedRemove")}
+                className="mr-2 grid h-8 w-8 shrink-0 place-items-center rounded-full text-ink-muted transition-colors hover:text-crit"
+              >
+                <TrashIcon width={16} height={16} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

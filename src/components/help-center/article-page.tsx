@@ -32,6 +32,8 @@ export interface ArticlePageProps {
   related: ArticleSummary[];
   /** Lese-Bundle für Sidebar/Navigation/Prompt-Vorschläge. */
   data: HelpCenterData;
+  /** Operator-Instanz (app.*) → CTA „Eigenes Hilfezentrum erstellen". */
+  isOperator?: boolean;
 }
 
 export function ArticlePage({
@@ -41,6 +43,7 @@ export function ArticlePage({
   article,
   related,
   data,
+  isOperator,
 }: ArticlePageProps) {
   const t = getT(locale);
   const s = STATUS[article.status];
@@ -51,6 +54,7 @@ export function ArticlePage({
       tenantName={tenantName}
       logoUrl={logoUrl}
       data={data}
+      isOperator={isOperator}
       activeSlug={article.slug}
       footer={<ArticleAskPrompt locale={locale} suggestions={data.suggestions} />}
     >

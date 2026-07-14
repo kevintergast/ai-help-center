@@ -96,6 +96,7 @@ export default async function ArticleRoute({
         article={article}
         related={related}
         data={data}
+        isOperator={tenant.id === "t_operator"}
       />
     </>
   );

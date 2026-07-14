@@ -14,14 +14,21 @@ import { EnvMarker } from "@/components/env-marker";
 export async function generateMetadata(): Promise<Metadata> {
   const tenant = await getCurrentTenant();
   if (!tenant) {
-    return { title: getT(DEFAULT_LOCALE)("tenantNotFound.title"), robots: { index: false } };
+    return {
+      title: getT(DEFAULT_LOCALE)("tenantNotFound.title"),
+      applicationName: "HallOfHelp",
+      robots: { index: false },
+    };
   }
   const t = getT(tenant.defaultLocale);
   return {
+    // Tab-Titel bleibt pro Tenant (White-Label); applicationName ist die
+    // Plattform-Identität (PWA/Browser-Metadaten).
     title: {
       default: tenant.name,
       template: `%s · ${tenant.name}`,
     },
+    applicationName: "HallOfHelp",
     description: t("meta.description", { name: tenant.name }),
   };
 }

@@ -7,14 +7,24 @@ import type { Locale } from "@/lib/tenant/types";
 import type { MessageKey } from "@/i18n/messages/de";
 import { getT } from "@/i18n/t";
 import type { HelpCenterData } from "@/lib/content/types";
+import { OPEN_SAVED_KEY } from "@/lib/content/handoff";
 import { cn } from "@/lib/ui/cn";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { SearchCombobox } from "@/components/ui/search-combobox";
 import { Dialog } from "@/components/ui/dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { CloseIcon, DocIcon, MenuIcon } from "@/components/ui/icons";
+import { BrandMark } from "@/components/brand-mark";
+import {
+  BookmarkIcon,
+  CloseIcon,
+  DocIcon,
+  MegaphoneIcon,
+  MenuIcon,
+  PlusIcon,
+  RoadmapIcon,
+  UserIcon,
+} from "@/components/ui/icons";
 
 export interface HelpShellProps {
   locale: Locale;
@@ -23,8 +33,12 @@ export interface HelpShellProps {
   data: HelpCenterData;
   /** Slug des aktuell offenen Artikels (Navigation hervorheben). */
   activeSlug?: string;
+  /** Operator-Instanz (app.*) → CTA „Eigenes Hilfezentrum erstellen" im Header. */
+  isOperator?: boolean;
   /** Optionaler Klick aufs Logo (sonst Navigation nach `/`). */
   onHome?: () => void;
+  /** Direktes Öffnen der Gespeichert-Liste (Startansicht); ohne → Handoff + Navigation nach `/`. */
+  onOpenSaved?: () => void;
   /** Inhalt der unteren Eingabe-Leiste (Prompt); ohne → keine Leiste. */
   footer?: ReactNode;
   children: ReactNode;
@@ -41,7 +55,9 @@ export function HelpShell({
   logoUrl,
   data,
   activeSlug,
+  isOperator = false,
   onHome,
+  onOpenSaved,
   footer,
   children,
 }: HelpShellProps) {
@@ -74,6 +90,54 @@ export function HelpShell({
         onSelect={(it) => openSlug(slugById.get(it.id) ?? it.id)}
       />
       <nav aria-label={t("hc.articlesHeading")} className="flex flex-col gap-5 overflow-y-auto">
+        {/* Standard-Navigation ganz oben: Roadmap + Changelog (öffnen Dialoge). */}
+        <ul className="flex flex-col gap-0.5">
+          <li>
+            <button
+              onClick={() => {
+                setSidebarOpen(false);
+                setDialog("roadmap");
+              }}
+              className="flex w-full items-center gap-2 rounded-comfy px-2 py-1.5 text-left text-sm text-ink-muted transition-colors hover:bg-tint hover:text-ink"
+            >
+              <RoadmapIcon width={15} height={15} className="shrink-0 opacity-70" />
+              <span className="truncate">{t("hc.roadmap")}</span>
+            </button>
+          </li>
+          <li>
+            <button
+              onClick={() => {
+                setSidebarOpen(false);
+                setDialog("changelog");
+              }}
+              className="flex w-full items-center gap-2 rounded-comfy px-2 py-1.5 text-left text-sm text-ink-muted transition-colors hover:bg-tint hover:text-ink"
+            >
+              <MegaphoneIcon width={15} height={15} className="shrink-0 opacity-70" />
+              <span className="truncate">{t("hc.changelog")}</span>
+            </button>
+          </li>
+          <li>
+            <button
+              onClick={() => {
+                setSidebarOpen(false);
+                if (onOpenSaved) {
+                  onOpenSaved();
+                  return;
+                }
+                try {
+                  sessionStorage.setItem(OPEN_SAVED_KEY, "1");
+                } catch {
+                  /* ignore */
+                }
+                router.push("/");
+              }}
+              className="flex w-full items-center gap-2 rounded-comfy px-2 py-1.5 text-left text-sm text-ink-muted transition-colors hover:bg-tint hover:text-ink"
+            >
+              <BookmarkIcon width={15} height={15} className="shrink-0 opacity-70" />
+              <span className="truncate">{t("hc.savedArticles")}</span>
+            </button>
+          </li>
+        </ul>
         {data.groups.map((g) => (
           <div key={g.category}>
             <p className="mb-1.5 px-2 text-xs uppercase tracking-[0.08em] text-ink-muted">
@@ -113,6 +177,9 @@ export function HelpShell({
       {logoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={logoUrl} alt={tenantName} className="h-7 w-auto" />
+      ) : isOperator ? (
+        // Plattform-/Operator-Instanz ohne Custom-Logo → HallOfHelp-Bildmarke.
+        <BrandMark className="h-8 w-8" />
       ) : (
         <span className="grid h-8 w-8 place-items-center rounded-comfy bg-brand text-sm font-semibold text-brand-fg">
           {tenantName.charAt(0)}
@@ -150,14 +217,25 @@ export function HelpShell({
             {logo}
           </Link>
         )}
-        <div className="ml-auto flex items-center gap-1.5">
-          <Button variant="cream" size="sm" onClick={() => setDialog("roadmap")}>
-            {t("hc.roadmap")}
-          </Button>
-          <Button variant="cream" size="sm" onClick={() => setDialog("changelog")}>
-            {t("hc.changelog")}
-          </Button>
+        <div className="ml-auto flex items-center gap-2">
+          {isOperator ? (
+            <Link
+              href="/console"
+              className="inline-flex items-center gap-2 rounded-std bg-[var(--btn-primary-bg)] px-3 py-1.5 text-sm text-[var(--btn-primary-fg)] shadow-inset transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focusglow"
+            >
+              <PlusIcon width={15} height={15} />
+              <span className="hidden sm:inline">{t("hc.createHelpCenter")}</span>
+            </Link>
+          ) : null}
           <ThemeToggle label={t("hc.themeToggle")} />
+          {/* Profil/Konto — auf jeder Instanz. Ohne Session: Einstieg in Login/Registrierung. */}
+          <Link
+            href="/login"
+            aria-label={t("hc.account")}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-hairline bg-surface-raised text-ink-muted transition-colors hover:text-ink focus-visible:outline-none focus-visible:shadow-focusglow"
+          >
+            <UserIcon width={18} height={18} />
+          </Link>
         </div>
       </header>
 
