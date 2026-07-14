@@ -46,7 +46,7 @@ export const DEFAULT_TENANT: Tenant = DEMO_TENANTS[0];
 export const OPERATOR_TENANT: Tenant = {
   id: "t_operator",
   slug: "app",
-  name: "HallOfHelp",
+  name: "Hall Of Help",
   customDomain: null,
   defaultLocale: "de",
   branding: {

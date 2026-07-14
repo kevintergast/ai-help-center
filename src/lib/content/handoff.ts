@@ -7,5 +7,5 @@
 /** Frage von einer Artikelseite → Startansicht zeigt die (geerdete) Antwort. */
 export const PENDING_ASK_KEY = "hh-pending-ask";
 
-/** Sidebar „Gespeicherte Artikel" → Startansicht öffnet die Gespeichert-Liste. */
-export const OPEN_SAVED_KEY = "hh-open-saved";
+/** „Meine Artikel" auf einer Artikelseite → Startansicht öffnet diese gespeicherte Antwort (per ID). */
+export const OPEN_ANSWER_KEY = "hh-open-answer";

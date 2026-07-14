@@ -1,21 +1,28 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useClickOutside } from "@/lib/ui/use-click-outside";
 import type { Locale } from "@/lib/tenant/types";
 import type { MessageKey } from "@/i18n/messages/de";
 import { getT } from "@/i18n/t";
 import type { HelpCenterData } from "@/lib/content/types";
-import { OPEN_SAVED_KEY } from "@/lib/content/handoff";
+import { OPEN_ANSWER_KEY } from "@/lib/content/handoff";
+import {
+  listSaved,
+  SAVED_CHANGED_EVENT,
+  type SavedArticle,
+} from "@/lib/content/saved-articles";
 import { cn } from "@/lib/ui/cn";
 import { Badge } from "@/components/ui/badge";
 import { IconButton } from "@/components/ui/icon-button";
 import { SearchCombobox } from "@/components/ui/search-combobox";
-import { Dialog } from "@/components/ui/dialog";
+import { Accordion } from "@/components/ui/accordion";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandMark } from "@/components/brand-mark";
 import {
+  ArrowLeftIcon,
   BookmarkIcon,
   CloseIcon,
   DocIcon,
@@ -24,7 +31,13 @@ import {
   PlusIcon,
   RoadmapIcon,
   UserIcon,
+  UserPlusIcon,
 } from "@/components/ui/icons";
+
+type T = ReturnType<typeof getT>;
+
+const NAV_ROW =
+  "flex w-full items-center gap-2 rounded-comfy px-2 py-1.5 text-left text-sm text-ink-muted transition-colors hover:bg-tint hover:text-ink";
 
 export interface HelpShellProps {
   locale: Locale;
@@ -35,10 +48,12 @@ export interface HelpShellProps {
   activeSlug?: string;
   /** Operator-Instanz (app.*) → CTA „Eigenes Hilfezentrum erstellen" im Header. */
   isOperator?: boolean;
+  /** Angemeldet → Avatar statt Anmelden-Button in „Meine Artikel". */
+  signedIn?: boolean;
   /** Optionaler Klick aufs Logo (sonst Navigation nach `/`). */
   onHome?: () => void;
-  /** Direktes Öffnen der Gespeichert-Liste (Startansicht); ohne → Handoff + Navigation nach `/`. */
-  onOpenSaved?: () => void;
+  /** Gespeicherte Antwort direkt öffnen (Startansicht); ohne → Handoff + Navigation nach `/`. */
+  onOpenSavedAnswer?: (s: SavedArticle) => void;
   /** Inhalt der unteren Eingabe-Leiste (Prompt); ohne → keine Leiste. */
   footer?: ReactNode;
   children: ReactNode;
@@ -47,7 +62,8 @@ export interface HelpShellProps {
 /**
  * Rahmen des Endnutzer-Hilfezentrums: volle Breite, App-Shell-Scroll (Header +
  * Navigation immer sichtbar, nur der Inhalt scrollt). Wird von der Startansicht
- * UND der Artikelseite genutzt, damit die Chrome konsistent bleibt.
+ * UND der Artikelseite genutzt. Roadmap/Changelog öffnen als „Ebene tiefer":
+ * die Navigation zeigt dann nur Zurück + Titel, der Inhalt die jeweilige Liste.
  */
 export function HelpShell({
   locale,
@@ -56,15 +72,20 @@ export function HelpShell({
   data,
   activeSlug,
   isOperator = false,
+  signedIn = false,
   onHome,
-  onOpenSaved,
+  onOpenSavedAnswer,
   footer,
   children,
 }: HelpShellProps) {
   const t = getT(locale);
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [dialog, setDialog] = useState<"roadmap" | "changelog" | null>(null);
+  const [drill, setDrill] = useState<null | "roadmap" | "changelog">(null);
+  const [saved, setSaved] = useState<SavedArticle[]>([]);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+  useClickOutside(profileRef, () => setProfileOpen(false), profileOpen);
 
   const searchItems = useMemo(
     () => data.searchItems.map((a) => ({ id: a.id, title: a.title, category: a.category })),
@@ -75,12 +96,41 @@ export function HelpShell({
     [data.searchItems],
   );
 
+  // „Meine Artikel"-Liste (localStorage) live halten — auch bei Änderungen im selben Tab.
+  useEffect(() => {
+    const refresh = () => setSaved(listSaved());
+    refresh();
+    window.addEventListener(SAVED_CHANGED_EVENT, refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener(SAVED_CHANGED_EVENT, refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
+
   function openSlug(slug: string) {
     setSidebarOpen(false);
     router.push(`/${slug}`);
   }
+  function openDrill(which: "roadmap" | "changelog") {
+    setSidebarOpen(false);
+    setDrill(which);
+  }
+  function openSavedItem(s: SavedArticle) {
+    setSidebarOpen(false);
+    if (onOpenSavedAnswer) {
+      onOpenSavedAnswer(s);
+      return;
+    }
+    try {
+      sessionStorage.setItem(OPEN_ANSWER_KEY, s.id);
+    } catch {
+      /* ignore */
+    }
+    router.push("/");
+  }
 
-  const sidebar = (
+  const normalSidebar = (
     <div className="flex h-full flex-col gap-5 p-4">
       <SearchCombobox
         items={searchItems}
@@ -90,54 +140,43 @@ export function HelpShell({
         onSelect={(it) => openSlug(slugById.get(it.id) ?? it.id)}
       />
       <nav aria-label={t("hc.articlesHeading")} className="flex flex-col gap-5 overflow-y-auto">
-        {/* Standard-Navigation ganz oben: Roadmap + Changelog (öffnen Dialoge). */}
+        {/* Ganz oben: Roadmap + Changelog (öffnen eine Ebene tiefer). */}
         <ul className="flex flex-col gap-0.5">
           <li>
-            <button
-              onClick={() => {
-                setSidebarOpen(false);
-                setDialog("roadmap");
-              }}
-              className="flex w-full items-center gap-2 rounded-comfy px-2 py-1.5 text-left text-sm text-ink-muted transition-colors hover:bg-tint hover:text-ink"
-            >
+            <button onClick={() => openDrill("roadmap")} className={NAV_ROW}>
               <RoadmapIcon width={15} height={15} className="shrink-0 opacity-70" />
               <span className="truncate">{t("hc.roadmap")}</span>
             </button>
           </li>
           <li>
-            <button
-              onClick={() => {
-                setSidebarOpen(false);
-                setDialog("changelog");
-              }}
-              className="flex w-full items-center gap-2 rounded-comfy px-2 py-1.5 text-left text-sm text-ink-muted transition-colors hover:bg-tint hover:text-ink"
-            >
+            <button onClick={() => openDrill("changelog")} className={NAV_ROW}>
               <MegaphoneIcon width={15} height={15} className="shrink-0 opacity-70" />
               <span className="truncate">{t("hc.changelog")}</span>
             </button>
           </li>
-          <li>
-            <button
-              onClick={() => {
-                setSidebarOpen(false);
-                if (onOpenSaved) {
-                  onOpenSaved();
-                  return;
-                }
-                try {
-                  sessionStorage.setItem(OPEN_SAVED_KEY, "1");
-                } catch {
-                  /* ignore */
-                }
-                router.push("/");
-              }}
-              className="flex w-full items-center gap-2 rounded-comfy px-2 py-1.5 text-left text-sm text-ink-muted transition-colors hover:bg-tint hover:text-ink"
-            >
-              <BookmarkIcon width={15} height={15} className="shrink-0 opacity-70" />
-              <span className="truncate">{t("hc.savedArticles")}</span>
-            </button>
-          </li>
         </ul>
+
+        {/* Eigener Abschnitt „Meine Artikel" (gespeicherte KI-Antworten) + Anmelden/Avatar. */}
+        <div>
+          <p className="mb-1.5 px-2 text-xs uppercase tracking-[0.08em] text-ink-muted">
+            {t("hc.myArticles")}
+          </p>
+          {saved.length === 0 ? (
+            <p className="px-2 text-xs text-ink-muted">{t("hc.myArticlesEmpty")}</p>
+          ) : (
+            <ul className="flex flex-col gap-0.5">
+              {saved.map((s) => (
+                <li key={s.id}>
+                  <button onClick={() => openSavedItem(s)} className={NAV_ROW}>
+                    <BookmarkIcon width={15} height={15} className="shrink-0 opacity-70" />
+                    <span className="truncate">{s.question}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         {data.groups.map((g) => (
           <div key={g.category}>
             <p className="mb-1.5 px-2 text-xs uppercase tracking-[0.08em] text-ink-muted">
@@ -172,13 +211,27 @@ export function HelpShell({
     </div>
   );
 
+  // Drill-Down: nur Zurück + Titel, keine weiteren Navigationselemente.
+  const drilledSidebar = (
+    <div className="p-4">
+      <button
+        onClick={() => setDrill(null)}
+        className="flex w-full items-center gap-2 rounded-comfy px-2 py-1.5 text-left text-sm font-medium text-ink transition-colors hover:bg-tint"
+      >
+        <ArrowLeftIcon width={16} height={16} className="shrink-0" />
+        <span className="truncate">{drill === "roadmap" ? t("hc.roadmap") : t("hc.changelog")}</span>
+      </button>
+    </div>
+  );
+
+  const sidebar = drill ? drilledSidebar : normalSidebar;
+
   const logo = (
     <>
       {logoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={logoUrl} alt={tenantName} className="h-7 w-auto" />
       ) : isOperator ? (
-        // Plattform-/Operator-Instanz ohne Custom-Logo → HallOfHelp-Bildmarke.
         <BrandMark className="h-8 w-8" />
       ) : (
         <span className="grid h-8 w-8 place-items-center rounded-comfy bg-brand text-sm font-semibold text-brand-fg">
@@ -202,7 +255,10 @@ export function HelpShell({
         </IconButton>
         {onHome ? (
           <button
-            onClick={onHome}
+            onClick={() => {
+              setDrill(null);
+              onHome();
+            }}
             aria-label={t("hc.home")}
             className="flex items-center gap-2.5 rounded-std focus-visible:outline-none focus-visible:shadow-focusglow"
           >
@@ -228,14 +284,29 @@ export function HelpShell({
             </Link>
           ) : null}
           <ThemeToggle label={t("hc.themeToggle")} />
-          {/* Profil/Konto — auf jeder Instanz. Ohne Session: Einstieg in Login/Registrierung. */}
-          <Link
-            href="/login"
-            aria-label={t("hc.account")}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-hairline bg-surface-raised text-ink-muted transition-colors hover:text-ink focus-visible:outline-none focus-visible:shadow-focusglow"
-          >
-            <UserIcon width={18} height={18} />
-          </Link>
+          {/* Profil — gleiche Größe wie der Theme-Toggle (IconButton). Öffnet ein
+              Popup (kein direkter Login) mit der Aufforderung, sich anzumelden. */}
+          <div ref={profileRef} className="relative">
+            <IconButton
+              aria-label={t("hc.account")}
+              aria-expanded={profileOpen}
+              onClick={() => setProfileOpen((o) => !o)}
+            >
+              {signedIn ? <UserIcon width={18} height={18} /> : <UserPlusIcon width={18} height={18} />}
+            </IconButton>
+            {profileOpen ? (
+              <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-card border border-hairline bg-surface-raised p-4 shadow-focusglow">
+                <p className="text-sm text-ink">{t("hc.accountPrompt")}</p>
+                <Link
+                  href="/login"
+                  onClick={() => setProfileOpen(false)}
+                  className="mt-3 inline-flex w-full items-center justify-center rounded-std bg-[var(--btn-primary-bg)] px-3 py-2 text-sm text-[var(--btn-primary-fg)] shadow-inset transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focusglow"
+                >
+                  {t("hc.signIn")}
+                </Link>
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -266,47 +337,80 @@ export function HelpShell({
 
         {/* Main — volle Breite; nur der Inhalt scrollt */}
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto">{children}</div>
-          {footer ? (
+          <div className="flex-1 overflow-y-auto">
+            {drill === "roadmap" ? (
+              <div className="px-5 py-8 md:px-10">
+                <RoadmapView t={t} items={data.roadmap} />
+              </div>
+            ) : drill === "changelog" ? (
+              <div className="px-5 py-8 md:px-10">
+                <ChangelogView t={t} entries={data.changelog} />
+              </div>
+            ) : (
+              children
+            )}
+          </div>
+          {!drill && footer ? (
             <div className="border-t border-hairline bg-surface px-4 py-3">{footer}</div>
           ) : null}
         </main>
       </div>
+    </div>
+  );
+}
 
-      <Dialog
-        open={dialog === "roadmap"}
-        onClose={() => setDialog(null)}
-        title={t("hc.roadmapTitle")}
-        closeLabel={t("hc.close")}
-      >
-        <ul className="flex flex-col gap-3">
-          {data.roadmap.map((it) => (
-            <li key={it.id} className="flex items-center justify-between gap-3">
-              <span className="text-ink">{it.title}</span>
-              <Badge tone={it.status === "shipped" ? "ok" : it.status === "in_progress" ? "brand" : "neutral"}>
-                {t(`hc.roadmap.${it.status}` as MessageKey)}
-              </Badge>
-            </li>
-          ))}
-        </ul>
-      </Dialog>
+/* ————— Drill-Down-Ansichten ————— */
 
-      <Dialog
-        open={dialog === "changelog"}
-        onClose={() => setDialog(null)}
-        title={t("hc.changelogTitle")}
-        closeLabel={t("hc.close")}
-      >
-        <ul className="flex flex-col gap-4">
-          {data.changelog.map((c) => (
-            <li key={c.id}>
-              <div className="text-xs text-ink-muted">{c.dateLabel}</div>
-              <div className="font-medium text-ink">{c.title}</div>
-              <div className="text-sm text-ink-muted">{c.description}</div>
-            </li>
-          ))}
-        </ul>
-      </Dialog>
+function RoadmapView({ t, items }: { t: T; items: HelpCenterData["roadmap"] }) {
+  const order = ["in_progress", "planned", "shipped"] as const;
+  const groups = order
+    .map((st) => ({ st, entries: items.filter((r) => r.status === st) }))
+    .filter((g) => g.entries.length > 0);
+
+  return (
+    <div className="mx-auto max-w-3xl">
+      <h1 className="mb-6 text-[26px] font-semibold tracking-[-0.5px]">{t("hc.roadmapTitle")}</h1>
+      <Accordion
+        items={groups.map((g) => ({
+          id: g.st,
+          question: (
+            <span className="flex items-center gap-2">
+              {t(`hc.roadmap.${g.st}` as MessageKey)}
+              <span className="text-xs font-normal text-ink-muted">{g.entries.length}</span>
+            </span>
+          ),
+          answer: (
+            <ul className="flex flex-col gap-2">
+              {g.entries.map((it) => (
+                <li key={it.id} className="flex items-center gap-2 text-ink">
+                  <RoadmapIcon width={15} height={15} className="shrink-0 text-ink-muted" />
+                  {it.title}
+                </li>
+              ))}
+            </ul>
+          ),
+        }))}
+      />
+    </div>
+  );
+}
+
+function ChangelogView({ t, entries }: { t: T; entries: HelpCenterData["changelog"] }) {
+  return (
+    <div className="mx-auto max-w-3xl">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <h1 className="text-[26px] font-semibold tracking-[-0.5px]">{t("hc.changelogTitle")}</h1>
+        <Badge tone="brand">{t("hc.changelogVersion", { v: "1.0.0" })}</Badge>
+      </div>
+      <ul className="flex flex-col gap-5">
+        {entries.map((c) => (
+          <li key={c.id} className="border-l-2 border-hairline pl-4">
+            <div className="text-xs text-ink-muted">{c.dateLabel}</div>
+            <div className="font-semibold text-ink">{c.title}</div>
+            <div className="mt-0.5 text-sm text-ink-muted">{c.description}</div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

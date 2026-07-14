@@ -7,11 +7,11 @@ import type { Locale } from "@/lib/tenant/types";
 import { getT } from "@/i18n/t";
 import type { Article, ArticleSummary, AskAnswer, HelpCenterData } from "@/lib/content/types";
 import { askStub } from "@/lib/content/fake-repo";
-import { PENDING_ASK_KEY, OPEN_SAVED_KEY } from "@/lib/content/handoff";
+import { PENDING_ASK_KEY, OPEN_ANSWER_KEY } from "@/lib/content/handoff";
 import {
   answerId,
+  getSavedById,
   isSaved,
-  listSaved,
   removeSaved,
   saveAnswer,
   type SavedArticle,
@@ -28,15 +28,11 @@ import {
   BookmarkIcon,
   DocIcon,
   SparkleIcon,
-  TrashIcon,
 } from "@/components/ui/icons";
 
 type T = ReturnType<typeof getT>;
 
-type View =
-  | { kind: "welcome" }
-  | { kind: "answer"; answer: AskAnswer }
-  | { kind: "saved" };
+type View = { kind: "welcome" } | { kind: "answer"; answer: AskAnswer };
 
 export interface HelpCenterProps {
   locale: Locale;
@@ -83,9 +79,11 @@ export function HelpCenter({ locale, tenantName, logoUrl, data, isOperator }: He
         setView({ kind: "answer", answer: askStub(pending, data.articles) });
         return;
       }
-      if (sessionStorage.getItem(OPEN_SAVED_KEY)) {
-        sessionStorage.removeItem(OPEN_SAVED_KEY);
-        setView({ kind: "saved" });
+      const openId = sessionStorage.getItem(OPEN_ANSWER_KEY);
+      if (openId) {
+        sessionStorage.removeItem(OPEN_ANSWER_KEY);
+        const s = getSavedById(openId);
+        if (s) openSavedAnswer(s);
       }
     } catch {
       /* ignore */
@@ -107,7 +105,7 @@ export function HelpCenter({ locale, tenantName, logoUrl, data, isOperator }: He
       data={data}
       isOperator={isOperator}
       onHome={goHome}
-      onOpenSaved={() => setView({ kind: "saved" })}
+      onOpenSavedAnswer={openSavedAnswer}
       footer={
         view.kind !== "welcome" ? (
           <PromptBox
@@ -129,10 +127,6 @@ export function HelpCenter({ locale, tenantName, logoUrl, data, isOperator }: He
           labels={promptLabels}
           onAsk={ask}
         />
-      ) : view.kind === "saved" ? (
-        <div className="px-5 py-8 md:px-10">
-          <SavedView t={t} onOpenAnswer={openSavedAnswer} onBack={goHome} />
-        </div>
       ) : (
         <div className="px-5 py-8 md:px-10">
           <AnswerView
@@ -331,64 +325,5 @@ function SaveToggle({ t, answer }: { t: T; answer: AskAnswer }) {
       )}
       {saved ? t("hc.saved") : t("hc.save")}
     </button>
-  );
-}
-
-/** Liste der lokal gespeicherten Antworten (Öffnen / Entfernen). */
-function SavedView({
-  t,
-  onOpenAnswer,
-  onBack,
-}: {
-  t: T;
-  onOpenAnswer: (s: SavedArticle) => void;
-  onBack: () => void;
-}) {
-  const [items, setItems] = useState<SavedArticle[]>([]);
-  useEffect(() => {
-    setItems(listSaved());
-  }, []);
-
-  function remove(id: string) {
-    removeSaved(id);
-    setItems(listSaved());
-  }
-
-  return (
-    <div className="mx-auto max-w-3xl">
-      <BackButton t={t} onBack={onBack} />
-      <h1 className="mb-6 text-[26px] font-semibold leading-tight tracking-[-0.5px]">
-        {t("hc.savedArticles")}
-      </h1>
-      {items.length === 0 ? (
-        <div className="rounded-card border border-dashed border-hairline-strong bg-tint px-6 py-12 text-center text-sm text-ink-muted">
-          {t("hc.savedEmpty")}
-        </div>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {items.map((s) => (
-            <li
-              key={s.id}
-              className="flex items-center gap-2 rounded-comfy border border-hairline bg-surface"
-            >
-              <button
-                onClick={() => onOpenAnswer(s)}
-                className="flex min-w-0 flex-1 items-center gap-3 rounded-comfy px-4 py-3 text-left transition-colors hover:bg-tint"
-              >
-                <BookmarkCheckIcon width={16} height={16} className="shrink-0 text-brand" />
-                <span className="truncate text-sm font-medium text-ink">{s.question}</span>
-              </button>
-              <button
-                onClick={() => remove(s.id)}
-                aria-label={t("hc.savedRemove")}
-                className="mr-2 grid h-8 w-8 shrink-0 place-items-center rounded-full text-ink-muted transition-colors hover:text-crit"
-              >
-                <TrashIcon width={16} height={16} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
   );
 }

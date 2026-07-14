@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
   if (!tenant) {
     return {
       title: getT(DEFAULT_LOCALE)("tenantNotFound.title"),
-      applicationName: "HallOfHelp",
+      applicationName: "Hall Of Help",
       robots: { index: false },
     };
   }
@@ -28,7 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
       default: tenant.name,
       template: `%s · ${tenant.name}`,
     },
-    applicationName: "HallOfHelp",
+    applicationName: "Hall Of Help",
     description: t("meta.description", { name: tenant.name }),
   };
 }

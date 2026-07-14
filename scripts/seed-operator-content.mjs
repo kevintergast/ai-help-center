@@ -138,17 +138,14 @@ const ARTICLES = [
   },
 ];
 
-/** Roadmap: ehrlich als geplant/in Arbeit markiert (keine Behauptung, dass es schon geht). */
+/** Roadmap: aktuell bewusst nur der nächste große Baustein. */
 const ROADMAP = [
-  { title: "KI-gestützte Antworten aus deinen Artikeln", status: "in_progress", sort: 1 },
-  { title: "Abrechnung & Credits (Self-Service)", status: "planned", sort: 2 },
-  { title: "Einbettbares Chat-Widget", status: "planned", sort: 3 },
-  { title: "Import & Export (Markdown, JSON)", status: "planned", sort: 4 },
+  { title: "Website-Widget", status: "planned", sort: 1 },
 ];
 
-/** Changelog: nur tatsächlich ausgelieferte Meilensteine. */
+/** Changelog: Version 1.0.0 — nur tatsächlich ausgelieferte Meilensteine. */
 const CHANGELOG = [
-  { title: "Produktions-Launch auf hallofhelp.com", description: "Mehrmandantenfähige Hilfezentren sind live — jedes unter eigener Subdomain.", at: BASE + 500 },
+  { title: "Hilfezentrum & Artikel-Verwaltung", description: "Artikel anlegen, in Kategorien pflegen und veröffentlichen; öffentliche Artikelseiten je Hilfezentrum.", at: BASE + 500 },
   { title: "Team, Rollen & Zwei-Faktor-Authentifizierung", description: "Einladungen, abgestufte Rollen und 2FA-Pflicht für Team-Rollen.", at: BASE + 300 },
   { title: "White-Label-Branding", description: "Logo und Farben pro Hilfezentrum, sofort angewendet.", at: BASE + 100 },
 ];
@@ -170,6 +167,8 @@ ARTICLES.forEach((a, i) => {
   );
 });
 
+// Roadmap ist seed-autoritativ (kein Admin-Editing) → alte Zeilen ersetzen.
+out.push(`DELETE FROM roadmap_items WHERE tenant_id = '${TENANT}';`);
 ROADMAP.forEach((r, i) => {
   const id = "op_rm_" + (i + 1);
   out.push(
@@ -178,6 +177,8 @@ ROADMAP.forEach((r, i) => {
   );
 });
 
+// Changelog ist seed-autoritativ → alte Zeilen ersetzen.
+out.push(`DELETE FROM changelog_entries WHERE tenant_id = '${TENANT}';`);
 CHANGELOG.forEach((c, i) => {
   const id = "op_cl_" + (i + 1);
   out.push(
