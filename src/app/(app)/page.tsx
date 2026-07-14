@@ -19,6 +19,7 @@ export default async function Home() {
       tenantName={tenant.name}
       logoUrl={tenant.branding.logoUrl}
       data={data}
+      isOperator={tenant.id === "t_operator"}
     />
   );
 }

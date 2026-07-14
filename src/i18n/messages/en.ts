@@ -17,6 +17,15 @@ export const en: Record<MessageKey, string> = {
 
   // Help center (end-user start view)
   "hc.home": "To start view",
+  "hc.account": "Account",
+  "hc.createHelpCenter": "Create your own help center",
+  "hc.save": "Save",
+  "hc.saved": "Saved",
+  "hc.savedArticles": "Saved articles",
+  "hc.savedEmpty": "Nothing saved yet. Save an AI answer to find it here.",
+  "hc.savedRemove": "Remove",
+  "hc.savedLocalHint": "Saved on this device only.",
+  "hc.savedAccountCta": "Sign in to save across devices",
   "hc.roadmap": "Roadmap",
   "hc.changelog": "Changelog",
   "hc.openMenu": "Open menu",

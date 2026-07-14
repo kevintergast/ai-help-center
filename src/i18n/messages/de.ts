@@ -15,6 +15,15 @@ export const de = {
 
   // Hilfezentrum (Endnutzer-Startansicht)
   "hc.home": "Zur Startansicht",
+  "hc.account": "Konto",
+  "hc.createHelpCenter": "Eigenes Hilfezentrum erstellen",
+  "hc.save": "Speichern",
+  "hc.saved": "Gespeichert",
+  "hc.savedArticles": "Gespeicherte Artikel",
+  "hc.savedEmpty": "Noch nichts gespeichert. Speichere eine KI-Antwort, um sie hier wiederzufinden.",
+  "hc.savedRemove": "Entfernen",
+  "hc.savedLocalHint": "Nur auf diesem Gerät gespeichert.",
+  "hc.savedAccountCta": "Anmelden, um geräteübergreifend zu speichern",
   "hc.roadmap": "Roadmap",
   "hc.changelog": "Changelog",
   "hc.openMenu": "Menü öffnen",
