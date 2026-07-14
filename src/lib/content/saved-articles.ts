@@ -9,6 +9,9 @@ import type { AskAnswer, Citation } from "./types";
 
 const KEY = "hh-saved-articles";
 
+/** Feuert nach jeder Änderung (auch im selben Tab) → UI kann live nachladen. */
+export const SAVED_CHANGED_EVENT = "hh-saved-changed";
+
 export interface SavedArticle {
   id: string;
   question: string;
@@ -40,6 +43,7 @@ function read(): SavedArticle[] {
 function write(list: SavedArticle[]): void {
   try {
     window.localStorage.setItem(KEY, JSON.stringify(list));
+    window.dispatchEvent(new Event(SAVED_CHANGED_EVENT));
   } catch {
     /* Speicher voll/blockiert → still ignorieren (local-first ist best effort) */
   }
@@ -52,6 +56,10 @@ export function listSaved(): SavedArticle[] {
 
 export function isSaved(id: string): boolean {
   return read().some((s) => s.id === id);
+}
+
+export function getSavedById(id: string): SavedArticle | null {
+  return read().find((s) => s.id === id) ?? null;
 }
 
 export function saveAnswer(answer: AskAnswer): SavedArticle {

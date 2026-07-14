@@ -292,6 +292,16 @@ export function UserIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function UserPlusIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="9" cy="8" r="4" />
+      <path d="M3 21v-1a6 6 0 0 1 10.5-4" />
+      <path d="M17 11v6M14 14h6" />
+    </svg>
+  );
+}
+
 export function BookmarkIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>
