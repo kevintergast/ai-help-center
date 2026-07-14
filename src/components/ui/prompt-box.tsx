@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useRef, useState, type FocusEvent, type KeyboardEvent } from "react";
 import { cn } from "@/lib/ui/cn";
 import { IconButton } from "./icon-button";
 import { MicIcon, SendIcon } from "./icons";
@@ -21,13 +21,18 @@ export interface PromptBoxProps {
   suggestions?: string[];
   labels: PromptBoxLabels;
   onSubmit?: (text: string, mode: string) => void;
+  /**
+   * Kompakt starten und erst bei Fokus aufklappen (Modus/Vorschläge zeigen);
+   * beim Verlassen ohne Text wieder einklappen. Für die Leiste am Seitenrand.
+   */
+  expandable?: boolean;
   className?: string;
 }
 
 /**
- * Zentrale KI-Eingabe (AI-First): auto-wachsendes Textfeld, Modus-Umschalter
- * (z. B. Suchen/Fragen), Vorschlags-Chips, Mikrofon + Senden. Enter sendet,
- * Shift+Enter fügt eine Zeile ein.
+ * Zentrale KI-Eingabe (AI-First): auto-wachsendes Textfeld, Modus-Umschalter,
+ * Vorschlags-Chips, Mikrofon + Senden. Enter sendet, Shift+Enter fügt eine Zeile ein.
+ * Mit `expandable` verhält sie sich platzsparend: kompakt, bis man hineinklickt.
  */
 export function PromptBox({
   placeholder,
@@ -35,11 +40,16 @@ export function PromptBox({
   suggestions = [],
   labels,
   onSubmit,
+  expandable = false,
   className,
 }: PromptBoxProps) {
   const [text, setText] = useState("");
   const [mode, setMode] = useState(modes[0]?.id ?? "");
+  const [expanded, setExpanded] = useState(!expandable);
   const areaRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const compact = expandable && !expanded;
 
   function grow() {
     const el = areaRef.current;
@@ -72,61 +82,83 @@ export function PromptBox({
     }
   }
 
+  function onContainerFocus() {
+    if (expandable) setExpanded(true);
+  }
+  function onContainerBlur(e: FocusEvent<HTMLDivElement>) {
+    if (!expandable) return;
+    const next = e.relatedTarget as Node | null;
+    if (next && containerRef.current?.contains(next)) return; // Fokus bleibt im Feld
+    if (!text.trim()) setExpanded(false);
+  }
+
+  const sendButton = (
+    <button
+      type="button"
+      aria-label={labels.send}
+      disabled={!text.trim()}
+      onClick={submit}
+      className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand text-brand-fg shadow-inset transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focusglow disabled:opacity-40"
+    >
+      <SendIcon width={16} height={16} />
+    </button>
+  );
+
   return (
-    <div className={className}>
-      <div className="rounded-container border border-hairline bg-surface-raised p-3 focus-within:border-hairline-strong">
+    <div ref={containerRef} className={className} onFocus={onContainerFocus} onBlur={onContainerBlur}>
+      <div
+        className={cn(
+          "rounded-container border border-hairline bg-surface-raised focus-within:border-hairline-strong",
+          compact ? "flex items-center gap-2 px-2 py-1.5" : "p-3",
+        )}
+      >
         <textarea
           ref={areaRef}
-          rows={2}
+          rows={compact ? 1 : 2}
           value={text}
           placeholder={placeholder}
           onChange={(e) => {
             setText(e.target.value);
-            grow();
+            if (!compact) grow();
           }}
           onKeyDown={onKey}
-          className="w-full resize-none bg-transparent px-2 py-1.5 text-base leading-relaxed text-ink outline-none placeholder:text-ink-muted"
+          className={cn(
+            "w-full resize-none bg-transparent px-2 text-ink outline-none placeholder:text-ink-muted",
+            compact ? "py-1.5 text-[15px] leading-6" : "py-1.5 text-base leading-relaxed",
+          )}
         />
-        <div className="mt-2 flex items-center gap-2">
-          {modes.length > 0 ? (
-            <div
-              role="group"
-              className="flex rounded-full border border-hairline bg-surface p-0.5"
-            >
-              {modes.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  aria-pressed={mode === m.id}
-                  onClick={() => setMode(m.id)}
-                  className={cn(
-                    "rounded-full px-3 py-1 text-sm transition-colors",
-                    mode === m.id
-                      ? "bg-[var(--btn-primary-bg)] text-[var(--btn-primary-fg)]"
-                      : "text-ink-muted hover:text-ink",
-                  )}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          <span className="flex-1" />
-          <IconButton aria-label={labels.mic} className="h-9 w-9">
-            <MicIcon width={16} height={16} />
-          </IconButton>
-          <button
-            type="button"
-            aria-label={labels.send}
-            disabled={!text.trim()}
-            onClick={submit}
-            className="grid h-9 w-9 place-items-center rounded-full bg-brand text-brand-fg shadow-inset transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focusglow disabled:opacity-40"
-          >
-            <SendIcon width={16} height={16} />
-          </button>
-        </div>
+        {compact ? sendButton : null}
+        {!compact ? (
+          <div className="mt-2 flex items-center gap-2">
+            {modes.length > 0 ? (
+              <div role="group" className="flex rounded-full border border-hairline bg-surface p-0.5">
+                {modes.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    aria-pressed={mode === m.id}
+                    onClick={() => setMode(m.id)}
+                    className={cn(
+                      "rounded-full px-3 py-1 text-sm transition-colors",
+                      mode === m.id
+                        ? "bg-[var(--btn-primary-bg)] text-[var(--btn-primary-fg)]"
+                        : "text-ink-muted hover:text-ink",
+                    )}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <span className="flex-1" />
+            <IconButton aria-label={labels.mic} className="h-9 w-9">
+              <MicIcon width={16} height={16} />
+            </IconButton>
+            {sendButton}
+          </div>
+        ) : null}
       </div>
-      {suggestions.length > 0 ? (
+      {!compact && suggestions.length > 0 ? (
         <div className="mt-3 flex flex-wrap gap-2.5">
           {suggestions.map((s) => (
             <button

@@ -28,7 +28,13 @@ import { tenantAwareAdapter } from "./tenant-adapter";
  * behebt und Verifikations-/Reset-Links korrekt UND sicher macht.
  */
 
-/** Basis-Domain für Tenant-Subdomains (Slug-Auflösung). */
+/**
+ * Fallback-Basis-Domain (Prod). Pro Worker über die Env-Var `APP_BASE_DOMAIN`
+ * überschreibbar (Dev-/Staging-Worker: "dev.hallofhelp.com"), damit der Auth-Origin
+ * auf den TATSÄCHLICHEN Host dieses Workers zeigt — OHNE die Domain aus dem
+ * (spoofbaren) Request-Host abzuleiten. Fehlt die Var → Prod-Domain (fail-safe:
+ * auf Prod kann nie versehentlich ein Dev-Origin als trusted gelten).
+ */
 const BASE_DOMAIN = "hallofhelp.com";
 
 /**
@@ -45,8 +51,8 @@ const BASE_DOMAIN = "hallofhelp.com";
  * Auflösung host-basiert ist. Wenn der Verifikations-Flow existiert: hier auf
  * `tenant_domain.status='verified'` umstellen, NICHT auf `customDomain` roh.
  */
-export function tenantBaseURL(tenant: Tenant): string {
-  return `https://${tenant.slug}.${BASE_DOMAIN}`;
+export function tenantBaseURL(tenant: Tenant, baseDomain: string = BASE_DOMAIN): string {
+  return `https://${tenant.slug}.${baseDomain}`;
 }
 
 /**
@@ -59,7 +65,7 @@ export function tenantBaseURL(tenant: Tenant): string {
  * der `tenantAwareAdapter` liest die aktive `tenantId` erst zur Aufrufzeit.
  */
 export async function createAuth(
-  env: CloudflareEnv & { RESEND_API_KEY?: string },
+  env: CloudflareEnv & { RESEND_API_KEY?: string; APP_BASE_DOMAIN?: string },
   tenant: Tenant,
   opts?: {
     /**
@@ -90,7 +96,7 @@ export async function createAuth(
 
   const options: BetterAuthOptions = {
     ...base,
-    baseURL: tenantBaseURL(tenant),
+    baseURL: tenantBaseURL(tenant, env.APP_BASE_DOMAIN ?? BASE_DOMAIN),
     database: () => tenantAwareAdapter(inner),
     emailAndPassword: {
       ...base.emailAndPassword,

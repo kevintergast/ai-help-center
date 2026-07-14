@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { getT } from "@/i18n/t";
 import type { Locale } from "@/lib/tenant/types";
 import { Button } from "@/components/ui/button";
@@ -39,9 +40,9 @@ export function ForgotPasswordForm({ locale }: { locale: Locale }) {
     return (
       <div className="flex flex-col gap-5">
         <PendingNote tone="ok">{t("auth.forgot.sent")}</PendingNote>
-        <a href="/login" className="text-center text-sm text-brand hover:underline">
+        <Link href="/login" className="text-center text-sm text-brand hover:underline">
           {t("auth.forgot.backToLogin")}
-        </a>
+        </Link>
       </div>
     );
   }
