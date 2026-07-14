@@ -49,3 +49,25 @@ describe("isOperatorHost (Punkt 4b — Betreiber-Instanz)", () => {
     expect(tenantSlugFromHost("hilfe.kunde.de")).toBeNull();
   });
 });
+
+describe("Development-Umgebung (dev.hallofhelp.com als eigene Basis-Domain)", () => {
+  it("app.dev.hallofhelp.com ist die Operator-Instanz (Dev)", () => {
+    expect(isOperatorHost("app.dev.hallofhelp.com")).toBe(true);
+  });
+
+  it("<slug>.dev.hallofhelp.com löst auf den Tenant-Slug auf (spiegelt Prod eine Ebene tiefer)", () => {
+    expect(tenantSlugFromHost("demo.dev.hallofhelp.com")).toBe("demo");
+    expect(tenantSlugFromHost("acme.dev.hallofhelp.com")).toBe("acme");
+  });
+
+  it("Dev-Zone-Apex und reservierte Dev-Subdomains lösen NICHT auf einen Kunden-Tenant auf", () => {
+    expect(tenantSlugFromHost("dev.hallofhelp.com")).toBeNull(); // Apex der Dev-Zone
+    expect(tenantSlugFromHost("app.dev.hallofhelp.com")).toBeNull(); // app reserviert → Operator via isOperatorHost
+    expect(tenantSlugFromHost("auth.dev.hallofhelp.com")).toBeNull();
+  });
+
+  it("kein Kapern/Leak: Prod-Operator bleibt, app.<fremd> bleibt false", () => {
+    expect(isOperatorHost("app.hallofhelp.com")).toBe(true);
+    expect(isOperatorHost("app.dev.evil.com")).toBe(false);
+  });
+});

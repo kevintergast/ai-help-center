@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { getT } from "@/i18n/t";
 import { getAvailableSocialProviders } from "@/server/auth/social-availability";
@@ -17,9 +18,9 @@ export default async function SignupPage() {
       footer={
         <>
           {t("auth.signup.haveAccount")}{" "}
-          <a href="/login" className="text-brand hover:underline">
+          <Link href="/login" className="text-brand hover:underline">
             {t("auth.signup.loginLink")}
-          </a>
+          </Link>
         </>
       }
     >

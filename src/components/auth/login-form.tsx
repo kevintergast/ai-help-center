@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { getT } from "@/i18n/t";
 import type { Locale } from "@/lib/tenant/types";
 import { Button } from "@/components/ui/button";
@@ -104,9 +105,9 @@ export function LoginForm({
           required
         />
         <div className="-mt-1 text-right text-sm">
-          <a href="/forgot-password" className="text-brand hover:underline">
+          <Link href="/forgot-password" className="text-brand hover:underline">
             {t("auth.login.forgot")}
-          </a>
+          </Link>
         </div>
 
         <ErrorNote>{error || null}</ErrorNote>

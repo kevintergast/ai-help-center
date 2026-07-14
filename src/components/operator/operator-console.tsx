@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { getT } from "@/i18n/t";
 import type { Locale } from "@/lib/tenant/types";
 import { Button } from "@/components/ui/button";
@@ -57,12 +58,12 @@ export function OperatorConsole({ locale, signedIn }: { locale: Locale; signedIn
         <h1 className="text-xl font-bold text-ink">{t("operator.console.title")}</h1>
         <p className="mt-2 text-sm text-ink-muted">{t("operator.console.signInPrompt")}</p>
         <div className="mt-5 flex gap-3">
-          <a href="/login?redirect=/console">
+          <Link href="/login?redirect=/console">
             <Button>{t("operator.console.signIn")}</Button>
-          </a>
-          <a href="/signup">
+          </Link>
+          <Link href="/signup">
             <Button variant="ghost">{t("operator.console.signUp")}</Button>
-          </a>
+          </Link>
         </div>
       </section>
     );

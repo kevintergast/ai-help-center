@@ -33,6 +33,22 @@ id = "179988c7d6344221b9a41da8312f2594"
 [ai]
 binding = "AI"
 
+# DEV-Wildcard-Routing: alle Subdomains von dev.hallofhelp.com (app./<slug>.) auf den
+# Staging-Worker → spiegelt das Prod-Self-Service-Modell eine Ebene tiefer. VORAUSSETZUNG
+# vor dem naechsten Staging-Deploy (sonst schlaegt die Route-Erstellung fehl):
+#   Cloudflare-DNS auf hallofhelp.com: A-Record  Name "*.dev"  Inhalt 192.0.2.0  Proxied (orange).
+#   (Zone-Scope "Workers Routes: Edit" ist durchs Prod-Routing bereits am CI-Token.)
+[[routes]]
+pattern = "*.dev.hallofhelp.com/*"
+zone_name = "hallofhelp.com"
+
+# App-Umgebung (nur Anzeige, z. B. Env-Marker oben am Bildschirmrand).
+# Staging/Dev = "development"; Prod überschreibt unten auf "production".
+# APP_BASE_DOMAIN: Basis-Domain DIESES Workers für den Auth-Origin (Login/Reset-Links).
+[vars]
+APP_ENV = "development"
+APP_BASE_DOMAIN = "dev.hallofhelp.com"
+
 # AUTH_SECRET aus Cloudflare Secrets Store (Wert bleibt in Cloudflare, nie im Repo):
 [[secrets_store_secrets]]
 binding = "AUTH_SECRET"
@@ -81,6 +97,11 @@ id = "f7ba0390e26c408ea72c4cca14d33856"
 
 [env.production.ai]
 binding = "AI"
+
+# Prod-Umgebung → Env-Marker wird ausgeblendet.
+[env.production.vars]
+APP_ENV = "production"
+APP_BASE_DOMAIN = "hallofhelp.com"
 
 # Prod referenziert vorerst denselben Store-Secret; bei Bedarf später eigener Prod-Wert.
 [[env.production.secrets_store_secrets]]

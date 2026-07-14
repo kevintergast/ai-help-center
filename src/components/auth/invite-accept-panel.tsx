@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { getT } from "@/i18n/t";
 import type { Locale } from "@/lib/tenant/types";
 import type { MessageKey } from "@/i18n/messages/de";
@@ -62,11 +63,11 @@ export function InviteAcceptPanel({ locale, token }: { locale: Locale; token: st
     return (
       <div className="flex flex-col gap-5">
         <PendingNote tone="ok">{t("auth.invite.successBody")}</PendingNote>
-        <a href="/mfa/setup" className="block">
+        <Link href="/mfa/setup" className="block">
           <Button type="button" className="w-full justify-center">
             {t("auth.invite.setupMfa")}
           </Button>
-        </a>
+        </Link>
       </div>
     );
   }
@@ -80,16 +81,16 @@ export function InviteAcceptPanel({ locale, token }: { locale: Locale; token: st
       <div className="flex flex-col gap-5">
         <PendingNote tone="info">{t("auth.invite.needLogin")}</PendingNote>
         <div className="flex gap-2">
-          <a href={loginHref} className="flex-1">
+          <Link href={loginHref} className="flex-1">
             <Button type="button" className="w-full justify-center">
               {t("auth.invite.login")}
             </Button>
-          </a>
-          <a href={signupHref} className="flex-1">
+          </Link>
+          <Link href={signupHref} className="flex-1">
             <Button type="button" variant="cream" className="w-full justify-center">
               {t("auth.invite.signup")}
             </Button>
-          </a>
+          </Link>
         </div>
       </div>
     );

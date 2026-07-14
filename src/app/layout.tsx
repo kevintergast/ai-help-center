@@ -4,6 +4,8 @@ import { getCurrentTenant } from "@/lib/tenant/current";
 import { brandingToStyle } from "@/lib/theme/brand";
 import { DEFAULT_LOCALE } from "@/i18n/config";
 import { getT } from "@/i18n/t";
+import { getAppEnv } from "@/lib/env";
+import { EnvMarker } from "@/components/env-marker";
 
 // White-Label: Titel/Description kommen pro Request aus dem Tenant (Host →
 // getCurrentTenant, via React cache() dedupliziert → keine zweite D1-Query).
@@ -29,6 +31,7 @@ const themeScript = `try{var t=localStorage.getItem('hh-theme');if(t==='dark'||t
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const tenant = await getCurrentTenant();
+  const appEnv = await getAppEnv();
 
   // FAIL-CLOSED: unbekannter Host → neutrale Not-Found-Shell OHNE jedes
   // Tenant-Branding (kein Demo-Logo, keine fremden Farben, kein data-tenant).
@@ -39,6 +42,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     return (
       <html lang={DEFAULT_LOCALE} suppressHydrationWarning>
         <body className="min-h-screen bg-surface font-sans text-ink antialiased">
+          <EnvMarker env={appEnv} />
           <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-2 px-6 text-center">
             <h1 className="text-xl font-bold">{t("tenantNotFound.title")}</h1>
             <p className="text-ink-muted">{t("tenantNotFound.body")}</p>
@@ -60,6 +64,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         className="min-h-screen bg-surface font-sans text-ink antialiased"
         data-tenant={tenant.slug}
       >
+        <EnvMarker env={appEnv} />
         {children}
       </body>
     </html>

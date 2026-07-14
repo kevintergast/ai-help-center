@@ -20,7 +20,12 @@
     "i18n:check": "node scripts/check-i18n.mjs",
     "prepare": "husky",
     "db:migrate:local": "wrangler d1 migrations apply hallofhelp-staging --local",
-    "db:migrate:staging": "wrangler d1 migrations apply hallofhelp-staging --remote"
+    "db:migrate:staging": "wrangler d1 migrations apply hallofhelp-staging --remote",
+    "db:migrate:prod": "wrangler d1 migrations apply hallofhelp-prod --env production --remote",
+    "seed:content:sql": "node scripts/seed-operator-content.mjs > /tmp/hoh-op-seed.sql",
+    "seed:content:local": "pnpm seed:content:sql && wrangler d1 execute hallofhelp-staging --local --file=/tmp/hoh-op-seed.sql",
+    "seed:content:staging": "pnpm seed:content:sql && wrangler d1 execute hallofhelp-staging --remote --file=/tmp/hoh-op-seed.sql",
+    "seed:content:prod": "pnpm seed:content:sql && wrangler d1 execute hallofhelp-prod --env production --remote --file=/tmp/hoh-op-seed.sql"
   },
   "dependencies": {
     "better-auth": "^1.2.0",

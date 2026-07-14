@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { getT } from "@/i18n/t";
 import { getAvailableSocialProviders } from "@/server/auth/social-availability";
@@ -21,9 +22,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
       footer={
         <>
           {t("auth.login.noAccount")}{" "}
-          <a href="/signup" className="text-brand hover:underline">
+          <Link href="/signup" className="text-brand hover:underline">
             {t("auth.login.signupLink")}
-          </a>
+          </Link>
         </>
       }
     >

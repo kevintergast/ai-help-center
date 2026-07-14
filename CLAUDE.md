@@ -60,5 +60,8 @@ lesen diese Variablen. Neue Tenants brauchen daher **keinen** Code — nur einen
 - **Bei PRs:** neue Verzweigung/Regel → Test; Bugfix → Regressionstest, der **ohne** den Fix fehlschlägt.
 - **Automatik:** läuft lokal vor jedem `git push` (Husky pre-push: `i18n:check` + `typecheck` + `test`) **und** in CI. **Merge nur bei grüner Pipeline** (GitHub Branch Protection: „Require status checks to pass").
 
+### Dogfooding — eigenes Hilfezentrum (Referenz-Instanz `t_operator`)
+Unser Produkt-Hilfezentrum ist zugleich das **lebende Referenzbeispiel**: es zeigt am eigenen Fall, wie man HallofHelp nutzt. **Verbindliche Regel:** Der Inhalt der Operator-Instanz (`app.hallofhelp.com` / Tenant `t_operator`) muss **stets den AKTUELL ausgelieferten Funktionsstand** abbilden — dokumentiert wird **nur, was heute real funktioniert** (kein „coming soon", keine ungebauten Features). Bei jeder Feature-Änderung sind die betroffenen Artikel **mitzupflegen** (Teil der Definition-of-Done). Quelle der Wahrheit = **versioniertes Seed im Repo** (`scripts/seed-operator-content.mjs` → generiert idempotentes Upsert-SQL), von dort via `wrangler d1 execute` nach D1 (staging + prod, Tenant `t_operator`) gespielt. Der Content erscheint unter **`/help`** (die Root `/` ist noch das Scaffold).
+
 ## Grundsatz
 Erst saubere Struktur/Plattform (Multi-Tenancy, White-Label), dann Features gemäß Plan v2 (`docs/`).

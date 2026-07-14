@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { getT } from "@/i18n/t";
 import { AuthCard } from "@/components/auth/auth-card";
@@ -13,9 +14,9 @@ export default async function ForgotPasswordPage() {
       title={t("auth.forgot.title")}
       subtitle={t("auth.forgot.subtitle")}
       footer={
-        <a href="/login" className="text-brand hover:underline">
+        <Link href="/login" className="text-brand hover:underline">
           {t("auth.forgot.backToLogin")}
-        </a>
+        </Link>
       }
     >
       <ForgotPasswordForm locale={tenant.defaultLocale} />

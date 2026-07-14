@@ -1,13 +1,12 @@
 import { getCurrentTenant } from "@/lib/tenant/current";
-import { AppShell } from "@/components/app-shell";
 import TenantSwitcher from "@/components/tenant-switcher";
 
 /**
- * Layout der eigentlichen Hilfezentrums-App: rendert die App-Shell (Header mit
- * serverseitig gerendertem Tenant-Logo). Das Tenant-Branding (CSS-Variablen)
- * liegt global auf <html> (Root-Layout) — hier KEIN zweiter Wrapper mehr,
- * damit es nur eine Quelle gibt. Interne Seiten außerhalb dieser Gruppe
- * (z. B. /brandbook) bekommen die Shell bewusst nicht.
+ * Layout des Endnutzer-Hilfezentrums (Root `/` und `/<slug>`). Das Tenant-
+ * Branding (CSS-Variablen) liegt global auf <html> (Root-Layout). Hier KEINE
+ * eigene App-Shell mehr: Hilfezentrum-Übersicht und Artikelseite bringen ihre
+ * eigene Kopfzeile/Layout mit (sonst doppelte Chrome). Der Dev-Tenant-Switcher
+ * (nur außerhalb von Production) bleibt als Navigationshilfe.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const tenant = await getCurrentTenant();
@@ -15,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!tenant) return null;
   return (
     <>
-      <AppShell tenant={tenant}>{children}</AppShell>
+      {children}
       <TenantSwitcher />
     </>
   );

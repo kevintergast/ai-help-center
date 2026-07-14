@@ -13,6 +13,26 @@ import type { ArticleVideo } from "@/lib/content/types";
 /** Slug: kleingeschrieben, alphanumerisch, Bindestrich-getrennt (kein führender/doppelter/abschließender). */
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/**
+ * Reservierte Slugs: sie kollidieren mit expliziten App-Routen, die in Next
+ * Vorrang vor dem dynamischen `/<slug>` haben — ein Artikel mit diesem Slug wäre
+ * über seine URL nicht erreichbar. Deshalb beim Anlegen hart ablehnen.
+ */
+export const RESERVED_SLUGS = new Set([
+  "login",
+  "signup",
+  "verify-email",
+  "forgot-password",
+  "reset-password",
+  "mfa",
+  "invite",
+  "admin",
+  "console",
+  "help",
+  "brandbook",
+  "api",
+]);
+
 export const MAX_TITLE_LENGTH = 300;
 export const MAX_CATEGORY_LENGTH = 120;
 export const MAX_SLUG_LENGTH = 128;
@@ -118,6 +138,7 @@ export function parseCreateArticle(body: unknown, defaultLocale: string): ParseR
   if (typeof b.slug !== "string" || b.slug.length > MAX_SLUG_LENGTH || !SLUG_RE.test(b.slug)) {
     return fail("invalid_slug");
   }
+  if (RESERVED_SLUGS.has(b.slug)) return fail("reserved_slug");
   if (!isNonEmptyString(b.title, MAX_TITLE_LENGTH)) return fail("title_required");
   if (!isNonEmptyString(b.category, MAX_CATEGORY_LENGTH)) return fail("category_required");
 

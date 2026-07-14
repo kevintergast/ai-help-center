@@ -1,8 +1,17 @@
 import { DEMO_TENANTS, DEFAULT_TENANT, OPERATOR_TENANT } from "./registry";
 import type { Tenant } from "./types";
 
-/** Basis-Domains, unter denen Tenant-Subdomains laufen. */
-const BASE_DOMAINS = ["hallofhelp.com", "localhost"];
+/**
+ * Basis-Domains, unter denen Tenant-Subdomains laufen.
+ * - `dev.hallofhelp.com` — DEVELOPMENT/Staging-Umgebung (eigener Worker): spiegelt
+ *   die Prod-Struktur eine Ebene tiefer (`app.dev.hallofhelp.com` = Operator-Dev,
+ *   `<slug>.dev.hallofhelp.com` = Tenant-Dev). Muss VOR `hallofhelp.com` stehen,
+ *   damit `app.dev.hallofhelp.com` als Operator-Host erkannt wird (isOperatorHost).
+ * - `hallofhelp.com` — PRODUCTION.
+ * - `localhost` — lokales Dev.
+ * Auf Prod ist `dev.hallofhelp.com` inert (kein Dev-Host wird dorthin geroutet).
+ */
+const BASE_DOMAINS = ["dev.hallofhelp.com", "hallofhelp.com", "localhost"];
 
 /**
  * Feste Slug/Id der Operator-Instanz (Control-Plane, Punkt 4b).

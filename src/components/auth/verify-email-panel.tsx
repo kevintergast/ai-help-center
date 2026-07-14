@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { getT } from "@/i18n/t";
 import type { Locale } from "@/lib/tenant/types";
 import { Button } from "@/components/ui/button";
@@ -51,9 +52,9 @@ export function VerifyEmailPanel({ locale, email }: { locale: Locale; email: str
         </Button>
       ) : null}
 
-      <a href="/login" className="text-center text-sm text-brand hover:underline">
+      <Link href="/login" className="text-center text-sm text-brand hover:underline">
         {t("auth.verify.toLogin")}
-      </a>
+      </Link>
     </div>
   );
 }
