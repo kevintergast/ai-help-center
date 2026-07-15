@@ -19,5 +19,8 @@ export default nextConfig;
 // im build-Job) mit "Could not start remote dev session" und bricht den Build ab.
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 if (process.env.NODE_ENV === "development") {
+  // Bindings mit `remote = true` in wrangler.toml (Vectorize hat keinen
+  // Lokal-Simulator) sprechen in `next dev` die echte Staging-Ressource
+  // (remoteBindings ist in getPlatformProxy standardmäßig aktiv).
   initOpenNextCloudflareForDev();
 }

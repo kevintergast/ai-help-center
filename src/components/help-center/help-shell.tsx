@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signOut } from "@/lib/auth-client";
-import { isTeamRole, type HelpViewer } from "@/lib/auth/viewer";
-import { useClickOutside } from "@/lib/ui/use-click-outside";
+import type { HelpViewer } from "@/lib/auth/viewer";
 import type { Locale } from "@/lib/tenant/types";
 import type { MessageKey } from "@/i18n/messages/de";
 import { getT } from "@/i18n/t";
@@ -21,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { IconButton } from "@/components/ui/icon-button";
 import { SearchCombobox } from "@/components/ui/search-combobox";
 import { Accordion } from "@/components/ui/accordion";
+import { AccountMenu } from "@/components/account-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Emblem, LogoWithClaim } from "@/components/brand-mark";
 import {
@@ -32,8 +31,6 @@ import {
   MenuIcon,
   PlusIcon,
   RoadmapIcon,
-  UserIcon,
-  UserPlusIcon,
 } from "@/components/ui/icons";
 
 type T = ReturnType<typeof getT>;
@@ -89,9 +86,6 @@ export function HelpShell({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [drill, setDrill] = useState<null | "roadmap" | "changelog">(null);
   const [saved, setSaved] = useState<SavedArticle[]>([]);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
-  useClickOutside(profileRef, () => setProfileOpen(false), profileOpen);
 
   const searchItems = useMemo(
     () => data.searchItems.map((a) => ({ id: a.id, title: a.title, category: a.category })),
@@ -294,35 +288,8 @@ export function HelpShell({
             </Link>
           ) : null}
           <ThemeToggle label={t("hc.themeToggle")} />
-          {/* Profil — gleiche Größe wie der Theme-Toggle (IconButton). Anonym:
-              Anmelden-Hinweis; angemeldet: Identität + Links + Abmelden. */}
-          <div ref={profileRef} className="relative">
-            <IconButton
-              aria-label={t("hc.account")}
-              aria-expanded={profileOpen}
-              onClick={() => setProfileOpen((o) => !o)}
-            >
-              {viewer ? <UserIcon width={18} height={18} /> : <UserPlusIcon width={18} height={18} />}
-            </IconButton>
-            {profileOpen ? (
-              <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-card border border-hairline bg-surface-raised p-4 shadow-focusglow">
-                {viewer ? (
-                  <ProfileMenu t={t} viewer={viewer} isOperator={isOperator} />
-                ) : (
-                  <>
-                    <p className="text-sm text-ink">{t("hc.accountPrompt")}</p>
-                    <Link
-                      href="/login"
-                      onClick={() => setProfileOpen(false)}
-                      className="mt-3 inline-flex w-full items-center justify-center rounded-std bg-[var(--btn-primary-bg)] px-3 py-2 text-sm text-[var(--btn-primary-fg)] shadow-inset transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focusglow"
-                    >
-                      {t("hc.signIn")}
-                    </Link>
-                  </>
-                )}
-              </div>
-            ) : null}
-          </div>
+          {/* Konto — gemeinsames Menü mit dem Admin-Header (account-menu.tsx). */}
+          <AccountMenu locale={locale} viewer={viewer} isOperator={isOperator} />
         </div>
       </header>
 
@@ -372,62 +339,6 @@ export function HelpShell({
           <LegalFooter t={t} />
         </main>
       </div>
-    </div>
-  );
-}
-
-/**
- * Konto-Popup-Inhalt für ANGEMELDETE Betrachter: Identität, rollenbasierte
- * Links (Team-Rollen → Admin; Operator-Instanz → Console) und Abmelden.
- * Die Links sind reine Navigation — jede Berechtigung prüfen Server-Gates.
- */
-function ProfileMenu({
-  t,
-  viewer,
-  isOperator,
-}: {
-  t: T;
-  viewer: HelpViewer;
-  isOperator: boolean;
-}) {
-  const [busy, setBusy] = useState(false);
-
-  async function handleSignOut() {
-    setBusy(true);
-    try {
-      await signOut();
-    } finally {
-      // Voller Reload: Server-Komponenten lesen die (nun leere) Session neu.
-      window.location.assign("/");
-    }
-  }
-
-  const linkRow =
-    "flex w-full items-center rounded-comfy px-2 py-1.5 text-sm text-ink transition-colors hover:bg-tint";
-
-  return (
-    <div className="flex flex-col gap-1">
-      <p className="px-2 text-xs text-ink-muted">{t("hc.account.signedInAs")}</p>
-      <p className="truncate px-2 text-sm font-medium text-ink">{viewer.name ?? viewer.email}</p>
-      {viewer.name ? (
-        <p className="truncate px-2 text-xs text-ink-muted">{viewer.email}</p>
-      ) : null}
-
-      <div className="my-2 h-px bg-hairline" aria-hidden />
-
-      {isTeamRole(viewer.role) ? (
-        <Link href="/admin" className={linkRow}>
-          {t("hc.account.admin")}
-        </Link>
-      ) : null}
-      {isOperator ? (
-        <Link href="/console" className={linkRow}>
-          {t("hc.account.console")}
-        </Link>
-      ) : null}
-      <button onClick={handleSignOut} disabled={busy} className={cn(linkRow, "text-left")}>
-        {busy ? t("hc.account.signingOut") : t("hc.account.signOut")}
-      </button>
     </div>
   );
 }

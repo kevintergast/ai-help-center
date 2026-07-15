@@ -387,8 +387,9 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
   });
 
   it("PUBLIC_ROUTES-Snapshot: jede Änderung an der Allowlist ist ein bewusster Test-Update", () => {
-    // 2026-07-15: + /events/view (View-Beacon-Ingestion; anonyme Besucher sind
-    // der Normalfall — Begründung in public-routes.ts/events.ts).
+    // 2026-07-15: + /events/view (View-Beacon) und /ask (dynamischer KI-
+    // Artikel) — anonyme Besucher sind der Produkt-Normalfall; Begründungen in
+    // public-routes.ts bzw. api/ask.ts (Missbrauchsschutz-Schichten).
     expect(PUBLIC_ROUTES).toMatchInlineSnapshot(`
       {
         "exact": [
@@ -396,6 +397,7 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
           "/api/v1/tenant",
           "/api/v1/branding/logo",
           "/api/v1/events/view",
+          "/api/v1/ask",
         ],
         "prefixes": [
           "/api/v1/auth/",

@@ -3,7 +3,6 @@ import type { Article, HelpCenterData, HelpCenterRepository } from "@/lib/conten
 import type { Tenant } from "@/lib/tenant/types";
 import {
   SAMPLE_ARTICLES,
-  askStub,
   groupByCategory,
   sampleHelpCenterRepo,
 } from "@/lib/content/fake-repo";
@@ -32,7 +31,6 @@ function d1HelpCenterRepo(db: D1Database, tenant: Tenant): HelpCenterRepository 
     listArticles: () => store.listPublishedArticles(tid, locale),
     getArticle: (key) => store.getPublishedArticleBySlugOrId(tid, locale, key),
     // RAG-STUB (Punkt 3): geerdete Beispielantwort über die echten Artikel.
-    ask: async (q) => askStub(q, await store.listPublishedArticles(tid, locale)),
     roadmap: () => store.roadmap(tid),
     changelog: () => store.changelog(tid, locale),
     // Prompt-Vorschläge sind (noch) nicht in D1 modelliert → statisches Sample.

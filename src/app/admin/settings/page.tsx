@@ -2,6 +2,7 @@ import { getCurrentTenant } from "@/lib/tenant/current";
 import { getT } from "@/i18n/t";
 import { AdminPageHeader } from "@/components/admin/admin-shell";
 import { CustomDomainManager } from "@/components/admin/custom-domain-manager";
+import { LegalDocsManager } from "@/components/admin/legal-docs-manager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -109,6 +110,11 @@ export default async function AdminSettingsPage() {
           </div>
           {/* Funktionaler Verify-Flow (Infra-Plan Schritt 5): TXT-Challenge → verified. */}
           <CustomDomainManager locale={tenant.defaultLocale} />
+        </SettingsCard>
+
+        <SettingsCard title={t("admin.legal.title")}>
+          {/* Rechtstexte (Design h): Link ODER Markdown/Upload; öffentlich unter /legal/<doc>. */}
+          <LegalDocsManager locale={tenant.defaultLocale} />
         </SettingsCard>
       </div>
     </div>

@@ -60,6 +60,14 @@ export interface TopArticleRow {
   views: number;
 }
 
+export interface RecordGenerationInput {
+  tenantId: string;
+  actorType: UsageActorType;
+  visitorId: string;
+  userId?: string | null;
+  nowSec: number;
+}
+
 export interface BillingRepository {
   /**
    * Verbucht einen Artikel-Aufruf: Event (append-only) + MAU-Dedup + atomares
@@ -67,6 +75,12 @@ export interface BillingRepository {
    * (null bei unknown_article/deduped — nichts verbucht).
    */
   recordView(input: RecordViewInput): Promise<{ result: RecordViewResult; state: PlanState | null }>;
+  /**
+   * Verbucht eine KI-Generierung (RAG-Kern): 20 Credits (internal = 0, kein
+   * MAU) — KEIN Dedup, jede Generierung kostet (Architektur: Regenerieren
+   * kostet erneut). Aufruf erst NACH erfolgreicher Generierung.
+   */
+  recordAiGeneration(input: RecordGenerationInput): Promise<PlanState>;
   /** Verbrauch der Periode (Credits aus Aggregat, MAU als COUNT über usage_mau). */
   getUsage(tenantId: string, period: string): Promise<UsageSnapshot>;
   /** Plan-Zeile (fehlend = Free, kein Marker). */
@@ -134,10 +148,48 @@ export class D1BillingRepository implements BillingRepository {
       .first<{ hit: number }>();
     if (recent) return { result: "deduped", state: null };
 
-    // Interne (Team-)Aufrufe: Event fürs Statistik-Filtern, aber 0 Credits,
-    // kein MAU — der Tenant zahlt nie für die eigene Pflege-Arbeit.
+    const state = await this.charge({
+      tenantId: input.tenantId,
+      type: "article_view",
+      actorType: input.actorType,
+      visitorId: input.visitorId,
+      userId: input.userId ?? null,
+      articleId: article.id,
+      nowSec: input.nowSec,
+    });
+    return { result: "recorded", state };
+  }
+
+  async recordAiGeneration(input: RecordGenerationInput): Promise<PlanState> {
+    return this.charge({
+      tenantId: input.tenantId,
+      type: "ai_generation",
+      actorType: input.actorType,
+      visitorId: input.visitorId,
+      userId: input.userId ?? null,
+      articleId: null,
+      nowSec: input.nowSec,
+    });
+  }
+
+  /**
+   * Gemeinsamer Verbuchungspfad (View + Generierung): Event (append-only) +
+   * MAU-Dedup + atomares Credit-Inkrement in EINER Transaktion, danach
+   * Plan-State + over_limit-Marker-Sync. Interne (Team-)Aufrufe: Event fürs
+   * Statistik-Filtern, aber 0 Credits, kein MAU — der Tenant zahlt nie für
+   * die eigene Pflege-Arbeit.
+   */
+  private async charge(input: {
+    tenantId: string;
+    type: keyof typeof CREDIT_COSTS;
+    actorType: UsageActorType;
+    visitorId: string;
+    userId: string | null;
+    articleId: string | null;
+    nowSec: number;
+  }): Promise<PlanState> {
     const internal = input.actorType === "internal";
-    const credits = internal ? 0 : CREDIT_COSTS.article_view;
+    const credits = internal ? 0 : CREDIT_COSTS[input.type];
     const period = periodOf(input.nowSec * 1000);
 
     const statements = [
@@ -145,16 +197,17 @@ export class D1BillingRepository implements BillingRepository {
         .prepare(
           `INSERT INTO usage_events
              (id, tenant_id, type, credits, actor_type, visitor_id, user_id, article_id, created_at)
-           VALUES (?, ?, 'article_view', ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           crypto.randomUUID(),
           input.tenantId,
+          input.type,
           credits,
           input.actorType,
           input.visitorId,
-          input.userId ?? null,
-          article.id,
+          input.userId,
+          input.articleId,
           input.nowSec,
         ),
     ];
@@ -181,7 +234,7 @@ export class D1BillingRepository implements BillingRepository {
 
     const state = await readPlanState(this, input.tenantId, input.nowSec);
     await this.syncOverLimitMarker(input.tenantId, state.isOver, input.nowSec);
-    return { result: "recorded", state };
+    return state;
   }
 
   async getUsage(tenantId: string, period: string): Promise<UsageSnapshot> {

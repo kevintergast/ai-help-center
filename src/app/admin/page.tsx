@@ -5,7 +5,7 @@ import { getAdminUsageKpis } from "@/server/billing/runtime";
 import { listAdminArticleRows } from "@/server/content/runtime";
 import { AdminPageHeader } from "@/components/admin/admin-shell";
 import { KpiCard } from "@/components/admin/kpi-card";
-import { Button } from "@/components/ui/button";
+import { NewArticleButton } from "@/components/admin/new-article-button";
 import { ChartBarIcon, InboxIcon, SettingsIcon, PlusIcon } from "@/components/ui/icons";
 
 /**
@@ -38,14 +38,7 @@ export default async function AdminOverviewPage() {
       <AdminPageHeader
         title={t("admin.overview.title")}
         subtitle={t("admin.overview.subtitle")}
-        action={
-          <Link href="/admin/articles">
-            <Button variant="primary" size="sm">
-              <PlusIcon width={16} height={16} />
-              {t("admin.new")}
-            </Button>
-          </Link>
-        }
+        action={<NewArticleButton locale={tenant.defaultLocale} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

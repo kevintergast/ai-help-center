@@ -7,7 +7,6 @@ import type { HelpViewer } from "@/lib/auth/viewer";
 import type { Locale } from "@/lib/tenant/types";
 import { getT } from "@/i18n/t";
 import type { Article, ArticleSummary, AskAnswer, HelpCenterData } from "@/lib/content/types";
-import { askStub } from "@/lib/content/fake-repo";
 import { PENDING_ASK_KEY, OPEN_ANSWER_KEY } from "@/lib/content/handoff";
 import {
   answerId,
@@ -33,7 +32,11 @@ import {
 
 type T = ReturnType<typeof getT>;
 
-type View = { kind: "welcome" } | { kind: "answer"; answer: AskAnswer };
+type View =
+  | { kind: "welcome" }
+  | { kind: "loading"; question: string }
+  | { kind: "answer"; answer: AskAnswer }
+  | { kind: "error"; question: string; code: "frozen" | "unavailable" };
 
 export interface HelpCenterProps {
   locale: Locale;
@@ -63,9 +66,29 @@ export function HelpCenter({
 
   const [view, setView] = useState<View>({ kind: "welcome" });
 
-  function ask(text: string) {
-    // RAG-STUB: lokale, geerdete Beispielantwort über das Bundle.
-    setView({ kind: "answer", answer: askStub(text, data.articles) });
+  async function ask(text: string) {
+    // ECHTER RAG-Pfad (Punkt 3): POST /api/v1/ask → dynamischer KI-Artikel.
+    // Nicht geerdet kommt als grounded:false zurück (AnswerView zeigt die
+    // ehrliche No-Answer); frozen/Ausfall werden als Fehlerzustand gerendert.
+    setView({ kind: "loading", question: text });
+    try {
+      const res = await fetch("/api/v1/ask", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ question: text }),
+      });
+      if (res.ok) {
+        setView({ kind: "answer", answer: (await res.json()) as AskAnswer });
+        return;
+      }
+      setView({
+        kind: "error",
+        question: text,
+        code: res.status === 402 ? "frozen" : "unavailable",
+      });
+    } catch {
+      setView({ kind: "error", question: text, code: "unavailable" });
+    }
   }
   function goHome() {
     setView({ kind: "welcome" });
@@ -86,7 +109,7 @@ export function HelpCenter({
       const pending = sessionStorage.getItem(PENDING_ASK_KEY);
       if (pending) {
         sessionStorage.removeItem(PENDING_ASK_KEY);
-        setView({ kind: "answer", answer: askStub(pending, data.articles) });
+        void ask(pending);
         return;
       }
       const openId = sessionStorage.getItem(OPEN_ANSWER_KEY);
@@ -98,7 +121,7 @@ export function HelpCenter({
     } catch {
       /* ignore */
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const promptModes = [
@@ -125,7 +148,7 @@ export function HelpCenter({
             modes={promptModes}
             suggestions={data.suggestions}
             labels={promptLabels}
-            onSubmit={(text) => ask(text)}
+            onSubmit={(text) => void ask(text)}
           />
         ) : undefined
       }
@@ -136,8 +159,19 @@ export function HelpCenter({
           suggestions={data.suggestions}
           modes={promptModes}
           labels={promptLabels}
-          onAsk={ask}
+          onAsk={(text) => void ask(text)}
         />
+      ) : view.kind === "loading" ? (
+        <PendingAnswerView t={t} question={view.question} />
+      ) : view.kind === "error" ? (
+        <div className="px-5 py-8 md:px-10">
+          <AskErrorView
+            t={t}
+            code={view.code}
+            onBack={goHome}
+            onRetry={() => void ask(view.question)}
+          />
+        </div>
       ) : (
         <div className="px-5 py-8 md:px-10">
           <AnswerView
@@ -258,7 +292,7 @@ function AnswerView({
             {answer.question}
           </h1>
         </div>
-        <SaveToggle t={t} answer={answer} />
+        {answer.grounded ? <SaveToggle t={t} answer={answer} /> : null}
       </div>
       <AnswerBlock
         heading={t("hc.answerHeading")}
@@ -270,15 +304,21 @@ function AnswerView({
           ) : undefined
         }
       >
-        {answer.body.map((p, i) => (
-          <p key={i} className={i > 0 ? "mt-3" : undefined}>
-            {p}
+        {answer.body.length === 0 ? (
+          <p className="text-ink-muted">{t("hc.answer.noSources")}</p>
+        ) : (
+          answer.body.map((p, i) => (
+            <p key={i} className={i > 0 ? "mt-3" : undefined}>
+              {p}
+            </p>
+          ))
+        )}
+        {answer.grounded ? (
+          <p className="mt-4 flex items-center gap-2 text-sm text-ink-muted">
+            <SparkleIcon width={15} height={15} className="text-brand" />
+            {t("hc.aiGeneratedNote")}
           </p>
-        ))}
-        <p className="mt-4 flex items-center gap-2 text-sm text-ink-muted">
-          <SparkleIcon width={15} height={15} className="text-brand" />
-          {t("hc.aiGeneratedNote")}
-        </p>
+        ) : null}
       </AnswerBlock>
       <p className="mt-3 flex flex-wrap items-center gap-x-1.5 text-xs text-ink-muted">
         <span>{t("hc.savedLocalHint")}</span>
@@ -336,5 +376,52 @@ function SaveToggle({ t, answer }: { t: T; answer: AskAnswer }) {
       )}
       {saved ? t("hc.saved") : t("hc.save")}
     </button>
+  );
+}
+
+
+/** Wartezustand der Generierung (Skeleton-artig, ohne Fake-Inhalte). */
+function PendingAnswerView({ t, question }: { t: T; question: string }) {
+  return (
+    <div className="px-5 py-8 md:px-10">
+      <div className="mx-auto max-w-3xl">
+        <p className="text-xs uppercase tracking-[0.08em] text-ink-muted">{t("hc.answerHeading")}</p>
+        <h1 className="mt-1.5 text-[26px] font-semibold leading-tight tracking-[-0.5px] [text-wrap:balance]">
+          {question}
+        </h1>
+        <p className="mt-6 flex items-center gap-2 text-sm text-ink-muted">
+          <SparkleIcon width={15} height={15} className="animate-pulse text-brand" />
+          {t("hc.answer.loading")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** Fehlerzustand der Frage-Pipeline (frozen bzw. vorübergehend nicht verfügbar). */
+function AskErrorView({
+  t,
+  code,
+  onBack,
+  onRetry,
+}: {
+  t: T;
+  code: "frozen" | "unavailable";
+  onBack: () => void;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="mx-auto max-w-3xl">
+      <BackButton t={t} onBack={onBack} />
+      <p className="text-ink">{code === "frozen" ? t("hc.answer.frozen") : t("hc.answer.error")}</p>
+      {code === "unavailable" ? (
+        <button
+          onClick={onRetry}
+          className="mt-4 inline-flex items-center rounded-std border border-hairline px-3 py-1.5 text-sm text-ink transition-colors hover:bg-tint"
+        >
+          {t("hc.answer.retry")}
+        </button>
+      ) : null}
+    </div>
   );
 }

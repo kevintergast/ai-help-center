@@ -24,9 +24,13 @@ binding = "MEDIA"                       # Artikel-Bilder/-Assets (nicht mit ASSE
 bucket_name = "hallofhelp-assets-staging"
 jurisdiction = "eu"
 
+# remote: Vectorize hat KEINEN Lokal-Simulator — in `next dev` spricht die
+# Binding den echten Staging-Index (Remote-Bindings-Muster). Betrifft nur
+# lokale Entwicklung; deployed ist die Binding ohnehin nativ.
 [[vectorize]]
 binding = "VECTORIZE"
 index_name = "hallofhelp-articles-staging"
+remote = true
 
 [[kv_namespaces]]
 binding = "CACHE"

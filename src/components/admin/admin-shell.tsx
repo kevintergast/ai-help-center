@@ -3,10 +3,13 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { HelpViewer } from "@/lib/auth/viewer";
 import type { Locale } from "@/lib/tenant/types";
 import type { MessageKey } from "@/i18n/messages/de";
 import { getT } from "@/i18n/t";
 import { cn } from "@/lib/ui/cn";
+import { AccountMenu } from "@/components/account-menu";
+import { LogoWithClaim } from "@/components/brand-mark";
 import { IconButton } from "@/components/ui/icon-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
@@ -36,10 +39,21 @@ export interface AdminShellProps {
   locale: Locale;
   tenantName: string;
   logoUrl: string | null;
+  /** Operator-Instanz → Logo mit Claim statt Initial+Name (wie HelpShell). */
+  isOperator?: boolean;
+  /** Angemeldetes Team-Mitglied (Layout-Gate garantiert eine Session). */
+  viewer?: HelpViewer | null;
   children: ReactNode;
 }
 
-export function AdminShell({ locale, tenantName, logoUrl, children }: AdminShellProps) {
+export function AdminShell({
+  locale,
+  tenantName,
+  logoUrl,
+  isOperator = false,
+  viewer = null,
+  children,
+}: AdminShellProps) {
   const t = getT(locale);
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -91,16 +105,23 @@ export function AdminShell({ locale, tenantName, logoUrl, children }: AdminShell
           >
             <MenuIcon width={18} height={18} />
           </IconButton>
+          {/* Operator: Logo mit Claim ersetzt Initial+Schriftzug (wie HelpShell). */}
           <div className="flex items-center gap-2.5">
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoUrl} alt={tenantName} className="h-7 w-auto" />
+            {isOperator && !logoUrl ? (
+              <LogoWithClaim alt={tenantName} className="h-8 w-auto" />
             ) : (
-              <span className="grid h-8 w-8 place-items-center rounded-comfy bg-brand text-sm font-semibold text-brand-fg">
-                {tenantName.charAt(0)}
-              </span>
+              <>
+                {logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoUrl} alt={tenantName} className="h-7 w-auto" />
+                ) : (
+                  <span className="grid h-8 w-8 place-items-center rounded-comfy bg-brand text-sm font-semibold text-brand-fg">
+                    {tenantName.charAt(0)}
+                  </span>
+                )}
+                <span className="font-semibold tracking-[-0.3px]">{tenantName}</span>
+              </>
             )}
-            <span className="font-semibold tracking-[-0.3px]">{tenantName}</span>
           </div>
           <div className="ml-auto flex items-center gap-1.5">
             <Link
@@ -111,13 +132,14 @@ export function AdminShell({ locale, tenantName, logoUrl, children }: AdminShell
               <span className="hidden sm:inline">{t("admin.viewHelpCenter")}</span>
             </Link>
             <ThemeToggle label={t("hc.themeToggle")} />
-            <span
-              className="grid h-8 w-8 place-items-center rounded-full border border-hairline bg-surface-raised text-xs font-semibold text-ink"
-              aria-label={t("admin.account")}
-              title={t("admin.account")}
-            >
-              {"KT"}
-            </span>
+            {/* Konto — dasselbe Menü wie im Hilfezentrum (account-menu.tsx);
+                Admin-Link aus, wir sind bereits hier. */}
+            <AccountMenu
+              locale={locale}
+              viewer={viewer}
+              isOperator={isOperator}
+              showAdminLink={false}
+            />
           </div>
         </div>
       </header>
