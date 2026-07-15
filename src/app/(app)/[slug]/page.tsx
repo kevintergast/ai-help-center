@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getCurrentTenant } from "@/lib/tenant/current";
+import { readPageViewer } from "@/server/auth/page-guard";
 import { getHelpCenterData, getHelpCenterRepo } from "@/server/content/runtime";
 import { ArticlePage } from "@/components/help-center/article-page";
 
@@ -97,6 +98,7 @@ export default async function ArticleRoute({
         related={related}
         data={data}
         isOperator={tenant.id === "t_operator"}
+        viewer={await readPageViewer(tenant)}
       />
     </>
   );

@@ -79,6 +79,27 @@
   }
 }
 
+/* Theme-abhängige ASSET-Sichtbarkeit (z. B. Logo-Light/Dark-Variante).
+   Folgt exakt der Token-Logik: System-Präferenz gilt, außer data-theme
+   erzwingt ein Theme (Toggle + No-Flash-Script). */
+.theme-dark-only {
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-light-only {
+    display: none;
+  }
+  :root:not([data-theme="light"]) .theme-dark-only {
+    display: revert;
+  }
+}
+:root[data-theme="dark"] .theme-light-only {
+  display: none;
+}
+:root[data-theme="dark"] .theme-dark-only {
+  display: revert;
+}
+
 :root[data-theme="dark"] {
   --surface: #1b1915;
   --surface-2: #232019;
