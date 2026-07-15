@@ -25,6 +25,9 @@ export const de = {
   "hc.accountPrompt": "Melde dich an, um deine dynamischen Hilfeartikel zu speichern.",
   "hc.back": "Zurück",
   "hc.changelogVersion": "Version {v}",
+  "hc.legal.imprint": "Impressum",
+  "hc.legal.privacy": "Datenschutz",
+  "hc.legal.terms": "AGB",
   "hc.savedLocalHint": "Nur auf diesem Gerät gespeichert.",
   "hc.savedAccountCta": "Anmelden, um geräteübergreifend zu speichern",
   "hc.roadmap": "Roadmap",
@@ -97,6 +100,10 @@ export const de = {
   "admin.kpi.articles": "Artikel live",
   "admin.kpi.stale": "Veraltet",
   "admin.kpi.vsLastWeek": "ggü. Vorwoche",
+  "admin.kpi.views": "Aufrufe (30 Tage)",
+  "admin.kpi.mau": "Aktive Nutzer (Monat)",
+  "admin.kpi.credits": "Credits (Monat)",
+  "admin.kpi.vsPrevPeriod": "ggü. den 30 Tagen davor",
 
   "admin.articles.title": "Artikel",
   "admin.articles.subtitle": "Pflege deine Inhalte — die KI antwortet aus ihnen.",
@@ -131,6 +138,11 @@ export const de = {
   "admin.stats.period90": "90 Tage",
   "admin.stats.grounded": "geerdet",
   "admin.stats.notGrounded": "keine Quelle",
+  "admin.stats.viewsOverTime": "Artikel-Aufrufe im Zeitverlauf (30 Tage)",
+  "admin.stats.total": "{n} gesamt",
+  "admin.stats.viewsEmpty": "Noch keine Aufrufe erfasst — sobald Besucher Artikel öffnen, erscheinen sie hier.",
+  "admin.stats.questionsEmpty":
+    "Erscheint, sobald die KI-Antworten live sind — dann siehst du hier die häufigsten Fragen deiner Nutzer.",
 
   "admin.plan.title": "Plan & Credits",
   "admin.plan.subtitle": "Kontingent, Verbrauch und Rechnungen.",
@@ -144,9 +156,18 @@ export const de = {
   "admin.plan.reset": "Zurücksetzung am {date}",
   "admin.plan.invoices": "Rechnungen",
   "admin.plan.included": "inkl. {n} Credits",
-  "admin.plan.graceTitle": "Credit-Limit erreicht — noch {days} Tage Kulanz",
+  "admin.plan.graceTitle": "Limit erreicht — noch {days} Tage Kulanz",
   "admin.plan.graceDesc":
     "Dein Hilfezentrum läuft normal weiter. Danach pausiert die KI-Generierung, bis du upgradest. Nichts wird gelöscht.",
+  "admin.plan.frozenTitle": "Plan eingefroren — Limit überschritten",
+  "admin.plan.frozenDesc":
+    "Deine Inhalte bleiben sichtbar, aber KI-Generierung und Änderungen sind pausiert. Ein Upgrade hebt das sofort auf; nichts wurde gelöscht.",
+  "admin.plan.name.free": "Free",
+  "admin.plan.name.starter": "Starter",
+  "admin.plan.name.scale": "Scale",
+  "admin.plan.paymentsSoon":
+    "Preise zur Vorschau — Upgrade und Bezahlung werden mit dem Abrechnungs-Launch freigeschaltet.",
+  "admin.plan.invoicesNone": "Noch keine Rechnungen — die Abrechnung startet mit dem Bezahl-Launch.",
 
   "admin.inbox.title": "Probleme",
   "admin.inbox.subtitle": "Von Nutzern gemeldete Fälle.",
@@ -157,9 +178,43 @@ export const de = {
   "admin.inbox.status.new": "Neu",
   "admin.inbox.status.open": "In Arbeit",
   "admin.inbox.status.resolved": "Gelöst",
+  "admin.inbox.none": "Noch keine Meldungen",
+  "admin.inbox.noneHint":
+    "Hier landen Fälle, die Nutzer über „Etwas stimmt nicht?“ melden — dieser Ablauf kommt mit einer späteren Ausbaustufe.",
 
   "admin.settings.title": "Einstellungen",
   "admin.settings.subtitle": "Branding, Support und Domain.",
+
+  // Custom-Domain-Verify (Infra-Plan Schritt 5)
+  "admin.domain.loading": "Lade Domain-Status …",
+  "admin.domain.placeholder": "hilfe.deine-domain.de",
+  "admin.domain.connect": "Domain verbinden",
+  "admin.domain.pendingBadge": "Bestätigung ausstehend",
+  "admin.domain.verifiedBadge": "Verifiziert",
+  "admin.domain.pendingHelp":
+    "Lege bei deinem DNS-Anbieter diesen TXT-Record an und klicke danach auf „Jetzt prüfen“. DNS-Änderungen brauchen manchmal ein paar Minuten.",
+  "admin.domain.recordType": "Typ",
+  "admin.domain.recordName": "Name",
+  "admin.domain.recordValue": "Wert",
+  "admin.domain.copy": "Kopieren",
+  "admin.domain.copied": "Kopiert!",
+  "admin.domain.verifyNow": "Jetzt prüfen",
+  "admin.domain.remove": "Domain entfernen",
+  "admin.domain.ownerOnly": "Nur der Owner dieser Instanz kann die Domain ändern.",
+  "admin.domain.provisioningDone": "Deine Domain ist verifiziert und aktiv.",
+  "admin.domain.provisioningSkipped":
+    "Domain verifiziert. Die Auslieferung über unser Netzwerk wird in Kürze aktiviert — du musst nichts weiter tun.",
+  "admin.domain.provisioningFailed":
+    "Domain verifiziert, aber die Zertifikats-Einrichtung schlug fehl — bitte später „Jetzt prüfen“ erneut ausführen.",
+  "admin.domain.error.invalid": "Das ist keine gültige Domain.",
+  "admin.domain.error.reserved": "Diese Domain kann nicht verwendet werden.",
+  "admin.domain.error.taken": "Diese Domain ist bereits mit einer anderen Instanz verbunden.",
+  "admin.domain.error.txtNotFound":
+    "TXT-Record nicht gefunden. Prüfe Name und Wert — DNS-Änderungen können ein paar Minuten dauern.",
+  "admin.domain.error.txtMismatch":
+    "Es wurde ein TXT-Record gefunden, aber der Wert passt nicht. Bitte den Wert exakt übernehmen.",
+  "admin.domain.error.dns": "DNS-Prüfung derzeit nicht möglich — bitte später erneut versuchen.",
+  "admin.domain.error.generic": "Aktion fehlgeschlagen — bitte erneut versuchen.",
   "admin.settings.branding": "Branding",
   "admin.settings.logo": "Logo",
   "admin.settings.uploadLogo": "Logo hochladen",
@@ -322,6 +377,10 @@ export const de = {
   "auth.error.generic": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
   "auth.error.totpRequired":
     "Für dein Konto ist die Authenticator-App (TOTP) erforderlich. Bitte gib den Code aus deiner App ein.",
+
+  // Turnstile-Bot-Schutz (Signup, Passwort-Reset, Hilfezentrum erstellen)
+  "security.captchaFailed":
+    "Die Sicherheitsprüfung ist fehlgeschlagen oder abgelaufen. Bitte versuche es erneut.",
 
   // Formular-Validierung
   "auth.validate.emailRequired": "Bitte gib deine E-Mail-Adresse ein.",

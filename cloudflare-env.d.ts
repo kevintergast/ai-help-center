@@ -21,4 +21,20 @@ interface CloudflareEnv {
   GOOGLE_CLIENT_SECRET?: string;
   MICROSOFT_CLIENT_ID?: string;
   MICROSOFT_CLIENT_SECRET?: string;
+  // Turnstile (Bot-Schutz Signup/Reset-Anforderung/Tenant-Erstellung).
+  // Site-Key ist öffentlich (var); Secret lokal String, deployed Secrets-Store.
+  // Fehlt das Secret: dev → Schutz aus (inert), Prod → fail-closed
+  // (Matrix: src/server/security/turnstile.ts).
+  TURNSTILE_SITE_KEY?: string;
+  TURNSTILE_SECRET_KEY?: string | { get(): Promise<string> };
+  // Embedding-Queue (Infra-Plan Schritt 6, Workers Paid): Producer-Binding.
+  // Fehlt sie (lokales next dev vor Binding-Neustart), läuft der Index-Sync
+  // direkt (waitUntil) — Weiche in runtime-deps.ts.
+  EMBED_QUEUE?: Queue<{ tenantId: string; articleId: string }>;
+  // Cloudflare for SaaS (Custom-Domain-Provisioning, Infra-Plan Schritt 5).
+  // Fehlen beide/eins: Verify funktioniert, Provisioning wird "skipped"
+  // (inert — siehe src/server/domains/provisioner.ts). Token scoped:
+  // Zone → SSL and Certificates: Edit (nur unsere Zone).
+  CF_SAAS_API_TOKEN?: string | { get(): Promise<string> };
+  CF_ZONE_ID?: string;
 }

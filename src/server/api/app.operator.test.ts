@@ -9,6 +9,7 @@ import type {
   NewHelpCenter,
   OperatorRepository,
 } from "@/server/operator/repository";
+import type { TurnstileVerify } from "@/server/security/turnstile";
 import { buildApiApp } from "./app";
 import type { ApiDeps, OperatorDeps } from "./context";
 
@@ -73,8 +74,12 @@ class FakeOperatorRepo implements OperatorRepository {
   }
 }
 
-function makeApp(opts: { operatorAvailable?: boolean } = {}) {
-  const { operatorAvailable = true } = opts;
+function makeApp(
+  opts: { operatorAvailable?: boolean; turnstile?: TurnstileVerify | null } = {},
+) {
+  // `turnstile` undefined → permissiver Fake (Bestands-Tests unberührt);
+  // explizit `null` → Dep fehlt (App muss 503 fail-closed antworten).
+  const { operatorAvailable = true, turnstile = async () => "ok" as const } = opts;
   const db: MemoryDb = {
     auth_user: [],
     auth_session: [],
@@ -105,6 +110,7 @@ function makeApp(opts: { operatorAvailable?: boolean } = {}) {
     getLegalDeps: async () => null,
     getContentDeps: async () => null,
     getOperatorDeps: async () => (operatorAvailable ? operator : null),
+    ...(turnstile ? { verifyTurnstile: turnstile } : {}),
   };
   return { app: buildApiApp(deps), db, repo, setupCalls };
 }
@@ -112,10 +118,22 @@ function makeApp(opts: { operatorAvailable?: boolean } = {}) {
 type Fixture = ReturnType<typeof makeApp>;
 type TestApp = Fixture["app"];
 
-function postJson(app: TestApp, path: string, host: string, body: unknown, cookie?: string) {
+function postJson(
+  app: TestApp,
+  path: string,
+  host: string,
+  body: unknown,
+  cookie?: string,
+  extraHeaders?: Record<string, string>,
+) {
   return app.request(path, {
     method: "POST",
-    headers: { host, "content-type": "application/json", ...(cookie ? { cookie } : {}) },
+    headers: {
+      host,
+      "content-type": "application/json",
+      ...(cookie ? { cookie } : {}),
+      ...extraHeaders,
+    },
     body: JSON.stringify(body),
   });
 }
@@ -297,5 +315,51 @@ describe("GET /api/v1/operator/help-centers (nur eigene)", () => {
       })
     ).json()) as { helpCenters: { slug: string }[] };
     expect(listB.helpCenters.map((h) => h.slug)).toEqual(["gamma"]);
+  });
+});
+
+describe("POST /api/v1/operator/help-centers — Turnstile-Gate (Infra-Plan Schritt 2)", () => {
+  it("ohne Token → 400 captcha_required; ungültiges Token → 403 captcha_failed", async () => {
+    // Prüfer-Fake mit Prod-Semantik: Token Pflicht, nur "valid" besteht.
+    const f = makeApp({
+      turnstile: async (token) => (token ? (token === "valid" ? "ok" : "failed") : "missing"),
+    });
+    const { cookie } = await operatorSession(f, OPERATOR_HOST, "op@example.com");
+
+    const missing = await create(f, cookie, validBody);
+    expect(missing.status).toBe(400);
+    expect(await missing.json()).toEqual({ error: "captcha_required" });
+
+    const failed = await postJson(
+      f.app,
+      "/api/v1/operator/help-centers",
+      OPERATOR_HOST,
+      validBody,
+      cookie,
+      { "x-captcha-response": "wrong" },
+    );
+    expect(failed.status).toBe(403);
+    expect(await failed.json()).toEqual({ error: "captcha_failed" });
+    // Kein Seiteneffekt: nichts provisioniert, kein Owner-Setup versandt.
+    expect(f.setupCalls).toHaveLength(0);
+
+    const ok = await postJson(
+      f.app,
+      "/api/v1/operator/help-centers",
+      OPERATOR_HOST,
+      validBody,
+      cookie,
+      { "x-captcha-response": "valid" },
+    );
+    expect(ok.status).toBe(201);
+  });
+
+  it("fehlender Prüfer (Dep nicht injiziert) → 503 fail-closed, NIE Bypass", async () => {
+    const f = makeApp({ turnstile: null });
+    const { cookie } = await operatorSession(f, OPERATOR_HOST, "op@example.com");
+    const res = await create(f, cookie, validBody);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: "captcha_unavailable" });
+    expect(f.setupCalls).toHaveLength(0);
   });
 });

@@ -110,6 +110,20 @@ export function operatorRouter(deps: ApiDeps) {
     const ctxErr = ensureOperatorContext(c);
     if (ctxErr) return ctxErr;
 
+    // TURNSTILE (Infra-Plan Schritt 2): Tenant-Erstellung ist der teuerste
+    // Self-Service-Pfad → Bot-Gate VOR jeder weiteren Arbeit. Fehlender Prüfer
+    // = „unavailable" (503, fail-closed) — NIE Bypass. Semantik-Matrix
+    // (Secret×Umgebung): security/turnstile.ts.
+    const verdict = await (deps.verifyTurnstile
+      ? deps.verifyTurnstile(
+          c.req.header("x-captcha-response") ?? null,
+          c.req.header("cf-connecting-ip") ?? null,
+        )
+      : Promise.resolve("unavailable" as const));
+    if (verdict === "missing") return c.json({ error: "captcha_required" }, 400);
+    if (verdict === "failed") return c.json({ error: "captcha_failed" }, 403);
+    if (verdict === "unavailable") return c.json({ error: "captcha_unavailable" }, 503);
+
     let body: unknown;
     try {
       body = await c.req.json();

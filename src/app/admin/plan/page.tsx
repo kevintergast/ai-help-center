@@ -1,82 +1,105 @@
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { getT } from "@/i18n/t";
-import { fakeAdmin } from "@/lib/admin/fake-admin";
+import type { MessageKey } from "@/i18n/messages/de";
+import { getPlanOverview } from "@/server/billing/runtime";
+import type { PlanId } from "@/server/billing/pricing";
 import { AdminPageHeader } from "@/components/admin/admin-shell";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Banner } from "@/components/ui/banner";
 import { Meter } from "@/components/ui/meter";
 import { cn } from "@/lib/ui/cn";
+
+/**
+ * Plan & Credits mit ECHTEN Zahlen (tenant_usage/tenant_plan + pricing.ts,
+ * Infra-Plan Schritt 3/5). Overage ist eine BERECHNUNG (Vorschau) — Zahlungen/
+ * Rechnungen kommen erst mit Paddle (nach Firmengründung), deshalb gibt es
+ * hier bewusst keine Upgrade-/Verwalten-Buttons und einen ehrlichen
+ * Hinweis statt einer Fake-Rechnungstabelle.
+ */
+
+const PLAN_NAME: Record<PlanId, MessageKey> = {
+  free: "admin.plan.name.free",
+  starter: "admin.plan.name.starter",
+  scale: "admin.plan.name.scale",
+};
 
 export default async function AdminPlanPage() {
   const tenant = await getCurrentTenant();
   if (!tenant) return null;
   const t = getT(tenant.defaultLocale);
-  const nf = new Intl.NumberFormat(tenant.defaultLocale === "de" ? "de-DE" : "en-US");
-  const u = fakeAdmin.usage();
-  const plans = fakeAdmin.plans();
-  const invoices = fakeAdmin.invoices();
+  const isDe = tenant.defaultLocale === "de";
+  const nf = new Intl.NumberFormat(isDe ? "de-DE" : "en-US");
+  const cf = new Intl.NumberFormat(isDe ? "de-DE" : "en-US", {
+    style: "currency",
+    currency: "EUR",
+  });
+  const df = new Intl.DateTimeFormat(isDe ? "de-DE" : "en-US", { dateStyle: "long" });
 
-  const creditsPct = Math.round((u.creditsUsed / u.creditsIncluded) * 100);
-  const mauPct = Math.round((u.mauUsed / u.mauIncluded) * 100);
+  const u = await getPlanOverview(tenant);
+  const creditsUsed = u?.creditsUsed ?? 0;
+  const includedCredits = u?.includedCredits ?? 1;
+  const mauCount = u?.mauCount ?? 0;
+  const mauLimit = u?.mauLimit ?? 1;
+  const creditsPct = Math.min(100, Math.round((creditsUsed / includedCredits) * 100));
+  const mauPct = Math.min(100, Math.round((mauCount / mauLimit) * 100));
 
   return (
     <div>
-      <AdminPageHeader
-        title={t("admin.plan.title")}
-        subtitle={t("admin.plan.subtitle")}
-        action={
-          <Button variant="primary" size="sm">
-            {t("admin.plan.manage")}
-          </Button>
-        }
-      />
+      <AdminPageHeader title={t("admin.plan.title")} subtitle={t("admin.plan.subtitle")} />
 
-      <Banner
-        tone="warn"
-        title={t("admin.plan.graceTitle", { days: u.graceDays })}
-        description={t("admin.plan.graceDesc")}
-        action={
-          <Button variant="primary" size="sm">
-            {t("admin.plan.upgrade")}
-          </Button>
-        }
-        className="mb-6"
-      />
+      {u?.status === "over_limit" ? (
+        <Banner
+          tone="warn"
+          title={t("admin.plan.graceTitle", { days: u.graceDaysLeft ?? 0 })}
+          description={t("admin.plan.graceDesc")}
+          className="mb-6"
+        />
+      ) : null}
+      {u?.status === "frozen" ? (
+        <Banner
+          tone="crit"
+          title={t("admin.plan.frozenTitle")}
+          description={t("admin.plan.frozenDesc")}
+          className="mb-6"
+        />
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <section className="rounded-container border border-hairline bg-surface p-6">
           <div className="mb-5 flex items-baseline justify-between">
             <h2 className="text-sm text-ink-muted">{t("admin.plan.current")}</h2>
             <span className="text-[22px] font-semibold tracking-[-0.5px]">
-              {u.planName} · {u.planPrice}
+              {t(PLAN_NAME[u?.planId ?? "free"])} · {cf.format((u?.baseFeeCents ?? 0) / 100)}
               <span className="text-sm font-normal text-ink-muted">{t("admin.plan.perMonth")}</span>
             </span>
           </div>
           <Meter
             label={t("admin.plan.credits")}
-            value={`${nf.format(u.creditsUsed)} / ${nf.format(u.creditsIncluded)}`}
+            value={`${nf.format(creditsUsed)} / ${nf.format(u?.includedCredits ?? 0)}`}
             percent={creditsPct}
             warn={creditsPct >= 100}
             className="my-4"
           />
           <Meter
             label={t("admin.plan.mau")}
-            value={`${nf.format(u.mauUsed)} / ${nf.format(u.mauIncluded)}`}
+            value={`${nf.format(mauCount)} / ${nf.format(u?.mauLimit ?? 0)}`}
             percent={mauPct}
+            warn={mauPct >= 100}
             className="my-4"
           />
           <div className="mt-4 flex items-center justify-between border-t border-hairline pt-4 text-sm">
             <span className="text-ink-muted">{t("admin.plan.overage")}</span>
             <span className="tabular-nums text-ink">
-              {nf.format(u.overageCredits)} · {u.overageAmount}
+              {nf.format(u?.overageCredits ?? 0)} · {cf.format((u?.overageAmountCents ?? 0) / 100)}
             </span>
           </div>
-          <p className="mt-3 text-xs text-ink-muted">{t("admin.plan.reset", { date: u.resetDate })}</p>
+          <p className="mt-3 text-xs text-ink-muted">
+            {t("admin.plan.reset", { date: u ? df.format(new Date(u.resetMs)) : "—" })}
+          </p>
         </section>
 
         <section className="flex flex-col gap-3">
-          {plans.map((p) => (
+          {(u?.plans ?? []).map((p) => (
             <div
               key={p.id}
               className={cn(
@@ -85,56 +108,31 @@ export default async function AdminPlanPage() {
               )}
             >
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-ink">{p.name}</span>
+                <span className="font-semibold text-ink">{t(PLAN_NAME[p.id])}</span>
                 {p.current ? (
                   <Badge tone="brand" dot>
                     {t("admin.plan.current")}
                   </Badge>
-                ) : (
-                  <Button variant="ghost" size="sm">
-                    {t("admin.plan.upgrade")}
-                  </Button>
-                )}
+                ) : null}
               </div>
               <div className="mt-1 text-lg font-semibold tracking-[-0.4px]">
-                {p.price}
+                {cf.format(p.baseFeeCents / 100)}
                 <span className="text-sm font-normal text-ink-muted">{t("admin.plan.perMonth")}</span>
               </div>
               <p className="mt-0.5 text-xs text-ink-muted">
-                {t("admin.plan.included", { n: p.includedLabel })}
+                {t("admin.plan.included", { n: nf.format(p.includedCredits) })}
               </p>
             </div>
           ))}
+          {/* Upgrade/Checkout folgt mit Paddle (provider-agnostischer Billing-Layer). */}
+          <p className="px-1 text-xs text-ink-muted">{t("admin.plan.paymentsSoon")}</p>
         </section>
       </div>
 
       <section className="mt-8">
         <h2 className="mb-3 font-semibold tracking-[-0.3px]">{t("admin.plan.invoices")}</h2>
-        <div className="overflow-x-auto rounded-card border border-hairline">
-          <table className="w-full min-w-[480px] border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-hairline text-left text-xs uppercase tracking-[0.04em] text-ink-muted">
-                <th className="px-4 py-3 font-medium">{t("admin.col.date")}</th>
-                <th className="px-4 py-3 font-medium">{t("admin.col.invoice")}</th>
-                <th className="px-4 py-3 text-right font-medium">{t("admin.col.amount")}</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.map((inv) => (
-                <tr key={inv.id} className="border-b border-hairline last:border-b-0">
-                  <td className="px-4 py-3 text-ink">{inv.dateLabel}</td>
-                  <td className="px-4 py-3 tabular-nums text-ink-muted">{inv.number}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-ink">{inv.amount}</td>
-                  <td className="px-4 py-3 text-right">
-                    <Button variant="cream" size="sm">
-                      {"PDF"}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="rounded-card border border-hairline p-5">
+          <p className="text-sm text-ink-muted">{t("admin.plan.invoicesNone")}</p>
         </div>
       </section>
     </div>

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { signUpEmail } from "@/lib/auth-client";
 import { mapAuthError } from "@/lib/auth/errors";
 import { validateEmail, validateName, validatePassword } from "@/lib/auth/validate";
+import { TurnstileWidget } from "@/components/security/turnstile-widget";
 import { PasswordField } from "./password-field";
 import { SocialButtons } from "./social-buttons";
 import { ErrorNote } from "./notes";
@@ -25,14 +26,18 @@ const VERIFY_CALLBACK = "/login?verified=1";
 export function SignupForm({
   locale,
   socialProviders,
+  turnstileSiteKey = null,
 }: {
   locale: Locale;
   socialProviders: Provider[];
+  /** Turnstile-Site-Key (public); `null` = Umgebung ohne Bot-Schutz (dev). */
+  turnstileSiteKey?: string | null;
 }) {
   const t = getT(locale);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -52,6 +57,7 @@ export function SignupForm({
       email,
       password,
       callbackURL: VERIFY_CALLBACK,
+      turnstileToken,
     });
     if (err) {
       setBusy(false);
@@ -91,9 +97,17 @@ export function SignupForm({
         />
         <p className="-mt-1 text-xs text-ink-muted">{t("auth.passwordHint")}</p>
 
+        {turnstileSiteKey ? (
+          <TurnstileWidget siteKey={turnstileSiteKey} onToken={setTurnstileToken} language={locale} />
+        ) : null}
+
         <ErrorNote>{error || null}</ErrorNote>
 
-        <Button type="submit" disabled={busy} className="w-full justify-center">
+        <Button
+          type="submit"
+          disabled={busy || (turnstileSiteKey !== null && turnstileToken === null)}
+          className="w-full justify-center"
+        >
           {busy ? t("auth.submitting") : t("auth.signup.submit")}
         </Button>
       </form>

@@ -1,6 +1,7 @@
 import type { betterAuth } from "better-auth";
 import type { Tenant } from "@/lib/tenant/types";
 import type { AuditRepository } from "@/server/auth/audit";
+import type { BillingDeps } from "@/server/billing/store";
 import type { InvitationRepository } from "@/server/auth/invitations";
 import type { OAuthGatewayDeps } from "@/server/auth/oauth-gateway";
 import type { InvitationEmailData } from "@/server/auth/resend";
@@ -10,6 +11,10 @@ import type { ContentDeps } from "@/server/content/store";
 import type { LegalDeps } from "@/server/legal/store";
 import type { OperatorRepository } from "@/server/operator/repository";
 import type { OwnerSetupResult } from "@/server/operator/onboarding";
+import type { TurnstileVerify } from "@/server/security/turnstile";
+import type { CustomHostnameProvisioner } from "@/server/domains/provisioner";
+import type { DomainRepository } from "@/server/domains/store";
+import type { TxtChecker } from "@/server/domains/verify";
 import type { Tenant as OperatorTenant } from "@/lib/tenant/types";
 
 /**
@@ -67,6 +72,53 @@ export interface ApiDeps {
    * Infrastruktur nicht mitführen müssen. Tests injizieren Map-/DDL-Fakes.
    */
   getOperatorDeps?(): Promise<OperatorDeps | null>;
+  /**
+   * Turnstile-Prüfung der Tenant-Erstellung (Infra-Plan Schritt 2). Optional
+   * NUR für Fixture-Ergonomie — die Operator-Create-Route behandelt `fehlend`
+   * als „unavailable" (503, fail-closed), NIE als Bypass. Runtime-Semantik
+   * (Secret×Umgebung): security/turnstile.ts. Tests injizieren Fakes.
+   */
+  verifyTurnstile?: TurnstileVerify;
+  /**
+   * Metering/Billing (Infra-Plan Schritt 3): usage_events/tenant_usage/
+   * tenant_plan auf D1. `null`/fehlend ⇒ Event-Ingestion wird No-op (Analytics
+   * darf fail-open sein — es hängt kein Privileg daran) und das Freeze-Gate
+   * greift nicht (die Fach-Router antworten ohne D1 ohnehin 503).
+   */
+  getBillingDeps?(): Promise<BillingDeps | null>;
+  /**
+   * Custom-Domain-Flow (Infra-Plan Schritt 5): tenant_domain-Persistenz +
+   * DoH-TXT-Check + SaaS-Provisioner. `null`/fehlend ⇒ /admin/domain antwortet
+   * 503 fail-closed. Tests injizieren Fakes.
+   */
+  getDomainDeps?(): Promise<DomainDeps | null>;
+  /**
+   * Such-/RAG-Index (Infra-Plan Schritt 6): hält Vectorize dem Content-
+   * Lifecycle hinterher. `null`/fehlend ⇒ Content-Ops laufen OHNE Indexierung
+   * weiter (Indexierung ist Best-Effort, nie ein Publish-Blocker; Nachziehen
+   * via POST /admin/articles/reindex). Tests injizieren Recorder-Fakes.
+   */
+  getContentIndexer?(): Promise<ContentIndexer | null>;
+}
+
+/**
+ * Index-Synchronisation des Content-Lifecycles (Infra-Plan Schritt 6).
+ * `onContentChange` liest den AKTUELLEN Artikel-Status selbst: published →
+ * (re)indexieren, sonst → aus dem Index entfernen — damit ist der Aufruf für
+ * publish/unpublish/update/delete identisch und nie falsch herum.
+ */
+export interface ContentIndexer {
+  onContentChange(tenantId: string, articleId: string): Promise<void>;
+  rebuildTenant(
+    tenantId: string,
+  ): Promise<{ articles: number; chunks: number; embedded: number }>;
+}
+
+/** Pro Request aufgelöste Custom-Domain-Infrastruktur (Infra-Plan Schritt 5). */
+export interface DomainDeps {
+  repo: DomainRepository;
+  checkTxt: TxtChecker;
+  provision: CustomHostnameProvisioner;
 }
 
 /**

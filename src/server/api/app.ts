@@ -10,9 +10,12 @@ import {
 } from "@/server/auth/oauth-gateway";
 import { enforceSessionTenant } from "@/server/auth/session-guard";
 import { runWithTenant } from "@/server/auth/tenant-context";
+import { freezeGate } from "@/server/billing/enforcement";
 import { brandingAdminRouter, brandingPublicRouter } from "./branding";
 import { contentAdminRouter } from "./content";
 import type { ApiDeps, ApiEnv, AuthInstance, GuardSessionData } from "./context";
+import { domainAdminRouter } from "./domain";
+import { eventsPublicRouter } from "./events";
 import { legalAdminRouter, legalPublicRouter } from "./legal";
 import { operatorRouter } from "./operator";
 import { isPublicPath } from "./public-routes";
@@ -158,6 +161,17 @@ export function buildApiApp(deps: ApiDeps) {
     c.json({ pong: true, tenantId: c.get("tenant").id }),
   );
 
+  // FREEZE-GATE (Infra-Plan Schritt 4): nach abgelaufener Grace sind Inhalts-/
+  // Branding-MUTATIONEN 402 (Lesen bleibt frei; Team/Legal/Plan bewusst offen).
+  // Registriert VOR den Fach-Routern; Anonyme sind durch (2) längst 401.
+  // Beide Muster je Subbaum: der NACKTE Pfad (POST /admin/articles = Create)
+  // wird von einem Trailing-`/*` allein nicht sicher erfasst.
+  const contentFreeze = freezeGate(deps);
+  app.use("/admin/articles", contentFreeze);
+  app.use("/admin/articles/*", contentFreeze);
+  app.use("/admin/branding", contentFreeze);
+  app.use("/admin/branding/*", contentFreeze);
+
   // Branding (White-Label pflegbar): Admin-Pflege + öffentliches Logo-Serving.
   // Details/Sicherheitsentscheidungen: ./branding.ts
   app.route("/admin/branding", brandingAdminRouter(deps));
@@ -179,6 +193,14 @@ export function buildApiApp(deps: ApiDeps) {
   // Content-Pflege (Punkt 2): Artikel-CRUD + Lifecycle, requireTeam("content").
   // Tenant-scoped; ohne D1-Binding 503. Details/Sicherheit: ./content.ts
   app.route("/admin/articles", contentAdminRouter(deps));
+
+  // Nutzungs-Events (Infra-Plan Schritt 3): public View-Beacon-Ingestion
+  // (immer 204, No-op ohne D1). Details/Cookie-Semantik: ./events.ts
+  app.route("/events", eventsPublicRouter(deps));
+
+  // Custom-Domain-Flow (Infra-Plan Schritt 5): TXT-Verify + SaaS-Provisioning.
+  // Auflösung bleibt fail-closed auf status='verified'. Details: ./domain.ts
+  app.route("/admin/domain", domainAdminRouter(deps));
 
   // Operator-Onboarding (Punkt 4b): Provisioning der Betreiber-Control-Plane.
   // NUR im Operator-Kontext (t_operator / app.hallofhelp.com) wirksam — auf

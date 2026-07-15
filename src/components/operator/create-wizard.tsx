@@ -6,6 +6,7 @@ import type { Locale } from "@/lib/tenant/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ErrorNote } from "@/components/auth/notes";
+import { TurnstileWidget } from "@/components/security/turnstile-widget";
 
 /** Ergebnis eines erfolgreichen Provisionings (Antwort-Shape der Create-Route). */
 export interface CreatedHelpCenter {
@@ -31,10 +32,13 @@ export function CreateWizard({
   locale,
   onCreated,
   onCancel,
+  turnstileSiteKey = null,
 }: {
   locale: Locale;
   onCreated: (result: CreatedHelpCenter) => void;
   onCancel: () => void;
+  /** Turnstile-Site-Key (public); `null` = Umgebung ohne Bot-Schutz (dev). */
+  turnstileSiteKey?: string | null;
 }) {
   const t = getT(locale);
   const [name, setName] = useState("");
@@ -44,6 +48,7 @@ export function CreateWizard({
   const [colorAccent, setColorAccent] = useState("#06b6d4");
   const [useBranding, setUseBranding] = useState(false);
   const [availability, setAvailability] = useState<Availability>({ state: "idle" });
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const seq = useRef(0);
@@ -107,7 +112,11 @@ export function CreateWizard({
     try {
       const res = await fetch("/api/v1/operator/help-centers", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          // Turnstile-Token (better-auth-Header-Konvention, geprüft in operator.ts).
+          ...(turnstileToken ? { "x-captcha-response": turnstileToken } : {}),
+        },
         body: JSON.stringify({
           name,
           slug,
@@ -119,7 +128,12 @@ export function CreateWizard({
         onCreated((await res.json()) as CreatedHelpCenter);
         return;
       }
-      setError(t("operator.wizard.error"));
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      setError(
+        data?.error === "captcha_required" || data?.error === "captcha_failed"
+          ? t("security.captchaFailed")
+          : t("operator.wizard.error"),
+      );
     } catch {
       setError(t("operator.wizard.error"));
     } finally {
@@ -128,7 +142,10 @@ export function CreateWizard({
   }
 
   const canSubmit =
-    name.trim().length >= 2 && availability.state === "available" && !busy;
+    name.trim().length >= 2 &&
+    availability.state === "available" &&
+    !busy &&
+    (turnstileSiteKey === null || turnstileToken !== null);
 
   return (
     <section className="w-full rounded-card border border-hairline bg-surface p-6 sm:p-7">
@@ -212,6 +229,10 @@ export function CreateWizard({
             </div>
           ) : null}
         </fieldset>
+
+        {turnstileSiteKey ? (
+          <TurnstileWidget siteKey={turnstileSiteKey} onToken={setTurnstileToken} language={locale} />
+        ) : null}
 
         <ErrorNote>{error || null}</ErrorNote>
 

@@ -13,9 +13,26 @@ import { getDbSafe } from "@/server/db/client";
 import { D1LegalRepository, type LegalDeps } from "@/server/legal/store";
 import { makeSendOwnerSetup } from "@/server/operator/onboarding";
 import { D1OperatorRepository } from "@/server/operator/repository";
+import { D1BillingRepository, type BillingDeps } from "@/server/billing/store";
+import { makeCustomHostnameProvisioner } from "@/server/domains/provisioner";
+import { D1DomainRepository } from "@/server/domains/store";
+import { makeTxtChecker } from "@/server/domains/verify";
+import { rebuildTenantIndex, syncArticleIndex } from "@/server/search/sync";
+import {
+  makeTurnstileVerify,
+  turnstileConfigFromEnv,
+  type TurnstileVerdict,
+} from "@/server/security/turnstile";
 import { D1TenantRepository } from "@/server/tenant/repository";
 import { resolveWithSourceStrict } from "@/server/tenant/resolve-tenant";
-import type { ApiDeps, AuthInstance, OperatorDeps, TeamDeps } from "./context";
+import type {
+  ApiDeps,
+  AuthInstance,
+  ContentIndexer,
+  DomainDeps,
+  OperatorDeps,
+  TeamDeps,
+} from "./context";
 
 /**
  * ECHTE Runtime-Abhängigkeiten der API-App (Default-Instanz für die Next-Route).
@@ -184,6 +201,96 @@ function buildOAuthGatewayDeps(): OAuthGatewayDeps {
   };
 }
 
+/**
+ * Metering/Billing (Infra-Plan Schritt 3): D1-Repo auf den 0009-Tabellen.
+ * Ohne D1-Bindung → `null` → Event-Ingestion No-op, Freeze-Gate inaktiv
+ * (Begründung: api/events.ts bzw. billing/enforcement.ts).
+ */
+async function getBillingDepsRuntime(): Promise<BillingDeps | null> {
+  const env = await getEnvSafe();
+  if (!env?.DB) return null;
+  return { repo: new D1BillingRepository(env.DB) };
+}
+
+/**
+ * Custom-Domain-Flow (Infra-Plan Schritt 5): tenant_domain auf D1, TXT-Check
+ * via DNS-over-HTTPS (1.1.1.1), Cloudflare-for-SaaS-Provisioner (inert ohne
+ * CF_SAAS_API_TOKEN/CF_ZONE_ID — Begründung: domains/provisioner.ts).
+ */
+async function getDomainDepsRuntime(): Promise<DomainDeps | null> {
+  const env = await getEnvSafe();
+  if (!env?.DB) return null;
+  return {
+    repo: new D1DomainRepository(env.DB),
+    checkTxt: makeTxtChecker(),
+    provision: makeCustomHostnameProvisioner(
+      env as CloudflareEnv & { CF_SAAS_API_TOKEN?: string; CF_ZONE_ID?: string },
+    ),
+  };
+}
+
+/**
+ * Such-/RAG-Index (Infra-Plan Schritt 6): Vectorize + Workers AI (bge-m3 via
+ * AI Gateway) + D1-Buchführung (0010). Fehlt eine Binding → `null` → Content-
+ * Ops laufen OHNE Indexierung (Best-Effort; Nachziehen via /reindex).
+ *
+ * AUFRUFWEG-WEICHE: Im DEPLOYTEN Worker (NODE_ENV=production) wandert der
+ * Sync als Nachricht in die EMBED_QUEUE (Retries, Latenz raus aus dem
+ * Request). In `next dev` läuft dort KEIN Queue-Consumer → direkter Pfad via
+ * `ctx.waitUntil` (bzw. inline ohne Worker-Kontext). Beide Wege nutzen
+ * DIESELBE Logik (search/sync.ts) — der Consumer lebt in worker.ts.
+ */
+async function getContentIndexerRuntime(): Promise<ContentIndexer | null> {
+  const env = await getEnvSafe();
+  if (!env?.DB || !env.VECTORIZE || !env.AI) return null;
+
+  const runDirect = async (tenantId: string, articleId: string) => {
+    const work = syncArticleIndex(env, tenantId, articleId).catch((err) =>
+      console.error("[search-index] sync fehlgeschlagen:", err),
+    );
+    try {
+      const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+      const ctx = (getCloudflareContext() as { ctx?: { waitUntil(p: Promise<unknown>): void } }).ctx;
+      if (ctx?.waitUntil) {
+        ctx.waitUntil(work);
+        return;
+      }
+    } catch {
+      /* kein Worker-Kontext → inline */
+    }
+    await work;
+  };
+
+  return {
+    async onContentChange(tenantId, articleId) {
+      if (env.EMBED_QUEUE && process.env.NODE_ENV === "production") {
+        await env.EMBED_QUEUE.send({ tenantId, articleId });
+        return;
+      }
+      await runDirect(tenantId, articleId);
+    },
+    // Backfill bewusst SYNCHRON (Owner will das Ergebnis sehen; unveränderte
+    // Chunks kosten dank Hash-Vergleich nichts).
+    rebuildTenant: (tenantId) => rebuildTenantIndex(env, tenantId),
+  };
+}
+
+/**
+ * Turnstile-Prüfung der Tenant-Erstellung (Infra-Plan Schritt 2). Konfiguration
+ * wird PRO AUFRUF aus den Bindings gelesen (kein Modul-Cache — Workers können
+ * Env zwischen Requests nicht wechseln, aber `next dev` schon). Ohne
+ * Cloudflare-Kontext gilt die dev-Semantik (kein Secret → „ok", siehe
+ * security/turnstile.ts — identisch zur Registry-Fallback-Philosophie oben).
+ */
+async function verifyTurnstileRuntime(
+  token: string | null,
+  remoteIp?: string | null,
+): Promise<TurnstileVerdict> {
+  const env = (await getEnvSafe()) ?? {};
+  const verify = makeTurnstileVerify(await turnstileConfigFromEnv(env));
+  return verify(token, remoteIp);
+}
+
 /** Default-Deps der produktiven App (siehe `app.ts`). */
 export const runtimeDeps: ApiDeps = {
   resolveTenant: resolveTenantRuntime,
@@ -194,4 +301,8 @@ export const runtimeDeps: ApiDeps = {
   getContentDeps: getContentDepsRuntime,
   getOperatorDeps: getOperatorDepsRuntime,
   oauthGateway: buildOAuthGatewayDeps(),
+  verifyTurnstile: verifyTurnstileRuntime,
+  getBillingDeps: getBillingDepsRuntime,
+  getDomainDeps: getDomainDepsRuntime,
+  getContentIndexer: getContentIndexerRuntime,
 };

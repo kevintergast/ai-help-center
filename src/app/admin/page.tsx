@@ -1,28 +1,30 @@
 import Link from "next/link";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { getT } from "@/i18n/t";
-import type { MessageKey } from "@/i18n/messages/de";
-import { fakeAdmin } from "@/lib/admin/fake-admin";
+import { getAdminUsageKpis } from "@/server/billing/runtime";
+import { listAdminArticleRows } from "@/server/content/runtime";
 import { AdminPageHeader } from "@/components/admin/admin-shell";
 import { KpiCard } from "@/components/admin/kpi-card";
-import { TICKET_STATUS } from "@/components/admin/status";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChartBarIcon, InboxIcon, SettingsIcon, PlusIcon } from "@/components/ui/icons";
 
-const KPI_LABEL: Record<string, MessageKey> = {
-  questions: "admin.kpi.questions",
-  grounded: "admin.kpi.grounded",
-  articles: "admin.kpi.articles",
-  stale: "admin.kpi.stale",
-};
-
+/**
+ * Admin-Übersicht mit ECHTEN Kennzahlen (usage_events/tenant_usage, Schritt 3
+ * des Infra-Plans — keine Mockdaten mehr). Ohne D1 (reines next dev) zeigen
+ * die Kacheln 0; die Ticket-Liste ist ein ehrlicher Leerzustand, bis der
+ * Support-Flow existiert.
+ */
 export default async function AdminOverviewPage() {
   const tenant = await getCurrentTenant();
   if (!tenant) return null;
   const t = getT(tenant.defaultLocale);
-  const kpis = fakeAdmin.kpis();
-  const tickets = fakeAdmin.tickets().slice(0, 3);
+  const nf = new Intl.NumberFormat(tenant.defaultLocale === "de" ? "de-DE" : "en-US");
+
+  const [kpis, articles] = await Promise.all([
+    getAdminUsageKpis(tenant),
+    listAdminArticleRows(tenant),
+  ]);
+  const publishedCount = articles.filter((a) => a.status !== "draft").length;
 
   const quickActions = [
     { href: "/admin/articles", label: t("admin.new"), icon: PlusIcon },
@@ -47,16 +49,16 @@ export default async function AdminOverviewPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {kpis.map((k) => (
-          <KpiCard
-            key={k.id}
-            label={t(KPI_LABEL[k.id])}
-            value={k.value}
-            deltaPct={k.deltaPct}
-            deltaSuffix={t("admin.kpi.vsLastWeek")}
-            spark={k.spark}
-          />
-        ))}
+        <KpiCard
+          label={t("admin.kpi.views")}
+          value={nf.format(kpis?.views30 ?? 0)}
+          deltaPct={kpis?.viewsDeltaPct ?? undefined}
+          deltaSuffix={t("admin.kpi.vsPrevPeriod")}
+          spark={kpis?.viewsSpark ?? []}
+        />
+        <KpiCard label={t("admin.kpi.mau")} value={nf.format(kpis?.mauCount ?? 0)} />
+        <KpiCard label={t("admin.kpi.credits")} value={nf.format(kpis?.creditsUsed ?? 0)} />
+        <KpiCard label={t("admin.kpi.articles")} value={nf.format(publishedCount)} />
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
@@ -67,21 +69,8 @@ export default async function AdminOverviewPage() {
               {t("admin.seeAll")}
             </Link>
           </div>
-          <ul className="flex flex-col divide-y divide-hairline">
-            {tickets.map((tk) => (
-              <li key={tk.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-ink">{tk.subject}</span>
-                  <span className="block truncate text-xs text-ink-muted">
-                    {tk.from} · {tk.timeLabel}
-                  </span>
-                </span>
-                <Badge tone={TICKET_STATUS[tk.status].tone} dot>
-                  {t(TICKET_STATUS[tk.status].key)}
-                </Badge>
-              </li>
-            ))}
-          </ul>
+          {/* Support-Flow ist eine spätere Phase — ehrlicher Leerzustand statt Fake-Tickets. */}
+          <p className="py-6 text-sm text-ink-muted">{t("admin.inbox.none")}</p>
         </section>
 
         <section className="rounded-card border border-hairline bg-surface p-5">

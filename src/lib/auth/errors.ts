@@ -52,6 +52,9 @@ const CODE_MAP: Record<string, MessageKey> = {
   // Eigene MFA-Policy-Codes (src/server/auth/mfa-policy.ts): admin/owner nur TOTP.
   otp_not_allowed_for_role: "auth.error.totpRequired",
   mfa_policy_unavailable: "auth.error.generic",
+  // Turnstile (better-auth captcha-Plugin, src/server/security/turnstile.ts).
+  MISSING_RESPONSE: "security.captchaFailed",
+  VERIFICATION_FAILED: "security.captchaFailed",
 };
 
 /**

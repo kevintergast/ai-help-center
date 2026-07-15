@@ -14,3 +14,8 @@ GOOGLE_CLIENT_ID=""
 GOOGLE_CLIENT_SECRET=""
 MICROSOFT_CLIENT_ID=""
 MICROSOFT_CLIENT_SECRET=""
+
+# Turnstile (Bot-Schutz Signup/Reset/Tenant-Erstellung). Lokal die offiziellen
+# Dummy-Testkeys nutzen (Widget rendert, besteht immer); leer = Schutz lokal aus.
+TURNSTILE_SITE_KEY="1x00000000000000000000AA"
+TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA"

@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { Hono } from "hono";
-import { requireTeam } from "@/server/auth/guards";
+import { requireOwner, requireTeam } from "@/server/auth/guards";
 import { SlugConflictError } from "@/server/content/store";
 import { parseCreateArticle, parseUpdateArticle } from "@/server/content/validate";
 import type { ApiDeps, ApiEnv, GuardSessionData } from "./context";
@@ -53,6 +53,18 @@ async function readJson(c: Context<ApiEnv>): Promise<{ ok: true; body: unknown }
 export function contentAdminRouter(deps: ApiDeps) {
   const r = new Hono<ApiEnv>();
 
+  // Such-/RAG-Index dem Lifecycle hinterherziehen (Infra-Plan Schritt 6).
+  // BEST-EFFORT: Indexierung blockiert nie eine Content-Operation und läuft
+  // asynchron weiter (waitUntil in der Runtime-Impl); ohne Bindings No-op.
+  const syncIndex = async (tenantId: string, articleId: string) => {
+    try {
+      const indexer = await deps.getContentIndexer?.();
+      await indexer?.onContentChange(tenantId, articleId);
+    } catch (err) {
+      console.error("[search-index] sync fehlgeschlagen:", err);
+    }
+  };
+
   // Anlegen (Status: draft). Erst nach POST /:id/publish öffentlich sichtbar.
   r.post("/", requireTeam("content"), async (c) => {
     const parsed = await readJson(c);
@@ -90,6 +102,7 @@ export function contentAdminRouter(deps: ApiDeps) {
 
     const ok = await content.store.update(c.get("tenant").id, id, result.value, await actorId(c));
     if (!ok) return c.json({ error: "not_found" }, 404);
+    await syncIndex(c.get("tenant").id, id);
     return c.json({ ok: true });
   });
 
@@ -102,6 +115,7 @@ export function contentAdminRouter(deps: ApiDeps) {
 
     const ok = await content.store.publish(c.get("tenant").id, id, await actorId(c));
     if (!ok) return c.json({ error: "not_found" }, 404);
+    await syncIndex(c.get("tenant").id, id);
     return c.json({ ok: true, status: "published" });
   });
 
@@ -114,7 +128,18 @@ export function contentAdminRouter(deps: ApiDeps) {
 
     const ok = await content.store.unpublish(c.get("tenant").id, id);
     if (!ok) return c.json({ error: "not_found" }, 404);
+    await syncIndex(c.get("tenant").id, id);
     return c.json({ ok: true, status: "draft" });
+  });
+
+  // Kompletter Index-Neuaufbau (Backfill nach Deploy/Fehler). Owner-exklusiv —
+  // embedded jeden veröffentlichten Artikel neu, dessen Chunks sich geändert
+  // haben (unveränderte kosten dank Hash-Vergleich nichts).
+  r.post("/reindex", requireOwner, async (c) => {
+    const indexer = await deps.getContentIndexer?.();
+    if (!indexer) return c.json({ error: "search_index_unavailable" }, 503);
+    const result = await indexer.rebuildTenant(c.get("tenant").id);
+    return c.json({ ok: true, ...result });
   });
 
   r.delete("/:id", requireTeam("content"), async (c) => {
@@ -126,6 +151,7 @@ export function contentAdminRouter(deps: ApiDeps) {
 
     const ok = await content.store.remove(c.get("tenant").id, id);
     if (!ok) return c.json({ error: "not_found" }, 404);
+    await syncIndex(c.get("tenant").id, id);
     return c.json({ ok: true });
   });
 

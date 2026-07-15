@@ -5,6 +5,7 @@ import type { MessageKey } from "@/i18n/messages/de";
 import { getT } from "@/i18n/t";
 import { HelpShell } from "./help-shell";
 import { ArticleAskPrompt } from "./article-ask-prompt";
+import { ViewBeacon } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
 import { FeedbackBar } from "@/components/ui/feedback-bar";
 import { ArrowLeftIcon, DocIcon, PlayIcon } from "@/components/ui/icons";
@@ -59,6 +60,8 @@ export function ArticlePage({
       footer={<ArticleAskPrompt locale={locale} suggestions={data.suggestions} />}
     >
       <div className="px-5 py-8 md:px-10">
+        {/* Nutzungs-Tracking (Infra-Plan Schritt 3): zählt den Aufruf serverseitig. */}
+        <ViewBeacon slug={article.slug} />
         <Link
           href="/"
           className="mb-6 inline-flex items-center gap-1.5 text-sm text-ink-muted transition-colors hover:text-ink"
