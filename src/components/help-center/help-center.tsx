@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { HelpViewer } from "@/lib/auth/viewer";
 import type { Locale } from "@/lib/tenant/types";
 import { getT } from "@/i18n/t";
 import type { Article, ArticleSummary, AskAnswer, HelpCenterData } from "@/lib/content/types";
@@ -42,9 +43,18 @@ export interface HelpCenterProps {
   data: HelpCenterData;
   /** Operator-Instanz (app.*) → CTA „Eigenes Hilfezentrum erstellen". */
   isOperator?: boolean;
+  /** Angemeldeter Betrachter (serverseitig gelesen) → Konto-Popup im Header. */
+  viewer?: HelpViewer | null;
 }
 
-export function HelpCenter({ locale, tenantName, logoUrl, data, isOperator }: HelpCenterProps) {
+export function HelpCenter({
+  locale,
+  tenantName,
+  logoUrl,
+  data,
+  isOperator,
+  viewer = null,
+}: HelpCenterProps) {
   const t = getT(locale);
   const router = useRouter();
   const articleById = useMemo(() => new Map(data.articles.map((a) => [a.id, a])), [data.articles]);
@@ -104,6 +114,7 @@ export function HelpCenter({ locale, tenantName, logoUrl, data, isOperator }: He
       logoUrl={logoUrl}
       data={data}
       isOperator={isOperator}
+      viewer={viewer}
       onHome={goHome}
       onOpenSavedAnswer={openSavedAnswer}
       footer={

@@ -105,6 +105,21 @@ export async function createAuth(
     ...base,
     plugins: [...(base.plugins ?? []), ...(captchaPlugin ? [captchaPlugin] : [])],
     baseURL: tenantBaseURL(tenant, env.APP_BASE_DOMAIN ?? BASE_DOMAIN),
+    // NUR lokales `next dev` (NODE_ENV!=production — im deployten Worker immer
+    // "production"): dort läuft die App auf http://<slug>.localhost:<port>,
+    // die baseURL zeigt aber auf die echte Basis-Domain → better-auths
+    // Origin-Check würde JEDEN lokalen Login mit 403 INVALID_ORIGIN ablehnen.
+    // Deployed bleibt der Check unverändert strikt (keine trustedOrigins).
+    ...(process.env.NODE_ENV !== "production"
+      ? {
+          trustedOrigins: [
+            "http://localhost:3000",
+            "http://*.localhost:3000",
+            "http://localhost:3005",
+            "http://*.localhost:3005",
+          ],
+        }
+      : {}),
     database: () => tenantAwareAdapter(inner),
     emailAndPassword: {
       ...base.emailAndPassword,

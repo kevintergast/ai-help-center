@@ -1,4 +1,5 @@
 import { getCurrentTenant } from "@/lib/tenant/current";
+import { readPageViewer } from "@/server/auth/page-guard";
 import { getHelpCenterData } from "@/server/content/runtime";
 import { HelpCenter } from "@/components/help-center/help-center";
 
@@ -12,7 +13,8 @@ export default async function Home() {
   const tenant = await getCurrentTenant();
   // Unbekannter Host: Root-Layout rendert die Not-Found-Shell; hier nichts.
   if (!tenant) return null;
-  const data = await getHelpCenterData(tenant);
+  // Viewer = reine Anzeige (Konto-Popup); Inhalte bleiben davon unabhängig.
+  const [data, viewer] = await Promise.all([getHelpCenterData(tenant), readPageViewer(tenant)]);
   return (
     <HelpCenter
       locale={tenant.defaultLocale}
@@ -20,6 +22,7 @@ export default async function Home() {
       logoUrl={tenant.branding.logoUrl}
       data={data}
       isOperator={tenant.id === "t_operator"}
+      viewer={viewer}
     />
   );
 }

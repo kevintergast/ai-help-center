@@ -1,3 +1,33 @@
+import { cn } from "@/lib/ui/cn";
+
+/**
+ * Volles Logo MIT Claim (public/brand/logo-with-claim-*.svg, 496×131) — ersetzt
+ * im Header der Operator-Instanz das frühere Emblem+Schriftzug-Paar
+ * (User-Vorgabe 2026-07-15). Light-/Dark-Variante folgt dem Theme über die
+ * CSS-Klassen theme-light-only/theme-dark-only (globals.css — dieselbe Logik
+ * wie die Token-Blöcke: System-Präferenz, außer data-theme erzwingt).
+ * Nur die sichtbare Variante trägt den Alt-Text (kein Doppel-Announcement).
+ */
+export function LogoWithClaim({ className, alt }: { className?: string; alt: string }) {
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/brand/logo-with-claim-lightmode.svg"
+        alt={alt}
+        className={cn("theme-light-only", className)}
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/brand/logo-with-claim-darkmode.svg"
+        alt=""
+        aria-hidden
+        className={cn("theme-dark-only", className)}
+      />
+    </>
+  );
+}
+
 /**
  * HallOfHelp-Bildmarke (Original-SVG des Nutzers). Inline, damit der Verlauf
  * ohne externen Request rendert. Genutzt im Header der Plattform-/Operator-

@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import type { GuardSessionData } from "@/server/api/context";
 import { getEnvSafe } from "@/server/api/runtime-deps";
+import type { HelpViewer } from "@/lib/auth/viewer";
 import type { Tenant } from "@/lib/tenant/types";
 import { evaluateTeamAccess } from "./guards";
 import { createAuth } from "./runtime";
@@ -48,4 +49,34 @@ export async function requireTeamPage(
   });
 
   if (!outcome.ok) notFound();
+}
+
+/**
+ * AKTUELLER BETRACHTER fürs Endnutzer-Hilfezentrum (Header-Konto-Popup) —
+ * reine ANZEIGE-Information, KEIN Gate: `null` heißt schlicht „nicht
+ * angemeldet" und die Shell zeigt den Anmelden-Hinweis. Fehler beim Lookup
+ * zählen als nicht angemeldet (es hängt kein Privileg daran — jede echte
+ * Berechtigung prüfen weiterhin die API-Guards/requireTeamPage).
+ */
+export async function readPageViewer(tenant: Tenant): Promise<HelpViewer | null> {
+  const env = await getEnvSafe();
+  if (!env) return null; // DEV ohne Bindings: Auth nicht baubar → anonym.
+
+  const headerList = await headers();
+  return runWithTenant(tenant.id, async () => {
+    try {
+      const auth = await createAuth(env, tenant);
+      const data = (await auth.api.getSession({
+        headers: headerList as unknown as Headers,
+      })) as (GuardSessionData & { user: { email?: string; name?: string | null } }) | null;
+      if (!data?.user?.email) return null;
+      return {
+        name: data.user.name ?? null,
+        email: data.user.email,
+        role: data.user.role ?? "user",
+      };
+    } catch {
+      return null;
+    }
+  });
 }

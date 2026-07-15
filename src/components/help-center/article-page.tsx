@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { HelpViewer } from "@/lib/auth/viewer";
 import type { Locale } from "@/lib/tenant/types";
 import type { Article, ArticleStatus, ArticleSummary, HelpCenterData } from "@/lib/content/types";
 import type { MessageKey } from "@/i18n/messages/de";
@@ -35,6 +36,8 @@ export interface ArticlePageProps {
   data: HelpCenterData;
   /** Operator-Instanz (app.*) → CTA „Eigenes Hilfezentrum erstellen". */
   isOperator?: boolean;
+  /** Angemeldeter Betrachter (serverseitig gelesen) → Konto-Popup im Header. */
+  viewer?: HelpViewer | null;
 }
 
 export function ArticlePage({
@@ -45,6 +48,7 @@ export function ArticlePage({
   related,
   data,
   isOperator,
+  viewer = null,
 }: ArticlePageProps) {
   const t = getT(locale);
   const s = STATUS[article.status];
@@ -56,6 +60,7 @@ export function ArticlePage({
       logoUrl={logoUrl}
       data={data}
       isOperator={isOperator}
+      viewer={viewer}
       activeSlug={article.slug}
       footer={<ArticleAskPrompt locale={locale} suggestions={data.suggestions} />}
     >
