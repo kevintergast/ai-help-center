@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { requestPasswordReset } from "@/lib/auth-client";
 import { validateEmail } from "@/lib/auth/validate";
+import { TurnstileWidget } from "@/components/security/turnstile-widget";
 import { ErrorNote, PendingNote } from "./notes";
 
 /**
@@ -15,9 +16,17 @@ import { ErrorNote, PendingNote } from "./notes";
  * Bestätigung — unabhängig davon, ob ein Konto existiert (keine
  * Account-Enumeration). Der Reset-Link in der Mail landet auf /reset-password.
  */
-export function ForgotPasswordForm({ locale }: { locale: Locale }) {
+export function ForgotPasswordForm({
+  locale,
+  turnstileSiteKey = null,
+}: {
+  locale: Locale;
+  /** Turnstile-Site-Key (public); `null` = Umgebung ohne Bot-Schutz (dev). */
+  turnstileSiteKey?: string | null;
+}) {
   const t = getT(locale);
   const [email, setEmail] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -31,7 +40,11 @@ export function ForgotPasswordForm({ locale }: { locale: Locale }) {
     setBusy(true);
     // Fehler des Backends werden bewusst NICHT unterschieden angezeigt (kein
     // Orakel); nur ein echter Transportfehler bleibt unbestätigt.
-    await requestPasswordReset({ email, redirectTo: "/reset-password" }).catch(() => {});
+    await requestPasswordReset({
+      email,
+      redirectTo: "/reset-password",
+      turnstileToken,
+    }).catch(() => {});
     setBusy(false);
     setSent(true);
   }
@@ -58,8 +71,15 @@ export function ForgotPasswordForm({ locale }: { locale: Locale }) {
         autoComplete="email"
         required
       />
+      {turnstileSiteKey ? (
+        <TurnstileWidget siteKey={turnstileSiteKey} onToken={setTurnstileToken} language={locale} />
+      ) : null}
       <ErrorNote>{error || null}</ErrorNote>
-      <Button type="submit" disabled={busy} className="w-full justify-center">
+      <Button
+        type="submit"
+        disabled={busy || (turnstileSiteKey !== null && turnstileToken === null)}
+        className="w-full justify-center"
+      >
         {busy ? t("auth.submitting") : t("auth.forgot.submit")}
       </Button>
     </form>

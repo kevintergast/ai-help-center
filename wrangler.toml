@@ -1,7 +1,9 @@
 # HallofHelp — Cloudflare Worker (Next.js via OpenNext)
 # IDs nach dem Anlegen der Ressourcen einsetzen (siehe README / Chat).
 name = "hallofhelp"
-main = ".open-next/worker.js"
+# Eigener Entry (statt direkt .open-next/worker.js): re-exportiert den
+# OpenNext-Handler und ergänzt den Embedding-Queue-Consumer (worker.ts).
+main = "worker.ts"
 compatibility_date = "2026-07-01"
 compatibility_flags = ["nodejs_compat"]
 
@@ -45,9 +47,13 @@ zone_name = "hallofhelp.com"
 # App-Umgebung (nur Anzeige, z. B. Env-Marker oben am Bildschirmrand).
 # Staging/Dev = "development"; Prod überschreibt unten auf "production".
 # APP_BASE_DOMAIN: Basis-Domain DIESES Workers für den Auth-Origin (Login/Reset-Links).
+# TURNSTILE_SITE_KEY: öffentlicher Widget-Key (Bot-Schutz Signup/Reset/Tenant-
+# Erstellung) — bewusst als var (kein Secret); der Hostname-Scope deckt alle
+# Subdomains von hallofhelp.com ab, gilt also für Staging UND Prod.
 [vars]
 APP_ENV = "development"
 APP_BASE_DOMAIN = "dev.hallofhelp.com"
+TURNSTILE_SITE_KEY = "0x4AAAAAAD2WZHccdk7dphf_"
 
 # AUTH_SECRET aus Cloudflare Secrets Store (Wert bleibt in Cloudflare, nie im Repo):
 [[secrets_store_secrets]]
@@ -55,7 +61,26 @@ binding = "AUTH_SECRET"
 store_id = "3a87edf96f654271b54858cfbc4c61fc"
 secret_name = "AUTH_SECRET"
 
-# Queues/Durable Objects brauchen Workers Paid ($5/Mo) → später (Re-Embedding-Pipeline).
+# Turnstile-Server-Secret (siteverify). Fehlt es: dev → Schutz aus, Prod →
+# fail-closed auf den geschützten Endpunkten (src/server/security/turnstile.ts).
+[[secrets_store_secrets]]
+binding = "TURNSTILE_SECRET_KEY"
+store_id = "3a87edf96f654271b54858cfbc4c61fc"
+secret_name = "TURNSTILE_SECRET_KEY"
+
+# Embedding-Queue (Workers Paid, aktiv seit 2026-07-15): Content-Änderungen →
+# asynchrone (Re-)Indexierung. Producer-Binding fürs Enqueue; der Consumer
+# läuft im selben Worker (worker.ts). In `next dev` wird BEWUSST der direkte
+# Pfad genutzt (kein lokaler Consumer) — Weiche in runtime-deps.ts.
+[[queues.producers]]
+binding = "EMBED_QUEUE"
+queue = "hallofhelp-embeddings-staging"
+
+[[queues.consumers]]
+queue = "hallofhelp-embeddings-staging"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 5
 
 # ─── PRODUCTION ────────────────────────────────────────────────────
 [env.production]
@@ -70,6 +95,17 @@ name = "hallofhelp-prod"
 #   3) Zone SSL/TLS-Modus = Full oder Full (strict).
 [[env.production.routes]]
 pattern = "*.hallofhelp.com/*"
+zone_name = "hallofhelp.com"
+
+# Cloudflare-for-SaaS-Serving (Infra-Plan Schritt 5): Kunden-Custom-Domains
+# (hilfe.kunde.de → CNAME auf uns) tragen einen FREMDEN Host-Header — sie
+# matchen die *.hallofhelp.com-Route NICHT. Das dokumentierte SaaS-Muster ist
+# die zonenweite Route `*/*` (fängt Custom-Hostname-Traffic UND die Apex ab;
+# unbekannte Hosts beantwortet die App fail-closed mit der 404-Shell).
+# VORAUSSETZUNG: Fallback-Origin in der Zone (originless AAAA `saas-fallback`
+# → 100::, proxied) + im Dashboard als Fallback Origin gesetzt.
+[[env.production.routes]]
+pattern = "*/*"
 zone_name = "hallofhelp.com"
 
 [env.production.assets]
@@ -98,13 +134,42 @@ id = "f7ba0390e26c408ea72c4cca14d33856"
 [env.production.ai]
 binding = "AI"
 
+[[env.production.queues.producers]]
+binding = "EMBED_QUEUE"
+queue = "hallofhelp-embeddings-prod"
+
+[[env.production.queues.consumers]]
+queue = "hallofhelp-embeddings-prod"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 5
+
 # Prod-Umgebung → Env-Marker wird ausgeblendet.
+# CF_ZONE_ID: Zone hallofhelp.com — Ziel der Custom-Hostname-API (SaaS-
+# Provisioning nach Domain-Verify). NUR Prod: Staging provisioniert bewusst
+# nicht (Provisioner dort inert → "skipped"), Kunden-Domains sind Prod-Sache.
 [env.production.vars]
 APP_ENV = "production"
 APP_BASE_DOMAIN = "hallofhelp.com"
+TURNSTILE_SITE_KEY = "0x4AAAAAAD2WZHccdk7dphf_"
+CF_ZONE_ID = "7626c7d77e1580b7a31ed5a9b1ca9cba"
 
-# Prod referenziert vorerst denselben Store-Secret; bei Bedarf später eigener Prod-Wert.
+# Eigener Prod-Secret (getrennt von Staging; Rotation invalidiert nur Prod-Sessions).
 [[env.production.secrets_store_secrets]]
 binding = "AUTH_SECRET"
 store_id = "3a87edf96f654271b54858cfbc4c61fc"
-secret_name = "AUTH_SECRET"
+secret_name = "PROD_AUTH_SECRET"
+
+# Turnstile-Server-Secret — in Prod PFLICHT (ohne: fail-closed auf Signup/Reset/
+# Tenant-Erstellung, siehe src/server/security/turnstile.ts).
+[[env.production.secrets_store_secrets]]
+binding = "TURNSTILE_SECRET_KEY"
+store_id = "3a87edf96f654271b54858cfbc4c61fc"
+secret_name = "TURNSTILE_SECRET_KEY"
+
+# Cloudflare-for-SaaS-API-Token (scoped: Zone→SSL and Certificates:Edit) —
+# legt nach Domain-Verify den Custom Hostname an (domains/provisioner.ts).
+[[env.production.secrets_store_secrets]]
+binding = "CF_SAAS_API_TOKEN"
+store_id = "3a87edf96f654271b54858cfbc4c61fc"
+secret_name = "CF_SAAS_API_TOKEN"

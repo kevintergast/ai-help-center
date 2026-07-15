@@ -1,4 +1,4 @@
-import type { AdminArticleRow } from "@/lib/admin/fake-admin";
+import type { AdminArticleRow } from "@/lib/admin/types";
 import type {
   Article,
   ArticleStatus,

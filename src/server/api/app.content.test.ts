@@ -63,6 +63,9 @@ function makeApp(contentAvailable = true) {
   contentDb.prepare("INSERT INTO tenants (id, slug, name) VALUES ('t_b','tenant-b','B')").run();
   const store = new D1ContentRepository(d1FromSqlite(contentDb));
 
+  // Recorder-Fake des Such-Indexers (Infra-Plan Schritt 6): beweist, dass die
+  // Lifecycle-Routen den Index-Sync anstoßen (Logik selbst: indexer.test.ts).
+  const indexCalls: { tenantId: string; articleId: string }[] = [];
   const deps: ApiDeps = {
     resolveTenant: async (host) => TENANTS[(host ?? "").split(":")[0].toLowerCase()] ?? null,
     createAuthForTenant: async () =>
@@ -71,8 +74,14 @@ function makeApp(contentAvailable = true) {
     getTeamDeps: async () => null,
     getLegalDeps: async () => null,
     getContentDeps: async () => (contentAvailable ? { store } : null),
+    getContentIndexer: async () => ({
+      onContentChange: async (tenantId, articleId) => {
+        indexCalls.push({ tenantId, articleId });
+      },
+      rebuildTenant: async () => ({ articles: 0, chunks: 0, embedded: 0 }),
+    }),
   };
-  return { app: buildApiApp(deps), authDb, contentDb, store };
+  return { app: buildApiApp(deps), authDb, contentDb, store, indexCalls };
 }
 
 type TestApp = ReturnType<typeof makeApp>["app"];
@@ -231,5 +240,44 @@ describe("Lifecycle + Tenant-Scope über die API", () => {
         })
       ).status,
     ).toBe(404);
+  });
+});
+
+describe("Such-Index-Sync (Infra-Plan Schritt 6)", () => {
+  it("publish/unpublish/delete stoßen den Index-Sync mit Tenant+Artikel an; create (draft) nicht", async () => {
+    const { app, authDb, indexCalls } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+
+    const created = await postJson(app, "/api/v1/admin/articles", HOST_A, VALID_ARTICLE, cookie);
+    expect(created.status).toBe(201);
+    const { id } = (await created.json()) as { id: string };
+    expect(indexCalls).toHaveLength(0); // Draft ist nie im Index
+
+    await postJson(app, `/api/v1/admin/articles/${id}/publish`, HOST_A, {}, cookie);
+    await postJson(app, `/api/v1/admin/articles/${id}/unpublish`, HOST_A, {}, cookie);
+    const del = await app.request(`/api/v1/admin/articles/${id}`, {
+      method: "DELETE",
+      headers: { host: HOST_A, cookie },
+    });
+    expect(del.status).toBe(200);
+
+    expect(indexCalls).toEqual([
+      { tenantId: "t_a", articleId: id },
+      { tenantId: "t_a", articleId: id },
+      { tenantId: "t_a", articleId: id },
+    ]);
+  });
+
+  it("POST /admin/articles/reindex ist OWNER-exklusiv (content → 403)", async () => {
+    const { app, authDb } = makeApp();
+    const contentCookie = await sessionAs(app, authDb, HOST_A, "content");
+    expect(
+      (await postJson(app, "/api/v1/admin/articles/reindex", HOST_A, {}, contentCookie)).status,
+    ).toBe(403);
+
+    const ownerCookie = await sessionAs(app, authDb, HOST_A, "owner");
+    const res = await postJson(app, "/api/v1/admin/articles/reindex", HOST_A, {}, ownerCookie);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, articles: 0, chunks: 0, embedded: 0 });
   });
 });

@@ -7,7 +7,6 @@ import type { Locale } from "@/lib/tenant/types";
 import type { MessageKey } from "@/i18n/messages/de";
 import { getT } from "@/i18n/t";
 import { cn } from "@/lib/ui/cn";
-import { fakeAdmin } from "@/lib/admin/fake-admin";
 import { IconButton } from "@/components/ui/icon-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
@@ -44,7 +43,8 @@ export function AdminShell({ locale, tenantName, logoUrl, children }: AdminShell
   const t = getT(locale);
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const openTickets = fakeAdmin.openTicketCount();
+  // Ticket-Badge kommt mit dem echten Support-Flow zurück (keine Fake-Zähler).
+  const openTickets = 0;
 
   const isActive = (href: string) =>
     href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);

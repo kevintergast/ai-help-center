@@ -1,6 +1,7 @@
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { getT } from "@/i18n/t";
 import { AdminPageHeader } from "@/components/admin/admin-shell";
+import { CustomDomainManager } from "@/components/admin/custom-domain-manager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -106,12 +107,8 @@ export default async function AdminSettingsPage() {
               {`${tenant.slug}.hallofhelp.com`}
             </div>
           </div>
-          <Input
-            label={t("admin.settings.customDomain")}
-            placeholder={"help.deine-domain.de"}
-            className="max-w-md"
-          />
-          <p className="-mt-2 text-xs text-ink-muted">{t("admin.settings.customDomainHint")}</p>
+          {/* Funktionaler Verify-Flow (Infra-Plan Schritt 5): TXT-Challenge → verified. */}
+          <CustomDomainManager locale={tenant.defaultLocale} />
         </SettingsCard>
       </div>
     </div>

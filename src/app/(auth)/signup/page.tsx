@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { getT } from "@/i18n/t";
+import { getTurnstileSiteKey } from "@/lib/turnstile";
 import { getAvailableSocialProviders } from "@/server/auth/social-availability";
 import { AuthCard } from "@/components/auth/auth-card";
 import { SignupForm } from "@/components/auth/signup-form";
@@ -10,6 +11,7 @@ export default async function SignupPage() {
   if (!tenant) return null;
   const t = getT(tenant.defaultLocale);
   const providers = await getAvailableSocialProviders();
+  const turnstileSiteKey = await getTurnstileSiteKey();
 
   return (
     <AuthCard
@@ -24,7 +26,11 @@ export default async function SignupPage() {
         </>
       }
     >
-      <SignupForm locale={tenant.defaultLocale} socialProviders={providers} />
+      <SignupForm
+        locale={tenant.defaultLocale}
+        socialProviders={providers}
+        turnstileSiteKey={turnstileSiteKey}
+      />
     </AuthCard>
   );
 }

@@ -20,7 +20,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { SearchCombobox } from "@/components/ui/search-combobox";
 import { Accordion } from "@/components/ui/accordion";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { BrandMark } from "@/components/brand-mark";
+import { BrandMark, Emblem } from "@/components/brand-mark";
 import {
   ArrowLeftIcon,
   BookmarkIcon,
@@ -353,7 +353,28 @@ export function HelpShell({
           {!drill && footer ? (
             <div className="border-t border-hairline bg-surface px-4 py-3">{footer}</div>
           ) : null}
+          <LegalFooter t={t} />
         </main>
+      </div>
+    </div>
+  );
+}
+
+/** Schmale Legal-Zeile am unteren Rand (links): Emblem (schwarz/weiß je Theme) + Rechtslinks. */
+function LegalFooter({ t }: { t: T }) {
+  return (
+    <div className="flex items-center gap-3 border-t border-hairline bg-surface px-5 py-2 md:px-10">
+      <Emblem className="h-4 w-4 shrink-0 text-ink" />
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
+        <Link href="/legal/impressum" className="transition-colors hover:text-ink">
+          {t("hc.legal.imprint")}
+        </Link>
+        <Link href="/legal/datenschutz" className="transition-colors hover:text-ink">
+          {t("hc.legal.privacy")}
+        </Link>
+        <Link href="/legal/agb" className="transition-colors hover:text-ink">
+          {t("hc.legal.terms")}
+        </Link>
       </div>
     </div>
   );

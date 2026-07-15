@@ -27,6 +27,9 @@ export const en: Record<MessageKey, string> = {
   "hc.accountPrompt": "Sign in to save your dynamic help articles.",
   "hc.back": "Back",
   "hc.changelogVersion": "Version {v}",
+  "hc.legal.imprint": "Legal notice",
+  "hc.legal.privacy": "Privacy",
+  "hc.legal.terms": "Terms",
   "hc.savedLocalHint": "Saved on this device only.",
   "hc.savedAccountCta": "Sign in to save across devices",
   "hc.roadmap": "Roadmap",
@@ -99,6 +102,10 @@ export const en: Record<MessageKey, string> = {
   "admin.kpi.articles": "Articles live",
   "admin.kpi.stale": "Outdated",
   "admin.kpi.vsLastWeek": "vs. last week",
+  "admin.kpi.views": "Views (30 days)",
+  "admin.kpi.mau": "Active users (month)",
+  "admin.kpi.credits": "Credits (month)",
+  "admin.kpi.vsPrevPeriod": "vs. the 30 days before",
 
   "admin.articles.title": "Articles",
   "admin.articles.subtitle": "Maintain your content — the AI answers from it.",
@@ -133,6 +140,11 @@ export const en: Record<MessageKey, string> = {
   "admin.stats.period90": "90 days",
   "admin.stats.grounded": "grounded",
   "admin.stats.notGrounded": "no source",
+  "admin.stats.viewsOverTime": "Article views over time (30 days)",
+  "admin.stats.total": "{n} total",
+  "admin.stats.viewsEmpty": "No views recorded yet — once visitors open articles, they show up here.",
+  "admin.stats.questionsEmpty":
+    "Appears once AI answers are live — you'll then see your users' most common questions here.",
 
   "admin.plan.title": "Plan & credits",
   "admin.plan.subtitle": "Quota, usage and invoices.",
@@ -146,9 +158,18 @@ export const en: Record<MessageKey, string> = {
   "admin.plan.reset": "Resets on {date}",
   "admin.plan.invoices": "Invoices",
   "admin.plan.included": "incl. {n} credits",
-  "admin.plan.graceTitle": "Credit limit reached — {days} days grace left",
+  "admin.plan.graceTitle": "Limit reached — {days} days grace left",
   "admin.plan.graceDesc":
     "Your help center keeps running normally. After that, AI generation pauses until you upgrade. Nothing is deleted.",
+  "admin.plan.frozenTitle": "Plan frozen — limit exceeded",
+  "admin.plan.frozenDesc":
+    "Your content stays visible, but AI generation and edits are paused. Upgrading lifts this immediately; nothing was deleted.",
+  "admin.plan.name.free": "Free",
+  "admin.plan.name.starter": "Starter",
+  "admin.plan.name.scale": "Scale",
+  "admin.plan.paymentsSoon":
+    "Prices shown as a preview — upgrading and payment unlock with the billing launch.",
+  "admin.plan.invoicesNone": "No invoices yet — billing starts with the payments launch.",
 
   "admin.inbox.title": "Issues",
   "admin.inbox.subtitle": "Cases reported by users.",
@@ -159,9 +180,43 @@ export const en: Record<MessageKey, string> = {
   "admin.inbox.status.new": "New",
   "admin.inbox.status.open": "In progress",
   "admin.inbox.status.resolved": "Resolved",
+  "admin.inbox.none": "No reports yet",
+  "admin.inbox.noneHint":
+    "Cases users report via “Something's not right?” land here — that flow ships in a later stage.",
 
   "admin.settings.title": "Settings",
   "admin.settings.subtitle": "Branding, support and domain.",
+
+  // Custom domain verification (infra plan step 5)
+  "admin.domain.loading": "Loading domain status …",
+  "admin.domain.placeholder": "help.your-domain.com",
+  "admin.domain.connect": "Connect domain",
+  "admin.domain.pendingBadge": "Verification pending",
+  "admin.domain.verifiedBadge": "Verified",
+  "admin.domain.pendingHelp":
+    "Create this TXT record at your DNS provider, then click “Check now”. DNS changes can take a few minutes.",
+  "admin.domain.recordType": "Type",
+  "admin.domain.recordName": "Name",
+  "admin.domain.recordValue": "Value",
+  "admin.domain.copy": "Copy",
+  "admin.domain.copied": "Copied!",
+  "admin.domain.verifyNow": "Check now",
+  "admin.domain.remove": "Remove domain",
+  "admin.domain.ownerOnly": "Only the owner of this instance can change the domain.",
+  "admin.domain.provisioningDone": "Your domain is verified and active.",
+  "admin.domain.provisioningSkipped":
+    "Domain verified. Serving through our network will be activated shortly — nothing else to do.",
+  "admin.domain.provisioningFailed":
+    "Domain verified, but certificate setup failed — please run “Check now” again later.",
+  "admin.domain.error.invalid": "That's not a valid domain.",
+  "admin.domain.error.reserved": "This domain cannot be used.",
+  "admin.domain.error.taken": "This domain is already connected to another instance.",
+  "admin.domain.error.txtNotFound":
+    "TXT record not found. Check name and value — DNS changes can take a few minutes.",
+  "admin.domain.error.txtMismatch":
+    "A TXT record was found, but the value doesn't match. Please copy the value exactly.",
+  "admin.domain.error.dns": "DNS check currently unavailable — please try again later.",
+  "admin.domain.error.generic": "Action failed — please try again.",
   "admin.settings.branding": "Branding",
   "admin.settings.logo": "Logo",
   "admin.settings.uploadLogo": "Upload logo",
@@ -323,6 +378,9 @@ export const en: Record<MessageKey, string> = {
   "auth.error.generic": "Something went wrong. Please try again.",
   "auth.error.totpRequired":
     "Your account requires the authenticator app (TOTP). Enter the code from your app.",
+
+  // Turnstile bot protection (signup, password reset, create help center)
+  "security.captchaFailed": "The security check failed or expired. Please try again.",
 
   // Form validation
   "auth.validate.emailRequired": "Please enter your email address.",

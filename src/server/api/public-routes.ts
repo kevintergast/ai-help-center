@@ -22,7 +22,11 @@ export const PUBLIC_ROUTES = {
   // /branding/logo: BEWUSST public — das Hilfezentrum ist öffentlich, das
   // Tenant-Logo muss ohne Session laden (erster Paint, Widget). Liefert NUR
   // das Logo des per Host aufgelösten Tenants (kein User-Input im R2-Key).
-  exact: ["/api/v1/health", "/api/v1/tenant", "/api/v1/branding/logo"],
+  // /events/view: BEWUSST public — der View-Beacon feuert für ANONYME Besucher
+  // (der Normalfall des Hilfezentrums). Antwortet immer 204 (kein Orakel),
+  // verbucht nur published-Artikel des per Host aufgelösten Tenants und
+  // schreibt ausschließlich Zähler/Events (kein privilegierter Effekt).
+  exact: ["/api/v1/health", "/api/v1/tenant", "/api/v1/branding/logo", "/api/v1/events/view"],
   // /api/v1/legal/: BEWUSST public — Besucher müssen Impressum/Datenschutz/AGB
   // OHNE Login lesen können (rechtliche Pflicht). Der /legal-Subbaum ist
   // AUSSCHLIESSLICH öffentliches Lesen (GET /legal/:docType); JEDE Pflege läuft

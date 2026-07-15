@@ -41,19 +41,37 @@ export function signInEmail(input: { email: string; password: string; rememberMe
   return authClient.signIn.email(input);
 }
 
+/**
+ * Turnstile-Token als Request-Header (better-auth-captcha-Konvention,
+ * `x-captcha-response`). `undefined` ohne Token — der Server entscheidet dann
+ * je nach Umgebung (dev: Schutz aus, Prod: 400 MISSING_RESPONSE, fail-closed).
+ */
+function captchaHeaders(turnstileToken?: string | null) {
+  return turnstileToken ? { headers: { "x-captcha-response": turnstileToken } } : undefined;
+}
+
 /** Registrierung mit E-Mail+Passwort+Name; `callbackURL` = Verifizierungs-Landing. */
 export function signUpEmail(input: {
   email: string;
   password: string;
   name: string;
   callbackURL?: string;
+  /** Turnstile-Token (Pflicht, sobald der Tenant-Host einen Site-Key hat). */
+  turnstileToken?: string | null;
 }) {
-  return authClient.signUp.email(input);
+  const { turnstileToken, ...body } = input;
+  return authClient.signUp.email(body, captchaHeaders(turnstileToken));
 }
 
 /** Passwort-Reset anfordern (Link an die E-Mail; `redirectTo` = Reset-Seite). */
-export function requestPasswordReset(input: { email: string; redirectTo?: string }) {
-  return authClient.requestPasswordReset(input);
+export function requestPasswordReset(input: {
+  email: string;
+  redirectTo?: string;
+  /** Turnstile-Token (Pflicht, sobald der Tenant-Host einen Site-Key hat). */
+  turnstileToken?: string | null;
+}) {
+  const { turnstileToken, ...body } = input;
+  return authClient.requestPasswordReset(body, captchaHeaders(turnstileToken));
 }
 
 /** Passwort mit Token aus dem Reset-Link neu setzen. */

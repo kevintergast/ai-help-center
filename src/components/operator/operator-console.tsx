@@ -26,7 +26,16 @@ type View = "list" | "wizard" | "success";
  * - Eingeloggt → Liste der EIGENEN Hilfezentren (Fetch), Wizard, Erfolgsseite
  *   mit Link zu `<slug>.hallofhelp.com` + Hinweis „Passwort + MFA einrichten".
  */
-export function OperatorConsole({ locale, signedIn }: { locale: Locale; signedIn: boolean }) {
+export function OperatorConsole({
+  locale,
+  signedIn,
+  turnstileSiteKey = null,
+}: {
+  locale: Locale;
+  signedIn: boolean;
+  /** Turnstile-Site-Key (public) für den Erstellungs-Wizard; `null` = dev ohne Schutz. */
+  turnstileSiteKey?: string | null;
+}) {
   const t = getT(locale);
   const [view, setView] = useState<View>("list");
   const [items, setItems] = useState<HelpCenterItem[] | null>(null);
@@ -73,6 +82,7 @@ export function OperatorConsole({ locale, signedIn }: { locale: Locale; signedIn
     return (
       <CreateWizard
         locale={locale}
+        turnstileSiteKey={turnstileSiteKey}
         onCancel={() => setView("list")}
         onCreated={(result) => {
           setCreated(result);

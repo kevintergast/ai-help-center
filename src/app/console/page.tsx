@@ -1,4 +1,5 @@
 import { getCurrentTenant } from "@/lib/tenant/current";
+import { getTurnstileSiteKey } from "@/lib/turnstile";
 import { readOperatorPageUser } from "@/server/operator/page-guard";
 import { OperatorConsole } from "@/components/operator/operator-console";
 
@@ -12,5 +13,11 @@ export default async function ConsolePage() {
   const tenant = await getCurrentTenant();
   if (!tenant) return null;
   const user = await readOperatorPageUser(tenant);
-  return <OperatorConsole locale={tenant.defaultLocale} signedIn={!!user} />;
+  return (
+    <OperatorConsole
+      locale={tenant.defaultLocale}
+      signedIn={!!user}
+      turnstileSiteKey={await getTurnstileSiteKey()}
+    />
+  );
 }

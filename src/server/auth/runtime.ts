@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import type { BetterAuthOptions } from "better-auth";
 import { getAdapter } from "better-auth/db/adapter";
 import type { Tenant } from "@/lib/tenant/types";
+import { buildCaptchaPlugin, turnstileConfigFromEnv } from "@/server/security/turnstile";
 import { tenantAuthOptions } from "./auth";
 import { createEmailSenders } from "./resend";
 import { getAuthSecret } from "./secret";
@@ -94,8 +95,15 @@ export async function createAuth(
   // Innerer Adapter aus der D1-Bindung (auto-detektiert -> D1SqliteDialect).
   const inner = await getAdapter({ ...base, database: env.DB });
 
+  // TURNSTILE (Infra-Plan Schritt 2): Bot-Schutz auf Signup + Reset-Anforderung.
+  // dev ohne Secret → Plugin aus (inert); Prod ohne Secret → Plugin fail-closed
+  // (Details/Matrix: security/turnstile.ts). Anhängen NACH tenantTwoFactor-
+  // SchemaPlugin ist unkritisch (captcha ist reiner onRequest-Hook, kein Schema).
+  const captchaPlugin = buildCaptchaPlugin(await turnstileConfigFromEnv(env));
+
   const options: BetterAuthOptions = {
     ...base,
+    plugins: [...(base.plugins ?? []), ...(captchaPlugin ? [captchaPlugin] : [])],
     baseURL: tenantBaseURL(tenant, env.APP_BASE_DOMAIN ?? BASE_DOMAIN),
     database: () => tenantAwareAdapter(inner),
     emailAndPassword: {
