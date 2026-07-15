@@ -27,7 +27,7 @@ const VISITOR_COOKIE_MAX_AGE_SEC = 395 * 24 * 60 * 60; // 13 Monate (ePrivacy-ü
 /** Rollen, deren Aufrufe als interne (Team-)Nutzung gelten. */
 const TEAM_ROLES = new Set(["content", "admin", "owner"]);
 
-interface ResolvedActor {
+export interface ResolvedActor {
   actorType: UsageActorType;
   visitorId: string;
   userId: string | null;
@@ -36,12 +36,12 @@ interface ResolvedActor {
 }
 
 /**
- * Besucher-/Akteur-Auflösung. Session wird NUR nachgeschlagen, wenn überhaupt
- * ein better-auth-Session-Cookie mitkommt (anonyme Mehrheit zahlt keinen
- * Auth-Roundtrip). Fehler beim Lookup ⇒ anonym (für Analytics unkritisch,
- * es hängt kein Privileg daran).
+ * Besucher-/Akteur-Auflösung (geteilt von View-Beacon UND /ask). Session wird
+ * NUR nachgeschlagen, wenn überhaupt ein better-auth-Session-Cookie mitkommt
+ * (anonyme Mehrheit zahlt keinen Auth-Roundtrip). Fehler beim Lookup ⇒ anonym
+ * (für Analytics unkritisch, es hängt kein Privileg daran).
  */
-async function resolveActor(c: Context<ApiEnv>): Promise<ResolvedActor> {
+export async function resolveActor(c: Context<ApiEnv>): Promise<ResolvedActor> {
   const cookieHeader = c.req.header("cookie") ?? "";
   if (cookieHeader.includes("session_token")) {
     try {
@@ -72,6 +72,18 @@ async function resolveActor(c: Context<ApiEnv>): Promise<ResolvedActor> {
   return { actorType: "anon", visitorId: fresh, userId: null, setVisitorCookie: fresh };
 }
 
+/** Frisch vergebene anonyme Besucher-ID als Cookie setzen (geteilt mit /ask). */
+export function applyVisitorCookie(c: Context<ApiEnv>, actor: ResolvedActor): void {
+  if (!actor.setVisitorCookie) return;
+  setCookie(c, VISITOR_COOKIE, actor.setVisitorCookie, {
+    httpOnly: true,
+    sameSite: "Lax",
+    path: "/",
+    maxAge: VISITOR_COOKIE_MAX_AGE_SEC,
+    secure: new URL(c.req.url).protocol === "https:",
+  });
+}
+
 export function eventsPublicRouter(deps: ApiDeps) {
   const r = new Hono<ApiEnv>();
 
@@ -90,15 +102,7 @@ export function eventsPublicRouter(deps: ApiDeps) {
     if (!billing) return done();
 
     const actor = await resolveActor(c);
-    if (actor.setVisitorCookie) {
-      setCookie(c, VISITOR_COOKIE, actor.setVisitorCookie, {
-        httpOnly: true,
-        sameSite: "Lax",
-        path: "/",
-        maxAge: VISITOR_COOKIE_MAX_AGE_SEC,
-        secure: new URL(c.req.url).protocol === "https:",
-      });
-    }
+    applyVisitorCookie(c, actor);
 
     await billing.repo.recordView({
       tenantId: c.get("tenant").id,

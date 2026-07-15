@@ -48,11 +48,25 @@ export interface CategoryGroup {
   articles: ArticleSummary[];
 }
 
+/**
+ * Quell-Referenz einer KI-Antwort: Chunk + Inhalts-Hash zum Zeitpunkt der
+ * Generierung — die STALENESS-Basis der Architektur (ändert sich der Hash der
+ * Quelle, ist eine gespeicherte Antwort veraltet; Abgleich kommt als eigener
+ * Schritt, die Daten werden ab JETZT erfasst).
+ */
+export interface SourceRef {
+  articleId: string;
+  chunkIndex: number;
+  contentHash: string;
+}
+
 export interface AskAnswer {
   question: string;
   body: string[];
   citations: Citation[];
   grounded: boolean;
+  /** Quell-Chunks der Generierung (leer bei grounded:false). */
+  sourceRefs?: SourceRef[];
 }
 
 export interface RoadmapItem {
@@ -82,7 +96,6 @@ export interface HelpCenterRepository {
   /** Alle veröffentlichten Artikel als Volltext (für das Client-Bundle: Detail + Verwandte). */
   listArticles(): Promise<Article[]>;
   getArticle(slugOrId: string): Promise<Article | null>;
-  ask(question: string): Promise<AskAnswer>;
   roadmap(): Promise<RoadmapItem[]>;
   changelog(): Promise<ChangelogEntry[]>;
   promptSuggestions(): Promise<string[]>;

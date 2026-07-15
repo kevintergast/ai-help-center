@@ -17,7 +17,9 @@ import { D1BillingRepository, type BillingDeps } from "@/server/billing/store";
 import { makeCustomHostnameProvisioner } from "@/server/domains/provisioner";
 import { D1DomainRepository } from "@/server/domains/store";
 import { makeTxtChecker } from "@/server/domains/verify";
-import { rebuildTenantIndex, syncArticleIndex } from "@/server/search/sync";
+import { AI_GATEWAY_ID, GENERATION_MODEL, makeWorkersAiEmbeddings } from "@/server/ai/models";
+import { answerQuestion, type AskPipelineDeps } from "@/server/rag/ask";
+import { rebuildTenantIndex, syncArticleIndex, toIndexable } from "@/server/search/sync";
 import {
   makeTurnstileVerify,
   turnstileConfigFromEnv,
@@ -27,6 +29,7 @@ import { D1TenantRepository } from "@/server/tenant/repository";
 import { resolveWithSourceStrict } from "@/server/tenant/resolve-tenant";
 import type {
   ApiDeps,
+  AskRuntime,
   AuthInstance,
   ContentIndexer,
   DomainDeps,
@@ -276,6 +279,66 @@ async function getContentIndexerRuntime(): Promise<ContentIndexer | null> {
 }
 
 /**
+ * Dynamischer KI-Artikel (RAG-Kern): echte Pipeline auf Workers AI (Embedding +
+ * Generierung, beides via AI Gateway `hallofhelp`) + Vectorize (Tenant-
+ * Namespace) + D1 (published-Artikel als Kontext-Quelle, Metering). Fehlt eine
+ * Binding → `null` → POST /ask antwortet 503 fail-closed.
+ */
+async function getAskDepsRuntime(): Promise<AskRuntime | null> {
+  const env = await getEnvSafe();
+  if (!env?.DB || !env.VECTORIZE || !env.AI) return null;
+  const db = env.DB;
+  const embeddings = makeWorkersAiEmbeddings(env.AI);
+
+  const deps: AskPipelineDeps = {
+    embed: async (text) => (await embeddings.embed([text]))[0],
+    queryVectors: async (tenantId, vector) => {
+      const res = await env.VECTORIZE.query(vector, {
+        topK: 10,
+        namespace: tenantId,
+        returnMetadata: "all",
+      });
+      return res.matches
+        .map((m) => ({
+          articleId: String((m.metadata as Record<string, unknown> | undefined)?.articleId ?? ""),
+          chunkIndex: Number(
+            (m.metadata as Record<string, unknown> | undefined)?.chunkIndex ?? -1,
+          ),
+          score: m.score,
+        }))
+        .filter((m) => m.articleId.length > 0 && Number.isInteger(m.chunkIndex) && m.chunkIndex >= 0);
+    },
+    loadPublishedArticles: async (tenantId, ids) => {
+      if (ids.length === 0) return [];
+      const placeholders = ids.map(() => "?").join(",");
+      const rows = await db
+        .prepare(
+          `SELECT id, slug, title, body_json FROM articles
+            WHERE tenant_id = ? AND status = 'published' AND id IN (${placeholders})`,
+        )
+        .bind(tenantId, ...ids)
+        .all<{ id: string; slug: string; title: string; body_json: string }>();
+      return rows.results.map(toIndexable);
+    },
+    generate: async (messages) => {
+      const res = (await env.AI.run(
+        GENERATION_MODEL as Parameters<Ai["run"]>[0],
+        { messages },
+        { gateway: { id: AI_GATEWAY_ID } },
+      )) as { response?: string };
+      const text = res?.response;
+      if (typeof text !== "string" || text.trim().length === 0) {
+        throw new Error("generation: leere Modellantwort");
+      }
+      return text;
+    },
+    billing: new D1BillingRepository(db),
+  };
+
+  return { answer: (input) => answerQuestion(deps, input) };
+}
+
+/**
  * Turnstile-Prüfung der Tenant-Erstellung (Infra-Plan Schritt 2). Konfiguration
  * wird PRO AUFRUF aus den Bindings gelesen (kein Modul-Cache — Workers können
  * Env zwischen Requests nicht wechseln, aber `next dev` schon). Ohne
@@ -305,4 +368,5 @@ export const runtimeDeps: ApiDeps = {
   getBillingDeps: getBillingDepsRuntime,
   getDomainDeps: getDomainDepsRuntime,
   getContentIndexer: getContentIndexerRuntime,
+  getAskDeps: getAskDepsRuntime,
 };

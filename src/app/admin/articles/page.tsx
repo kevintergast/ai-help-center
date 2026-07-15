@@ -3,12 +3,11 @@ import { getCurrentTenant } from "@/lib/tenant/current";
 import { getT } from "@/i18n/t";
 import { listAdminArticleRows } from "@/server/content/runtime";
 import { AdminPageHeader } from "@/components/admin/admin-shell";
+import { NewArticleButton } from "@/components/admin/new-article-button";
 import { ARTICLE_STATUS } from "@/components/admin/status";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { SearchBar } from "@/components/ui/search-bar";
 import { Select } from "@/components/ui/select";
-import { PlusIcon } from "@/components/ui/icons";
 
 export default async function AdminArticlesPage() {
   const tenant = await getCurrentTenant();
@@ -32,14 +31,7 @@ export default async function AdminArticlesPage() {
       <AdminPageHeader
         title={t("admin.articles.title")}
         subtitle={t("admin.articles.subtitle")}
-        action={
-          <Link href="/admin/articles">
-            <Button variant="primary" size="sm">
-              <PlusIcon width={16} height={16} />
-              {t("admin.new")}
-            </Button>
-          </Link>
-        }
+        action={<NewArticleButton locale={tenant.defaultLocale} />}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">

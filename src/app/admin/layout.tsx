@@ -1,5 +1,5 @@
 import { getCurrentTenant } from "@/lib/tenant/current";
-import { requireTeamPage } from "@/server/auth/page-guard";
+import { readPageViewer, requireTeamPage } from "@/server/auth/page-guard";
 import { AdminShell } from "@/components/admin/admin-shell";
 
 /**
@@ -23,6 +23,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       locale={tenant.defaultLocale}
       tenantName={tenant.name}
       logoUrl={tenant.branding.logoUrl}
+      isOperator={tenant.id === "t_operator"}
+      viewer={await readPageViewer(tenant)}
     >
       {children}
     </AdminShell>

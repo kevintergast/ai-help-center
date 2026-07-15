@@ -33,6 +33,7 @@ export const de = {
   "hc.legal.imprint": "Impressum",
   "hc.legal.privacy": "Datenschutz",
   "hc.legal.terms": "AGB",
+  "legal.notProvided": "{tenant} hat diesen Rechtstext noch nicht hinterlegt.",
   "hc.savedLocalHint": "Nur auf diesem Gerät gespeichert.",
   "hc.savedAccountCta": "Anmelden, um geräteübergreifend zu speichern",
   "hc.roadmap": "Roadmap",
@@ -50,6 +51,14 @@ export const de = {
   "hc.popularHeading": "Häufig gelesen",
   "hc.answerHeading": "KI-Antwort",
   "hc.grounded": "Geerdet · {count} Quellen",
+  "hc.answer.loading": "Deine Antwort wird aus den Hilfeartikeln zusammengestellt …",
+  "hc.answer.noSources":
+    "Dazu habe ich in den Hilfeartikeln keine belastbare Antwort gefunden. Formuliere die Frage anders — oder stöbere links in den Artikeln.",
+  "hc.answer.error":
+    "Die KI-Antwort ist gerade nicht verfügbar. Bitte versuch es gleich noch einmal.",
+  "hc.answer.frozen":
+    "Die KI-Generierung ist für dieses Hilfezentrum derzeit pausiert. Die Hilfeartikel links bleiben voll verfügbar.",
+  "hc.answer.retry": "Erneut versuchen",
   "hc.aiGeneratedNote": "Von der KI aus deinen Artikeln zusammengestellt.",
   "hc.sourcesHeading": "Quellen",
   "hc.feedbackQuestion": "War das hilfreich?",
@@ -118,6 +127,9 @@ export const de = {
   "admin.articles.filterStatus": "Status filtern",
   "admin.articles.filterAll": "Alle Status",
   "admin.articles.count": "{n} Artikel",
+  "admin.articles.defaultCategory": "Allgemein",
+  "admin.articles.creating": "Wird angelegt …",
+  "admin.articles.createError": "Artikel konnte nicht angelegt werden — bitte erneut versuchen.",
 
   "admin.col.title": "Titel",
   "admin.col.category": "Kategorie",
@@ -220,6 +232,30 @@ export const de = {
     "Es wurde ein TXT-Record gefunden, aber der Wert passt nicht. Bitte den Wert exakt übernehmen.",
   "admin.domain.error.dns": "DNS-Prüfung derzeit nicht möglich — bitte später erneut versuchen.",
   "admin.domain.error.generic": "Aktion fehlgeschlagen — bitte erneut versuchen.",
+
+  // Rechtstexte-Verwaltung (Design h) — öffentlich unter /legal/<doc>
+  "admin.legal.title": "Rechtstexte",
+  "admin.legal.intro":
+    "Impressum, Datenschutz und AGB erscheinen im Footer deines Hilfezentrums — als eigener Text (Markdown) oder als Link auf deine bestehende Seite.",
+  "admin.legal.loading": "Lade Rechtstexte …",
+  "admin.legal.missing": "Fehlt noch",
+  "admin.legal.modeLink": "Link",
+  "admin.legal.modeMarkdown": "Eigener Text",
+  "admin.legal.edit": "Bearbeiten",
+  "admin.legal.cancel": "Schließen",
+  "admin.legal.remove": "Entfernen",
+  "admin.legal.save": "Speichern",
+  "admin.legal.saving": "Speichert …",
+  "admin.legal.upload": "Markdown-Datei hochladen (.md)",
+  "admin.legal.urlLabel": "Link zur bestehenden Seite (https)",
+  "admin.legal.urlPlaceholder": "https://deine-website.de/impressum",
+  "admin.legal.markdownLabel": "Text (Markdown)",
+  "admin.legal.markdownPlaceholder": "# Impressum …",
+  "admin.legal.ownerOnly": "Nur der Owner dieser Instanz kann Rechtstexte ändern.",
+  "admin.legal.error.generic": "Speichern fehlgeschlagen — bitte erneut versuchen.",
+  "admin.legal.error.invalidUrl": "Bitte eine gültige https-Adresse angeben.",
+  "admin.legal.error.markdownRequired": "Bitte Text einfügen oder eine Datei hochladen.",
+  "admin.legal.error.tooLarge": "Der Text ist zu groß (max. 100 KB).",
   "admin.settings.branding": "Branding",
   "admin.settings.logo": "Logo",
   "admin.settings.uploadLogo": "Logo hochladen",
@@ -237,6 +273,7 @@ export const de = {
 
   // Artikel-Editor (Editor-Modus + Veröffentlichen)
   "editor.back": "Zurück zu Artikeln",
+  "editor.untitled": "Unbenannter Artikel",
   "editor.edit": "Bearbeiten",
   "editor.mode": "Editor-Modus",
   "editor.discard": "Verwerfen",

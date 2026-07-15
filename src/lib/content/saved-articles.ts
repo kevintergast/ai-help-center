@@ -1,4 +1,4 @@
-import type { AskAnswer, Citation } from "./types";
+import type { AskAnswer, Citation, SourceRef } from "./types";
 
 /*
   Lokale Persistenz generierter Artikel (KI-Antworten) — local-first.
@@ -19,6 +19,8 @@ export interface SavedArticle {
   citations: Citation[];
   grounded: boolean;
   savedAt: number;
+  /** Quell-Chunks + content_hash der Generierung (Staleness-Abgleich später). */
+  sourceRefs?: SourceRef[];
 }
 
 /** Stabile ID aus der Frage → dieselbe Frage wird nicht doppelt gespeichert. */
@@ -70,6 +72,7 @@ export function saveAnswer(answer: AskAnswer): SavedArticle {
     citations: answer.citations,
     grounded: answer.grounded,
     savedAt: Date.now(),
+    sourceRefs: answer.sourceRefs,
   };
   write([entry, ...read().filter((s) => s.id !== entry.id)]);
   return entry;

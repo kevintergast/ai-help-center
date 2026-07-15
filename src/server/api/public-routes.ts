@@ -26,7 +26,16 @@ export const PUBLIC_ROUTES = {
   // (der Normalfall des Hilfezentrums). Antwortet immer 204 (kein Orakel),
   // verbucht nur published-Artikel des per Host aufgelösten Tenants und
   // schreibt ausschließlich Zähler/Events (kein privilegierter Effekt).
-  exact: ["/api/v1/health", "/api/v1/tenant", "/api/v1/branding/logo", "/api/v1/events/view"],
+  // /ask: BEWUSST public — der dynamische KI-Artikel IST das Produkt für
+  // anonyme Endnutzer. Missbrauchsschutz in Schichten: AI-Gateway (Spend-/
+  // Rate-Limit), WAF-Rate-Limit, Grounding-Schwelle, Plan-Gate (api/ask.ts).
+  exact: [
+    "/api/v1/health",
+    "/api/v1/tenant",
+    "/api/v1/branding/logo",
+    "/api/v1/events/view",
+    "/api/v1/ask",
+  ],
   // /api/v1/legal/: BEWUSST public — Besucher müssen Impressum/Datenschutz/AGB
   // OHNE Login lesen können (rechtliche Pflicht). Der /legal-Subbaum ist
   // AUSSCHLIESSLICH öffentliches Lesen (GET /legal/:docType); JEDE Pflege läuft

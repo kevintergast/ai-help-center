@@ -11,6 +11,7 @@ import {
 import { enforceSessionTenant } from "@/server/auth/session-guard";
 import { runWithTenant } from "@/server/auth/tenant-context";
 import { freezeGate } from "@/server/billing/enforcement";
+import { askPublicRouter } from "./ask";
 import { brandingAdminRouter, brandingPublicRouter } from "./branding";
 import { contentAdminRouter } from "./content";
 import type { ApiDeps, ApiEnv, AuthInstance, GuardSessionData } from "./context";
@@ -208,8 +209,9 @@ export function buildApiApp(deps: ApiDeps) {
   // Pflicht via Default-Deny; ohne Operator-Bindings 503. Details: ./operator.ts
   app.route("/operator", operatorRouter(deps));
 
-  // Kommende Feature-Router (werden mit dem jeweiligen Feature implementiert):
-  // app.route("/ask", askRouter);            // dynamischen Artikel anfragen (RAG, Punkt 3)
+  // Dynamischer KI-Artikel (RAG-Kern, Punkt 3): public Frage-Endpoint.
+  // Pipeline/Invarianten (frozen-Gate, Grounding, Credits): server/rag/ask.ts
+  app.route("/ask", askPublicRouter(deps));
 
   // (5) 404 erst NACH Tenant- und Auth-Prüfung erreichbar (siehe Default-Deny).
   app.notFound((c) => c.json({ error: "not_found" }, 404));

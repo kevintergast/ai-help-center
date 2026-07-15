@@ -12,6 +12,7 @@ import type { LegalDeps } from "@/server/legal/store";
 import type { OperatorRepository } from "@/server/operator/repository";
 import type { OwnerSetupResult } from "@/server/operator/onboarding";
 import type { TurnstileVerify } from "@/server/security/turnstile";
+import type { AskInput, AskOutcome } from "@/server/rag/ask";
 import type { CustomHostnameProvisioner } from "@/server/domains/provisioner";
 import type { DomainRepository } from "@/server/domains/store";
 import type { TxtChecker } from "@/server/domains/verify";
@@ -99,6 +100,17 @@ export interface ApiDeps {
    * via POST /admin/articles/reindex). Tests injizieren Recorder-Fakes.
    */
   getContentIndexer?(): Promise<ContentIndexer | null>;
+  /**
+   * Dynamischer KI-Artikel (RAG-Kern): komplette Frage-Pipeline (Embedding →
+   * Vectorize → Grounding → Generierung → Metering). `null`/fehlend ⇒
+   * POST /ask antwortet 503 (Bindings fehlen). Tests injizieren Fakes.
+   */
+  getAskDeps?(): Promise<AskRuntime | null>;
+}
+
+/** Pro Request aufgelöste Frage-Pipeline (Impl: runtime-deps auf rag/ask.ts). */
+export interface AskRuntime {
+  answer(input: AskInput): Promise<AskOutcome>;
 }
 
 /**

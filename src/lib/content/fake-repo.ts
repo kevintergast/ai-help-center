@@ -206,24 +206,6 @@ export function groupByCategory(articles: Article[]): CategoryGroup[] {
 }
 
 /**
- * RAG-STUB (Punkt 3): baut aus den vorhandenen Artikeln eine geerdete
- * Beispielantwort mit Quellen. Client- UND server-tauglich (keine Bindings).
- * Wird ersetzt, sobald Vectorize/Workers-AI angebunden sind.
- */
-export function askStub(question: string, articles: Article[]): AskAnswer {
-  const citations = articles.slice(0, 3).map((a) => ({ id: a.id, title: a.title }));
-  return {
-    question,
-    body: [
-      "Kurz zusammengefasst: Die passenden Schritte findest du in den unten verlinkten Artikeln. Diese Antwort wurde aus deinen eigenen Inhalten zusammengestellt.",
-      "Wenn dir etwas fehlt, verfeinere deine Frage oder öffne den passenden Artikel für alle Details.",
-    ],
-    citations,
-    grounded: citations.length > 0,
-  };
-}
-
-/**
  * DEV-Fallback-Repository (async, wie das D1-Facade). Bedient das Hilfezentrum
  * OHNE Cloudflare-Kontext aus den Sample-Daten. Nur lesend — Pflege läuft
  * ausschließlich über die (D1-gestützte) Admin-API.
@@ -234,7 +216,6 @@ export const sampleHelpCenterRepo: HelpCenterRepository = {
   listArticles: async () => SAMPLE_ARTICLES,
   getArticle: async (slugOrId) =>
     SAMPLE_ARTICLES.find((a) => a.id === slugOrId || a.slug === slugOrId) ?? null,
-  ask: async (question) => askStub(question, SAMPLE_ARTICLES),
   roadmap: async () => SAMPLE_ROADMAP,
   changelog: async () => SAMPLE_CHANGELOG,
   promptSuggestions: async () => SAMPLE_SUGGESTIONS,
