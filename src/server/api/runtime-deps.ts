@@ -25,6 +25,7 @@ import {
   turnstileConfigFromEnv,
   type TurnstileVerdict,
 } from "@/server/security/turnstile";
+import { makeVisitorIdCodec, type VisitorIdCodec } from "@/server/security/visitor-id";
 import { D1TenantRepository } from "@/server/tenant/repository";
 import { resolveWithSourceStrict } from "@/server/tenant/resolve-tenant";
 import type {
@@ -36,6 +37,7 @@ import type {
   OperatorDeps,
   TeamDeps,
 } from "./context";
+import type { RateLimiterBinding, RateLimiters } from "./rate-limit";
 
 /**
  * ECHTE Runtime-Abhängigkeiten der API-App (Default-Instanz für die Next-Route).
@@ -354,6 +356,57 @@ async function verifyTurnstileRuntime(
   return verify(token, remoteIp);
 }
 
+/**
+ * IP-Rate-Limiter, lazy an die Env gebunden (Bindings existieren erst pro
+ * Request/Isolate, runtimeDeps ist aber modul-statisch). Fehlt Env/Binding
+ * (dev ohne Wrangler, Tests) ⇒ success=true (fail-open, s. rate-limit.ts).
+ */
+function makeLazyLimiter(
+  pick: (env: CloudflareEnv) => RateLimiterBinding | undefined,
+): RateLimiterBinding {
+  return {
+    async limit(options: { key: string }): Promise<{ success: boolean }> {
+      const env = await getEnvSafe();
+      const binding = env ? pick(env) : undefined;
+      return binding ? binding.limit(options) : { success: true };
+    },
+  };
+}
+
+const rateLimitersRuntime: RateLimiters = {
+  ask: makeLazyLimiter((env) => env.RL_ASK),
+  events: makeLazyLimiter((env) => env.RL_EVENTS),
+  sensitive: makeLazyLimiter((env) => env.RL_SENSITIVE),
+};
+
+async function visitorSecret(): Promise<string | null> {
+  const env = await getEnvSafe();
+  if (!env) return null;
+  try {
+    return await getAuthSecret(env);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Besucher-ID-Codec, lazy an AUTH_SECRET gebunden (String ODER Secrets-Store,
+ * wie bei createAuth). Ohne Secret (dev ohne Bindings — dort gibt es kein
+ * Billing) fallen die IDs auf unsignierte UUIDs zurück, identisch zur
+ * codec-losen Semantik in events.ts.
+ */
+const visitorCodecRuntime: VisitorIdCodec = {
+  async issue(tenantId: string): Promise<string> {
+    const secret = await visitorSecret();
+    return secret ? makeVisitorIdCodec(secret).issue(tenantId) : crypto.randomUUID();
+  },
+  async verify(tenantId: string, value: string): Promise<string | null> {
+    const secret = await visitorSecret();
+    if (secret) return makeVisitorIdCodec(secret).verify(tenantId, value);
+    return /^[0-9a-f-]{36}$/.test(value) ? value : null;
+  },
+};
+
 /** Default-Deps der produktiven App (siehe `app.ts`). */
 export const runtimeDeps: ApiDeps = {
   resolveTenant: resolveTenantRuntime,
@@ -369,4 +422,6 @@ export const runtimeDeps: ApiDeps = {
   getDomainDeps: getDomainDepsRuntime,
   getContentIndexer: getContentIndexerRuntime,
   getAskDeps: getAskDepsRuntime,
+  rateLimiters: rateLimitersRuntime,
+  visitorCodec: visitorCodecRuntime,
 };

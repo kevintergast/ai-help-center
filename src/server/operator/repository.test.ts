@@ -38,6 +38,7 @@ function makeInput(over: Partial<NewHelpCenter> & { slug: string; tenantId: stri
     ownerUserId: `owner_${over.tenantId}`,
     ownerEmail: "operator@example.com",
     ownerName: "Operator",
+    ownerCredential: null,
     ...over,
   };
 }
@@ -91,6 +92,102 @@ describe("D1OperatorRepository gegen die echten Migrationen (D1-Shim über bette
       .prepare("SELECT operator_user_id, tenant_id FROM operator_help_centers WHERE tenant_id = ?")
       .get("t_acme_new") as { operator_user_id: string; tenant_id: string } | undefined;
     expect(mapping).toMatchObject({ operator_user_id: OP_A, tenant_id: "t_acme_new" });
+  });
+
+  it("Same-Credentials: Kopie legt credential-Account + TOTP-Zeile im NEUEN Tenant an (two_factor_enabled=1)", async () => {
+    const input = makeInput({
+      slug: "acmehelp",
+      tenantId: "t_acme_new",
+      ownerCredential: {
+        passwordHash: "scrypt$hash$aus$operator",
+        socialAccounts: [],
+        twoFactor: { secret: "enc-totp-secret", backupCodes: "enc-backup-codes" },
+      },
+    });
+    expect(await repo.createHelpCenter(input)).toBe("created");
+
+    const account = db
+      .prepare(
+        "SELECT tenant_id, account_id, provider_id, password FROM auth_account WHERE user_id = ?",
+      )
+      .get("owner_t_acme_new") as Record<string, unknown>;
+    expect(account).toMatchObject({
+      tenant_id: "t_acme_new",
+      account_id: "owner_t_acme_new",
+      provider_id: "credential",
+      password: "scrypt$hash$aus$operator",
+    });
+
+    const twoFactor = db
+      .prepare("SELECT tenant_id, secret, backup_codes FROM auth_two_factor WHERE user_id = ?")
+      .get("owner_t_acme_new") as Record<string, unknown>;
+    expect(twoFactor).toMatchObject({
+      tenant_id: "t_acme_new",
+      secret: "enc-totp-secret",
+      backup_codes: "enc-backup-codes",
+    });
+
+    const owner = db
+      .prepare("SELECT two_factor_enabled FROM auth_user WHERE id = ?")
+      .get("owner_t_acme_new") as { two_factor_enabled: number };
+    expect(owner.two_factor_enabled).toBe(1);
+  });
+
+  it("getOwnerCredentialTemplate liest Hash+Social+TOTP des Operators; ohne Login-Methode → null", async () => {
+    // OP_A: credential + Google-Verknüpfung + TOTP in t_operator.
+    db.prepare(
+      `INSERT INTO auth_account (id, tenant_id, user_id, account_id, provider_id, password)
+       VALUES ('acc_a', 't_operator', ?, ?, 'credential', 'hash-a')`,
+    ).run(OP_A, OP_A);
+    db.prepare(
+      `INSERT INTO auth_account (id, tenant_id, user_id, account_id, provider_id)
+       VALUES ('acc_a_g', 't_operator', ?, 'google-sub-1', 'google')`,
+    ).run(OP_A);
+    db.prepare(
+      `INSERT INTO auth_two_factor (id, tenant_id, user_id, secret, backup_codes)
+       VALUES ('tf_a', 't_operator', ?, 'sec-a', 'codes-a')`,
+    ).run(OP_A);
+
+    expect(await repo.getOwnerCredentialTemplate("t_operator", OP_A)).toEqual({
+      passwordHash: "hash-a",
+      socialAccounts: [{ providerId: "google", accountId: "google-sub-1" }],
+      twoFactor: { secret: "sec-a", backupCodes: "codes-a" },
+    });
+    // OP_B hat keinerlei Login-Methode → null (Setup-Mail-Fallback).
+    expect(await repo.getOwnerCredentialTemplate("t_operator", OP_B)).toBeNull();
+  });
+
+  it("SSO-only: Google-Verknüpfung wird als eigener auth_account (ohne Passwort/Tokens) im NEUEN Tenant angelegt", async () => {
+    const input = makeInput({
+      slug: "ssohelp",
+      tenantId: "t_sso_new",
+      ownerCredential: {
+        passwordHash: null,
+        socialAccounts: [{ providerId: "google", accountId: "google-sub-9" }],
+        twoFactor: null,
+      },
+    });
+    expect(await repo.createHelpCenter(input)).toBe("created");
+
+    const accounts = db
+      .prepare(
+        "SELECT tenant_id, provider_id, account_id, password FROM auth_account WHERE user_id = ?",
+      )
+      .all("owner_t_sso_new") as Record<string, unknown>[];
+    // GENAU die Google-Verknüpfung — kein credential-Account ohne Passwort.
+    expect(accounts).toEqual([
+      {
+        tenant_id: "t_sso_new",
+        provider_id: "google",
+        account_id: "google-sub-9",
+        password: null,
+      },
+    ]);
+
+    const owner = db
+      .prepare("SELECT two_factor_enabled FROM auth_user WHERE id = ?")
+      .get("owner_t_sso_new") as { two_factor_enabled: number };
+    expect(owner.two_factor_enabled).toBe(0);
   });
 
   it("Owner-Konto ist GETRENNT vom Operator-Konto (andere Zeile, anderer tenant_id) — Isolation gewahrt", async () => {

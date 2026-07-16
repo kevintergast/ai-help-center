@@ -2,7 +2,7 @@ import BetterSqlite3 from "better-sqlite3";
 import { beforeEach, describe, expect, it } from "vitest";
 import { applyMigrations, d1FromSqlite } from "@/server/auth/sqlite-test-support";
 import { GRACE_DAYS } from "./plan-state";
-import { PLANS } from "./pricing";
+import { CREDIT_COSTS, creditsFor, INTERNAL_AI_GENERATION_CREDITS, PLANS } from "./pricing";
 import { D1BillingRepository, readPlanState, VIEW_DEDUP_WINDOW_SEC } from "./store";
 
 /**
@@ -21,7 +21,13 @@ const DAY = 86_400;
 
 function setup() {
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0005_content.sql", "0009_usage_billing.sql"]);
+  applyMigrations(sqlite, [
+    "0001_tenants.sql",
+    "0005_content.sql",
+    "0009_usage_billing.sql",
+    "0011_usage_feedback_types.sql",
+    "0012_enterprise_plan.sql",
+  ]);
   // Publizierter Artikel je Tenant (+ ein Draft) — Grundlage der View-Buchung.
   const insert = sqlite.prepare(
     `INSERT INTO articles (id, tenant_id, slug, title, category, status)
@@ -160,5 +166,147 @@ describe("Statistik-Leseseite", () => {
     expect(
       await ctx.repo.getViewTotal("t_demo", { days: 3, excludeInternal: true, nowSec: NOW }),
     ).toBe(2);
+  });
+});
+
+const feedback = (over: Partial<Parameters<D1BillingRepository["recordFeedback"]>[0]> = {}) =>
+  ctx.repo.recordFeedback({
+    tenantId: "t_demo",
+    slug: "erste-schritte",
+    helpful: true,
+    actorType: "anon",
+    visitorId: "v-1",
+    nowSec: NOW,
+    ...over,
+  });
+
+describe("recordFeedback — Dedup, Ziel-Auflösung, 0 Credits", () => {
+  it("Artikel-Feedback: Event ohne Credits/MAU; unbekannter/Draft-Slug wird verworfen", async () => {
+    await feedback();
+    await feedback({ slug: "entwurf", visitorId: "v-2" });
+    await feedback({ slug: "gibts-nicht", visitorId: "v-3" });
+
+    const rows = ctx.sqlite
+      .prepare(`SELECT type, credits, article_id FROM usage_events WHERE tenant_id = 't_demo'`)
+      .all();
+    expect(rows).toEqual([{ type: "feedback_helpful", credits: 0, article_id: "a1" }]);
+    // Feedback erzeugt weder Credits noch MAU (würde sonst Billing verfälschen).
+    expect(await ctx.repo.getUsage("t_demo", "2027-01")).toEqual({
+      creditsUsed: 0,
+      mauCount: 0,
+    });
+  });
+
+  it("Dedup 24h gleiche Richtung; Gegenrichtung + neuer Tag zählen", async () => {
+    await feedback();
+    await feedback({ nowSec: NOW + 60 }); // Klick-Spam → verworfen
+    await feedback({ helpful: false, nowSec: NOW + 120 }); // Meinungswechsel → zählt
+    await feedback({ nowSec: NOW + DAY + 1 }); // nach Ablauf des Fensters → zählt
+
+    const n = ctx.sqlite
+      .prepare(`SELECT COUNT(*) AS n FROM usage_events WHERE tenant_id = 't_demo'`)
+      .get() as { n: number };
+    expect(n.n).toBe(3);
+  });
+
+  it("Antwort-Feedback (slug null) landet mit article_id NULL im Aggregat", async () => {
+    await feedback({ slug: null, helpful: false });
+    const stats = await ctx.repo.getFeedbackStats("t_demo", {
+      days: 1,
+      excludeInternal: true,
+      nowSec: NOW,
+    });
+    expect(stats.answers).toEqual({ helpful: 0, unhelpful: 1 });
+    expect(stats.byArticle).toEqual({});
+  });
+
+  it("getFeedbackStats aggregiert je Artikel und blendet interne aus", async () => {
+    await feedback(); // anon, hilfreich
+    await feedback({ visitorId: "v-2", helpful: false });
+    await feedback({ visitorId: "u:admin", actorType: "internal" }); // intern
+
+    const stats = await ctx.repo.getFeedbackStats("t_demo", {
+      days: 1,
+      excludeInternal: true,
+      nowSec: NOW,
+    });
+    expect(stats.byArticle).toEqual({ a1: { helpful: 1, unhelpful: 1 } });
+
+    const withInternal = await ctx.repo.getFeedbackStats("t_demo", {
+      days: 1,
+      excludeInternal: false,
+      nowSec: NOW,
+    });
+    expect(withInternal.byArticle).toEqual({ a1: { helpful: 2, unhelpful: 1 } });
+  });
+
+  it("Feedback unterdrückt das View-Dedup NICHT (Typ-Filter im Fenster)", async () => {
+    await feedback();
+    expect((await view()).result).toBe("recorded");
+  });
+});
+
+describe("creditsFor — zentrale Preisregel nach Akteurs-Klasse", () => {
+  it("Endnutzer zahlen Listenpreis; Team nur KI-Generierungen zum Selbstkosten-Satz", () => {
+    expect(creditsFor("article_view", "anon")).toBe(CREDIT_COSTS.article_view);
+    expect(creditsFor("ai_generation", "user")).toBe(CREDIT_COSTS.ai_generation);
+    expect(creditsFor("article_view", "internal")).toBe(0);
+    expect(creditsFor("feedback_helpful", "internal")).toBe(0);
+    expect(creditsFor("ai_generation", "internal")).toBe(INTERNAL_AI_GENERATION_CREDITS);
+    expect(creditsFor("ai_regeneration", "internal")).toBe(INTERNAL_AI_GENERATION_CREDITS);
+    // Der Selbstkosten-Satz ist bewusst ein Bruchteil des Endnutzer-Preises.
+    expect(INTERNAL_AI_GENERATION_CREDITS).toBeLessThan(CREDIT_COSTS.ai_generation);
+  });
+
+  it("interne KI-Generierung erhöht das Credit-Aggregat (aber KEIN MAU)", async () => {
+    await ctx.repo.recordAiGeneration({
+      tenantId: "t_demo",
+      actorType: "internal",
+      visitorId: "u:owner",
+      userId: "owner",
+      nowSec: NOW,
+    });
+    expect(await ctx.repo.getUsage("t_demo", "2027-01")).toEqual({
+      creditsUsed: INTERNAL_AI_GENERATION_CREDITS,
+      mauCount: 0,
+    });
+  });
+});
+
+describe("Enterprise-Plan (0012)", () => {
+  it("tenant_plan akzeptiert 'enterprise' und der Plan-State rechnet mit Enterprise-Limits", async () => {
+    ctx.sqlite
+      .prepare(
+        `INSERT INTO tenant_plan (tenant_id, plan, updated_at) VALUES ('t_demo', 'enterprise', ?)`,
+      )
+      .run(NOW);
+    // Verbrauch weit über Scale (150k), aber unter Enterprise (1M) → active.
+    ctx.sqlite
+      .prepare(
+        `INSERT INTO tenant_usage (tenant_id, period, credits_used, updated_at)
+         VALUES ('t_demo', '2027-01', 200000, ?)`,
+      )
+      .run(NOW);
+
+    const state = await readPlanState(ctx.repo, "t_demo", NOW);
+    expect(state.plan.id).toBe("enterprise");
+    expect(state.status).toBe("active");
+  });
+});
+
+describe("countAiGenerationsSince (Besucher-Tagesdeckel)", () => {
+  it("zählt nur ai_generation des Besuchers im Fenster, tenant-scoped", async () => {
+    const insert = ctx.sqlite.prepare(
+      `INSERT INTO usage_events (id, tenant_id, type, credits, actor_type, visitor_id, user_id, article_id, created_at)
+       VALUES (?, ?, ?, 20, 'anon', ?, NULL, NULL, ?)`,
+    );
+    insert.run("g1", "t_demo", "ai_generation", "v-1", NOW - 60);
+    insert.run("g2", "t_demo", "ai_generation", "v-1", NOW - 120);
+    insert.run("g3", "t_demo", "ai_generation", "v-1", NOW - 2 * DAY); // zu alt
+    insert.run("g4", "t_demo", "ai_generation", "v-2", NOW - 60); // anderer Besucher
+    insert.run("g5", "t_acme", "ai_generation", "v-1", NOW - 60); // anderer Tenant
+    insert.run("g6", "t_demo", "article_view", "v-1", NOW - 60); // anderer Typ
+
+    expect(await ctx.repo.countAiGenerationsSince("t_demo", "v-1", NOW - DAY)).toBe(2);
   });
 });

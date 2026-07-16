@@ -14,6 +14,8 @@ import type { OwnerSetupResult } from "@/server/operator/onboarding";
 import type { TurnstileVerify } from "@/server/security/turnstile";
 import type { AskInput, AskOutcome } from "@/server/rag/ask";
 import type { CustomHostnameProvisioner } from "@/server/domains/provisioner";
+import type { VisitorIdCodec } from "@/server/security/visitor-id";
+import type { RateLimiters } from "./rate-limit";
 import type { DomainRepository } from "@/server/domains/store";
 import type { TxtChecker } from "@/server/domains/verify";
 import type { Tenant as OperatorTenant } from "@/lib/tenant/types";
@@ -106,6 +108,16 @@ export interface ApiDeps {
    * POST /ask antwortet 503 (Bindings fehlen). Tests injizieren Fakes.
    */
   getAskDeps?(): Promise<AskRuntime | null>;
+  /**
+   * IP-Rate-Limits (Abuse-Härtung): fehlend ⇒ fail-open (dev/Tests).
+   * Deployed aus den wrangler-`ratelimit`-Bindings (runtime-deps).
+   */
+  rateLimiters?: RateLimiters;
+  /**
+   * Signierte Besucher-IDs (Abuse-Härtung): fehlend ⇒ unsignierte IDs
+   * (nur dev ohne AUTH_SECRET — dort gibt es kein Billing).
+   */
+  visitorCodec?: VisitorIdCodec;
 }
 
 /** Pro Request aufgelöste Frage-Pipeline (Impl: runtime-deps auf rag/ask.ts). */

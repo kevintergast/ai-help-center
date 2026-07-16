@@ -65,6 +65,26 @@ binding = "AUTH_SECRET"
 store_id = "3a87edf96f654271b54858cfbc4c61fc"
 secret_name = "AUTH_SECRET"
 
+# IP-Rate-Limits (Workers Rate Limiting API; in-memory pro Colo, kostenlos).
+# Notbremse gegen automatisierte Flutung — Schichten & Werte: api/rate-limit.ts.
+[[unsafe.bindings]]
+name = "RL_ASK"
+type = "ratelimit"
+namespace_id = "1101"
+simple = { limit = 5, period = 60 }
+
+[[unsafe.bindings]]
+name = "RL_EVENTS"
+type = "ratelimit"
+namespace_id = "1102"
+simple = { limit = 60, period = 60 }
+
+[[unsafe.bindings]]
+name = "RL_SENSITIVE"
+type = "ratelimit"
+namespace_id = "1103"
+simple = { limit = 5, period = 60 }
+
 # Turnstile-Server-Secret (siteverify). Fehlt es: dev → Schutz aus, Prod →
 # fail-closed auf den geschützten Endpunkten (src/server/security/turnstile.ts).
 [[secrets_store_secrets]]
@@ -137,6 +157,24 @@ id = "f7ba0390e26c408ea72c4cca14d33856"
 
 [env.production.ai]
 binding = "AI"
+
+[[env.production.unsafe.bindings]]
+name = "RL_ASK"
+type = "ratelimit"
+namespace_id = "1101"
+simple = { limit = 5, period = 60 }
+
+[[env.production.unsafe.bindings]]
+name = "RL_EVENTS"
+type = "ratelimit"
+namespace_id = "1102"
+simple = { limit = 60, period = 60 }
+
+[[env.production.unsafe.bindings]]
+name = "RL_SENSITIVE"
+type = "ratelimit"
+namespace_id = "1103"
+simple = { limit = 5, period = 60 }
 
 [[env.production.queues.producers]]
 binding = "EMBED_QUEUE"

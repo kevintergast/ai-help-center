@@ -42,6 +42,25 @@ export interface NewHelpCenter {
   ownerEmail: string;
   /** Anzeigename des Owner-Kontos (aus dem Operator-Konto abgeleitet). */
   ownerName: string | null;
+  /**
+   * SAME-CREDENTIALS-KOMFORT (Entscheidung 2026-07-16, erweitert um Social):
+   * EINMALIGE Kopie der Operator-Anmeldemethoden ins neue Owner-Konto —
+   *  - Passwort-Hash (scrypt, key-unabhängig portabel),
+   *  - Social-VERKNÜPFUNGEN (nur providerId+accountId, KEINE Tokens: jeder
+   *    Login bleibt ein frischer OAuth-Roundtrip übers Gateway; better-auth
+   *    hinterlegt Tokens beim ersten Sign-in selbst),
+   *  - TOTP-Zeile (Ciphertext portabel, da better-auth global mit AUTH_SECRET
+   *    verschlüsselt) — unabhängig von der Login-Methode.
+   * Danach völlig unabhängige Konten (Änderungen gelten PRO Instanz);
+   * Sessions/Cookies bleiben strikt instanz-isoliert — es gibt weiterhin KEIN
+   * Cross-Instance-SSO (nur gleiche AnmeldeMETHODEN, getrennte Logins).
+   * `null` = keine kopierbare Anmeldemethode → Setup-Mail-Fallback.
+   */
+  ownerCredential: {
+    passwordHash: string | null;
+    socialAccounts: { providerId: string; accountId: string }[];
+    twoFactor: { secret: string; backupCodes: string } | null;
+  } | null;
 }
 
 /** Ergebnis von `createHelpCenter`. */
@@ -67,6 +86,18 @@ export interface OperatorRepository {
   createHelpCenter(input: NewHelpCenter): Promise<CreateResult>;
   /** Alle vom Operator-Konto provisionierten Hilfezentren (nur eigene). */
   listByOperator(operatorUserId: string): Promise<HelpCenterSummary[]>;
+  /** Anzahl provisionierter Hilfezentren (Abuse-Cap pro Konto, api/operator.ts). */
+  countByOperator(operatorUserId: string): Promise<number>;
+  /**
+   * Zugangsdaten-Vorlage des OPERATOR-Kontos (credential-Passwort-Hash + ggf.
+   * TOTP-Zeile) für die Same-Credentials-Kopie. Control-Plane-Lesezugriff auf
+   * t_operator — ausschließlich vom Provisioning genutzt, nie request-getrieben
+   * cross-tenant. `null` = kein Passwort-Credential (Social-only).
+   */
+  getOwnerCredentialTemplate(
+    tenantId: string,
+    userId: string,
+  ): Promise<NewHelpCenter["ownerCredential"]>;
 }
 
 interface TenantSlugRow {
@@ -93,6 +124,14 @@ export class D1OperatorRepository implements OperatorRepository {
     return row !== null;
   }
 
+  async countByOperator(operatorUserId: string): Promise<number> {
+    const row = await this.db
+      .prepare(`SELECT COUNT(*) AS n FROM operator_help_centers WHERE operator_user_id = ?`)
+      .bind(operatorUserId)
+      .first<{ n: number }>();
+    return row?.n ?? 0;
+  }
+
   async createHelpCenter(input: NewHelpCenter): Promise<CreateResult> {
     // (a) NEUER Kunden-Tenant. Slug ist UNIQUE — kollidiert er, wirft der Insert
     //     und die batch()-Transaktion rollt (b)+(c) mit zurück.
@@ -111,15 +150,18 @@ export class D1OperatorRepository implements OperatorRepository {
       );
 
     // (b) OWNER-KONTO IM NEUEN TENANT — role='owner', email_verified=1 (aus der
-    //     Operator-Verifikation abgeleitet), KEIN Passwort (keine credential;
-    //     Owner setzt es via Reset-Flow auf <slug>.hallofhelp.com). Der
-    //     Partial-Unique uq_user_tenant_owner erzwingt genau 1 Owner/Tenant.
+    //     Operator-Verifikation abgeleitet). Mit `ownerCredential` startet das
+    //     Konto mit den KOPIERTEN Operator-Zugangsdaten (Same-Credentials-
+    //     Komfort, s. NewHelpCenter) inkl. two_factor_enabled-Spiegelung; ohne
+    //     bleibt es passwortlos (Setup-Mail-Flow). Der Partial-Unique
+    //     uq_user_tenant_owner erzwingt genau 1 Owner/Tenant.
+    const twoFactorEnabled = input.ownerCredential?.twoFactor ? 1 : 0;
     const insertOwner = this.db
       .prepare(
-        `INSERT INTO auth_user (id, tenant_id, name, email, email_verified, role, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 1, 'owner', unixepoch(), unixepoch())`,
+        `INSERT INTO auth_user (id, tenant_id, name, email, email_verified, role, two_factor_enabled, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 1, 'owner', ?, unixepoch(), unixepoch())`,
       )
-      .bind(input.ownerUserId, input.tenantId, input.ownerName, input.ownerEmail);
+      .bind(input.ownerUserId, input.tenantId, input.ownerName, input.ownerEmail, twoFactorEnabled);
 
     // (c) CONTROL-PLANE-MAPPING (einzige erlaubte Cross-Tenant-Referenz).
     const insertMapping = this.db
@@ -128,8 +170,68 @@ export class D1OperatorRepository implements OperatorRepository {
       )
       .bind(input.operatorUserId, input.tenantId);
 
+    const statements = [insertTenant, insertOwner, insertMapping];
+
+    // (d) SAME-CREDENTIALS-KOPIE (optional), strikt im NEUEN Tenant — einmalige
+    //     Kopie, danach unabhängig:
+    //     - credential-Account (Passwort-Hash, account_id = user_id nach
+    //       better-auth-Konvention),
+    //     - Social-Verknüpfungen (providerId + accountId, Tokens NULL — werden
+    //       beim ersten echten Login vom Provider frisch hinterlegt),
+    //     - TOTP-Zeile (unabhängig von der Login-Methode).
+    if (input.ownerCredential) {
+      if (input.ownerCredential.passwordHash !== null) {
+        statements.push(
+          this.db
+            .prepare(
+              `INSERT INTO auth_account (id, tenant_id, user_id, account_id, provider_id, password, created_at, updated_at)
+               VALUES (?, ?, ?, ?, 'credential', ?, unixepoch(), unixepoch())`,
+            )
+            .bind(
+              crypto.randomUUID(),
+              input.tenantId,
+              input.ownerUserId,
+              input.ownerUserId,
+              input.ownerCredential.passwordHash,
+            ),
+        );
+      }
+      for (const social of input.ownerCredential.socialAccounts) {
+        statements.push(
+          this.db
+            .prepare(
+              `INSERT INTO auth_account (id, tenant_id, user_id, account_id, provider_id, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, unixepoch(), unixepoch())`,
+            )
+            .bind(
+              crypto.randomUUID(),
+              input.tenantId,
+              input.ownerUserId,
+              social.accountId,
+              social.providerId,
+            ),
+        );
+      }
+      if (input.ownerCredential.twoFactor) {
+        statements.push(
+          this.db
+            .prepare(
+              `INSERT INTO auth_two_factor (id, tenant_id, user_id, secret, backup_codes, created_at)
+               VALUES (?, ?, ?, ?, ?, unixepoch())`,
+            )
+            .bind(
+              crypto.randomUUID(),
+              input.tenantId,
+              input.ownerUserId,
+              input.ownerCredential.twoFactor.secret,
+              input.ownerCredential.twoFactor.backupCodes,
+            ),
+        );
+      }
+    }
+
     try {
-      await this.db.batch([insertTenant, insertOwner, insertMapping]);
+      await this.db.batch(statements);
       return "created";
     } catch (err) {
       // Einzige plausible UNIQUE-Kollision bei frischen Ids ist tenants.slug →
@@ -137,6 +239,48 @@ export class D1OperatorRepository implements OperatorRepository {
       if (err instanceof Error && /unique/i.test(err.message)) return "slug_taken";
       throw err;
     }
+  }
+
+  async getOwnerCredentialTemplate(
+    tenantId: string,
+    userId: string,
+  ): Promise<NewHelpCenter["ownerCredential"]> {
+    // ALLE Anmeldemethoden des Operator-Kontos: credential (mit Passwort) +
+    // Social-Verknüpfungen (google/microsoft/… = alles außer 'credential').
+    const accounts = await this.db
+      .prepare(
+        `SELECT provider_id, account_id, password FROM auth_account
+          WHERE tenant_id = ? AND user_id = ?`,
+      )
+      .bind(tenantId, userId)
+      .all<{ provider_id: string; account_id: string; password: string | null }>();
+
+    const credential = accounts.results.find(
+      (a) => a.provider_id === "credential" && a.password !== null,
+    );
+    const socialAccounts = accounts.results
+      .filter((a) => a.provider_id !== "credential")
+      .map((a) => ({ providerId: a.provider_id, accountId: a.account_id }));
+
+    // Ohne kopierbare LOGIN-Methode → Setup-Mail-Fallback (TOTP allein
+    // ermöglicht keinen Login).
+    if (!credential && socialAccounts.length === 0) return null;
+
+    const twoFactor = await this.db
+      .prepare(
+        `SELECT secret, backup_codes FROM auth_two_factor
+          WHERE tenant_id = ? AND user_id = ?`,
+      )
+      .bind(tenantId, userId)
+      .first<{ secret: string; backup_codes: string }>();
+
+    return {
+      passwordHash: credential?.password ?? null,
+      socialAccounts,
+      twoFactor: twoFactor
+        ? { secret: twoFactor.secret, backupCodes: twoFactor.backup_codes }
+        : null,
+    };
   }
 
   async listByOperator(operatorUserId: string): Promise<HelpCenterSummary[]> {

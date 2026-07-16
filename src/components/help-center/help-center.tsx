@@ -18,6 +18,7 @@ import {
 } from "@/lib/content/saved-articles";
 import { cn } from "@/lib/ui/cn";
 import { HelpShell } from "./help-shell";
+import { sendFeedback } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
 import { PromptBox } from "@/components/ui/prompt-box";
 import { AnswerBlock } from "@/components/ui/answer-block";
@@ -335,6 +336,7 @@ function AnswerView({
             no: t("hc.feedbackNo"),
             thanks: t("hc.feedbackThanks"),
           }}
+          onVote={(v) => sendFeedback(null, v === "up")}
         />
       </div>
     </div>

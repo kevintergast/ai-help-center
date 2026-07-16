@@ -131,10 +131,35 @@ const ARTICLES = [
     category: "Rechtliches",
     min: 1,
     body: [
-      "Als Owner hinterlegst du Rechtstexte wie Impressum oder Datenschutzerklärung — entweder als Link auf eine bestehende Seite oder direkt als Text (Markdown).",
+      "Als Owner hinterlegst du Rechtstexte wie Impressum oder Datenschutzerklärung — entweder als Link auf eine bestehende Seite oder direkt als Text (Markdown), auch per Datei-Upload.",
       "Die Texte sind öffentlich über feste Pfade erreichbar und werden je Hilfezentrum getrennt gespeichert.",
     ],
     related: ["rollen-und-rechte"],
+  },
+  {
+    slug: "ki-antworten",
+    title: "KI-Antworten: dynamische Hilfeartikel",
+    category: "Erste Schritte",
+    min: 2,
+    body: [
+      "Auf der Startseite deines Hilfezentrums können Nutzer der KI eine Frage stellen. Die Antwort wird live aus deinen veröffentlichten Artikeln zusammengestellt — als kompakter, dynamischer Hilfeartikel mit Quellenangaben zum Weiterlesen.",
+      "Die KI antwortet nur, wenn deine Artikel die Frage tatsächlich hergeben. Findet sie keine belastbare Grundlage, sagt sie das ehrlich, statt etwas zu erfinden — dann hilft es, die Frage anders zu formulieren oder den passenden Artikel zu ergänzen.",
+      "Nutzer können generierte Antworten auf ihrem Gerät speichern und später wieder öffnen. Beantwortet wird in der Sprache, in der die Frage gestellt wurde.",
+      "Neue oder geänderte Artikel stehen der KI kurz nach dem Veröffentlichen zur Verfügung — der Suchindex aktualisiert sich automatisch.",
+    ],
+    related: ["artikel-veroeffentlichen", "credits-und-limits"],
+  },
+  {
+    slug: "credits-und-limits",
+    title: "Credits & Limits",
+    category: "Plan & Credits",
+    min: 2,
+    body: [
+      "Die Nutzung deines Hilfezentrums wird in Credits gemessen: Ein Artikel-Aufruf durch Besucher kostet 1 Credit, eine KI-Antwort 20 Credits. Die Suche ist kostenlos, und Aufrufe durch dich und dein Team werden nie berechnet.",
+      "Jeder Plan enthält ein monatliches Credit-Kontingent und eine Obergrenze aktiver Nutzer. Beides setzt sich am Monatsanfang automatisch zurück. Deinen aktuellen Verbrauch siehst du jederzeit im Admin-Bereich unter »Plan & Credits«.",
+      "Erreichst du ein Limit, läuft dein Hilfezentrum zunächst 30 Tage normal weiter — du siehst einen Hinweis mit Countdown. Erst danach pausieren KI-Antworten und Inhalts-Änderungen, bis du upgradest. Deine Artikel bleiben dabei durchgehend öffentlich sichtbar; es wird nichts gelöscht.",
+    ],
+    related: ["ki-antworten"],
   },
 ];
 

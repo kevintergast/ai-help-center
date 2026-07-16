@@ -1,7 +1,9 @@
 import { Hono, type Context } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import type { UsageActorType } from "@/server/billing/store";
+import type { VisitorIdCodec } from "@/server/security/visitor-id";
 import type { ApiDeps, ApiEnv, GuardSessionData } from "./context";
+import { allowRequest, clientIp, rateLimited } from "./rate-limit";
 
 /**
  * NUTZUNGS-EVENTS (Infra-Plan Schritt 3) — öffentliche Ingestion.
@@ -36,12 +38,21 @@ export interface ResolvedActor {
 }
 
 /**
- * Besucher-/Akteur-Auflösung (geteilt von View-Beacon UND /ask). Session wird
- * NUR nachgeschlagen, wenn überhaupt ein better-auth-Session-Cookie mitkommt
- * (anonyme Mehrheit zahlt keinen Auth-Roundtrip). Fehler beim Lookup ⇒ anonym
- * (für Analytics unkritisch, es hängt kein Privileg daran).
+ * Besucher-/Akteur-Auflösung (geteilt von View-Beacon, Feedback UND /ask).
+ * Session wird NUR nachgeschlagen, wenn überhaupt ein better-auth-Session-
+ * Cookie mitkommt (anonyme Mehrheit zahlt keinen Auth-Roundtrip). Fehler beim
+ * Lookup ⇒ anonym (für Analytics unkritisch, es hängt kein Privileg daran).
+ *
+ * ABUSE-HÄRTUNG: Mit Codec sind Besucher-IDs HMAC-SIGNIERT (per Tenant).
+ * Erfundene/rotierte/fremde Cookies verifizieren nicht → gelten als neuer
+ * Besucher und bekommen eine frisch SIGNIERTE ID. Massen-Rotation läuft damit
+ * zwingend durch die rate-limitierten Endpunkte statt durch Cookie-Fantasie
+ * (MAU-/Dedup-Integrität, siehe security/visitor-id.ts).
  */
-export async function resolveActor(c: Context<ApiEnv>): Promise<ResolvedActor> {
+export async function resolveActor(
+  c: Context<ApiEnv>,
+  codec?: VisitorIdCodec,
+): Promise<ResolvedActor> {
   const cookieHeader = c.req.header("cookie") ?? "";
   if (cookieHeader.includes("session_token")) {
     try {
@@ -64,11 +75,20 @@ export async function resolveActor(c: Context<ApiEnv>): Promise<ResolvedActor> {
     }
   }
 
+  const tenantId = c.get("tenant").id;
   const existing = getCookie(c, VISITOR_COOKIE);
-  if (existing && /^[0-9a-f-]{36}$/.test(existing)) {
-    return { actorType: "anon", visitorId: existing, userId: null, setVisitorCookie: null };
+  if (existing) {
+    if (codec) {
+      const valid = await codec.verify(tenantId, existing);
+      if (valid) {
+        return { actorType: "anon", visitorId: valid, userId: null, setVisitorCookie: null };
+      }
+      // ungültig/gefälscht → unten frisch (signiert) vergeben
+    } else if (/^[0-9a-f-]{36}$/.test(existing)) {
+      return { actorType: "anon", visitorId: existing, userId: null, setVisitorCookie: null };
+    }
   }
-  const fresh = crypto.randomUUID();
+  const fresh = codec ? await codec.issue(tenantId) : crypto.randomUUID();
   return { actorType: "anon", visitorId: fresh, userId: null, setVisitorCookie: fresh };
 }
 
@@ -90,6 +110,12 @@ export function eventsPublicRouter(deps: ApiDeps) {
   r.post("/view", async (c) => {
     const done = () => c.body(null, 204);
 
+    // Notbremse gegen Beacon-Flutung (Credits-/MAU-Sabotage): 60/min/IP,
+    // tenant-präfixiert. Fail-open ohne Binding (dev/Tests).
+    if (!(await allowRequest(deps.rateLimiters?.events, `ev:${c.get("tenant").id}:${clientIp(c)}`))) {
+      return rateLimited(c);
+    }
+
     let slug: unknown;
     try {
       slug = ((await c.req.json()) as { slug?: unknown }).slug;
@@ -101,12 +127,55 @@ export function eventsPublicRouter(deps: ApiDeps) {
     const billing = await deps.getBillingDeps?.();
     if (!billing) return done();
 
-    const actor = await resolveActor(c);
+    const actor = await resolveActor(c, deps.visitorCodec);
     applyVisitorCookie(c, actor);
 
     await billing.repo.recordView({
       tenantId: c.get("tenant").id,
       slug,
+      actorType: actor.actorType,
+      visitorId: actor.visitorId,
+      userId: actor.userId,
+      nowSec: Math.floor(Date.now() / 1000),
+    });
+    return done();
+  });
+
+  /**
+   * POST /events/feedback {slug?, helpful}: „War das hilfreich?" — zu Artikeln
+   * (slug) UND KI-Antworten (ohne slug). 0 Credits, kein MAU; 24h-Dedup pro
+   * Besucher+Ziel+Richtung im Store. Gleiche fire-and-forget-Semantik wie
+   * /view (kein Existenz-Orakel).
+   */
+  r.post("/feedback", async (c) => {
+    const done = () => c.body(null, 204);
+
+    if (!(await allowRequest(deps.rateLimiters?.events, `ev:${c.get("tenant").id}:${clientIp(c)}`))) {
+      return rateLimited(c);
+    }
+
+    let body: { slug?: unknown; helpful?: unknown };
+    try {
+      body = (await c.req.json()) as { slug?: unknown; helpful?: unknown };
+    } catch {
+      return done();
+    }
+    if (typeof body.helpful !== "boolean") return done();
+    const slug =
+      typeof body.slug === "string" && body.slug.length > 0 && body.slug.length <= 200
+        ? body.slug
+        : null;
+
+    const billing = await deps.getBillingDeps?.();
+    if (!billing) return done();
+
+    const actor = await resolveActor(c, deps.visitorCodec);
+    applyVisitorCookie(c, actor);
+
+    await billing.repo.recordFeedback({
+      tenantId: c.get("tenant").id,
+      slug,
+      helpful: body.helpful,
       actorType: actor.actorType,
       visitorId: actor.visitorId,
       userId: actor.userId,

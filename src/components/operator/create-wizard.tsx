@@ -13,6 +13,8 @@ export interface CreatedHelpCenter {
   slug: string;
   name: string;
   helpCenterUrl: string;
+  /** Owner-Zugang: Zugangsdaten kopiert (Normalfall) oder Setup-Mail (Social-only). */
+  ownerAccess?: "same_credentials" | "setup_mail";
   ownerSetupDevLink?: string;
 }
 
@@ -132,7 +134,13 @@ export function CreateWizard({
       setError(
         data?.error === "captcha_required" || data?.error === "captcha_failed"
           ? t("security.captchaFailed")
-          : t("operator.wizard.error"),
+          : data?.error === "slug_taken"
+            ? t("operator.wizard.slugTaken")
+            : data?.error === "help_center_limit_reached"
+              ? t("operator.wizard.limitReached")
+              : data?.error === "rate_limited"
+                ? t("security.rateLimited")
+                : t("operator.wizard.error"),
       );
     } catch {
       setError(t("operator.wizard.error"));

@@ -11,17 +11,49 @@
  * Overage-Betrag), noch KEINE Zahlungen/Zahlungsmethoden.
  */
 
-/** Verbrauchsarten. `search` ist bewusst 0 (Suche bleibt immer frei). */
+/**
+ * Verbrauchsarten. `search` ist bewusst 0 (Suche bleibt immer frei);
+ * Feedback ist 0 (niemand zahlt dafür, uns Feedback zu geben) — die Richtung
+ * steckt im Typ (hilfreich/nicht), damit die Hilfreich-Quote ohne
+ * Schemaänderung aus `usage_events` aggregierbar ist.
+ */
 export const CREDIT_COSTS = {
   article_view: 1,
   ai_generation: 20,
   ai_regeneration: 20,
   search: 0,
+  feedback_helpful: 0,
+  feedback_unhelpful: 0,
 } as const;
 
 export type UsageEventType = keyof typeof CREDIT_COSTS;
 
-export type PlanId = "free" | "starter" | "scale";
+/** Akteurs-Klasse eines Usage-Events (Quelle der Wahrheit; store.ts re-exportiert). */
+export type UsageActorType = "anon" | "user" | "internal";
+
+/**
+ * Interner Selbstkosten-Satz für KI-Generierungen (Entscheidung 2026-07-16):
+ * Team-Nutzung ist grundsätzlich kostenlos (eigene Inhalte pflegen kostet
+ * nichts) — AUSSER KI-Generierungen, die reale Inferenz-Kosten auslösen. Die
+ * zählen zum reduzierten „at cost"-Satz (~Selbstkosten AI+Embedding+Infra,
+ * grob „Nullnummer" für den Betreiber), damit Vielnutzung durchs eigene Team
+ * sichtbar bleibt und nicht unbepreist untergeht.
+ */
+export const INTERNAL_AI_GENERATION_CREDITS = 5;
+
+/**
+ * Credit-Kosten eines Events nach Akteurs-Klasse — DIE zentrale Preisregel:
+ * anonyme/eingeloggte Endnutzer zahlen die Listenpreise; interne (Team-)
+ * Aufrufe sind frei bis auf KI-Generierungen (Selbstkosten-Satz, s. o.).
+ */
+export function creditsFor(type: UsageEventType, actorType: UsageActorType): number {
+  if (actorType !== "internal") return CREDIT_COSTS[type];
+  return type === "ai_generation" || type === "ai_regeneration"
+    ? INTERNAL_AI_GENERATION_CREDITS
+    : 0;
+}
+
+export type PlanId = "free" | "starter" | "scale" | "enterprise";
 
 export interface PlanDef {
   id: PlanId;
@@ -37,6 +69,13 @@ export interface PlanDef {
    * läuft in over_limit→Grace→Freeze statt in metered Abrechnung.
    */
   overagePackCents: number | null;
+  /**
+   * Enterprise: kein Self-Service-Preis — Konditionen individuell über den
+   * Vertrieb (UI zeigt Kontakt-CTA statt Preis). Die hinterlegten Zahlen sind
+   * großzügige Arbeits-Limits für Enterprise-Instanzen (z. B. t_operator),
+   * KEINE öffentlichen Preise.
+   */
+  contactSales?: true;
 }
 
 /** Credits pro Overage-Paket (plan-übergreifend gleich, nur der Preis variiert). */
@@ -46,10 +85,18 @@ export const PLANS: Record<PlanId, PlanDef> = {
   free: { id: "free", baseFeeCents: 0, includedCredits: 1_000, mauLimit: 500, overagePackCents: null },
   starter: { id: "starter", baseFeeCents: 4_900, includedCredits: 25_000, mauLimit: 5_000, overagePackCents: 400 },
   scale: { id: "scale", baseFeeCents: 19_900, includedCredits: 150_000, mauLimit: 25_000, overagePackCents: 250 },
+  enterprise: {
+    id: "enterprise",
+    baseFeeCents: 0,
+    includedCredits: 1_000_000,
+    mauLimit: 100_000,
+    overagePackCents: 150,
+    contactSales: true,
+  },
 };
 
 /** Reihenfolge für Plan-Listen im UI (aufsteigend). */
-export const PLAN_ORDER: readonly PlanId[] = ["free", "starter", "scale"];
+export const PLAN_ORDER: readonly PlanId[] = ["free", "starter", "scale", "enterprise"];
 
 export interface OverageResult {
   /** Credits über dem Inklusiv-Kontingent (0, wenn im Limit). */
