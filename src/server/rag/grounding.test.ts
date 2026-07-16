@@ -10,8 +10,8 @@ import { buildAskMessages, splitAnswerParagraphs } from "./generate";
  *  - Modell-Markdown-Reste landen roh in der UI.
  */
 
-const m = (articleId: string, chunkIndex: number, score: number) => ({
-  articleId,
+const m = (docId: string, chunkIndex: number, score: number) => ({
+  docId,
   chunkIndex,
   score,
 });

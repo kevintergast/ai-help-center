@@ -15,6 +15,7 @@ const row = {
   color_primary: "#111111",
   color_accent: "#222222",
   color_primary_fg: "#ffffff",
+  seo_indexable: 1,
 };
 
 describe("rowToTenant", () => {
@@ -85,6 +86,7 @@ describe("D1TenantRepository", () => {
       "0002_auth.sql",
       "0003_branding.sql",
       "0004_two_factor_plugin_columns.sql",
+      "0013_seo_indexable.sql",
     ]);
     db.prepare(
       "INSERT INTO tenants (id, slug, name, custom_domain) VALUES ('t_c', 'corp', 'Corp', 'help.corp.example')",

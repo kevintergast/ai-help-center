@@ -274,12 +274,23 @@ export const de = {
   "admin.legal.error.tooLarge": "Der Text ist zu groß (max. 100 KB).",
 
   // Such-/KI-Index (Einstellungen)
+  "admin.settings.seo.title": "Suchmaschinen",
+  "admin.settings.seo.label": "Suchmaschinen-Indexierung erlauben",
+  "admin.settings.seo.hint":
+    "Aus = dieses Hilfezentrum wird nicht von Google & Co. gelistet (noindex, keine Sitemap). Für interne Dokumentation gedacht — öffentliche Hilfezentren sollten indexierbar bleiben.",
+  "admin.settings.seo.saving": "Wird gespeichert …",
+  "admin.settings.seo.savedOn": "Gespeichert — Suchmaschinen dürfen indexieren.",
+  "admin.settings.seo.savedOff":
+    "Gespeichert — Indexierung aus. Bereits gelistete Seiten verschwinden nach dem nächsten Crawl.",
+  "admin.settings.seo.ownerOnly": "Nur der Owner der Instanz kann diese Einstellung ändern.",
+  "admin.settings.seo.error": "Speichern fehlgeschlagen — bitte erneut versuchen.",
+
   "admin.searchIndex.title": "KI- & Such-Index",
   "admin.searchIndex.intro":
     "Der Index versorgt die KI-Antworten und hält sich beim Veröffentlichen automatisch aktuell. Neu aufbauen brauchst du ihn nur einmal zum Start — oder falls Antworten auffällig ins Leere laufen. Frisch indexierte Artikel sind nach wenigen Sekunden abfragbar.",
   "admin.searchIndex.rebuild": "Index neu aufbauen",
   "admin.searchIndex.running": "Baut auf …",
-  "admin.searchIndex.done": "Fertig: {articles} Artikel geprüft, {embedded} Abschnitte neu indexiert.",
+  "admin.searchIndex.done": "Fertig: {articles} Artikel + {extras} Roadmap/Changelog-Einträge geprüft, {embedded} Abschnitte neu indexiert.",
   "admin.searchIndex.ownerOnly": "Nur der Owner dieser Instanz kann den Index neu aufbauen.",
   "admin.searchIndex.error": "Neuaufbau fehlgeschlagen — bitte später erneut versuchen.",
   "admin.settings.branding": "Branding",

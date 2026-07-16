@@ -5,9 +5,12 @@
  * Funktionen, vollständig getestet.
  */
 
-/** Ein Vectorize-Treffer nach Metadaten-Mapping (Text kommt später aus D1). */
+/**
+ * Ein Vectorize-Treffer nach Metadaten-Mapping (Text kommt später aus D1).
+ * `docId` = Artikel-Id ODER Pseudo-Id (`rm:`/`cl:`, Roadmap/Changelog).
+ */
 export interface RetrievalMatch {
-  articleId: string;
+  docId: string;
   chunkIndex: number;
   /** Cosine-Ähnlichkeit (bge-m3, 0..1). */
   score: number;
@@ -49,7 +52,7 @@ export function assessGrounding(
     .filter((m) => m.score >= minScore)
     .sort((a, b) => b.score - a.score)
     .filter((m) => {
-      const key = `${m.articleId}:${m.chunkIndex}`;
+      const key = `${m.docId}:${m.chunkIndex}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;

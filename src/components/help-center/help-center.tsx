@@ -238,13 +238,16 @@ function BackButton({ t, onBack }: { t: T; onBack: () => void }) {
 function ArticleMiniList({
   heading,
   items,
+  extras = [],
   onOpen,
 }: {
   heading: ReactNode;
   items: ArticleSummary[];
+  /** Nicht-klickbare Zusatz-Quellen (Roadmap/Changelog) mit Art-Label rechts. */
+  extras?: { id: string; title: string; kindLabel: string }[];
   onOpen: (id: string) => void;
 }) {
-  if (items.length === 0) return null;
+  if (items.length === 0 && extras.length === 0) return null;
   return (
     <section className="mt-10">
       <h2 className="mb-3 text-sm uppercase tracking-[0.08em] text-ink-muted">{heading}</h2>
@@ -259,6 +262,15 @@ function ArticleMiniList({
               <span className="flex-1 text-sm font-medium text-ink">{a.title}</span>
               <span className="text-xs text-ink-muted">{a.category}</span>
             </button>
+          </li>
+        ))}
+        {extras.map((x) => (
+          <li key={x.id}>
+            <div className="flex w-full items-center gap-3 rounded-comfy border border-hairline bg-surface px-4 py-3 text-left">
+              <DocIcon width={16} height={16} className="shrink-0 text-ink-muted" />
+              <span className="flex-1 text-sm font-medium text-ink">{x.title}</span>
+              <span className="text-xs text-ink-muted">{x.kindLabel}</span>
+            </div>
           </li>
         ))}
       </ul>
@@ -279,9 +291,19 @@ function AnswerView({
   onOpen: (id: string) => void;
   onBack: () => void;
 }) {
+  // Artikel-Zitate sind klickbar (öffnen den Artikel); Roadmap-/Changelog-
+  // Zitate werden gekennzeichnet gelistet (keine eigenen Seiten).
   const sources = answer.citations
+    .filter((c) => (c.kind ?? "article") === "article")
     .map((c) => getArticle(c.id))
     .filter((a): a is NonNullable<typeof a> => a !== null);
+  const auxSources = answer.citations
+    .filter((c) => c.kind === "roadmap" || c.kind === "changelog")
+    .map((c) => ({
+      id: c.id,
+      title: c.title,
+      kindLabel: c.kind === "roadmap" ? t("hc.roadmap") : t("hc.changelog"),
+    }));
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -327,7 +349,12 @@ function AnswerView({
           {t("hc.savedAccountCta")}
         </Link>
       </p>
-      <ArticleMiniList heading={t("hc.sourcesHeading")} items={sources} onOpen={onOpen} />
+      <ArticleMiniList
+        heading={t("hc.sourcesHeading")}
+        items={sources}
+        extras={auxSources}
+        onOpen={onOpen}
+      />
       <div className="mt-8">
         <FeedbackBar
           labels={{

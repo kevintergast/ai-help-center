@@ -19,6 +19,8 @@ import { D1DomainRepository } from "@/server/domains/store";
 import { makeTxtChecker } from "@/server/domains/verify";
 import { AI_GATEWAY_ID, GENERATION_MODEL, makeWorkersAiEmbeddings } from "@/server/ai/models";
 import { answerQuestion, type AskPipelineDeps } from "@/server/rag/ask";
+import { changelogDoc, parseDocId, roadmapDoc } from "@/server/search/aux-docs";
+import type { SourceKind } from "@/server/search/indexer";
 import { rebuildTenantIndex, syncArticleIndex, toIndexable } from "@/server/search/sync";
 import {
   makeTurnstileVerify,
@@ -35,6 +37,7 @@ import type {
   ContentIndexer,
   DomainDeps,
   OperatorDeps,
+  SettingsDeps,
   TeamDeps,
 } from "./context";
 import type { RateLimiterBinding, RateLimiters } from "./rate-limit";
@@ -301,26 +304,69 @@ async function getAskDepsRuntime(): Promise<AskRuntime | null> {
         returnMetadata: "all",
       });
       return res.matches
-        .map((m) => ({
-          articleId: String((m.metadata as Record<string, unknown> | undefined)?.articleId ?? ""),
-          chunkIndex: Number(
-            (m.metadata as Record<string, unknown> | undefined)?.chunkIndex ?? -1,
-          ),
-          score: m.score,
-        }))
-        .filter((m) => m.articleId.length > 0 && Number.isInteger(m.chunkIndex) && m.chunkIndex >= 0);
+        .map((m) => {
+          const meta = m.metadata as Record<string, unknown> | undefined;
+          const kind = meta?.kind;
+          return {
+            docId: String(meta?.articleId ?? ""),
+            // Bestands-Vektoren (vor aux-Quellen) tragen kein kind → article.
+            kind: (kind === "roadmap" || kind === "changelog" ? kind : "article") as SourceKind,
+            chunkIndex: Number(meta?.chunkIndex ?? -1),
+            score: m.score,
+          };
+        })
+        .filter((m) => m.docId.length > 0 && Number.isInteger(m.chunkIndex) && m.chunkIndex >= 0);
     },
-    loadPublishedArticles: async (tenantId, ids) => {
-      if (ids.length === 0) return [];
-      const placeholders = ids.map(() => "?").join(",");
-      const rows = await db
-        .prepare(
-          `SELECT id, slug, title, body_json FROM articles
-            WHERE tenant_id = ? AND status = 'published' AND id IN (${placeholders})`,
-        )
-        .bind(tenantId, ...ids)
-        .all<{ id: string; slug: string; title: string; body_json: string }>();
-      return rows.results.map(toIndexable);
+    loadSources: async (tenantId, hits) => {
+      // Nach Quellen-Art aufteilen; Pseudo-Ids tragen ihr Präfix (`rm:`/`cl:`).
+      const articleIds = [...new Set(hits.filter((h) => h.kind === "article").map((h) => h.docId))];
+      const roadmapIds = [
+        ...new Set(
+          hits.filter((h) => h.kind === "roadmap").map((h) => parseDocId(h.docId).rawId),
+        ),
+      ];
+      const changelogIds = [
+        ...new Set(
+          hits.filter((h) => h.kind === "changelog").map((h) => parseDocId(h.docId).rawId),
+        ),
+      ];
+
+      const inList = (n: number) => Array.from({ length: n }, () => "?").join(",");
+      const [articles, roadmap, changelog] = await Promise.all([
+        articleIds.length > 0
+          ? db
+              .prepare(
+                `SELECT id, slug, title, body_json FROM articles
+                  WHERE tenant_id = ? AND status = 'published' AND id IN (${inList(articleIds.length)})`,
+              )
+              .bind(tenantId, ...articleIds)
+              .all<{ id: string; slug: string; title: string; body_json: string }>()
+          : Promise.resolve({ results: [] as { id: string; slug: string; title: string; body_json: string }[] }),
+        roadmapIds.length > 0
+          ? db
+              .prepare(
+                `SELECT id, title, status FROM roadmap_items
+                  WHERE tenant_id = ? AND id IN (${inList(roadmapIds.length)})`,
+              )
+              .bind(tenantId, ...roadmapIds)
+              .all<{ id: string; title: string; status: string }>()
+          : Promise.resolve({ results: [] as { id: string; title: string; status: string }[] }),
+        changelogIds.length > 0
+          ? db
+              .prepare(
+                `SELECT id, title, description FROM changelog_entries
+                  WHERE tenant_id = ? AND id IN (${inList(changelogIds.length)})`,
+              )
+              .bind(tenantId, ...changelogIds)
+              .all<{ id: string; title: string; description: string }>()
+          : Promise.resolve({ results: [] as { id: string; title: string; description: string }[] }),
+      ]);
+
+      return [
+        ...articles.results.map((r) => ({ ...toIndexable(r), kind: "article" as const })),
+        ...roadmap.results.map((r) => ({ ...roadmapDoc(r), kind: "roadmap" as const })),
+        ...changelog.results.map((r) => ({ ...changelogDoc(r), kind: "changelog" as const })),
+      ];
     },
     generate: async (messages) => {
       const res = (await env.AI.run(
@@ -354,6 +400,14 @@ async function verifyTurnstileRuntime(
   const env = (await getEnvSafe()) ?? {};
   const verify = makeTurnstileVerify(await turnstileConfigFromEnv(env));
   return verify(token, remoteIp);
+}
+
+/** Instanz-Einstellungen (SEO-Opt-out) — D1TenantRepository, tenant-scoped Update. */
+async function getSettingsDepsRuntime(): Promise<SettingsDeps | null> {
+  const db = await getDbSafe();
+  if (!db) return null;
+  const repo = new D1TenantRepository(db);
+  return { setSeoIndexable: (tenantId, indexable) => repo.setSeoIndexable(tenantId, indexable) };
 }
 
 /**
@@ -422,6 +476,7 @@ export const runtimeDeps: ApiDeps = {
   getDomainDeps: getDomainDepsRuntime,
   getContentIndexer: getContentIndexerRuntime,
   getAskDeps: getAskDepsRuntime,
+  getSettingsDeps: getSettingsDepsRuntime,
   rateLimiters: rateLimitersRuntime,
   visitorCodec: visitorCodecRuntime,
 };

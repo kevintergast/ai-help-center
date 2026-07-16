@@ -1,5 +1,5 @@
 import type { EmbeddingClient } from "@/server/ai/models";
-import { buildChunks } from "./chunking";
+import { buildChunks, sha256Hex } from "./chunking";
 
 /**
  * ARTIKEL-INDEXER (Infra-Plan Schritt 6): hält Vectorize synchron zum
@@ -10,9 +10,9 @@ import { buildChunks } from "./chunking";
  * GEÄNDERTEM content_hash neu embedded (ein AI-Aufruf für alle geänderten
  * Chunks zusammen). Unveränderte Artikel kosten beim Re-Publish 0 Neuronen.
  *
- * ISOLATION: Vektor-IDs sind `${tenantId}:${articleId}:${chunkIndex}`, jeder
- * Vektor trägt den Tenant als Vectorize-NAMESPACE (harte Query-Grenze) UND in
- * den Metadaten (Belt-and-Suspenders fürs spätere Retrieval-Filter).
+ * ISOLATION: Vektor-IDs sind sha256(tenant:doc:chunk) (s. vectorIdFor — 64-
+ * Byte-Limit!), jeder Vektor trägt den Tenant als Vectorize-NAMESPACE (harte
+ * Query-Grenze) UND in den Metadaten (Belt-and-Suspenders fürs Retrieval).
  *
  * AUSFÜHRUNG: heute direkt (per waitUntil aus der Route, s. runtime-deps) —
  * die Queue-Variante (Workers Paid) ersetzt später NUR den Aufrufweg, nicht
@@ -38,11 +38,17 @@ export interface IndexerDeps {
   embeddings: EmbeddingClient;
 }
 
+/** Quellen-Art im Index: Artikel + Roadmap/Changelog (Pseudo-Dokumente). */
+export type SourceKind = "article" | "roadmap" | "changelog";
+
 export interface IndexableArticle {
+  /** Artikel-Id bzw. Pseudo-Id (`rm:<id>` / `cl:<id>`, s. aux-docs.ts). */
   id: string;
   slug: string;
   title: string;
   body: string[];
+  /** Fehlt = "article" (Bestands-Vektoren tragen kein kind-Feld). */
+  kind?: SourceKind;
 }
 
 export interface IndexResult {
@@ -52,8 +58,22 @@ export interface IndexResult {
   deleted: number;
 }
 
-const vectorId = (tenantId: string, articleId: string, index: number) =>
-  `${tenantId}:${articleId}:${index}`;
+/**
+ * Vektor-Id: sha256-Hex über (tenant, doc, chunk) = EXAKT 64 Bytes —
+ * Vectorizes Id-Limit ist 64 Bytes, und Klartext-Ids (`t_<uuid>:art_<uuid>:n`
+ * = 81 Bytes) rissen es bei Self-Service-Tenants (VECTOR_UPSERT_ERROR 40008;
+ * Indexierung war dort still kaputt). Die Id ist opak — Retrieval läuft über
+ * Metadaten, Lösch-/Update-Pfade über die in search_chunks GESPEICHERTE
+ * vector_id; Alt-Ids (Kurz-Schema) bleiben deshalb gültig und werden beim
+ * nächsten Inhalts-Update über den Id-Wechsel-Diff abgeräumt.
+ */
+export async function vectorIdFor(
+  tenantId: string,
+  docId: string,
+  index: number,
+): Promise<string> {
+  return sha256Hex(`${tenantId}:${docId}:${index}`);
+}
 
 interface ChunkRow {
   chunk_index: number;
@@ -80,11 +100,13 @@ export class ArticleIndexer {
 
     // Nur geänderte/neue Chunks embedden (EIN Batch-Aufruf).
     const changed = chunks.filter((c) => byIndex.get(c.index)?.content_hash !== c.hash);
+    const idOf = new Map<number, string>();
+    for (const c of changed) idOf.set(c.index, await vectorIdFor(tenantId, article.id, c.index));
     if (changed.length > 0) {
       const embedded = await embeddings.embed(changed.map((c) => c.text));
       await vectors.upsert(
         changed.map((c, i) => ({
-          id: vectorId(tenantId, article.id, c.index),
+          id: idOf.get(c.index)!,
           values: embedded[i],
           namespace: tenantId,
           metadata: {
@@ -94,9 +116,18 @@ export class ArticleIndexer {
             contentHash: c.hash,
             slug: article.slug,
             title: article.title,
+            kind: article.kind ?? "article",
           },
         })),
       );
+      // Id-SCHEMA-Wechsel (Klartext → Hash): trug der Chunk vorher eine ANDERE
+      // vector_id, den Alt-Vektor gezielt löschen (sonst bliebe ein Duplikat).
+      const replaced = changed
+        .map((c) => byIndex.get(c.index))
+        .filter((row): row is ChunkRow => row !== undefined)
+        .filter((row) => row.vector_id !== idOf.get(row.chunk_index))
+        .map((row) => row.vector_id);
+      if (replaced.length > 0) await vectors.deleteByIds(replaced);
     }
 
     // Verwaiste Vektoren (Artikel wurde kürzer) gezielt löschen.
@@ -118,7 +149,7 @@ export class ArticleIndexer {
                            vector_id    = excluded.vector_id,
                            updated_at   = excluded.updated_at`,
           )
-          .bind(tenantId, article.id, c.index, c.hash, vectorId(tenantId, article.id, c.index), nowSec),
+          .bind(tenantId, article.id, c.index, c.hash, idOf.get(c.index)!, nowSec),
       ),
     ];
     await db.batch(statements);

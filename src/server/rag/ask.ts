@@ -1,6 +1,7 @@
 import type { AskAnswer, SourceRef } from "@/lib/content/types";
 import { readPlanState, type BillingRepository, type UsageActorType } from "@/server/billing/store";
 import { buildChunks } from "@/server/search/chunking";
+import type { SourceKind } from "@/server/search/indexer";
 import { buildAskMessages, splitAnswerParagraphs, type ChatMessage } from "./generate";
 import { assessGrounding, type RetrievalMatch } from "./grounding";
 
@@ -25,13 +26,17 @@ import { assessGrounding, type RetrievalMatch } from "./grounding";
  */
 
 export interface VectorHit {
-  articleId: string;
+  /** Artikel-Id oder Pseudo-Id (`rm:`/`cl:` — Roadmap/Changelog). */
+  docId: string;
+  kind: SourceKind;
   chunkIndex: number;
   score: number;
 }
 
-export interface PublishedArticle {
+/** Ladbares Quell-Dokument (Artikel ODER Roadmap-/Changelog-Pseudo-Dokument). */
+export interface SourceDoc {
   id: string;
+  kind: SourceKind;
   slug: string;
   title: string;
   body: string[];
@@ -48,8 +53,12 @@ export interface AskPipelineDeps {
   embed(text: string): Promise<number[]>;
   /** Vectorize-Query im TENANT-Namespace (Belt-and-Suspenders zur Metadaten-Filterung). */
   queryVectors(tenantId: string, vector: number[]): Promise<VectorHit[]>;
-  /** NUR veröffentlichte Artikel (Draft-Leak-Schutz liegt in dieser Query). */
-  loadPublishedArticles(tenantId: string, ids: string[]): Promise<PublishedArticle[]>;
+  /**
+   * Quell-Dokumente zu Treffern laden — Artikel NUR veröffentlicht (Draft-
+   * Leak-Schutz liegt in dieser Query); Roadmap/Changelog über die geteilten
+   * aux-docs-Builder (Hash-Konsistenz zur Indexierung).
+   */
+  loadSources(tenantId: string, hits: VectorHit[]): Promise<SourceDoc[]>;
   /** Chat-Generierung (llama via Gateway); wirft bei Modellfehlern. */
   generate(messages: ChatMessage[]): Promise<string>;
   /** Metering (null = keine D1-Bindings, dev → nichts verbuchen, nie gaten). */
@@ -109,51 +118,60 @@ export async function answerQuestion(deps: AskPipelineDeps, input: AskInput): Pr
     const top = [...hits].sort((a, b) => b.score - a.score).slice(0, 3);
     console.log(
       `[ask] not-grounded tenant=${input.tenantId} qlen=${input.question.length} top=[${top
-        .map((h) => `${h.articleId}#${h.chunkIndex}:${h.score.toFixed(3)}`)
+        .map((h) => `${h.docId}#${h.chunkIndex}:${h.score.toFixed(3)}`)
         .join(", ")}]`,
     );
     return { status: "ok", answer: noAnswer };
   }
 
-  // 3) Kontext aus den AKTUELL veröffentlichten Artikeln rekonstruieren.
-  const articleIds = [...new Set(grounding.selected.map((m) => m.articleId))];
-  const articles = new Map(
-    (await deps.loadPublishedArticles(input.tenantId, articleIds)).map((a) => [a.id, a]),
+  // 3) Kontext aus den AKTUELLEN Quellen rekonstruieren (Artikel: nur
+  //    veröffentlicht; Roadmap/Changelog: aktueller Datenstand). `kind` kommt
+  //    aus den Roh-Treffern (Grounding kennt nur docId+Score).
+  const kindByDoc = new Map(hits.map((h) => [h.docId, h.kind]));
+  const selectedHits: VectorHit[] = grounding.selected.map((m) => ({
+    docId: m.docId,
+    kind: kindByDoc.get(m.docId) ?? "article",
+    chunkIndex: m.chunkIndex,
+    score: m.score,
+  }));
+  const docs = new Map(
+    (await deps.loadSources(input.tenantId, selectedHits)).map((d) => [d.id, d]),
   );
 
-  const context: { match: RetrievalMatch; article: PublishedArticle; text: string; hash: string }[] =
-    [];
+  const context: { match: RetrievalMatch; doc: SourceDoc; text: string; hash: string }[] = [];
   for (const match of grounding.selected) {
-    const article = articles.get(match.articleId);
-    if (!article) continue; // nicht (mehr) veröffentlicht → Quelle entfällt
-    const chunks = await buildChunks(article);
+    const doc = docs.get(match.docId);
+    if (!doc) continue; // nicht (mehr) vorhanden/veröffentlicht → Quelle entfällt
+    const chunks = await buildChunks(doc);
     const chunk = chunks[match.chunkIndex];
-    if (!chunk) continue; // Artikel wurde kürzer als der indexierte Stand
-    context.push({ match, article, text: chunk.text, hash: chunk.hash });
+    if (!chunk) continue; // Quelle wurde kürzer als der indexierte Stand
+    context.push({ match, doc, text: chunk.text, hash: chunk.hash });
   }
   if (context.length === 0) return { status: "ok", answer: noAnswer };
 
   // 4) Generierung.
   const messages = buildAskMessages(
     input.question,
-    context.map((c, i) => ({ index: i + 1, articleTitle: c.article.title, text: c.text })),
+    context.map((c, i) => ({ index: i + 1, articleTitle: c.doc.title, text: c.text })),
   );
   const body = splitAnswerParagraphs(await deps.generate(messages));
   if (body.length === 0) return { status: "ok", answer: noAnswer };
 
-  // 5) Zitate (je Artikel einmal, in Treffer-Reihenfolge) + Staleness-Referenzen.
+  // 5) Zitate (je Quelle einmal, in Treffer-Reihenfolge; kind steuert die
+  //    Darstellung im Client) + Staleness-Referenzen.
   const citations: AskAnswer["citations"] = [];
   const cited = new Set<string>();
   const sourceRefs: SourceRef[] = [];
   for (const c of context) {
-    if (!cited.has(c.article.id)) {
-      cited.add(c.article.id);
-      citations.push({ id: c.article.id, title: c.article.title });
+    if (!cited.has(c.doc.id)) {
+      cited.add(c.doc.id);
+      citations.push({ id: c.doc.id, title: c.doc.title, kind: c.doc.kind });
     }
     sourceRefs.push({
-      articleId: c.article.id,
+      articleId: c.doc.id,
       chunkIndex: c.match.chunkIndex,
       contentHash: c.hash,
+      kind: c.doc.kind,
     });
   }
 

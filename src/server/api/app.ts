@@ -19,6 +19,7 @@ import type { ApiDeps, ApiEnv, AuthInstance, GuardSessionData } from "./context"
 import { domainAdminRouter } from "./domain";
 import { eventsPublicRouter } from "./events";
 import { legalAdminRouter, legalPublicRouter } from "./legal";
+import { settingsAdminRouter } from "./settings";
 import { operatorRouter } from "./operator";
 import { isPublicPath } from "./public-routes";
 import { runtimeDeps } from "./runtime-deps";
@@ -208,6 +209,9 @@ export function buildApiApp(deps: ApiDeps) {
   // Sicherheitsentscheidungen (owner vs admin, XSS): ./legal.ts
   app.route("/admin/legal", legalAdminRouter(deps));
   app.route("/legal", legalPublicRouter(deps));
+
+  // Instanz-Einstellungen (owner-only, aktuell SEO-Opt-out).
+  app.route("/admin/settings", settingsAdminRouter(deps));
 
   // Team-Verwaltung (Phase D): Einladungen + Ownership-Transfer + Audit.
   // /invitations/accept ist BEWUSST nicht public (Session-Pflicht via
