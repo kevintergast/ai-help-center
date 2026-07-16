@@ -275,12 +275,23 @@ export const en: Record<MessageKey, string> = {
   "admin.legal.error.tooLarge": "The text is too large (max. 100 KB).",
 
   // Search/AI index (settings)
+  "admin.settings.seo.title": "Search engines",
+  "admin.settings.seo.label": "Allow search engine indexing",
+  "admin.settings.seo.hint":
+    "Off = this help center is not listed by Google & Co. (noindex, no sitemap). Meant for internal documentation — public help centers should stay indexable.",
+  "admin.settings.seo.saving": "Saving …",
+  "admin.settings.seo.savedOn": "Saved — search engines may index.",
+  "admin.settings.seo.savedOff":
+    "Saved — indexing off. Already listed pages disappear after the next crawl.",
+  "admin.settings.seo.ownerOnly": "Only the instance owner can change this setting.",
+  "admin.settings.seo.error": "Saving failed — please try again.",
+
   "admin.searchIndex.title": "AI & search index",
   "admin.searchIndex.intro":
     "The index powers AI answers and keeps itself up to date on publish. You only need to rebuild it once at launch — or if answers come up empty unexpectedly. Freshly indexed articles become queryable after a few seconds.",
   "admin.searchIndex.rebuild": "Rebuild index",
   "admin.searchIndex.running": "Rebuilding …",
-  "admin.searchIndex.done": "Done: {articles} articles checked, {embedded} sections re-indexed.",
+  "admin.searchIndex.done": "Done: {articles} articles + {extras} roadmap/changelog entries checked, {embedded} sections re-indexed.",
   "admin.searchIndex.ownerOnly": "Only the owner of this instance can rebuild the index.",
   "admin.searchIndex.error": "Rebuild failed — please try again later.",
   "admin.settings.branding": "Branding",

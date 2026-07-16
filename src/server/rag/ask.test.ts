@@ -4,6 +4,7 @@ import { applyMigrations, d1FromSqlite } from "@/server/auth/sqlite-test-support
 import { GRACE_DAYS } from "@/server/billing/plan-state";
 import { CREDIT_COSTS, INTERNAL_AI_GENERATION_CREDITS, PLANS } from "@/server/billing/pricing";
 import { D1BillingRepository } from "@/server/billing/store";
+import { roadmapDoc } from "@/server/search/aux-docs";
 import { buildChunks } from "@/server/search/chunking";
 import { ASK_DAILY_VISITOR_CAP, answerQuestion, type AskPipelineDeps } from "./ask";
 
@@ -21,6 +22,7 @@ const NOW = 1_800_000_000;
 
 const ARTICLE = {
   id: "a1",
+  kind: "article" as const,
   slug: "team-einladen",
   title: "Team einladen",
   body: ["Einladungen verschickt der Owner über die Team-Verwaltung."],
@@ -39,9 +41,10 @@ function makeFixture(over: Partial<AskPipelineDeps> = {}) {
     },
     queryVectors: async () => {
       calls.query += 1;
-      return [{ articleId: "a1", chunkIndex: 0, score: 0.9 }];
+      return [{ docId: "a1", kind: "article" as const, chunkIndex: 0, score: 0.9 }];
     },
-    loadPublishedArticles: async (_tenantId, ids) => (ids.includes("a1") ? [ARTICLE] : []),
+    loadSources: async (_tenantId, hits) =>
+      hits.some((h) => h.docId === "a1") ? [ARTICLE] : [],
     generate: async () => {
       calls.generate += 1;
       return "Der Owner verschickt Einladungen über die Team-Verwaltung.\n\nDie Eingeladenen erhalten eine E-Mail.";
@@ -72,11 +75,13 @@ describe("answerQuestion", () => {
 
     expect(outcome.answer.grounded).toBe(true);
     expect(outcome.answer.body).toHaveLength(2);
-    expect(outcome.answer.citations).toEqual([{ id: "a1", title: "Team einladen" }]);
+    expect(outcome.answer.citations).toEqual([
+      { id: "a1", title: "Team einladen", kind: "article" },
+    ]);
 
     const expectedHash = (await buildChunks(ARTICLE))[0].hash;
     expect(outcome.answer.sourceRefs).toEqual([
-      { articleId: "a1", chunkIndex: 0, contentHash: expectedHash },
+      { articleId: "a1", chunkIndex: 0, contentHash: expectedHash, kind: "article" },
     ]);
 
     const usage = await f.billing.getUsage("t_demo", "2027-01");
@@ -90,7 +95,7 @@ describe("answerQuestion", () => {
 
   it("unter der Schwelle: KEINE Generierung, KEINE Credits, ehrliche No-Answer", async () => {
     f = makeFixture({
-      queryVectors: async () => [{ articleId: "a1", chunkIndex: 0, score: 0.2 }],
+      queryVectors: async () => [{ docId: "a1", kind: "article", chunkIndex: 0, score: 0.2 }],
     });
     const outcome = await answerQuestion(f.deps, INPUT);
     expect(outcome).toMatchObject({ status: "ok", answer: { grounded: false, body: [] } });
@@ -99,7 +104,7 @@ describe("answerQuestion", () => {
   });
 
   it("Draft-Leak-Schutz: Quelle nicht (mehr) veröffentlicht → No-Answer statt Leak", async () => {
-    f = makeFixture({ loadPublishedArticles: async () => [] });
+    f = makeFixture({ loadSources: async () => [] });
     const outcome = await answerQuestion(f.deps, INPUT);
     expect(outcome).toMatchObject({ status: "ok", answer: { grounded: false } });
     expect(f.calls.generate).toBe(0);
@@ -150,6 +155,36 @@ describe("answerQuestion", () => {
     });
     await expect(answerQuestion(f.deps, INPUT)).rejects.toThrow("model down");
     expect((await f.billing.getUsage("t_demo", "2027-01")).creditsUsed).toBe(0);
+  });
+
+  it("Roadmap-Quelle: geerdete Antwort mit gekennzeichnetem Zitat + hash-konsistenter Referenz", async () => {
+    const item = roadmapDoc({ id: "r1", title: "Kommentare für Artikel", status: "planned" });
+    f = makeFixture({
+      queryVectors: async () => [{ docId: "rm:r1", kind: "roadmap", chunkIndex: 0, score: 0.8 }],
+      loadSources: async (_tenantId, hits) =>
+        hits.some((h) => h.docId === "rm:r1" && h.kind === "roadmap") ? [item] : [],
+    });
+
+    const outcome = await answerQuestion(f.deps, {
+      ...INPUT,
+      question: "Kommen Kommentare für Artikel?",
+    });
+    expect(outcome.status).toBe("ok");
+    if (outcome.status !== "ok") return;
+
+    expect(outcome.answer.grounded).toBe(true);
+    expect(outcome.answer.citations).toEqual([
+      { id: "rm:r1", title: "Roadmap: Kommentare für Artikel", kind: "roadmap" },
+    ]);
+    // Hash-Konsistenz Indexierung↔Antwort: beide Seiten nutzen roadmapDoc.
+    const expectedHash = (await buildChunks(item))[0].hash;
+    expect(outcome.answer.sourceRefs).toEqual([
+      { articleId: "rm:r1", chunkIndex: 0, contentHash: expectedHash, kind: "roadmap" },
+    ]);
+    // Endnutzer-Preis gilt unabhängig von der Quellen-Art.
+    expect((await f.billing.getUsage("t_demo", "2027-01")).creditsUsed).toBe(
+      CREDIT_COSTS.ai_generation,
+    );
   });
 
   it("Besucher-Tagesdeckel: ab der 31. Generierung/24h visitor_capped, VOR jedem AI-Aufruf", async () => {

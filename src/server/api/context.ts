@@ -109,6 +109,11 @@ export interface ApiDeps {
    */
   getAskDeps?(): Promise<AskRuntime | null>;
   /**
+   * Instanz-Einstellungen (SEO-Opt-out; api/settings.ts, owner-only).
+   * `null`/fehlend ⇒ 503 (keine D1-Bindings). Tests injizieren Fakes.
+   */
+  getSettingsDeps?(): Promise<SettingsDeps | null>;
+  /**
    * IP-Rate-Limits (Abuse-Härtung): fehlend ⇒ fail-open (dev/Tests).
    * Deployed aus den wrangler-`ratelimit`-Bindings (runtime-deps).
    */
@@ -121,6 +126,11 @@ export interface ApiDeps {
 }
 
 /** Pro Request aufgelöste Frage-Pipeline (Impl: runtime-deps auf rag/ask.ts). */
+/** Instanz-Einstellungen (Impl: D1TenantRepository via runtime-deps). */
+export interface SettingsDeps {
+  setSeoIndexable(tenantId: string, indexable: boolean): Promise<void>;
+}
+
 export interface AskRuntime {
   answer(input: AskInput): Promise<AskOutcome>;
 }

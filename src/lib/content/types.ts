@@ -11,6 +11,8 @@ export type ArticleStatus = "current" | "stale" | "ai" | "draft";
 export interface Citation {
   id: string;
   title: string;
+  /** Quellen-Art (fehlt = "article"; Roadmap/Changelog = Pseudo-Quellen). */
+  kind?: "article" | "roadmap" | "changelog";
 }
 
 export interface ArticleVideo {
@@ -55,9 +57,12 @@ export interface CategoryGroup {
  * Schritt, die Daten werden ab JETZT erfasst).
  */
 export interface SourceRef {
+  /** Artikel-Id oder Pseudo-Id (`rm:`/`cl:` — Roadmap/Changelog). */
   articleId: string;
   chunkIndex: number;
   contentHash: string;
+  /** Quellen-Art (fehlt = "article" — ältere gespeicherte Antworten). */
+  kind?: "article" | "roadmap" | "changelog";
 }
 
 export interface AskAnswer {

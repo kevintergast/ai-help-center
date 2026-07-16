@@ -10,6 +10,8 @@ interface CloudflareEnv {
   ASSETS: Fetcher;
   // Laufzeitumgebung für den Anzeige-Marker: "development" (Staging) | "production".
   APP_ENV?: string;
+  /** Basis-Domain dieses Workers (wrangler [vars]): dev.hallofhelp.com (Staging) / hallofhelp.com (Prod). */
+  APP_BASE_DOMAIN?: string;
   // AUTH_SECRET: lokal String (.dev.vars), in Staging/Prod Secrets-Store-Binding (async .get()).
   AUTH_SECRET: string | { get(): Promise<string> };
   // Resend API-Key für E-Mail-Versand (Verifikation/Passwort-Reset). Optional:

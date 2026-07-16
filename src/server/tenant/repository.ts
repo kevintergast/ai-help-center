@@ -12,11 +12,12 @@ interface TenantRow {
   color_primary: string;
   color_accent: string;
   color_primary_fg: string;
+  seo_indexable: number;
 }
 
 const COLS =
   "id, slug, name, custom_domain, default_locale, logo_url, logo_r2_key, branding_updated_at, " +
-  "color_primary, color_accent, color_primary_fg";
+  "color_primary, color_accent, color_primary_fg, seo_indexable";
 
 /**
  * `branding.logoUrl` ist ABGELEITET (Priorität dokumentiert in 0003_branding.sql):
@@ -44,6 +45,7 @@ export function rowToTenant(r: TenantRow): Tenant {
       colorAccent: r.color_accent,
       colorPrimaryFg: r.color_primary_fg,
     },
+    seoIndexable: r.seo_indexable !== 0,
   };
 }
 
@@ -57,6 +59,27 @@ export class D1TenantRepository {
       .bind(slug)
       .first<TenantRow>();
     return row ? rowToTenant(row) : null;
+  }
+
+  /**
+   * Slugs aller INDEXIERBAREN Tenants (zentraler Sitemap-Index auf der
+   * Operator-Instanz — SEO-Cross-Submission für alle Kunden-Subdomains).
+   * Instanzen mit SEO-Opt-out (seo_indexable=0) tauchen NICHT auf. Nur Slugs,
+   * kein Tenant-Inhalt: die Subdomains sind ohnehin öffentlich erreichbar.
+   */
+  async listSlugs(): Promise<string[]> {
+    const rows = await this.db
+      .prepare(`SELECT slug FROM tenants WHERE seo_indexable = 1 ORDER BY slug`)
+      .all<{ slug: string }>();
+    return rows.results.map((r) => r.slug);
+  }
+
+  /** SEO-Opt-out setzen (Settings-API, owner-only — api/settings.ts). */
+  async setSeoIndexable(tenantId: string, indexable: boolean): Promise<void> {
+    await this.db
+      .prepare(`UPDATE tenants SET seo_indexable = ? WHERE id = ?`)
+      .bind(indexable ? 1 : 0, tenantId)
+      .run();
   }
 
   async getByCustomDomain(domain: string): Promise<Tenant | null> {

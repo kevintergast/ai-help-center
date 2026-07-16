@@ -4,6 +4,7 @@ import { AdminPageHeader } from "@/components/admin/admin-shell";
 import { CustomDomainManager } from "@/components/admin/custom-domain-manager";
 import { LegalDocsManager } from "@/components/admin/legal-docs-manager";
 import { SearchIndexManager } from "@/components/admin/search-index-manager";
+import { SeoIndexingManager } from "@/components/admin/seo-indexing-manager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -121,6 +122,14 @@ export default async function AdminSettingsPage() {
         <SettingsCard title={t("admin.searchIndex.title")}>
           {/* KI-/Such-Index: Erst-Backfill + Reparatur (Lifecycle hält ihn sonst aktuell). */}
           <SearchIndexManager locale={tenant.defaultLocale} />
+        </SettingsCard>
+
+        <SettingsCard title={t("admin.settings.seo.title")}>
+          {/* SEO-Opt-out (owner-only, Migration 0013): noindex + raus aus Sitemaps. */}
+          <SeoIndexingManager
+            locale={tenant.defaultLocale}
+            initialIndexable={tenant.seoIndexable !== false}
+          />
         </SettingsCard>
       </div>
     </div>

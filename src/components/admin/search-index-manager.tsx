@@ -18,7 +18,7 @@ export function SearchIndexManager({ locale }: { locale: Locale }) {
   const t = getT(locale);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [result, setResult] = useState<{ articles: number; embedded: number } | null>(null);
+  const [result, setResult] = useState<{ articles: number; extras: number; embedded: number } | null>(null);
 
   async function rebuild() {
     setBusy(true);
@@ -27,8 +27,8 @@ export function SearchIndexManager({ locale }: { locale: Locale }) {
     try {
       const res = await fetch("/api/v1/admin/articles/reindex", { method: "POST" });
       if (res.ok) {
-        const data = (await res.json()) as { articles: number; embedded: number };
-        setResult({ articles: data.articles, embedded: data.embedded });
+        const data = (await res.json()) as { articles: number; extras?: number; embedded: number };
+        setResult({ articles: data.articles, extras: data.extras ?? 0, embedded: data.embedded });
         return;
       }
       setError(res.status === 403 ? t("admin.searchIndex.ownerOnly") : t("admin.searchIndex.error"));
@@ -44,7 +44,7 @@ export function SearchIndexManager({ locale }: { locale: Locale }) {
       <p className="-mt-1 text-xs text-ink-muted">{t("admin.searchIndex.intro")}</p>
       {result ? (
         <p className="text-sm text-ok">
-          {t("admin.searchIndex.done", { articles: result.articles, embedded: result.embedded })}
+          {t("admin.searchIndex.done", { articles: result.articles, extras: result.extras, embedded: result.embedded })}
         </p>
       ) : null}
       <ErrorNote>{error || null}</ErrorNote>

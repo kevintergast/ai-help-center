@@ -30,6 +30,10 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     applicationName: "Hall Of Help",
     description: t("meta.description", { name: tenant.name }),
+    // SEO-Opt-out (Migration 0013): noindex auf JEDER Seite der Instanz —
+    // de-indexiert auch bereits aufgenommene URLs (robots.txt allein täte
+    // das nicht). Default (true/undefined) setzt bewusst NICHTS.
+    ...(tenant.seoIndexable === false ? { robots: { index: false, follow: false } } : {}),
   };
 }
 

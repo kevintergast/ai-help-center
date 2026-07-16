@@ -22,4 +22,11 @@ export interface Tenant {
   customDomain: string | null;
   defaultLocale: Locale;
   branding: TenantBranding;
+  /**
+   * Suchmaschinen-Indexierung (SEO-Opt-out, Migration 0013). `false` ⇒
+   * noindex-Meta, robots Disallow-all, leere Sitemap, nicht im zentralen
+   * Sitemap-Index. FEHLEND/`undefined` = indexierbar (Default, auch für
+   * Dev-Registry-Tenants und ältere Test-Fixtures).
+   */
+  seoIndexable?: boolean;
 }

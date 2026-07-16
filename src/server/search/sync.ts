@@ -1,4 +1,5 @@
 import { makeWorkersAiEmbeddings } from "@/server/ai/models";
+import { changelogDoc, roadmapDoc } from "./aux-docs";
 import { ArticleIndexer, type IndexableArticle } from "./indexer";
 
 /**
@@ -56,11 +57,16 @@ export async function syncArticleIndex(
   else await indexer.removeArticle(tenantId, articleId);
 }
 
-/** Backfill: alle veröffentlichten Artikel eines Tenants (nur Geändertes kostet). */
+/**
+ * Backfill: alle veröffentlichten Artikel + Roadmap-Items + Changelog-Einträge
+ * eines Tenants (nur Geändertes kostet Embeddings). Roadmap/Changelog haben
+ * KEINE Lifecycle-Hooks (Pflege via Seeds) — der Reindex ist ihr Sync-Weg und
+ * räumt deshalb auch verwaiste Aux-Chunks gelöschter Einträge ab.
+ */
 export async function rebuildTenantIndex(
   env: IndexerEnv,
   tenantId: string,
-): Promise<{ articles: number; chunks: number; embedded: number }> {
+): Promise<{ articles: number; extras: number; chunks: number; embedded: number }> {
   const rows = await env.DB.prepare(
     `SELECT id, slug, title, body_json FROM articles
       WHERE tenant_id = ? AND status = 'published'`,
@@ -76,5 +82,39 @@ export async function rebuildTenantIndex(
     chunks += result.chunks;
     embedded += result.embedded;
   }
-  return { articles: rows.results.length, chunks, embedded };
+
+  // Roadmap + Changelog als Pseudo-Dokumente (gemeinsame Builder → identische
+  // Hashes wie beim Antwort-Kontext, s. aux-docs.ts).
+  const [roadmap, changelog] = await Promise.all([
+    env.DB.prepare(`SELECT id, title, status FROM roadmap_items WHERE tenant_id = ?`)
+      .bind(tenantId)
+      .all<{ id: string; title: string; status: string }>(),
+    env.DB.prepare(`SELECT id, title, description FROM changelog_entries WHERE tenant_id = ?`)
+      .bind(tenantId)
+      .all<{ id: string; title: string; description: string }>(),
+  ]);
+  const auxDocs = [
+    ...roadmap.results.map(roadmapDoc),
+    ...changelog.results.map(changelogDoc),
+  ];
+  for (const doc of auxDocs) {
+    const result = await indexer.indexArticle(tenantId, doc);
+    chunks += result.chunks;
+    embedded += result.embedded;
+  }
+
+  // Verwaiste Aux-Chunks (Eintrag gelöscht/umbenannt): indexierte Pseudo-Ids
+  // gegen den aktuellen Bestand diffen und gezielt entfernen.
+  const indexedAux = await env.DB.prepare(
+    `SELECT DISTINCT article_id FROM search_chunks
+      WHERE tenant_id = ? AND (article_id LIKE 'rm:%' OR article_id LIKE 'cl:%')`,
+  )
+    .bind(tenantId)
+    .all<{ article_id: string }>();
+  const liveAuxIds = new Set(auxDocs.map((d) => d.id));
+  for (const row of indexedAux.results) {
+    if (!liveAuxIds.has(row.article_id)) await indexer.removeArticle(tenantId, row.article_id);
+  }
+
+  return { articles: rows.results.length, extras: auxDocs.length, chunks, embedded };
 }
