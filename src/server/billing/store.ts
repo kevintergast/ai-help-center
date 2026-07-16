@@ -1,5 +1,15 @@
 import { evaluatePlanState, type PlanState } from "./plan-state";
-import { CREDIT_COSTS, periodOf, type PlanId } from "./pricing";
+import {
+  creditsFor,
+  periodOf,
+  type PlanId,
+  type UsageActorType,
+  type UsageEventType,
+} from "./pricing";
+
+// Re-Export: der Akteurs-Typ lebt jetzt bei der Preisregel (creditsFor),
+// bestehende Importe aus store.ts bleiben gültig.
+export type { UsageActorType };
 
 /**
  * METERING-PERSISTENZ (Infra-Plan Schritt 3) auf den 0009-Tabellen.
@@ -20,8 +30,9 @@ import { CREDIT_COSTS, periodOf, type PlanId } from "./pricing";
 
 /** Fenster, in dem derselbe Besucher denselben Artikel nicht doppelt zählt. */
 export const VIEW_DEDUP_WINDOW_SEC = 30 * 60;
+/** Feedback: gleiche Richtung + Ziel + Besucher max. 1×/24h (Klick-Spam). */
+export const FEEDBACK_DEDUP_WINDOW_SEC = 24 * 60 * 60;
 
-export type UsageActorType = "anon" | "user" | "internal";
 
 export interface RecordViewInput {
   tenantId: string;
@@ -60,8 +71,26 @@ export interface TopArticleRow {
   views: number;
 }
 
+export interface FeedbackStats {
+  /** Stimmen je Artikel-ID (nur Artikel MIT Feedback im Fenster). */
+  byArticle: Record<string, { helpful: number; unhelpful: number }>;
+  /** Stimmen zu KI-Antworten (Events mit article_id NULL). */
+  answers: { helpful: number; unhelpful: number };
+}
+
 export interface RecordGenerationInput {
   tenantId: string;
+  actorType: UsageActorType;
+  visitorId: string;
+  userId?: string | null;
+  nowSec: number;
+}
+
+export interface RecordFeedbackInput {
+  tenantId: string;
+  /** Artikel-Slug oder null = Feedback zu einer KI-Antwort. */
+  slug: string | null;
+  helpful: boolean;
   actorType: UsageActorType;
   visitorId: string;
   userId?: string | null;
@@ -76,11 +105,30 @@ export interface BillingRepository {
    */
   recordView(input: RecordViewInput): Promise<{ result: RecordViewResult; state: PlanState | null }>;
   /**
-   * Verbucht eine KI-Generierung (RAG-Kern): 20 Credits (internal = 0, kein
-   * MAU) — KEIN Dedup, jede Generierung kostet (Architektur: Regenerieren
+   * Verbucht eine KI-Generierung (RAG-Kern): Endnutzer 20 Credits; TEAM zum
+   * internen Selbstkosten-Satz (creditsFor, Entscheidung 2026-07-16), kein
+   * MAU — KEIN Dedup, jede Generierung kostet (Architektur: Regenerieren
    * kostet erneut). Aufruf erst NACH erfolgreicher Generierung.
    */
   recordAiGeneration(input: RecordGenerationInput): Promise<PlanState>;
+  /**
+   * „War das hilfreich?"-Feedback (0 Credits, kein MAU): Event-only fürs
+   * Statistik-Aggregat (Hilfreich-Quote). Dedup: gleiche Richtung, gleicher
+   * Besucher, gleiches Ziel innerhalb 24h wird verworfen (Klick-Spam);
+   * Meinungswechsel (Gegenrichtung) bleibt erlaubt. Unbekannter/unveröffent-
+   * lichter Slug wird still verworfen (kein Existenz-Orakel).
+   */
+  recordFeedback(input: RecordFeedbackInput): Promise<void>;
+  /**
+   * KI-Generierungen eines Besuchers seit `sinceSec` (Tagesdeckel /ask —
+   * Abuse-Härtung: begrenzt, was EIN Besucher an LLM-Kosten auslösen kann).
+   */
+  countAiGenerationsSince(tenantId: string, visitorId: string, sinceSec: number): Promise<number>;
+  /**
+   * Feedback-Aggregat fürs Statistik-UI: Stimmen je Artikel + Stimmen zu
+   * KI-Antworten (article_id NULL), im Zeitfenster, interne optional raus.
+   */
+  getFeedbackStats(tenantId: string, opts: StatsWindow): Promise<FeedbackStats>;
   /** Verbrauch der Periode (Credits aus Aggregat, MAU als COUNT über usage_mau). */
   getUsage(tenantId: string, period: string): Promise<UsageSnapshot>;
   /** Plan-Zeile (fehlend = Free, kein Marker). */
@@ -141,7 +189,8 @@ export class D1BillingRepository implements BillingRepository {
     const recent = await this.db
       .prepare(
         `SELECT 1 AS hit FROM usage_events
-          WHERE tenant_id = ? AND visitor_id = ? AND article_id = ? AND created_at > ?
+          WHERE tenant_id = ? AND visitor_id = ? AND article_id = ?
+            AND type = 'article_view' AND created_at > ?
           LIMIT 1`,
       )
       .bind(input.tenantId, input.visitorId, article.id, input.nowSec - VIEW_DEDUP_WINDOW_SEC)
@@ -172,16 +221,85 @@ export class D1BillingRepository implements BillingRepository {
     });
   }
 
+  async recordFeedback(input: RecordFeedbackInput): Promise<void> {
+    // Ziel auflösen: Artikel (nur veröffentlicht) oder KI-Antwort (slug null).
+    let articleId: string | null = null;
+    if (input.slug !== null) {
+      const article = await this.db
+        .prepare(
+          `SELECT id FROM articles WHERE tenant_id = ? AND slug = ? AND status = 'published'`,
+        )
+        .bind(input.tenantId, input.slug)
+        .first<{ id: string }>();
+      if (!article) return; // still verwerfen (kein Existenz-Orakel)
+      articleId = article.id;
+    }
+
+    const type = input.helpful ? "feedback_helpful" : "feedback_unhelpful";
+    const recent = await this.db
+      .prepare(
+        `SELECT 1 AS hit FROM usage_events
+          WHERE tenant_id = ? AND visitor_id = ? AND type = ?
+            AND article_id ${articleId === null ? "IS NULL" : "= ?"} AND created_at > ?
+          LIMIT 1`,
+      )
+      .bind(
+        input.tenantId,
+        input.visitorId,
+        type,
+        ...(articleId === null ? [] : [articleId]),
+        input.nowSec - FEEDBACK_DEDUP_WINDOW_SEC,
+      )
+      .first<{ hit: number }>();
+    if (recent) return; // Klick-Spam gleicher Richtung
+
+    // Event-only (0 Credits): bewusst OHNE charge() — kein MAU, kein
+    // tenant_usage-Inkrement, kein Marker-Sync. Nur Statistik-Rohdatum.
+    await this.db
+      .prepare(
+        `INSERT INTO usage_events
+           (id, tenant_id, type, credits, actor_type, visitor_id, user_id, article_id, created_at)
+         VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        crypto.randomUUID(),
+        input.tenantId,
+        type,
+        input.actorType,
+        input.visitorId,
+        input.userId ?? null,
+        articleId,
+        input.nowSec,
+      )
+      .run();
+  }
+
+  async countAiGenerationsSince(
+    tenantId: string,
+    visitorId: string,
+    sinceSec: number,
+  ): Promise<number> {
+    const row = await this.db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM usage_events
+          WHERE tenant_id = ? AND visitor_id = ? AND type = 'ai_generation' AND created_at > ?`,
+      )
+      .bind(tenantId, visitorId, sinceSec)
+      .first<{ n: number }>();
+    return row?.n ?? 0;
+  }
+
   /**
    * Gemeinsamer Verbuchungspfad (View + Generierung): Event (append-only) +
    * MAU-Dedup + atomares Credit-Inkrement in EINER Transaktion, danach
    * Plan-State + over_limit-Marker-Sync. Interne (Team-)Aufrufe: Event fürs
-   * Statistik-Filtern, aber 0 Credits, kein MAU — der Tenant zahlt nie für
-   * die eigene Pflege-Arbeit.
+   * Statistik-Filtern, KEIN MAU; Credits nach der zentralen Preisregel
+   * `creditsFor` — für Team 0, AUSSER KI-Generierungen (interner
+   * Selbstkosten-Satz, Entscheidung 2026-07-16).
    */
   private async charge(input: {
     tenantId: string;
-    type: keyof typeof CREDIT_COSTS;
+    type: UsageEventType;
     actorType: UsageActorType;
     visitorId: string;
     userId: string | null;
@@ -189,7 +307,7 @@ export class D1BillingRepository implements BillingRepository {
     nowSec: number;
   }): Promise<PlanState> {
     const internal = input.actorType === "internal";
-    const credits = internal ? 0 : CREDIT_COSTS[input.type];
+    const credits = creditsFor(input.type, input.actorType);
     const period = periodOf(input.nowSec * 1000);
 
     const statements = [
@@ -211,6 +329,8 @@ export class D1BillingRepository implements BillingRepository {
           input.nowSec,
         ),
     ];
+    // MAU zählt nur echte Endnutzer — Team-Mitglieder sind keine „aktiven
+    // Nutzer" im Abrechnungssinn.
     if (!internal) {
       statements.push(
         this.db
@@ -219,6 +339,12 @@ export class D1BillingRepository implements BillingRepository {
              VALUES (?, ?, ?, ?)`,
           )
           .bind(input.tenantId, period, input.visitorId, input.nowSec),
+      );
+    }
+    // Credit-Aggregat immer dann, wenn das Event etwas KOSTET — also auch für
+    // interne KI-Generierungen (Selbstkosten-Satz).
+    if (credits > 0) {
+      statements.push(
         this.db
           .prepare(
             `INSERT INTO tenant_usage (tenant_id, period, credits_used, updated_at)
@@ -346,5 +472,31 @@ export class D1BillingRepository implements BillingRepository {
       .bind(tenantId, startSec)
       .first<{ c: number }>();
     return row?.c ?? 0;
+  }
+
+  async getFeedbackStats(tenantId: string, window: StatsWindow): Promise<FeedbackStats> {
+    const startSec = startOfUtcDay(window.nowSec) - (window.days - 1) * DAY_SEC;
+    const rows = await this.db
+      .prepare(
+        `SELECT article_id AS articleId, type, COUNT(*) AS n
+           FROM usage_events
+          WHERE tenant_id = ? AND type IN ('feedback_helpful', 'feedback_unhelpful')
+            AND created_at >= ?
+            ${window.excludeInternal ? "AND actor_type != 'internal'" : ""}
+          GROUP BY article_id, type`,
+      )
+      .bind(tenantId, startSec)
+      .all<{ articleId: string | null; type: string; n: number }>();
+
+    const stats: FeedbackStats = { byArticle: {}, answers: { helpful: 0, unhelpful: 0 } };
+    for (const r of rows.results) {
+      const key = r.type === "feedback_helpful" ? "helpful" : "unhelpful";
+      if (r.articleId === null) {
+        stats.answers[key] += r.n;
+      } else {
+        (stats.byArticle[r.articleId] ??= { helpful: 0, unhelpful: 0 })[key] += r.n;
+      }
+    }
+    return stats;
   }
 }

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AskOutcome } from "@/server/rag/ask";
 import type { ApiDeps, ApiEnv } from "./context";
 import { applyVisitorCookie, resolveActor } from "./events";
+import { allowRequest, clientIp, rateLimited } from "./rate-limit";
 
 /**
  * DYNAMISCHER KI-ARTIKEL — öffentliche Frage-API (RAG-Kern, „Punkt 3").
@@ -23,6 +24,13 @@ export function askPublicRouter(deps: ApiDeps) {
   const r = new Hono<ApiEnv>();
 
   r.post("/", async (c) => {
+    // Teuerster Pfad der Plattform (LLM) → engstes IP-Limit (5/min,
+    // tenant-präfixiert). Weitere Schichten: Besucher-Tagesdeckel (Pipeline),
+    // Grounding-Schwelle, Plan-Gate, AI-Gateway-Spend-Limit.
+    if (!(await allowRequest(deps.rateLimiters?.ask, `ask:${c.get("tenant").id}:${clientIp(c)}`))) {
+      return rateLimited(c);
+    }
+
     let question: unknown;
     try {
       question = ((await c.req.json()) as { question?: unknown }).question;
@@ -38,7 +46,7 @@ export function askPublicRouter(deps: ApiDeps) {
     const ask = await deps.getAskDeps?.();
     if (!ask) return c.json({ error: "ask_unavailable" }, 503);
 
-    const actor = await resolveActor(c);
+    const actor = await resolveActor(c, deps.visitorCodec);
     applyVisitorCookie(c, actor);
 
     let outcome: AskOutcome;
@@ -57,6 +65,7 @@ export function askPublicRouter(deps: ApiDeps) {
     }
 
     if (outcome.status === "frozen") return c.json({ error: "plan_frozen" }, 402);
+    if (outcome.status === "visitor_capped") return c.json({ error: "rate_limited" }, 429);
     return c.json(outcome.answer);
   });
 

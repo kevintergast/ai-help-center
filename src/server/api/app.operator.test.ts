@@ -12,6 +12,7 @@ import type {
 import type { TurnstileVerify } from "@/server/security/turnstile";
 import { buildApiApp } from "./app";
 import type { ApiDeps, OperatorDeps } from "./context";
+import { MAX_HELP_CENTERS_PER_ACCOUNT } from "./operator";
 
 /**
  * OPERATOR-ONBOARDING end-to-end über `app.request()` (Muster: app.team.test.ts).
@@ -52,8 +53,37 @@ class FakeOperatorRepo implements OperatorRepository {
   readonly created: NewHelpCenter[] = [];
   private readonly takenSlugs = new Set<string>(["app"]); // Operator-Slug ist belegt
 
+  /** Liest die credential-Vorlage aus dem Memory-Auth-Store (wie D1-Impl). */
+  constructor(private readonly authDb: MemoryDb) {}
+
   async isSlugTaken(slug: string): Promise<boolean> {
     return this.takenSlugs.has(slug);
+  }
+
+  async getOwnerCredentialTemplate(
+    tenantId: string,
+    userId: string,
+  ): Promise<NewHelpCenter["ownerCredential"]> {
+    const mine = this.authDb.auth_account.filter(
+      (a) => a.tenant_id === tenantId && a.user_id === userId,
+    );
+    const credential = mine.find(
+      (a) => a.provider_id === "credential" && typeof a.password === "string",
+    );
+    const socialAccounts = mine
+      .filter((a) => a.provider_id !== "credential")
+      .map((a) => ({ providerId: a.provider_id as string, accountId: a.account_id as string }));
+    if (!credential && socialAccounts.length === 0) return null;
+    const tf = this.authDb.auth_two_factor.find(
+      (t) => t.tenant_id === tenantId && t.user_id === userId,
+    );
+    return {
+      passwordHash: (credential?.password as string | undefined) ?? null,
+      socialAccounts,
+      twoFactor: tf
+        ? { secret: tf.secret as string, backupCodes: tf.backup_codes as string }
+        : null,
+    };
   }
   async createHelpCenter(input: NewHelpCenter): Promise<CreateResult> {
     if (this.takenSlugs.has(input.slug)) return "slug_taken";
@@ -72,6 +102,9 @@ class FakeOperatorRepo implements OperatorRepository {
         createdAt: 0,
       }));
   }
+  async countByOperator(operatorUserId: string): Promise<number> {
+    return this.created.filter((c) => c.operatorUserId === operatorUserId).length;
+  }
 }
 
 function makeApp(
@@ -87,7 +120,7 @@ function makeApp(
     auth_verification: [],
     auth_two_factor: [],
   };
-  const repo = new FakeOperatorRepo();
+  const repo = new FakeOperatorRepo(db);
   const setupCalls: { tenant: Tenant; ownerEmail: string }[] = [];
 
   const operator: OperatorDeps = {
@@ -216,7 +249,7 @@ describe("POST /api/v1/operator/help-centers", () => {
     expect(f.repo.created).toHaveLength(0);
   });
 
-  it("erfolgreicher Create: Tenant+Owner+Mapping angelegt, Owner-Konto GETRENNT vom Operator, Setup-Link versandt", async () => {
+  it("erfolgreicher Create: Owner-Konto GETRENNT, startet aber mit KOPIERTEN Zugangsdaten (keine Setup-Mail)", async () => {
     const f = makeApp();
     const { cookie, userId } = await operatorSession(f, OPERATOR_HOST, "op@example.com");
 
@@ -227,8 +260,10 @@ describe("POST /api/v1/operator/help-centers", () => {
       slug: "acme",
       name: "Acme Support",
       helpCenterUrl: "https://acme.hallofhelp.com",
-      ownerSetupDevLink: "https://acme.hallofhelp.com/setup#tok",
+      ownerAccess: "same_credentials",
     });
+    // Mit kopierten Zugangsdaten gibt es KEINEN Setup-Link (auch nicht dev).
+    expect(body.ownerSetupDevLink).toBeUndefined();
 
     // Provisioning: EIN Hilfezentrum, Mapping über die eigene Operator-Id.
     expect(f.repo.created).toHaveLength(1);
@@ -240,11 +275,65 @@ describe("POST /api/v1/operator/help-centers", () => {
     expect(input.ownerUserId).not.toBe(userId);
     expect(input.tenantId).not.toBe("t_operator");
 
-    // Owner-Setup-Link ging an den neuen Tenant-Host mit der Owner-E-Mail:
+    // Same-Credentials: der ECHTE Operator-Passwort-Hash wurde als Vorlage
+    // durchgereicht (einmalige Kopie; keine Setup-Mail nötig).
+    const operatorAccount = f.db.auth_account.find(
+      (a) => a.user_id === userId && a.provider_id === "credential",
+    )!;
+    expect(input.ownerCredential?.passwordHash).toBe(operatorAccount.password);
+    expect(f.setupCalls).toHaveLength(0);
+  });
+
+  it("SSO-Operator (nur Google): Google-VERKNÜPFUNG wird kopiert → same_credentials, KEINE Setup-Mail", async () => {
+    const f = makeApp();
+    const { cookie, userId } = await operatorSession(f, OPERATOR_HOST, "op@example.com");
+    // Konto zu Social-only umbauen: credential weg, Google-Verknüpfung rein
+    // (wie nach einem echten Google-Sign-up in t_operator).
+    f.db.auth_account = f.db.auth_account.filter(
+      (a) => !(a.user_id === userId && a.provider_id === "credential"),
+    );
+    f.db.auth_account.push({
+      id: "acc-google",
+      tenant_id: "t_operator",
+      user_id: userId,
+      provider_id: "google",
+      account_id: "google-sub-4711",
+    });
+
+    const res = await create(f, cookie, validBody);
+    expect(res.status).toBe(201);
+    expect(((await res.json()) as Record<string, unknown>).ownerAccess).toBe("same_credentials");
+
+    const copied = f.repo.created[0].ownerCredential;
+    expect(copied).toEqual({
+      passwordHash: null,
+      socialAccounts: [{ providerId: "google", accountId: "google-sub-4711" }],
+      twoFactor: null,
+    });
+    // Mit kopierter Login-Methode KEINE Setup-Mail.
+    expect(f.setupCalls).toHaveLength(0);
+  });
+
+  it("Operator ohne JEDE kopierbare Login-Methode: Fallback auf Setup-Mail", async () => {
+    const f = makeApp();
+    const { cookie, userId } = await operatorSession(f, OPERATOR_HOST, "op@example.com");
+    // Simuliert: credential-Eintrag verliert sein Passwort, keine Social-Verknüpfung.
+    const account = f.db.auth_account.find(
+      (a) => a.user_id === userId && a.provider_id === "credential",
+    )!;
+    delete account.password;
+
+    const res = await create(f, cookie, validBody);
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      ownerAccess: "setup_mail",
+      ownerSetupDevLink: "https://acme.hallofhelp.com/setup#tok",
+    });
+    expect(f.repo.created[0].ownerCredential).toBeNull();
     expect(f.setupCalls).toHaveLength(1);
     expect(f.setupCalls[0]).toMatchObject({ ownerEmail: "op@example.com" });
     expect(f.setupCalls[0].tenant.slug).toBe("acme");
-    expect(f.setupCalls[0].tenant.id).toBe(input.tenantId);
   });
 
   it("nicht e-mail-verifizierter Operator → 403 operator_email_unverified (kein Provisioning)", async () => {
@@ -264,6 +353,24 @@ describe("POST /api/v1/operator/help-centers", () => {
     expect(dup.status).toBe(409);
     expect(await dup.json()).toMatchObject({ error: "slug_taken" });
     expect(f.repo.created).toHaveLength(1);
+  });
+
+  it("Abuse-Cap: ab dem 6. Hilfezentrum → 409 help_center_limit_reached (kein Provisioning)", async () => {
+    const f = makeApp();
+    const { cookie } = await operatorSession(f, OPERATOR_HOST, "op@example.com");
+    for (let i = 0; i < MAX_HELP_CENTERS_PER_ACCOUNT; i++) {
+      expect((await create(f, cookie, { ...validBody, slug: `firma-${i}` })).status).toBe(201);
+    }
+    const over = await create(f, cookie, { ...validBody, slug: "firma-zuviel" });
+    expect(over.status).toBe(409);
+    expect(await over.json()).toMatchObject({ error: "help_center_limit_reached" });
+    expect(f.repo.created).toHaveLength(MAX_HELP_CENTERS_PER_ACCOUNT);
+
+    // Der Deckel ist PRO KONTO: ein anderer Operator kann weiterhin erstellen.
+    const other = await operatorSession(f, OPERATOR_HOST, "op2@example.com");
+    expect((await create(f, other.cookie, { ...validBody, slug: "andere-firma" })).status).toBe(
+      201,
+    );
   });
 
   it("reservierter/ungültiger Slug → 400 invalid_slug (kein Kapern von app/auth/…)", async () => {

@@ -65,14 +65,30 @@ export interface AskInput {
 
 export type AskOutcome =
   | { status: "ok"; answer: AskAnswer }
-  | { status: "frozen" };
+  | { status: "frozen" }
+  | { status: "visitor_capped" };
+
+/**
+ * Tagesdeckel KI-Generierungen PRO BESUCHER (Abuse-Härtung): begrenzt, was
+ * eine einzelne (signierte!) Besucher-ID an LLM-Kosten auslösen kann. 30/Tag
+ * ist für echte Endnutzer unsichtbar hoch; Skripte laufen dagegen. Rotation
+ * der ID scheitert an Signatur + IP-Rate-Limit (visitor-id.ts, rate-limit.ts).
+ */
+export const ASK_DAILY_VISITOR_CAP = 30;
 
 export async function answerQuestion(deps: AskPipelineDeps, input: AskInput): Promise<AskOutcome> {
   // 1) Plan-Gate VOR jedem AI-Aufruf (Kosten-Leitplanke): eingefrorene Tenants
   //    generieren nicht. over_limit läuft in der Kulanzzeit bewusst weiter.
+  //    Danach der Besucher-Tagesdeckel (ebenfalls VOR Embedding/Retrieval).
   if (deps.billing) {
     const state = await readPlanState(deps.billing, input.tenantId, input.nowSec);
     if (state.status === "frozen") return { status: "frozen" };
+    const used = await deps.billing.countAiGenerationsSince(
+      input.tenantId,
+      input.actor.visitorId,
+      input.nowSec - 24 * 60 * 60,
+    );
+    if (used >= ASK_DAILY_VISITOR_CAP) return { status: "visitor_capped" };
   }
 
   const noAnswer: AskAnswer = {
@@ -87,7 +103,17 @@ export async function answerQuestion(deps: AskPipelineDeps, input: AskInput): Pr
   const vector = await deps.embed(input.question);
   const hits = await deps.queryVectors(input.tenantId, vector);
   const grounding = assessGrounding(hits);
-  if (!grounding.grounded) return { status: "ok", answer: noAnswer };
+  if (!grounding.grounded) {
+    // Kalibrier-Log (datenschutz-sauber: Scores/Längen, NIE der Fragetext) —
+    // damit sich die Grounding-Schwelle an echten No-Answers justieren lässt.
+    const top = [...hits].sort((a, b) => b.score - a.score).slice(0, 3);
+    console.log(
+      `[ask] not-grounded tenant=${input.tenantId} qlen=${input.question.length} top=[${top
+        .map((h) => `${h.articleId}#${h.chunkIndex}:${h.score.toFixed(3)}`)
+        .join(", ")}]`,
+    );
+    return { status: "ok", answer: noAnswer };
+  }
 
   // 3) Kontext aus den AKTUELL veröffentlichten Artikeln rekonstruieren.
   const articleIds = [...new Set(grounding.selected.map((m) => m.articleId))];
@@ -131,7 +157,8 @@ export async function answerQuestion(deps: AskPipelineDeps, input: AskInput): Pr
     });
   }
 
-  // 6) Verbuchen — NACH erfolgreicher Generierung (interne Nutzer: 0 Credits).
+  // 6) Verbuchen — NACH erfolgreicher Generierung (interne Nutzer: reduzierter
+  //    Selbstkosten-Satz statt Endnutzer-Preis, s. pricing.creditsFor).
   if (deps.billing) {
     await deps.billing.recordAiGeneration({
       tenantId: input.tenantId,

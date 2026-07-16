@@ -7,6 +7,7 @@ import { enforceSessionTenant } from "@/server/auth/session-guard";
 import type { NewHelpCenter } from "@/server/operator/repository";
 import { checkSlug, parseHelpCenterInput } from "@/server/operator/validate";
 import type { ApiDeps, ApiEnv } from "./context";
+import { allowRequest, clientIp, rateLimited } from "./rate-limit";
 
 /**
  * OPERATOR-ROUTEN (Punkt 4b): Provisioning der Betreiber-Control-Plane auf
@@ -31,6 +32,9 @@ import type { ApiDeps, ApiEnv } from "./context";
 
 const OPERATOR_UNAVAILABLE = { error: "operator_unavailable" } as const;
 const UNAUTHORIZED = { error: "unauthorized" } as const;
+
+/** Abuse-Cap: max. Hilfezentren pro Operator-Konto (Erhöhung später pro Plan). */
+export const MAX_HELP_CENTERS_PER_ACCOUNT = 5;
 const NOT_FOUND = { error: "not_found" } as const;
 
 /** Session-User-Auszug, den die Operator-Routen benötigen. */
@@ -110,6 +114,12 @@ export function operatorRouter(deps: ApiDeps) {
     const ctxErr = ensureOperatorContext(c);
     if (ctxErr) return ctxErr;
 
+    // IP-Notbremse (5/min) VOR Turnstile/Body-Arbeit — Provisionierung ist
+    // der teuerste Self-Service-Schreibpfad (Tenant + Konto + Mail).
+    if (!(await allowRequest(deps.rateLimiters?.sensitive, `create:${clientIp(c)}`))) {
+      return rateLimited(c);
+    }
+
     // TURNSTILE (Infra-Plan Schritt 2): Tenant-Erstellung ist der teuerste
     // Self-Service-Pfad → Bot-Gate VOR jeder weiteren Arbeit. Fehlender Prüfer
     // = „unavailable" (503, fail-closed) — NIE Bypass. Semantik-Matrix
@@ -144,11 +154,28 @@ export function operatorRouter(deps: ApiDeps) {
       return c.json({ error: "operator_email_unverified" }, 403);
     }
 
+    // ABUSE-CAP: Hilfezentren pro Operator-Konto gedeckelt (ein verifiziertes
+    // Konto darf die Plattform nicht mit Instanzen fluten — jede Instanz
+    // kostet D1-Zeilen, eine Subdomain und eine Owner-Mail). Erhöhung später
+    // bewusst pro Kunde/Plan.
+    if ((await operator.repo.countByOperator(user.id)) >= MAX_HELP_CENTERS_PER_ACCOUNT) {
+      return c.json({ error: "help_center_limit_reached" }, 409);
+    }
+
     // Vor-Check für einen präzisen 409 — autoritativ ist der UNIQUE-Index im
     // batch() (createHelpCenter), der ein TOCTOU-Race abfängt.
     if (await operator.repo.isSlugTaken(parsed.slug)) {
       return c.json({ error: "slug_taken" }, 409);
     }
+
+    // SAME-CREDENTIALS-KOMFORT (Entscheidung 2026-07-16): Das Owner-Konto der
+    // neuen Instanz startet mit den Zugangsdaten des Operator-Kontos (Passwort-
+    // Hash + ggf. TOTP, einmalige Kopie beim Provisionieren — Details/Grenzen in
+    // repository.ts). Social-only-Operatoren (kein credential) → Setup-Mail.
+    const ownerCredential = await operator.repo.getOwnerCredentialTemplate(
+      OPERATOR_TENANT_ID,
+      user.id,
+    );
 
     const input: NewHelpCenter = {
       tenantId: `t_${crypto.randomUUID()}`,
@@ -161,15 +188,20 @@ export function operatorRouter(deps: ApiDeps) {
       ownerUserId: crypto.randomUUID(),
       ownerEmail: canonicalizeEmail(user.email),
       ownerName: user.name ?? null,
+      ownerCredential,
     };
 
     const result = await operator.repo.createHelpCenter(input);
     if (result === "slug_taken") return c.json({ error: "slug_taken" }, 409);
 
-    // Owner-Setup-Link (Set-Passwort + Onboarding) auf den NEUEN Tenant-Host.
-    // Best-Effort: ein Versandfehler nimmt das Provisioning NICHT zurück.
+    // Owner-Zugang: mit kopierten Zugangsdaten ist KEINE Setup-Mail nötig
+    // (gleiches Passwort + gleiche Authenticator-App); nur im Fallback läuft
+    // der Set-Passwort-Flow. Best-Effort: ein Versandfehler nimmt das
+    // Provisioning NICHT zurück.
     const tenant = newTenantObject(input);
-    const setup = await operator.sendOwnerSetup({ tenant, ownerEmail: input.ownerEmail });
+    const setup = ownerCredential
+      ? null
+      : await operator.sendOwnerSetup({ tenant, ownerEmail: input.ownerEmail });
 
     return c.json(
       {
@@ -178,8 +210,10 @@ export function operatorRouter(deps: ApiDeps) {
         name: input.name,
         defaultLocale: input.defaultLocale,
         helpCenterUrl: `https://${input.slug}.hallofhelp.com`,
+        // Steuert die Erfolgs-Copy der Console (gleiche Zugangsdaten vs. Mail).
+        ownerAccess: ownerCredential ? "same_credentials" : "setup_mail",
         // dev-only (kein Mail-Key, NODE_ENV != prod): Set-Passwort-Link inline.
-        ...(setup.devLink ? { ownerSetupDevLink: setup.devLink } : {}),
+        ...(setup?.devLink ? { ownerSetupDevLink: setup.devLink } : {}),
       },
       201,
     );

@@ -14,6 +14,30 @@ import { useEffect } from "react";
  * Bewusst CLIENT-seitig (statt SSR-Zählung): Bots/Crawler führen selten JS aus
  * → sauberere Zahlen; die Artikelseite bleibt voll cachebar.
  */
+/**
+ * „War das hilfreich?"-Feedback melden (Artikel: slug; KI-Antwort: slug=null).
+ * Gleiche fire-and-forget-Beacon-Semantik wie der ViewBeacon; der Server
+ * dedupliziert (24h je Besucher+Ziel+Richtung) und verbucht 0 Credits.
+ */
+export function sendFeedback(slug: string | null, helpful: boolean): void {
+  const payload = JSON.stringify({ ...(slug ? { slug } : {}), helpful });
+  try {
+    const ok = navigator.sendBeacon?.(
+      "/api/v1/events/feedback",
+      new Blob([payload], { type: "application/json" }),
+    );
+    if (ok) return;
+  } catch {
+    /* fällt auf fetch zurück */
+  }
+  void fetch("/api/v1/events/feedback", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: payload,
+    keepalive: true,
+  }).catch(() => {});
+}
+
 export function ViewBeacon({ slug }: { slug: string }) {
   useEffect(() => {
     const guardKey = `hoh:viewed:${slug}`;

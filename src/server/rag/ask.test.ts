@@ -2,10 +2,10 @@ import BetterSqlite3 from "better-sqlite3";
 import { beforeEach, describe, expect, it } from "vitest";
 import { applyMigrations, d1FromSqlite } from "@/server/auth/sqlite-test-support";
 import { GRACE_DAYS } from "@/server/billing/plan-state";
-import { CREDIT_COSTS, PLANS } from "@/server/billing/pricing";
+import { CREDIT_COSTS, INTERNAL_AI_GENERATION_CREDITS, PLANS } from "@/server/billing/pricing";
 import { D1BillingRepository } from "@/server/billing/store";
 import { buildChunks } from "@/server/search/chunking";
-import { answerQuestion, type AskPipelineDeps } from "./ask";
+import { ASK_DAILY_VISITOR_CAP, answerQuestion, type AskPipelineDeps } from "./ask";
 
 /**
  * RAG-ORCHESTRIERUNG (Kern-Invarianten, Fakes + echte Billing-DDL).
@@ -28,7 +28,7 @@ const ARTICLE = {
 
 function makeFixture(over: Partial<AskPipelineDeps> = {}) {
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0009_usage_billing.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0009_usage_billing.sql", "0011_usage_feedback_types.sql"]);
   const billing = new D1BillingRepository(d1FromSqlite(sqlite));
 
   const calls = { embed: 0, query: 0, generate: 0 };
@@ -125,14 +125,21 @@ describe("answerQuestion", () => {
     expect(f.calls.generate).toBe(0);
   });
 
-  it("interne (Team-)Frage: Generierung läuft, aber 0 Credits und kein MAU", async () => {
+  it("interne (Team-)Frage: Generierung läuft zum SELBSTKOSTEN-Satz (reduziert, kein MAU)", async () => {
     const outcome = await answerQuestion(f.deps, {
       ...INPUT,
       actor: { actorType: "internal", visitorId: "u:admin", userId: "admin" },
     });
     expect(outcome.status).toBe("ok");
+    // Entscheidung 2026-07-16: Team-Generierungen kosten den internen
+    // At-cost-Satz (sichtbarer Verbrauch, „Nullnummer" für den Betreiber) —
+    // NICHT den Endnutzer-Preis und NICHT 0.
     const usage = await f.billing.getUsage("t_demo", "2027-01");
-    expect(usage).toEqual({ creditsUsed: 0, mauCount: 0 });
+    expect(usage).toEqual({ creditsUsed: INTERNAL_AI_GENERATION_CREDITS, mauCount: 0 });
+    const event = f.sqlite
+      .prepare(`SELECT credits, actor_type FROM usage_events WHERE tenant_id = 't_demo'`)
+      .get();
+    expect(event).toEqual({ credits: INTERNAL_AI_GENERATION_CREDITS, actor_type: "internal" });
   });
 
   it("Modellfehler: Exception propagiert und es wurde NICHTS verbucht", async () => {
@@ -143,5 +150,25 @@ describe("answerQuestion", () => {
     });
     await expect(answerQuestion(f.deps, INPUT)).rejects.toThrow("model down");
     expect((await f.billing.getUsage("t_demo", "2027-01")).creditsUsed).toBe(0);
+  });
+
+  it("Besucher-Tagesdeckel: ab der 31. Generierung/24h visitor_capped, VOR jedem AI-Aufruf", async () => {
+    const insert = f.sqlite.prepare(
+      `INSERT INTO usage_events (id, tenant_id, type, credits, actor_type, visitor_id, user_id, article_id, created_at)
+       VALUES (?, 't_demo', 'ai_generation', 20, 'anon', 'v-1', NULL, NULL, ?)`,
+    );
+    for (let i = 0; i < ASK_DAILY_VISITOR_CAP; i++) insert.run(`e-${i}`, NOW - 60 * i);
+
+    const outcome = await answerQuestion(f.deps, INPUT);
+    expect(outcome).toEqual({ status: "visitor_capped" });
+    expect(f.calls.embed).toBe(0);
+    expect(f.calls.generate).toBe(0);
+
+    // Ein ANDERER Besucher (und Events älter als 24h) zählen nicht gegen den Deckel.
+    const other = await answerQuestion(f.deps, {
+      ...INPUT,
+      actor: { ...INPUT.actor, visitorId: "v-2" },
+    });
+    expect(other.status).toBe("ok");
   });
 });

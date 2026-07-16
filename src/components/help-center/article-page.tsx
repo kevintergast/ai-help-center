@@ -8,7 +8,7 @@ import { HelpShell } from "./help-shell";
 import { ArticleAskPrompt } from "./article-ask-prompt";
 import { ViewBeacon } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
-import { FeedbackBar } from "@/components/ui/feedback-bar";
+import { ArticleFeedback } from "./article-feedback";
 import { ArrowLeftIcon, DocIcon, PlayIcon } from "@/components/ui/icons";
 
 /**
@@ -95,7 +95,8 @@ export function ArticlePage({
               ))}
             </div>
             <div className="mt-8">
-              <FeedbackBar
+              <ArticleFeedback
+                slug={article.slug}
                 labels={{
                   question: t("hc.feedbackQuestion"),
                   yes: t("hc.feedbackYes"),

@@ -21,6 +21,7 @@ const PLAN_NAME: Record<PlanId, MessageKey> = {
   free: "admin.plan.name.free",
   starter: "admin.plan.name.starter",
   scale: "admin.plan.name.scale",
+  enterprise: "admin.plan.name.enterprise",
 };
 
 export default async function AdminPlanPage() {
@@ -69,8 +70,17 @@ export default async function AdminPlanPage() {
           <div className="mb-5 flex items-baseline justify-between">
             <h2 className="text-sm text-ink-muted">{t("admin.plan.current")}</h2>
             <span className="text-[22px] font-semibold tracking-[-0.5px]">
-              {t(PLAN_NAME[u?.planId ?? "free"])} · {cf.format((u?.baseFeeCents ?? 0) / 100)}
-              <span className="text-sm font-normal text-ink-muted">{t("admin.plan.perMonth")}</span>
+              {t(PLAN_NAME[u?.planId ?? "free"])} ·{" "}
+              {u?.planId === "enterprise" ? (
+                t("admin.plan.enterprisePrice")
+              ) : (
+                <>
+                  {cf.format((u?.baseFeeCents ?? 0) / 100)}
+                  <span className="text-sm font-normal text-ink-muted">
+                    {t("admin.plan.perMonth")}
+                  </span>
+                </>
+              )}
             </span>
           </div>
           <Meter
@@ -115,13 +125,31 @@ export default async function AdminPlanPage() {
                   </Badge>
                 ) : null}
               </div>
-              <div className="mt-1 text-lg font-semibold tracking-[-0.4px]">
-                {cf.format(p.baseFeeCents / 100)}
-                <span className="text-sm font-normal text-ink-muted">{t("admin.plan.perMonth")}</span>
-              </div>
-              <p className="mt-0.5 text-xs text-ink-muted">
-                {t("admin.plan.included", { n: nf.format(p.includedCredits) })}
-              </p>
+              {p.contactSales ? (
+                <>
+                  {/* Enterprise: individuelle Konditionen statt Self-Service-Preis. */}
+                  <div className="mt-1 text-lg font-semibold tracking-[-0.4px]">
+                    {t("admin.plan.enterprisePrice")}
+                  </div>
+                  <p className="mt-0.5 text-xs text-ink-muted">{t("admin.plan.enterprisePitch")}</p>
+                  <a
+                    href={`mailto:sales@hallofhelp.com?subject=${encodeURIComponent(t("admin.plan.enterpriseMailSubject"))}`}
+                    className="mt-2.5 inline-flex items-center rounded-full border border-hairline bg-tint px-3.5 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-brand hover:text-brand-fg"
+                  >
+                    {t("admin.plan.contactSales")}
+                  </a>
+                </>
+              ) : (
+                <>
+                  <div className="mt-1 text-lg font-semibold tracking-[-0.4px]">
+                    {cf.format(p.baseFeeCents / 100)}
+                    <span className="text-sm font-normal text-ink-muted">{t("admin.plan.perMonth")}</span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-ink-muted">
+                    {t("admin.plan.included", { n: nf.format(p.includedCredits) })}
+                  </p>
+                </>
+              )}
             </div>
           ))}
           {/* Upgrade/Checkout folgt mit Paddle (provider-agnostischer Billing-Layer). */}

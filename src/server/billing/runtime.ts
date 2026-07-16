@@ -9,7 +9,7 @@ import {
   PLANS,
   type PlanId,
 } from "./pricing";
-import { D1BillingRepository, type TopArticleRow } from "./store";
+import { D1BillingRepository, type FeedbackStats, type TopArticleRow } from "./store";
 
 /**
  * SERVER-EINSTIEGE der Admin-Seiten (Muster content/runtime.ts: Seiten sind
@@ -33,7 +33,14 @@ export interface PlanOverview {
   /** Beginn der nächsten Periode (= Credit-Reset), ms UTC. */
   resetMs: number;
   /** Plan-Karten fürs UI (aufsteigend, aktueller markiert). */
-  plans: { id: PlanId; baseFeeCents: number; includedCredits: number; current: boolean }[];
+  plans: {
+    id: PlanId;
+    baseFeeCents: number;
+    includedCredits: number;
+    current: boolean;
+    /** true = kein Self-Service-Preis, UI zeigt Vertriebs-Kontakt (Enterprise). */
+    contactSales: boolean;
+  }[];
 }
 
 export async function getPlanOverview(tenant: Tenant): Promise<PlanOverview | null> {
@@ -73,6 +80,8 @@ export async function getPlanOverview(tenant: Tenant): Promise<PlanOverview | nu
       baseFeeCents: PLANS[id].baseFeeCents,
       includedCredits: PLANS[id].includedCredits,
       current: id === row.plan,
+      // Enterprise: kein Self-Service-Preis → Plan-Seite zeigt Vertriebs-CTA.
+      contactSales: PLANS[id].contactSales === true,
     })),
   };
 }
@@ -84,26 +93,38 @@ export interface StatsOverview {
   totalViews: number;
   /** Vergleichsfenster davor (für den Trend); null bei leerer Basis. */
   deltaPct: number | null;
+  /** „War das hilfreich?"-Stimmen (Artikel + KI-Antworten, gleiches Fenster). */
+  feedback: FeedbackStats;
 }
 
 const STATS_DAYS = 30;
 
-export async function getStatsOverview(tenant: Tenant): Promise<StatsOverview | null> {
+/**
+ * @param opts.includeInternal Team-Aufrufe MIT anzeigen (Statistik-Schalter;
+ *   Architektur-Default bleibt „ausgeblendet"). Interne Nutzung kostet in
+ *   keinem Fall Credits — der Schalter ändert nur die Sichtbarkeit.
+ */
+export async function getStatsOverview(
+  tenant: Tenant,
+  opts: { includeInternal?: boolean } = {},
+): Promise<StatsOverview | null> {
   const db = await getDbSafe();
   if (!db) return null;
   const repo = new D1BillingRepository(db);
   const nowSec = Math.floor(Date.now() / 1000);
 
-  const [series, topArticles, total60] = await Promise.all([
-    repo.getDailyViews(tenant.id, { days: STATS_DAYS, excludeInternal: true, nowSec }),
-    repo.getTopArticles(tenant.id, { days: STATS_DAYS, excludeInternal: true, nowSec }, 5),
-    repo.getViewTotal(tenant.id, { days: STATS_DAYS * 2, excludeInternal: true, nowSec }),
+  const window = { days: STATS_DAYS, excludeInternal: !opts.includeInternal, nowSec };
+  const [series, topArticles, total60, feedback] = await Promise.all([
+    repo.getDailyViews(tenant.id, window),
+    repo.getTopArticles(tenant.id, window, 5),
+    repo.getViewTotal(tenant.id, { ...window, days: STATS_DAYS * 2 }),
+    repo.getFeedbackStats(tenant.id, window),
   ]);
   const totalViews = series.reduce((a, b) => a + b, 0);
   const prevTotal = total60 - totalViews;
   const deltaPct = prevTotal > 0 ? Math.round(((totalViews - prevTotal) / prevTotal) * 100) : null;
 
-  return { series, topArticles, totalViews, deltaPct };
+  return { series, topArticles, totalViews, deltaPct, feedback };
 }
 
 export interface AdminUsageKpis {

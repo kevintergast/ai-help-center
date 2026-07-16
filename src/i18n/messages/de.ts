@@ -147,6 +147,9 @@ export const de = {
   "admin.stats.title": "Statistik",
   "admin.stats.subtitle": "Nutzung und Qualität deiner Inhalte.",
   "admin.stats.hideInternal": "Interne Accounts ausblenden",
+  "admin.stats.showInternal": "Interne Accounts einblenden",
+  "admin.stats.internalNote":
+    "Interne Team-Aufrufe werden mit angezeigt und zählen nicht als aktive Nutzer. Sie kosten keine Credits — außer KI-Generierungen, die zum internen Selbstkostensatz zählen.",
   "admin.stats.questionsOverTime": "Fragen im Zeitverlauf",
   "admin.stats.topQuestions": "Häufigste Fragen",
   "admin.stats.topArticles": "Meistgenutzte Artikel",
@@ -160,6 +163,13 @@ export const de = {
   "admin.stats.viewsEmpty": "Noch keine Aufrufe erfasst — sobald Besucher Artikel öffnen, erscheinen sie hier.",
   "admin.stats.questionsEmpty":
     "Erscheint, sobald die KI-Antworten live sind — dann siehst du hier die häufigsten Fragen deiner Nutzer.",
+  "admin.stats.helpful": "Hilfreich-Quote",
+  "admin.stats.helpfulVotes": "{yes} von {total} Bewertungen",
+  "admin.stats.helpfulEmpty":
+    "Noch kein Feedback — sobald Besucher „War das hilfreich?“ beantworten, siehst du hier die Quote.",
+  "admin.stats.answerFeedback": "Feedback zu KI-Antworten",
+
+  "security.rateLimited": "Zu viele Anfragen — bitte warte einen Moment und versuche es erneut.",
 
   "admin.plan.title": "Plan & Credits",
   "admin.plan.subtitle": "Kontingent, Verbrauch und Rechnungen.",
@@ -182,6 +192,12 @@ export const de = {
   "admin.plan.name.free": "Free",
   "admin.plan.name.starter": "Starter",
   "admin.plan.name.scale": "Scale",
+  "admin.plan.name.enterprise": "Enterprise",
+  "admin.plan.enterprisePrice": "Individuell",
+  "admin.plan.enterprisePitch":
+    "Individuelle Credits, Nutzerzahlen und Konditionen — zugeschnitten auf dein Volumen.",
+  "admin.plan.contactSales": "Mit dem Vertrieb sprechen",
+  "admin.plan.enterpriseMailSubject": "Enterprise-Anfrage — Hall Of Help",
   "admin.plan.paymentsSoon":
     "Preise zur Vorschau — Upgrade und Bezahlung werden mit dem Abrechnungs-Launch freigeschaltet.",
   "admin.plan.invoicesNone": "Noch keine Rechnungen — die Abrechnung startet mit dem Bezahl-Launch.",
@@ -256,6 +272,16 @@ export const de = {
   "admin.legal.error.invalidUrl": "Bitte eine gültige https-Adresse angeben.",
   "admin.legal.error.markdownRequired": "Bitte Text einfügen oder eine Datei hochladen.",
   "admin.legal.error.tooLarge": "Der Text ist zu groß (max. 100 KB).",
+
+  // Such-/KI-Index (Einstellungen)
+  "admin.searchIndex.title": "KI- & Such-Index",
+  "admin.searchIndex.intro":
+    "Der Index versorgt die KI-Antworten und hält sich beim Veröffentlichen automatisch aktuell. Neu aufbauen brauchst du ihn nur einmal zum Start — oder falls Antworten auffällig ins Leere laufen. Frisch indexierte Artikel sind nach wenigen Sekunden abfragbar.",
+  "admin.searchIndex.rebuild": "Index neu aufbauen",
+  "admin.searchIndex.running": "Baut auf …",
+  "admin.searchIndex.done": "Fertig: {articles} Artikel geprüft, {embedded} Abschnitte neu indexiert.",
+  "admin.searchIndex.ownerOnly": "Nur der Owner dieser Instanz kann den Index neu aufbauen.",
+  "admin.searchIndex.error": "Neuaufbau fehlgeschlagen — bitte später erneut versuchen.",
   "admin.settings.branding": "Branding",
   "admin.settings.logo": "Logo",
   "admin.settings.uploadLogo": "Logo hochladen",
@@ -473,12 +499,17 @@ export const de = {
   "operator.wizard.submitting": "Wird erstellt …",
   "operator.wizard.cancel": "Abbrechen",
   "operator.wizard.error": "Das Hilfezentrum konnte nicht erstellt werden. Bitte prüfe deine Eingaben.",
+  "operator.wizard.limitReached":
+    "Du hast die maximale Anzahl an Hilfezentren für dein Konto erreicht. Melde dich beim Support, wenn du mehr brauchst.",
 
   "operator.success.title": "Hilfezentrum erstellt",
   "operator.success.body": "Dein Hilfezentrum ist bereit unter:",
   "operator.success.setupTitle": "Nächster Schritt: Admin-Zugang einrichten",
   "operator.success.setupBody":
-    "Richte jetzt Passwort und Zwei-Faktor (MFA) für deinen Owner-Zugang ein. Wir haben dir dafür einen Link geschickt.",
+    "Wichtig: Dein neues Hilfezentrum hat ein eigenes Owner-Konto (gleiche E-Mail-Adresse, getrenntes Passwort) — du bist dort noch nicht angemeldet. Wir haben dir einen Einrichtungs-Link an deine Registrierungs-Adresse geschickt (Absender noreply@hallofhelp.com, ggf. Spam-Ordner prüfen). Damit setzt du Passwort und Zwei-Faktor ein und meldest dich im neuen Hilfezentrum an.",
+  "operator.success.sameCredsTitle": "Anmelden mit deinen bestehenden Zugangsdaten",
+  "operator.success.sameCredsBody":
+    "Dein neues Hilfezentrum hat ein eigenes Owner-Konto, das mit deinen gewohnten Anmeldemethoden startet: gleiche E-Mail, gleiches Passwort bzw. Google-Login — und falls du Zwei-Faktor nutzt, funktioniert auch dein bestehender Authenticator-Eintrag. Wichtig: Die Konten sind ab jetzt unabhängig — spätere Änderungen (z. B. ein neues Passwort) gelten nur für das jeweilige Hilfezentrum.",
   "operator.success.devLink": "Dev-Link zum Passwort setzen:",
   "operator.success.openHelpCenter": "Hilfezentrum öffnen",
   "operator.success.backToConsole": "Zurück zur Übersicht",

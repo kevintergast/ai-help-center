@@ -148,6 +148,9 @@ export const en: Record<MessageKey, string> = {
   "admin.stats.title": "Statistics",
   "admin.stats.subtitle": "Usage and quality of your content.",
   "admin.stats.hideInternal": "Hide internal accounts",
+  "admin.stats.showInternal": "Show internal accounts",
+  "admin.stats.internalNote":
+    "Internal team activity is shown in the counts and never counts as active users. It costs no credits — except AI generations, which are charged at the internal at-cost rate.",
   "admin.stats.questionsOverTime": "Questions over time",
   "admin.stats.topQuestions": "Top questions",
   "admin.stats.topArticles": "Most used articles",
@@ -161,6 +164,13 @@ export const en: Record<MessageKey, string> = {
   "admin.stats.viewsEmpty": "No views recorded yet — once visitors open articles, they show up here.",
   "admin.stats.questionsEmpty":
     "Appears once AI answers are live — you'll then see your users' most common questions here.",
+  "admin.stats.helpful": "Helpful rate",
+  "admin.stats.helpfulVotes": "{yes} of {total} ratings",
+  "admin.stats.helpfulEmpty":
+    "No feedback yet — once visitors answer “Was this helpful?”, the rate shows up here.",
+  "admin.stats.answerFeedback": "Feedback on AI answers",
+
+  "security.rateLimited": "Too many requests — please wait a moment and try again.",
 
   "admin.plan.title": "Plan & credits",
   "admin.plan.subtitle": "Quota, usage and invoices.",
@@ -183,6 +193,12 @@ export const en: Record<MessageKey, string> = {
   "admin.plan.name.free": "Free",
   "admin.plan.name.starter": "Starter",
   "admin.plan.name.scale": "Scale",
+  "admin.plan.name.enterprise": "Enterprise",
+  "admin.plan.enterprisePrice": "Custom",
+  "admin.plan.enterprisePitch":
+    "Custom credits, user counts and terms — tailored to your volume.",
+  "admin.plan.contactSales": "Talk to sales",
+  "admin.plan.enterpriseMailSubject": "Enterprise inquiry — Hall Of Help",
   "admin.plan.paymentsSoon":
     "Prices shown as a preview — upgrading and payment unlock with the billing launch.",
   "admin.plan.invoicesNone": "No invoices yet — billing starts with the payments launch.",
@@ -257,6 +273,16 @@ export const en: Record<MessageKey, string> = {
   "admin.legal.error.invalidUrl": "Please enter a valid https address.",
   "admin.legal.error.markdownRequired": "Please paste text or upload a file.",
   "admin.legal.error.tooLarge": "The text is too large (max. 100 KB).",
+
+  // Search/AI index (settings)
+  "admin.searchIndex.title": "AI & search index",
+  "admin.searchIndex.intro":
+    "The index powers AI answers and keeps itself up to date on publish. You only need to rebuild it once at launch — or if answers come up empty unexpectedly. Freshly indexed articles become queryable after a few seconds.",
+  "admin.searchIndex.rebuild": "Rebuild index",
+  "admin.searchIndex.running": "Rebuilding …",
+  "admin.searchIndex.done": "Done: {articles} articles checked, {embedded} sections re-indexed.",
+  "admin.searchIndex.ownerOnly": "Only the owner of this instance can rebuild the index.",
+  "admin.searchIndex.error": "Rebuild failed — please try again later.",
   "admin.settings.branding": "Branding",
   "admin.settings.logo": "Logo",
   "admin.settings.uploadLogo": "Upload logo",
@@ -472,12 +498,17 @@ export const en: Record<MessageKey, string> = {
   "operator.wizard.submitting": "Creating …",
   "operator.wizard.cancel": "Cancel",
   "operator.wizard.error": "The help center could not be created. Please check your input.",
+  "operator.wizard.limitReached":
+    "You've reached the maximum number of help centers for your account. Contact support if you need more.",
 
   "operator.success.title": "Help center created",
   "operator.success.body": "Your help center is ready at:",
   "operator.success.setupTitle": "Next step: set up admin access",
   "operator.success.setupBody":
-    "Now set a password and two-factor (MFA) for your owner access. We've sent you a link to do so.",
+    "Important: your new help center has its own owner account (same email address, separate password) — you are not signed in there yet. We've sent a setup link to your registration address (sender noreply@hallofhelp.com — check your spam folder if needed). Use it to set a password and two-factor, then sign in to the new help center.",
+  "operator.success.sameCredsTitle": "Sign in with your existing credentials",
+  "operator.success.sameCredsBody":
+    "Your new help center has its own owner account that starts with your usual sign-in methods: same email, same password or Google sign-in — and if you use two-factor, your existing authenticator entry works too. Note: the accounts are independent from now on — later changes (such as a new password) only apply to that help center.",
   "operator.success.devLink": "Dev link to set the password:",
   "operator.success.openHelpCenter": "Open help center",
   "operator.success.backToConsole": "Back to overview",

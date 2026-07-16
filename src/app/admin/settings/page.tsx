@@ -3,6 +3,7 @@ import { getT } from "@/i18n/t";
 import { AdminPageHeader } from "@/components/admin/admin-shell";
 import { CustomDomainManager } from "@/components/admin/custom-domain-manager";
 import { LegalDocsManager } from "@/components/admin/legal-docs-manager";
+import { SearchIndexManager } from "@/components/admin/search-index-manager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -115,6 +116,11 @@ export default async function AdminSettingsPage() {
         <SettingsCard title={t("admin.legal.title")}>
           {/* Rechtstexte (Design h): Link ODER Markdown/Upload; öffentlich unter /legal/<doc>. */}
           <LegalDocsManager locale={tenant.defaultLocale} />
+        </SettingsCard>
+
+        <SettingsCard title={t("admin.searchIndex.title")}>
+          {/* KI-/Such-Index: Erst-Backfill + Reparatur (Lifecycle hält ihn sonst aktuell). */}
+          <SearchIndexManager locale={tenant.defaultLocale} />
         </SettingsCard>
       </div>
     </div>

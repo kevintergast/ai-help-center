@@ -390,6 +390,8 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
     // 2026-07-15: + /events/view (View-Beacon) und /ask (dynamischer KI-
     // Artikel) — anonyme Besucher sind der Produkt-Normalfall; Begründungen in
     // public-routes.ts bzw. api/ask.ts (Missbrauchsschutz-Schichten).
+    // 2026-07-16: + /events/feedback („War das hilfreich?", 0 Credits,
+    // 24h-Dedup, IP-Rate-Limit — Begründung in public-routes.ts).
     expect(PUBLIC_ROUTES).toMatchInlineSnapshot(`
       {
         "exact": [
@@ -397,6 +399,7 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
           "/api/v1/tenant",
           "/api/v1/branding/logo",
           "/api/v1/events/view",
+          "/api/v1/events/feedback",
           "/api/v1/ask",
         ],
         "prefixes": [

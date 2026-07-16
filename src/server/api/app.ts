@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Tenant } from "@/lib/tenant/types";
 import { requireTeam } from "@/server/auth/guards";
+import { allowRequest, clientIp, rateLimited } from "./rate-limit";
 import {
   handleGatewayCallback,
   isGatewayHost,
@@ -116,6 +117,30 @@ export function buildApiApp(deps: ApiDeps) {
     // schlicht "keine Session" (Defense-in-Depth zum Adapter-Scoping).
     if (!data || !enforceSessionTenant(data.session)) {
       return c.json({ error: "unauthorized" }, 401);
+    }
+    return next();
+  });
+
+  // (3-vor) IP-RATE-LIMIT auf MAIL-SENDENDE Auth-Endpunkte (Abuse-Härtung):
+  // Turnstile verhindert dort Bots, das Limit zusätzlich Mail-Bombing auf
+  // fremde Adressen + Resend-Kosten/Reputationsschaden durch Wiederholung
+  // (5/min/IP; fail-open ohne Binding, s. rate-limit.ts).
+  const MAIL_SENDING_AUTH_PATHS = new Set([
+    "sign-up/email",
+    "request-password-reset",
+    "send-verification-email",
+    "two-factor/send-otp",
+  ]);
+  app.use("/auth/*", async (c, next) => {
+    if (c.req.method === "POST") {
+      const sub = c.req.path.split("/auth/")[1] ?? "";
+      if (MAIL_SENDING_AUTH_PATHS.has(sub)) {
+        const ok = await allowRequest(
+          deps.rateLimiters?.sensitive,
+          `mail:${c.get("tenant").id}:${clientIp(c)}`,
+        );
+        if (!ok) return rateLimited(c);
+      }
     }
     return next();
   });

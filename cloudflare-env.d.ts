@@ -27,6 +27,12 @@ interface CloudflareEnv {
   // (Matrix: src/server/security/turnstile.ts).
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET_KEY?: string | { get(): Promise<string> };
+  // IP-Rate-Limits (Workers Rate Limiting API, wrangler [[unsafe.bindings]]).
+  // Fehlen sie (dev/Tests), laufen Requests ungebremst (fail-open, s.
+  // api/rate-limit.ts). Struktur-Typ dort (RateLimiterBinding).
+  RL_ASK?: { limit(options: { key: string }): Promise<{ success: boolean }> };
+  RL_EVENTS?: { limit(options: { key: string }): Promise<{ success: boolean }> };
+  RL_SENSITIVE?: { limit(options: { key: string }): Promise<{ success: boolean }> };
   // Embedding-Queue (Infra-Plan Schritt 6, Workers Paid): Producer-Binding.
   // Fehlt sie (lokales next dev vor Binding-Neustart), läuft der Index-Sync
   // direkt (waitUntil) — Weiche in runtime-deps.ts.

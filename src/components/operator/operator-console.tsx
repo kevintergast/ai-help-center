@@ -106,8 +106,14 @@ export function OperatorConsole({
 
         <div className="mt-5">
           <PendingNote tone="info">
-            <strong className="block text-ink">{t("operator.success.setupTitle")}</strong>
-            {t("operator.success.setupBody")}
+            <strong className="block text-ink">
+              {created.ownerAccess === "same_credentials"
+                ? t("operator.success.sameCredsTitle")
+                : t("operator.success.setupTitle")}
+            </strong>
+            {created.ownerAccess === "same_credentials"
+              ? t("operator.success.sameCredsBody")
+              : t("operator.success.setupBody")}
             {created.ownerSetupDevLink ? (
               <span className="mt-2 block break-all text-xs">
                 {t("operator.success.devLink")}{" "}
