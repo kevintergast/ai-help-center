@@ -19,6 +19,15 @@ import {
   suspendTenant,
   unsuspendTenant,
 } from "./actions";
+import {
+  computeDealCosts,
+  DEFAULT_ASSUMPTIONS,
+  DEFAULT_PRICES,
+  DEFAULT_VOLUMES,
+  type DealAssumptions,
+  type DealPrices,
+  type DealVolumes,
+} from "./costs";
 import { listTenants, platformStats, tenantDetail } from "./queries";
 import { PLAN_ORDER } from "@product/server/billing/pricing";
 import { Bars, eur, fmtDate, Layout, nf, RoleBadge, StatusBadge } from "./ui";
@@ -276,6 +285,13 @@ app.get("/t/:id", async (c) => {
             <span class="muted" style="font-size:12.5px">Aufrufe je Tag (30 Tage)</span>
             <Bars values={detail.viewSeries} />
           </div>
+          <p style="margin-top:12px;font-size:13px">
+            <a
+              href={`/kosten?ki=${detail.usage30.generations}&noans=0&uebers=${detail.usage30.translations}&views=${detail.usage30.views}&mau=${row.mau}&artikel=${row.publishedArticles}`}
+            >
+              → Selbstkosten mit diesen Zahlen kalkulieren (30-Tage-Basis)
+            </a>
+          </p>
         </div>
       </div>
 
@@ -578,6 +594,222 @@ app.post("/t/:id/delete", async (c) => {
 
   console.log(`[ops] Instanz ${id} (${tenant.slug}) gelöscht von ${c.get("email")}`);
   return c.redirect("/?ok=deleted", 303);
+});
+
+// ——— Selbstkostenrechner ——————————————————————————————————————————————
+const numParam = (get: (k: string) => string | undefined, key: string, dflt: number): number => {
+  const raw = get(key);
+  if (raw == null || raw.trim() === "") return dflt;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : dflt;
+};
+
+/** USD mit bis zu 4 Nachkommastellen — Cent-Beträge (Embeddings!) sonst = 0. */
+const usd = (v: number) =>
+  `$${v.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+
+function NumField({ k, label, value, hint }: { k: string; label: string; value: number; hint?: string }) {
+  return (
+    <span style="max-width:170px">
+      <label for={`f-${k}`}>{label}</label>
+      <input id={`f-${k}`} name={k} type="number" min="0" step="any" value={String(value)} style="width:100%" />
+      {hint ? <span class="muted" style="display:block;font-size:11px;margin-top:2px">{hint}</span> : null}
+    </span>
+  );
+}
+
+app.get("/kosten", (c) => {
+  const q = (k: string) => c.req.query(k);
+  const v: DealVolumes = {
+    kiAntworten: numParam(q, "ki", DEFAULT_VOLUMES.kiAntworten),
+    kiOhneAntwort: numParam(q, "noans", DEFAULT_VOLUMES.kiOhneAntwort),
+    uebersetzungen: numParam(q, "uebers", DEFAULT_VOLUMES.uebersetzungen),
+    views: numParam(q, "views", DEFAULT_VOLUMES.views),
+    mau: numParam(q, "mau", DEFAULT_VOLUMES.mau),
+    artikel: numParam(q, "artikel", DEFAULT_VOLUMES.artikel),
+  };
+  const a: DealAssumptions = {
+    tokensInAntwort: numParam(q, "tokIn", DEFAULT_ASSUMPTIONS.tokensInAntwort),
+    tokensOutAntwort: numParam(q, "tokOut", DEFAULT_ASSUMPTIONS.tokensOutAntwort),
+    tokensInUebersetzung: numParam(q, "tokTin", DEFAULT_ASSUMPTIONS.tokensInUebersetzung),
+    tokensOutUebersetzung: numParam(q, "tokTout", DEFAULT_ASSUMPTIONS.tokensOutUebersetzung),
+    tokensFrage: numParam(q, "tokFrage", DEFAULT_ASSUMPTIONS.tokensFrage),
+    tokensChunk: numParam(q, "tokChunk", DEFAULT_ASSUMPTIONS.tokensChunk),
+    chunksProArtikel: numParam(q, "chunks", DEFAULT_ASSUMPTIONS.chunksProArtikel),
+    reindexProMonat: numParam(q, "reindex", DEFAULT_ASSUMPTIONS.reindexProMonat),
+    d1ReadsProView: numParam(q, "d1rv", DEFAULT_ASSUMPTIONS.d1ReadsProView),
+    d1WritesProView: numParam(q, "d1wv", DEFAULT_ASSUMPTIONS.d1WritesProView),
+    d1ReadsProFrage: numParam(q, "d1rf", DEFAULT_ASSUMPTIONS.d1ReadsProFrage),
+    d1WritesProFrage: numParam(q, "d1wf", DEFAULT_ASSUMPTIONS.d1WritesProFrage),
+  };
+  const p: DealPrices = {
+    llmInUsdProMTok: numParam(q, "pLlmIn", DEFAULT_PRICES.llmInUsdProMTok),
+    llmOutUsdProMTok: numParam(q, "pLlmOut", DEFAULT_PRICES.llmOutUsdProMTok),
+    embedUsdProMTok: numParam(q, "pEmb", DEFAULT_PRICES.embedUsdProMTok),
+    vectorizeQueryUsdProMDim: numParam(q, "pVecQ", DEFAULT_PRICES.vectorizeQueryUsdProMDim),
+    vectorizeStorageUsdPro100MDim: numParam(q, "pVecS", DEFAULT_PRICES.vectorizeStorageUsdPro100MDim),
+    d1ReadUsdProMRows: numParam(q, "pD1r", DEFAULT_PRICES.d1ReadUsdProMRows),
+    d1WriteUsdProMRows: numParam(q, "pD1w", DEFAULT_PRICES.d1WriteUsdProMRows),
+    fixkostenUsdMonat: numParam(q, "fix", DEFAULT_PRICES.fixkostenUsdMonat),
+    sonstigesUsdMonat: numParam(q, "sonst", DEFAULT_PRICES.sonstigesUsdMonat),
+    eurProUsd: numParam(q, "kurs", DEFAULT_PRICES.eurProUsd),
+  };
+  const dealEur = numParam(q, "dealEur", 0);
+
+  const r = computeDealCosts(v, a, p);
+  const margeEur = dealEur > 0 ? dealEur - r.gesamtEur : null;
+
+  return c.html(
+    <Layout email={c.get("email")}>
+      <h1>Selbstkostenrechner</h1>
+      <p class="muted" style="font-size:13.5px;margin-bottom:16px">
+        Monatliche Selbstkosten eines individuellen Deals aus dem erwarteten Nutzungs-Mix.
+        Preise = Cloudflare-<strong>Listenpreise</strong> (Stand 2026-07), bewusst konservativ:
+        Freikontingente (50M Vectorize-Dims, 25Mrd/50M D1-Reads/Writes …) sind NICHT abgezogen.
+        Token-Annahmen mit echten Werten aus den AI-Gateway-Logs kalibrieren.
+      </p>
+
+      <form method="get" action="/kosten">
+        <div class="card" style="margin-bottom:12px">
+          <h2 style="margin-top:0">Volumen pro Monat</h2>
+          <div class="inline" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start">
+            <NumField k="ki" label="KI-Antworten" value={v.kiAntworten} />
+            <NumField k="noans" label="KI-Fragen ohne Antwort" value={v.kiOhneAntwort} hint="kosten Embedding/Suche, aber 0 Credits" />
+            <NumField k="uebers" label="KI-Übersetzungen" value={v.uebersetzungen} />
+            <NumField k="views" label="Artikel-Aufrufe" value={v.views} />
+            <NumField k="mau" label="MAU" value={v.mau} />
+            <NumField k="artikel" label="Artikel (Bestand)" value={v.artikel} />
+            <NumField k="dealEur" label="Deal-Preis €/Monat (optional)" value={dealEur} hint="für die Margen-Anzeige" />
+          </div>
+        </div>
+
+        <details style="margin-bottom:12px">
+          <summary style="cursor:pointer;font-weight:600;font-size:14px;padding:6px 2px">Annahmen (Tokens &amp; D1-Zeilen je Vorgang)</summary>
+          <div class="card" style="margin-top:8px">
+            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start">
+              <NumField k="tokIn" label="Tokens rein je Antwort" value={a.tokensInAntwort} hint="System-Prompt + 6 Kontext-Chunks + Frage" />
+              <NumField k="tokOut" label="Tokens raus je Antwort" value={a.tokensOutAntwort} />
+              <NumField k="tokTin" label="Tokens rein je Übersetzung" value={a.tokensInUebersetzung} />
+              <NumField k="tokTout" label="Tokens raus je Übersetzung" value={a.tokensOutUebersetzung} />
+              <NumField k="tokFrage" label="Embedding-Tokens je Frage" value={a.tokensFrage} />
+              <NumField k="tokChunk" label="Tokens je Chunk" value={a.tokensChunk} />
+              <NumField k="chunks" label="Chunks je Artikel" value={a.chunksProArtikel} />
+              <NumField k="reindex" label="Neuindexierungen/Monat" value={a.reindexProMonat} hint="wie oft der Bestand re-published wird" />
+              <NumField k="d1rv" label="D1-Reads je View" value={a.d1ReadsProView} />
+              <NumField k="d1wv" label="D1-Writes je View" value={a.d1WritesProView} />
+              <NumField k="d1rf" label="D1-Reads je Frage" value={a.d1ReadsProFrage} />
+              <NumField k="d1wf" label="D1-Writes je Frage" value={a.d1WritesProFrage} />
+            </div>
+          </div>
+        </details>
+
+        <details style="margin-bottom:12px">
+          <summary style="cursor:pointer;font-weight:600;font-size:14px;padding:6px 2px">Preise (USD, Cloudflare-Listenpreise)</summary>
+          <div class="card" style="margin-top:8px">
+            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start">
+              <NumField k="pLlmIn" label="LLM $/M Tokens rein" value={p.llmInUsdProMTok} hint="llama-3.3-70b fp8-fast" />
+              <NumField k="pLlmOut" label="LLM $/M Tokens raus" value={p.llmOutUsdProMTok} />
+              <NumField k="pEmb" label="Embeddings $/M Tokens" value={p.embedUsdProMTok} hint="bge-m3" />
+              <NumField k="pVecQ" label="Vectorize $/M Query-Dims" value={p.vectorizeQueryUsdProMDim} />
+              <NumField k="pVecS" label="Vectorize $/100M Speicher-Dims" value={p.vectorizeStorageUsdPro100MDim} />
+              <NumField k="pD1r" label="D1 $/M Reads" value={p.d1ReadUsdProMRows} />
+              <NumField k="pD1w" label="D1 $/M Writes" value={p.d1WriteUsdProMRows} />
+              <NumField k="fix" label="Fixkosten $/Monat" value={p.fixkostenUsdMonat} hint="Workers Paid + Grundrauschen, anteilig" />
+              <NumField k="sonst" label="Sonstiges $/Monat" value={p.sonstigesUsdMonat} hint="R2-Ops, Mails, CPU — bei Bedarf" />
+              <NumField k="kurs" label="EUR je USD" value={p.eurProUsd} />
+            </div>
+          </div>
+        </details>
+
+        <button type="submit">Berechnen</button>{" "}
+        <a href="/kosten" style="margin-left:10px;font-size:13.5px">Zurücksetzen</a>
+      </form>
+
+      <h2>Ergebnis</h2>
+      <div class="grid">
+        <div class="card kpi">
+          <span>Selbstkosten gesamt/Monat</span>
+          <b>{eur.format(r.gesamtEur)}</b>
+          <span class="muted">{usd(r.gesamtUsd)} · davon variabel {usd(r.variabelUsd)}</span>
+        </div>
+        <div class="card kpi">
+          <span>Credits, die der Mix verbraucht</span>
+          <b>{nf.format(r.credits)}</b>
+          <span class="muted">Produkt-Preisregel (Views 1 · Antwort 20 · Übersetzung 50)</span>
+        </div>
+        <div class="card kpi">
+          <span>Variable Kosten je 1.000 Credits</span>
+          <b>{r.je1kCreditsEur !== null ? eur.format(r.je1kCreditsEur) : "—"}</b>
+        </div>
+        <div class="card kpi">
+          <span>Grenzkosten je KI-Antwort</span>
+          <b>{(r.jeAntwortUsd * 100).toLocaleString("de-DE", { maximumFractionDigits: 2 })} US-Cent</b>
+        </div>
+        {margeEur !== null ? (
+          <div class="card kpi">
+            <span>Marge bei {eur.format(dealEur)}/Monat</span>
+            <b style={margeEur >= 0 ? "color:var(--ok)" : "color:var(--crit)"}>
+              {eur.format(margeEur)}
+            </b>
+            <span class="muted">{((margeEur / dealEur) * 100).toFixed(1)} % vom Deal-Preis</span>
+          </div>
+        ) : null}
+      </div>
+
+      <h2>Kostentreiber</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Posten</th>
+            <th>Menge</th>
+            <th class="num">USD/Monat</th>
+            <th class="num">EUR/Monat</th>
+          </tr>
+        </thead>
+        <tbody>
+          {r.lines.map((l) => (
+            <tr>
+              <td>{l.label}</td>
+              <td class="muted">{l.detail}</td>
+              <td class="num">{usd(l.usd)}</td>
+              <td class="num">{eur.format(l.usd * p.eurProUsd)}</td>
+            </tr>
+          ))}
+          <tr>
+            <td>Sonstiges (Pauschale)</td>
+            <td class="muted">—</td>
+            <td class="num">{usd(p.sonstigesUsdMonat)}</td>
+            <td class="num">{eur.format(p.sonstigesUsdMonat * p.eurProUsd)}</td>
+          </tr>
+          <tr>
+            <td><strong>Fixkosten</strong></td>
+            <td class="muted">Workers Paid + Grundrauschen</td>
+            <td class="num">{usd(r.fixUsd)}</td>
+            <td class="num">{eur.format(r.fixUsd * p.eurProUsd)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Empfehlung für den Enterprise-Rahmen</h2>
+      <div class="card">
+        <dl>
+          <dt>Credits-Deckel (custom_included_credits)</dt>
+          <dd>
+            <strong>{nf.format(r.creditsDeckelEmpfehlung)}</strong>{" "}
+            <span class="muted">= Verbrauch {nf.format(r.credits)} + 20 % Puffer, auf 1.000 gerundet</span>
+          </dd>
+          <dt>MAU-Deckel (custom_mau_limit)</dt>
+          <dd>
+            <strong>{nf.format(r.mauDeckelEmpfehlung)}</strong>{" "}
+            <span class="muted">= MAU {nf.format(v.mau)} + 20 % Puffer, auf 100 gerundet</span>
+          </dd>
+        </dl>
+        <p class="muted" style="font-size:12.5px;margin-top:10px">
+          Eintragen auf der Instanz-Detailseite unter „Plan &amp; Rahmen" (Plan: enterprise).
+        </p>
+      </div>
+    </Layout>,
+  );
 });
 
 // ——— Neue Instanz ————————————————————————————————————————————————————

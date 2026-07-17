@@ -118,6 +118,8 @@ describe("tenantDetail", () => {
     expect(detail!.row.ownerEmail).toBe("owner@alpha.de");
     expect(detail!.defaultLocale).toBe("de");
     expect(detail!.viewSeries.length).toBe(30);
+    // 30-Tage-Zähler (Prefill Selbstkostenrechner): nur t_a-Events, nie fremde.
+    expect(detail!.usage30).toEqual({ views: 1, generations: 1, translations: 0 });
 
     expect(await tenantDetail(ctx.db, "t_gibtsnicht", NOW)).toBeNull();
   });

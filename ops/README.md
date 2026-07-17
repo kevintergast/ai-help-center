@@ -18,7 +18,7 @@ Auf der Instanz-Detailseite, Sektion „Verwaltung":
   Instanz löst im Produkt **nicht mehr auf** (Subdomain UND Custom-Domain →
   „Instanz nicht gefunden", alle `/api/v1/*` → 404) — es entstehen keine
   KI-/Credit-Kosten mehr. Jederzeit reversibel.
-- **Plan & Rahmen**: Plan direkt setzen (free/starter/growth/scale/enterprise).
+- **Plan & Rahmen**: Plan direkt setzen (free/starter/scale/enterprise).
   Bei **Enterprise** zusätzlich individueller Deckel: `custom_included_credits`
   und `custom_mau_limit` (leer = Enterprise-Standard aus `pricing.ts`). Die
   Overrides wirken über die **geteilte Plan-Logik** überall — Produkt-
@@ -32,6 +32,21 @@ Auf der Instanz-Detailseite, Sektion „Verwaltung":
   Löschung wird mit Ops-E-Mail im Worker-Log protokolliert.
 - **Selbstschutz**: `t_operator` (unsere eigene Instanz) kann weder blockiert
   noch gelöscht werden.
+
+## Selbstkostenrechner (`/kosten`)
+Rechnet den Nutzungs-Mix eines individuellen Deals (KI-Antworten, Fragen ohne
+Antwort, Übersetzungen, Views, MAU, Artikelbestand) in monatliche Selbstkosten
+um — Kostentreiber einzeln (LLM, Embeddings, Vectorize, D1) plus Fixkosten,
+in USD und EUR. Zusätzlich: verbrauchte **Credits** nach der Produkt-Preisregel
+(`creditsFor`), daraus die **Empfehlung für den Enterprise-Rahmen**
+(custom_included_credits/custom_mau_limit, +20 % Puffer) und bei eingegebenem
+Deal-Preis die **Marge**. Alle Zahlen sind im Formular editierbar:
+- **Preise** = Cloudflare-Listenpreise (Stand 2026-07, `src/costs.ts`) —
+  bewusst konservativ ohne Abzug der Freikontingente.
+- **Annahmen** (Tokens je Antwort/Übersetzung, D1-Zeilen je Vorgang) = 
+  Schätzwerte — mit echten Zahlen aus den AI-Gateway-Logs kalibrieren.
+Auf jeder Instanz-Detailseite verlinkt „→ Selbstkosten … kalkulieren" den
+Rechner vorbefüllt mit den echten Zahlen der letzten 30 Tage.
 
 ## Einmaliges Setup (Kevin)
 

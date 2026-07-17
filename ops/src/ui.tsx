@@ -65,6 +65,7 @@ export function Layout({ email, children }: { email: string; children?: Child })
           <strong>HallofHelp · Ops</strong>
           <a href="/">Übersicht</a>
           <a href="/new">Neue Instanz</a>
+          <a href="/kosten">Selbstkosten</a>
           <span class="who">{email}</span>
         </header>
         <main>{children}</main>
