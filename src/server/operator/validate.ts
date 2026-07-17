@@ -31,6 +31,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   "www",
   "auth",
   "api",
+  "ops",
   OPERATOR_SUBDOMAIN, // "app"
   // betriebliche Blockliste:
   "admin",

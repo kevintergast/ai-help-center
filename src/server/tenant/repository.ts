@@ -57,7 +57,9 @@ export class D1TenantRepository {
 
   async getBySlug(slug: string): Promise<Tenant | null> {
     const row = await this.db
-      .prepare(`SELECT ${COLS} FROM tenants WHERE slug = ?`)
+      // suspended_at gesetzt (0021, Ops-Sperre) ⇒ Instanz existiert nach
+      // außen nicht (404 überall — Hilfezentrum, Admin, Auth, API, Widget).
+      .prepare(`SELECT ${COLS} FROM tenants WHERE slug = ? AND suspended_at IS NULL`)
       .bind(slug)
       .first<TenantRow>();
     return row ? rowToTenant(row) : null;
@@ -102,6 +104,7 @@ export class D1TenantRepository {
       .prepare(
         `SELECT ${COLS} FROM tenants
           WHERE custom_domain = ?
+            AND suspended_at IS NULL
             AND EXISTS (SELECT 1 FROM tenant_domain
                          WHERE tenant_domain.tenant_id = tenants.id
                            AND tenant_domain.domain = tenants.custom_domain

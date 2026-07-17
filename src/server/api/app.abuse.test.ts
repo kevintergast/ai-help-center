@@ -37,7 +37,7 @@ const denyAll: RateLimiterBinding = { limit: async () => ({ success: false }) };
 
 function makeFixture(opts: { deny?: ("ask" | "events" | "sensitive")[] } = {}) {
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql", "0009_usage_billing.sql", "0011_usage_feedback_types.sql", "0016_usage_ai_source_type.sql", "0020_usage_ai_translation_type.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql", "0009_usage_billing.sql", "0011_usage_feedback_types.sql", "0016_usage_ai_source_type.sql", "0020_usage_ai_translation_type.sql", "0022_plan_custom_limits.sql"]);
   sqlite
     .prepare(
       `INSERT INTO articles (id, tenant_id, slug, title, category, status)

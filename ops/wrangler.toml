@@ -1,0 +1,76 @@
+# HallofHelp OPS — internes Betreiber-Dashboard (EIGENER Worker, eigenständig
+# deploybar; Entscheidung 2026-07-17). Zugriff AUSSCHLIESSLICH über Cloudflare
+# Access (Zero Trust) — zusätzlich validiert der Worker selbst das Access-JWT
+# (src/access.ts, fail-closed: ohne ACCESS_AUD-Konfiguration antwortet er 503).
+#
+# DATEN: bindet DIESELBEN D1-Datenbanken wie das Produkt (lesend + gezielte
+# Verwaltungsaktionen). Migrationen laufen NUR im Root-Projekt — hier gibt es
+# bewusst kein migrations_dir (eine Schema-Wahrheit).
+name = "hallofhelp-ops"
+main = "src/index.tsx"
+compatibility_date = "2026-07-01"
+
+# ─── STAGING (Default-Env) ─────────────────────────────────────────
+# ops.dev.* ist durch den *.dev-Wildcard-DNS abgedeckt; die SPEZIFISCHERE
+# Route gewinnt gegen die Wildcard-Route des Produkt-Workers.
+[[routes]]
+pattern = "ops.dev.hallofhelp.com/*"
+zone_name = "hallofhelp.com"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hallofhelp-staging"
+database_id = "436c53cb-7157-411c-8d45-6da439c26033"
+
+# Nur für den Instanz-Lösch-Cleanup (Bilder/Logos + Such-Vektoren der Instanz):
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "hallofhelp-assets-staging"
+jurisdiction = "eu"
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "hallofhelp-articles-staging"
+
+[vars]
+APP_ENV = "development"
+# Cloudflare Access (Zero Trust): Team-Domain + Application-AUD — Werte aus
+# dem Zero-Trust-Dashboard (Anleitung in der Session/README). Bis beide
+# gesetzt sind, antwortet der Worker 503 (fail-closed; localhost-Dev läuft
+# ohne Access mit Dev-Identität).
+ACCESS_TEAM_DOMAIN = "hallofhelp.cloudflareaccess.com"
+# EINE Access-App mit beiden Hostnames (ops + ops.dev) → gleicher AUD-Tag.
+ACCESS_AUD = "b8d1c18578d6638e00a0be5df212d248ac8c7d154875ba49fe1ff76caaebe33d"
+
+# RESEND_API_KEY (Einladungs-Mails) als klassisches Worker-Secret:
+#   cd ops && npx wrangler secret put RESEND_API_KEY
+#   cd ops && npx wrangler secret put RESEND_API_KEY --env production
+# Ohne Key sind Mails inert (Einladung wird trotzdem angelegt, Link anzeigbar).
+
+# ─── PRODUCTION ────────────────────────────────────────────────────
+[env.production]
+name = "hallofhelp-ops-prod"
+
+[[env.production.routes]]
+pattern = "ops.hallofhelp.com/*"
+zone_name = "hallofhelp.com"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "hallofhelp-prod"
+database_id = "27ee06db-0320-427a-9c90-c45c673accfc"
+
+[[env.production.r2_buckets]]
+binding = "MEDIA"
+bucket_name = "hallofhelp-assets-prod"
+jurisdiction = "eu"
+
+[[env.production.vectorize]]
+binding = "VECTORIZE"
+index_name = "hallofhelp-articles-prod"
+
+[env.production.vars]
+APP_ENV = "production"
+ACCESS_TEAM_DOMAIN = "hallofhelp.cloudflareaccess.com"
+# EINE Access-App mit beiden Hostnames (ops + ops.dev) → gleicher AUD-Tag.
+ACCESS_AUD = "b8d1c18578d6638e00a0be5df212d248ac8c7d154875ba49fe1ff76caaebe33d"

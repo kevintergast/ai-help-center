@@ -1,0 +1,21 @@
+{
+  "name": "hallofhelp-ops",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Internes Betreiber-Dashboard (eigener Worker hinter Cloudflare Access)",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --persist-to ../.wrangler/state --port 8788 --var OPS_DEV_BYPASS:1",
+    "deploy": "wrangler deploy",
+    "deploy:prod": "wrangler deploy --env production",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260708.1",
+    "typescript": "^5.7.2",
+    "wrangler": "^4.0.0"
+  }
+}

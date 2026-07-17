@@ -28,6 +28,14 @@ export interface PlanStateInput {
   mauCount: number;
   /** Persistierter Grace-Beginn (unixepoch Sekunden) oder null. */
   overLimitSince: number | null;
+  /**
+   * Per-Instanz-RAHMEN (Migration 0022, Ops-Verwaltung — primär Enterprise):
+   * überschreibt die Plan-Standardwerte aus pricing.ts. Das EFFEKTIVE PlanDef
+   * (PlanState.plan) trägt diese Werte — Enforcement, Kunden-Admin und Ops
+   * rechnen damit automatisch mit denselben Deckeln.
+   */
+  customIncludedCredits?: number | null;
+  customMauLimit?: number | null;
   /** Jetzt (unixepoch Sekunden). */
   nowSec: number;
 }
@@ -46,7 +54,16 @@ export interface PlanState {
 }
 
 export function evaluatePlanState(input: PlanStateInput): PlanState {
-  const plan = PLANS[input.plan];
+  const base = PLANS[input.plan];
+  // Effektiver Plan = Standard + per-Instanz-Overrides (nur wo gesetzt).
+  const plan =
+    input.customIncludedCredits != null || input.customMauLimit != null
+      ? {
+          ...base,
+          includedCredits: input.customIncludedCredits ?? base.includedCredits,
+          mauLimit: input.customMauLimit ?? base.mauLimit,
+        }
+      : base;
 
   // Free ohne kaufbares Overage: Credits-Überschreitung IST ein Limit-Verstoß.
   // Bezahlte Pläne: Credits über dem Kontingent sind metered Overage (aktiv);

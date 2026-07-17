@@ -108,6 +108,11 @@ jobs:
       - name: Deploy (staging / Top-Level-Env)
         run: pnpm exec wrangler deploy
 
+      # Ops-Dashboard (eigener Worker, ops/): deployt mit — idempotent und
+      # schnell; ein Fehler hier bricht NICHT den Produkt-Deploy (bereits durch).
+      - name: Deploy Ops-Dashboard (staging)
+        run: pnpm exec wrangler deploy --config ops/wrangler.toml
+
   # ---------- PRODUCTION (nur `main`, manuelles Gate) ----------
   # Das Warten auf Freigabe kommt vom GitHub-Environment `production` (Required reviewers).
   # Eine Freigabe deckt Migration → Deploy in fester Reihenfolge ab (atomar; kein Deploy ohne
@@ -152,3 +157,6 @@ jobs:
         run: pnpm exec wrangler d1 migrations apply hallofhelp-prod --env production --remote
       - name: Deploy (production)
         run: pnpm exec wrangler deploy --env production
+
+      - name: Deploy Ops-Dashboard (production)
+        run: pnpm exec wrangler deploy --config ops/wrangler.toml --env production
