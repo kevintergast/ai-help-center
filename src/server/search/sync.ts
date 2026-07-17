@@ -35,6 +35,7 @@ export function toIndexable(row: {
   title: string;
   body_json: string;
   images_json?: string;
+  videos_json?: string;
 }): IndexableArticle {
   let body: string[] = [];
   try {
@@ -58,6 +59,24 @@ export function toIndexable(row: {
       /* fehlerhafte Metadaten → Bild fällt aus dem Kontext */
     }
   }
+  // Video-Beschreibungen sind wie Bild-Beschreibungen KI-Kontext (Architektur:
+  // „RAG bindet nur mit Quell-Artikeln verknüpfte Videos ein").
+  if (row.videos_json) {
+    try {
+      const videos = JSON.parse(row.videos_json) as unknown;
+      if (Array.isArray(videos)) {
+        for (const vid of videos) {
+          const v = vid as { title?: unknown; description?: unknown };
+          if (typeof v?.description === "string" && v.description.trim().length > 0) {
+            const title = typeof v.title === "string" ? `${v.title.trim()}: ` : "";
+            body.push(`Video: ${title}${v.description.trim()}`);
+          }
+        }
+      }
+    } catch {
+      /* fehlerhafte Metadaten → Video fällt aus dem Kontext */
+    }
+  }
   return { id: row.id, slug: row.slug, title: row.title, body };
 }
 
@@ -71,7 +90,7 @@ export async function syncArticleIndex(
   articleId: string,
 ): Promise<void> {
   const row = await env.DB.prepare(
-    `SELECT id, slug, title, body_json, images_json FROM articles
+    `SELECT id, slug, title, body_json, images_json, videos_json FROM articles
       WHERE tenant_id = ? AND id = ? AND status = 'published'`,
   )
     .bind(tenantId, articleId)
@@ -93,7 +112,7 @@ export async function rebuildTenantIndex(
   tenantId: string,
 ): Promise<{ articles: number; extras: number; chunks: number; embedded: number }> {
   const rows = await env.DB.prepare(
-    `SELECT id, slug, title, body_json, images_json FROM articles
+    `SELECT id, slug, title, body_json, images_json, videos_json FROM articles
       WHERE tenant_id = ? AND status = 'published'`,
   )
     .bind(tenantId)

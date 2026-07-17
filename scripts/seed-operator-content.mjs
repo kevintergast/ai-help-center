@@ -199,6 +199,18 @@ const ARTICLES = [
     related: ["artikel-veroeffentlichen", "credits-und-limits"],
   },
   {
+    slug: "videos-einbinden",
+    title: "Videos in Artikeln (YouTube)",
+    category: "Inhalte pflegen",
+    min: 1,
+    body: [
+      "Binde YouTube-Videos in deine Artikel ein: Im Artikel-Editor fügst du unter »Videos« den YouTube-Link, einen Titel und eine Beschreibung hinzu. Die Videos erscheinen neben dem Artikel als Vorschau und werden erst nach einem Klick abgespielt (datensparsamer YouTube-Modus).",
+      "Die Beschreibung ist Pflicht — sie dient als Alternativtext und fließt als Kontext in die KI-Antworten ein: Die KI kann so auch auf Inhalte verweisen, die im Video erklärt werden.",
+      "Änderst du Videos, greifen sie wie Textänderungen erst mit dem Veröffentlichen des Artikels.",
+    ],
+    related: ["artikel-veroeffentlichen", "ki-antworten"],
+  },
+  {
     slug: "suchmaschinen-sichtbarkeit",
     title: "Suchmaschinen & Sichtbarkeit",
     category: "Sichtbarkeit",
@@ -215,11 +227,12 @@ const ARTICLES = [
 /** Roadmap: die nächsten Bausteine (nur real Geplantes, kein Wunschkonzert). */
 const ROADMAP = [
   { title: "Bezahlpläne & Upgrade (Self-Service)", status: "planned", sort: 1 },
-  { title: "Video-Einbindung in Artikeln", status: "planned", sort: 2 },
+  { title: "Voice-Bot-Anbindung (API für Sprachassistenten)", status: "planned", sort: 2 },
 ];
 
 /** Changelog: nur tatsächlich ausgelieferte Meilensteine (neueste zuerst gerendert). */
 const CHANGELOG = [
+  { title: "YouTube-Videos in Artikeln", description: "Videos mit Pflicht-Beschreibung neben dem Artikel — Klick-zum-Abspielen, Inhalte fließen in die KI-Antworten ein.", at: BASE + 990 },
   { title: "Mehrsprachige Artikel & KI-Übersetzung", description: "Artikel als Sprach-Sets mit eigenem Link je Sprache; KI-Übersetzung inklusive Formatierung, Links und Bildern (50 Credits).", at: BASE + 960 },
   { title: "Rich-Text-Editor, Bilder & Import/Export", description: "Editor mit Überschriften, Listen und Links; Bilder mit Pflicht-Beschreibung; Export als JSON, Import aus JSON und Markdown.", at: BASE + 930 },
   { title: "Gespeicherte Antworten im Konto + Veraltet-Erkennung", description: "KI-Antworten geräteübergreifend speichern; bei geänderten Quellen werden sie als veraltet markiert.", at: BASE + 915 },

@@ -20,7 +20,16 @@ export interface Citation {
 export interface ArticleVideo {
   id: string;
   title: string;
+  /** Anzeige-Label (z. B. "3:20"); leer erlaubt (nicht automatisch ermittelbar). */
   durationLabel: string;
+  /**
+   * YouTube-Video-ID (11 Zeichen) — v1 der Video-Einbindung ist bewusst NUR
+   * YouTube (User-Entscheidung 2026-07-17; Cloudflare Stream später). Es wird
+   * NUR die ID gespeichert, nie eine rohe URL — die Embed-URL baut die UI aus
+   * der validierten ID (youtube-nocookie). Optional nur für Altbestände;
+   * die Validierung erzwingt sie für neue Videos.
+   */
+  youtubeId?: string;
   /**
    * PFLICHT (a11y + KI-Grounding): eine kurze Beschreibung des Videoinhalts.
    * Wird in der UI aktuell nicht separat gerendert, ist aber Pflichtfeld im

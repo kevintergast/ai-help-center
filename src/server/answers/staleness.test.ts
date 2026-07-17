@@ -54,7 +54,7 @@ async function refFor(articleId: string, chunkIndex = 0) {
 async function currentChunks(articleId: string) {
   const row = ctx.sqlite
     .prepare(
-      `SELECT id, slug, title, body_json, images_json FROM articles WHERE id = ? AND tenant_id = ?`,
+      `SELECT id, slug, title, body_json, images_json, videos_json FROM articles WHERE id = ? AND tenant_id = ?`,
     )
     .get(articleId, TENANT) as {
     id: string;
@@ -62,6 +62,7 @@ async function currentChunks(articleId: string) {
     title: string;
     body_json: string;
     images_json: string;
+    videos_json: string;
   };
   return buildChunks(toIndexable(row));
 }
@@ -148,5 +149,32 @@ describe("Bild-Beschreibungen als Quell-Kontext (Architektur: Alt-Text = KI-Kont
       .prepare(`UPDATE articles SET images_json = '[]' WHERE id = 'a2' AND tenant_id = ?`)
       .run(TENANT);
     expect(await findStaleAnswers(ctx.env, TENANT, [{ id: "b1", refs: [ref] }])).toEqual(["b1"]);
+  });
+});
+
+describe("Video-Beschreibungen als Quell-Kontext (Architektur: wie Bilder)", () => {
+  it("geänderte Video-Beschreibung macht die Antwort veraltet", async () => {
+    ctx.sqlite
+      .prepare(`UPDATE articles SET videos_json = ? WHERE id = 'a2' AND tenant_id = ?`)
+      .run(
+        JSON.stringify([
+          { id: "v1", title: "Rundgang", durationLabel: "", description: "Zeigt den Einladungs-Dialog", youtubeId: "jNQXAC9IVRw" },
+        ]),
+        TENANT,
+      );
+
+    const chunks = await currentChunks("a2");
+    const ref = await refFor("a2", chunks.length - 1); // Video-Absatz = letzter Chunk
+    expect(await findStaleAnswers(ctx.env, TENANT, [{ id: "v", refs: [ref] }])).toEqual([]);
+
+    ctx.sqlite
+      .prepare(`UPDATE articles SET videos_json = ? WHERE id = 'a2' AND tenant_id = ?`)
+      .run(
+        JSON.stringify([
+          { id: "v1", title: "Rundgang", durationLabel: "", description: "GEÄNDERT", youtubeId: "jNQXAC9IVRw" },
+        ]),
+        TENANT,
+      );
+    expect(await findStaleAnswers(ctx.env, TENANT, [{ id: "v", refs: [ref] }])).toEqual(["v"]);
   });
 });

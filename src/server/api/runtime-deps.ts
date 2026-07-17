@@ -421,7 +421,7 @@ async function getAskDepsRuntime(): Promise<AskRuntime | null> {
         articleIds.length > 0
           ? db
               .prepare(
-                `SELECT id, slug, title, body_json, images_json FROM articles
+                `SELECT id, slug, title, body_json, images_json, videos_json FROM articles
                   WHERE tenant_id = ? AND status = 'published' AND id IN (${inList(articleIds.length)})`,
               )
               .bind(tenantId, ...articleIds)

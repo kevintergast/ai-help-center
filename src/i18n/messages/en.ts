@@ -95,6 +95,7 @@ export const en: Record<MessageKey, string> = {
   "hc.support.error": "Sending failed — please try again.",
   "hc.relatedHeading": "Related articles",
   "hc.videosHeading": "Videos",
+  "hc.videoPlay": "Play video",
   "hc.readingTime": "{min} min read",
   "hc.updated": "Updated {when}",
   "hc.backToOverview": "Back to overview",
@@ -182,6 +183,22 @@ export const en: Record<MessageKey, string> = {
   "editor.rich.ol": "Numbered list",
   "editor.rich.quote": "Quote",
   "editor.rich.codeBlock": "Code block",
+
+  "editor.videos.title": "Videos",
+  "editor.videos.hint":
+    "Embed YouTube videos — they appear next to the article. The description is required: it serves as alt text and feeds the AI answers as context.",
+  "editor.videos.empty": "No videos in this article yet.",
+  "editor.videos.urlLabel": "YouTube link",
+  "editor.videos.titleLabel": "Title",
+  "editor.videos.titlePlaceholder": "What is the video about?",
+  "editor.videos.descriptionLabel": "Description (required)",
+  "editor.videos.descriptionPlaceholder": "What does the video show? (AI context)",
+  "editor.videos.durationLabel": "Duration (optional)",
+  "editor.videos.add": "Add video",
+  "editor.videos.delete": "Remove video",
+  "editor.videos.errUrl": "That is not a valid YouTube link (e.g. youtube.com/watch?v=… or youtu.be/…).",
+  "editor.videos.errTitle": "Please give the video a title.",
+  "editor.videos.errDescription": "The description is required — it serves as alt text and AI context.",
 
   "editor.images.title": "Images",
   "editor.images.hint":

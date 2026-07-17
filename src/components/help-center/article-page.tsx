@@ -10,7 +10,8 @@ import { RichTextView } from "./rich-text-view";
 import { ViewBeacon } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
 import { ArticleFeedback } from "./article-feedback";
-import { ArrowLeftIcon, DocIcon, PlayIcon } from "@/components/ui/icons";
+import { ArticleVideos } from "./article-videos";
+import { ArrowLeftIcon, DocIcon } from "@/components/ui/icons";
 
 /**
  * SSR-Artikelseite (`/<slug>`). Servergerendert für SEO/Teilbarkeit — eigenes
@@ -181,29 +182,8 @@ export function ArticlePage({
               <h2 className="mb-3 text-sm uppercase tracking-[0.08em] text-ink-muted">
                 {t("hc.videosHeading")}
               </h2>
-              <ul className="flex flex-col gap-3">
-                {article.videos.map((v) => (
-                  <li key={v.id}>
-                    <div className="overflow-hidden rounded-card border border-hairline bg-surface">
-                      <span
-                        className="flex h-28 items-center justify-center"
-                        style={{
-                          background:
-                            "linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 24%, var(--surface)), var(--surface))",
-                        }}
-                      >
-                        <PlayIcon width={30} height={30} className="text-ink opacity-80" />
-                      </span>
-                      <span className="flex items-center justify-between gap-2 px-3 py-2.5">
-                        <span className="text-sm font-medium text-ink">{v.title}</span>
-                        <span className="shrink-0 text-xs tabular-nums text-ink-muted">
-                          {v.durationLabel}
-                        </span>
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              {/* Klick-zum-Laden-Player (YouTube nocookie) — article-videos.tsx. */}
+              <ArticleVideos videos={article.videos} playLabel={t("hc.videoPlay")} />
             </aside>
           ) : null}
         </div>
