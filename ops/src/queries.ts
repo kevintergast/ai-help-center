@@ -198,6 +198,8 @@ export interface TenantDetail {
   invitations: PendingInvitation[];
   /** Views je Tag (30d, ältester zuerst; interne inklusive — Betreiber-Sicht). */
   viewSeries: number[];
+  /** Event-Zähler der letzten 30 Tage — Prefill für den Selbstkostenrechner. */
+  usage30: { views: number; generations: number; translations: number };
   recentTickets: { id: string; message: string; status: string; createdAt: number }[];
 }
 
@@ -213,7 +215,8 @@ export async function tenantDetail(
     .first<RawTenantRow>();
   if (!raw) return null;
 
-  const [meta, users, invitations, drafts, tickets] = await Promise.all([
+  const since30 = startOfUtcDay(nowSec) - 29 * DAY_SEC;
+  const [meta, users, invitations, drafts, tickets, usageByType] = await Promise.all([
     db
       .prepare(
         `SELECT t.default_locale, t.seo_indexable, t.support_email, t.custom_domain,
@@ -265,7 +268,23 @@ export async function tenantDetail(
       )
       .bind(tenantId)
       .all<{ id: string; message: string; status: string; created_at: number }>(),
+    db
+      .prepare(
+        `SELECT type, COUNT(*) AS n FROM usage_events
+          WHERE tenant_id = ? AND created_at >= ?
+            AND type IN ('article_view','ai_generation','ai_translation')
+          GROUP BY type`,
+      )
+      .bind(tenantId, since30)
+      .all<{ type: string; n: number }>(),
   ]);
+
+  const usage30 = { views: 0, generations: 0, translations: 0 };
+  for (const row of usageByType.results) {
+    if (row.type === "article_view") usage30.views = row.n;
+    else if (row.type === "ai_generation") usage30.generations = row.n;
+    else if (row.type === "ai_translation") usage30.translations = row.n;
+  }
 
   // Tages-Serie über das geteilte Billing-Repo (identische Semantik zum Admin).
   const viewSeries = await new D1BillingRepository(db).getDailyViews(tenantId, {
@@ -300,6 +319,7 @@ export async function tenantDetail(
       expiresAt: i.expires_at,
     })),
     viewSeries,
+    usage30,
     recentTickets: tickets.results.map((tk) => ({
       id: tk.id,
       message: tk.message,
