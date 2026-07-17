@@ -3,7 +3,8 @@ import { resolveTenant as resolveFromRegistry } from "@/lib/tenant/resolve";
 import { D1AuditRepository } from "@/server/auth/audit";
 import { D1InvitationRepository } from "@/server/auth/invitations";
 import { createKvNonceStore, type OAuthGatewayDeps } from "@/server/auth/oauth-gateway";
-import { sendInvitationEmail } from "@/server/auth/resend";
+import { sendInvitationEmail, sendSupportTicketEmail } from "@/server/auth/resend";
+import { D1SupportRepository } from "@/server/support/store";
 import { createAuth } from "@/server/auth/runtime";
 import { getAuthSecret } from "@/server/auth/secret";
 import { D1TeamUserRepository } from "@/server/auth/team-users";
@@ -13,12 +14,21 @@ import { getDbSafe } from "@/server/db/client";
 import { D1LegalRepository, type LegalDeps } from "@/server/legal/store";
 import { makeSendOwnerSetup } from "@/server/operator/onboarding";
 import { D1OperatorRepository } from "@/server/operator/repository";
+import { findStaleAnswers } from "@/server/answers/staleness";
+import { D1SavedAnswersRepository } from "@/server/answers/store";
 import { D1BillingRepository, type BillingDeps } from "@/server/billing/store";
 import { makeCustomHostnameProvisioner } from "@/server/domains/provisioner";
 import { D1DomainRepository } from "@/server/domains/store";
 import { makeTxtChecker } from "@/server/domains/verify";
-import { AI_GATEWAY_ID, GENERATION_MODEL, makeWorkersAiEmbeddings } from "@/server/ai/models";
+import {
+  AI_GATEWAY_ID,
+  GENERATION_MODEL,
+  looksDegenerate,
+  makeWorkersAiEmbeddings,
+} from "@/server/ai/models";
 import { answerQuestion, type AskPipelineDeps } from "@/server/rag/ask";
+import type { ChatMessage } from "@/server/rag/generate";
+import { translateArticle } from "@/server/content/translate";
 import { changelogDoc, parseDocId, roadmapDoc } from "@/server/search/aux-docs";
 import type { SourceKind } from "@/server/search/indexer";
 import { rebuildTenantIndex, syncArticleIndex, toIndexable } from "@/server/search/sync";
@@ -32,12 +42,15 @@ import { D1TenantRepository } from "@/server/tenant/repository";
 import { resolveWithSourceStrict } from "@/server/tenant/resolve-tenant";
 import type {
   ApiDeps,
+  AnswersDeps,
+  ArticleTranslator,
   AskRuntime,
   AuthInstance,
   ContentIndexer,
   DomainDeps,
   OperatorDeps,
   SettingsDeps,
+  SupportDeps,
   TeamDeps,
 } from "./context";
 import type { RateLimiterBinding, RateLimiters } from "./rate-limit";
@@ -146,7 +159,9 @@ async function getLegalDepsRuntime(): Promise<LegalDeps | null> {
 async function getContentDepsRuntime(): Promise<ContentDeps | null> {
   const env = await getEnvSafe();
   if (!env?.DB) return null;
-  return { store: new D1ContentRepository(env.DB) };
+  // media (R2) getrennt nullable: ohne MEDIA-Binding bleiben Artikel-Ops
+  // voll nutzbar, nur Bild-Upload/-Serving antworten 503/404 (content.ts).
+  return { store: new D1ContentRepository(env.DB), media: env.MEDIA ?? null };
 }
 
 /**
@@ -220,6 +235,17 @@ async function getBillingDepsRuntime(): Promise<BillingDeps | null> {
   return { repo: new D1BillingRepository(env.DB) };
 }
 
+/** Gespeicherte KI-Antworten: Konto-Store + Staleness-Prüfung (nur DB nötig). */
+async function getAnswersDepsRuntime(): Promise<AnswersDeps | null> {
+  const env = await getEnvSafe();
+  if (!env?.DB) return null;
+  const db = env.DB;
+  return {
+    repo: new D1SavedAnswersRepository(db),
+    findStale: (tenantId, answers) => findStaleAnswers({ DB: db }, tenantId, answers),
+  };
+}
+
 /**
  * Custom-Domain-Flow (Infra-Plan Schritt 5): tenant_domain auf D1, TXT-Check
  * via DNS-over-HTTPS (1.1.1.1), Cloudflare-for-SaaS-Provisioner (inert ohne
@@ -289,6 +315,65 @@ async function getContentIndexerRuntime(): Promise<ContentIndexer | null> {
  * Namespace) + D1 (published-Artikel als Kontext-Quelle, Metering). Fehlt eine
  * Binding → `null` → POST /ask antwortet 503 fail-closed.
  */
+/**
+ * Gateway-Chat mit Degenerations-Schutz — GETEILT von Frage-Pipeline und
+ * KI-Übersetzung. CACHE-POISONING-SCHUTZ (Live-Fund 2026-07-17): Das
+ * fp8-fast-Modell degeneriert selten zu Token-Salat (U+FFFD); der AI-Gateway-
+ * Cache würde die kaputte Antwort für die TTL festhalten. Degeneriert ⇒ EIN
+ * Retry mit skipCache; bleibt es kaputt ⇒ Fehler (Routen → 502, es wird
+ * NICHTS verbucht) statt Müll an den Nutzer.
+ */
+function makeGatewayChat(ai: Ai, opts: { maxTokens?: number } = {}) {
+  return async (messages: ChatMessage[]): Promise<string> => {
+    const runOnce = async (skipCache: boolean): Promise<string> => {
+      const raw = (await ai.run(
+        GENERATION_MODEL as Parameters<Ai["run"]>[0],
+        // max_tokens: Workers-AI-Default (256) reicht für Antworten, aber
+        // NICHT für Artikel-Übersetzungen — Aufrufer wie der Übersetzer
+        // erhöhen das Budget explizit.
+        { messages, ...(opts.maxTokens ? { max_tokens: opts.maxTokens } : {}) },
+        { gateway: { id: AI_GATEWAY_ID, ...(skipCache ? { skipCache: true } : {}) } },
+      )) as unknown;
+      // Workers AI antwortet je nach Parametern in ZWEI Formen: nativ
+      // ({response}) ODER OpenAI-kompatibel ({choices[0].message.content} —
+      // Live-Fund 2026-07-17: mit max_tokens kommt das OpenAI-Format). Der
+      // Remote-Binding-Proxy in `next dev` liefert zudem teils NICHT-plain
+      // Objekte (Property-Zugriff schlägt fehl, obwohl stringify sie zeigt)
+      // → über JSON normalisieren, DANN extrahieren.
+      const norm = JSON.parse(JSON.stringify(raw ?? null)) as {
+        response?: string;
+        choices?: { message?: { content?: string } }[];
+      } | null;
+      // ACHTUNG (Live-Fund): das vLLM-Format liefert BEIDE Felder — `choices`
+      // (mit dem Text) UND ein `response`-Feld, das ein OBJEKT sein kann.
+      // `response` deshalb nur nehmen, wenn es wirklich ein String ist.
+      const text =
+        typeof norm?.response === "string" && norm.response.trim().length > 0
+          ? norm.response
+          : norm?.choices?.[0]?.message?.content;
+      if (typeof text !== "string" || text.trim().length === 0) {
+        console.error("[ai-chat] leere Antwort:", JSON.stringify(norm)?.slice(0, 300));
+        throw new Error("generation: leere Modellantwort");
+      }
+      return text;
+    };
+    const first = await runOnce(false);
+    if (!looksDegenerate(first)) return first;
+    console.warn("[ai-chat] degenerierte Generierung — Retry mit skipCache");
+    const second = await runOnce(true);
+    if (looksDegenerate(second)) throw new Error("generation: degenerierte Modellantwort");
+    return second;
+  };
+}
+
+/** KI-Übersetzer (Mehrsprachigkeit): gleicher Gateway-Chat wie die Frage-Pipeline. */
+async function getTranslatorRuntime(): Promise<ArticleTranslator | null> {
+  const env = await getEnvSafe();
+  if (!env?.AI) return null;
+  const generate = makeGatewayChat(env.AI, { maxTokens: 4096 });
+  return (input) => translateArticle(generate, input);
+}
+
 async function getAskDepsRuntime(): Promise<AskRuntime | null> {
   const env = await getEnvSafe();
   if (!env?.DB || !env.VECTORIZE || !env.AI) return null;
@@ -336,7 +421,7 @@ async function getAskDepsRuntime(): Promise<AskRuntime | null> {
         articleIds.length > 0
           ? db
               .prepare(
-                `SELECT id, slug, title, body_json FROM articles
+                `SELECT id, slug, title, body_json, images_json FROM articles
                   WHERE tenant_id = ? AND status = 'published' AND id IN (${inList(articleIds.length)})`,
               )
               .bind(tenantId, ...articleIds)
@@ -368,18 +453,7 @@ async function getAskDepsRuntime(): Promise<AskRuntime | null> {
         ...changelog.results.map((r) => ({ ...changelogDoc(r), kind: "changelog" as const })),
       ];
     },
-    generate: async (messages) => {
-      const res = (await env.AI.run(
-        GENERATION_MODEL as Parameters<Ai["run"]>[0],
-        { messages },
-        { gateway: { id: AI_GATEWAY_ID } },
-      )) as { response?: string };
-      const text = res?.response;
-      if (typeof text !== "string" || text.trim().length === 0) {
-        throw new Error("generation: leere Modellantwort");
-      }
-      return text;
-    },
+    generate: makeGatewayChat(env.AI),
     billing: new D1BillingRepository(db),
   };
 
@@ -402,12 +476,27 @@ async function verifyTurnstileRuntime(
   return verify(token, remoteIp);
 }
 
-/** Instanz-Einstellungen (SEO-Opt-out) — D1TenantRepository, tenant-scoped Update. */
+/** Support-Flow: Tickets (D1) + Ticket-Mail (Resend, inert ohne Key). */
+async function getSupportDepsRuntime(): Promise<SupportDeps | null> {
+  const env = await getEnvSafe();
+  const db = await getDbSafe();
+  if (!db) return null;
+  return {
+    repo: new D1SupportRepository(db),
+    // Ohne env/Key ist der Sender ein No-op (Muster Invitations/OTP).
+    sendTicketMail: (data) => sendSupportTicketEmail({ RESEND_API_KEY: env?.RESEND_API_KEY }, data),
+  };
+}
+
+/** Instanz-Einstellungen (SEO-Opt-out, Support-E-Mail) — D1TenantRepository. */
 async function getSettingsDepsRuntime(): Promise<SettingsDeps | null> {
   const db = await getDbSafe();
   if (!db) return null;
   const repo = new D1TenantRepository(db);
-  return { setSeoIndexable: (tenantId, indexable) => repo.setSeoIndexable(tenantId, indexable) };
+  return {
+    setSeoIndexable: (tenantId, indexable) => repo.setSeoIndexable(tenantId, indexable),
+    setSupportEmail: (tenantId, email) => repo.setSupportEmail(tenantId, email),
+  };
 }
 
 /**
@@ -476,7 +565,10 @@ export const runtimeDeps: ApiDeps = {
   getDomainDeps: getDomainDepsRuntime,
   getContentIndexer: getContentIndexerRuntime,
   getAskDeps: getAskDepsRuntime,
+  getTranslator: getTranslatorRuntime,
   getSettingsDeps: getSettingsDepsRuntime,
+  getSupportDeps: getSupportDepsRuntime,
+  getAnswersDeps: getAnswersDepsRuntime,
   rateLimiters: rateLimitersRuntime,
   visitorCodec: visitorCodecRuntime,
 };

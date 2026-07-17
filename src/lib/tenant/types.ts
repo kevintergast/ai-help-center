@@ -29,4 +29,10 @@ export interface Tenant {
    * Dev-Registry-Tenants und ältere Test-Fixtures).
    */
   seoIndexable?: boolean;
+  /**
+   * Support-E-Mail der Instanz (Migration 0014): Ziel der Ticket-Mails aus
+   * dem Support-Flow. FEHLEND/null = nicht konfiguriert (Tickets landen nur
+   * in der Admin-Inbox).
+   */
+  supportEmail?: string | null;
 }

@@ -34,6 +34,8 @@ export interface NewHelpCenter {
   /** Branding-Farben (bereits validierte Hex-Werte) oder `null` → DB-Default. */
   colorPrimary: string | null;
   colorAccent: string | null;
+  /** Suchmaschinen-Indexierung (Wizard-Abfrage, Migration 0013). */
+  seoIndexable: boolean;
   /** Operator-Konto (auth_user.id in t_operator), das provisioniert. */
   operatorUserId: string;
   /** Owner-Konto, das IM NEUEN Tenant angelegt wird. */
@@ -137,8 +139,8 @@ export class D1OperatorRepository implements OperatorRepository {
     //     und die batch()-Transaktion rollt (b)+(c) mit zurück.
     const insertTenant = this.db
       .prepare(
-        `INSERT INTO tenants (id, slug, name, default_locale, color_primary, color_accent, plan)
-         VALUES (?, ?, ?, ?, COALESCE(?, '#4f46e5'), COALESCE(?, '#06b6d4'), 'free')`,
+        `INSERT INTO tenants (id, slug, name, default_locale, color_primary, color_accent, plan, seo_indexable)
+         VALUES (?, ?, ?, ?, COALESCE(?, '#4f46e5'), COALESCE(?, '#06b6d4'), 'free', ?)`,
       )
       .bind(
         input.tenantId,
@@ -147,6 +149,7 @@ export class D1OperatorRepository implements OperatorRepository {
         input.defaultLocale,
         input.colorPrimary,
         input.colorAccent,
+        input.seoIndexable ? 1 : 0,
       );
 
     // (b) OWNER-KONTO IM NEUEN TENANT — role='owner', email_verified=1 (aus der

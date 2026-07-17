@@ -6,15 +6,18 @@ import type { Locale } from "@/lib/tenant/types";
 import type { Article, ArticleStatus } from "@/lib/content/types";
 import { getT } from "@/i18n/t";
 import { cn } from "@/lib/ui/cn";
+import { ArticleBodyEditor } from "@/components/admin/article-body-editor";
+import { ArticleImagesManager } from "@/components/admin/article-images";
+import { ArticleTranslations } from "@/components/admin/article-translations";
 import { ARTICLE_STATUS } from "@/components/admin/status";
+import { RichTextView } from "@/components/help-center/rich-text-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { IconButton } from "@/components/ui/icon-button";
-import { Input, Textarea } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Dialog } from "@/components/ui/dialog";
 import { Toast } from "@/components/ui/toast";
-import { ArrowLeftIcon, PencilIcon, PlusIcon, CloseIcon } from "@/components/ui/icons";
+import { ArrowLeftIcon, PencilIcon } from "@/components/ui/icons";
 
 interface Draft {
   title: string;
@@ -96,11 +99,7 @@ export function ArticleEditor({ locale, article }: { locale: Locale; article: Ar
     }
   }
 
-  const setBlock = (i: number, v: string) =>
-    setDraft((d) => ({ ...d, blocks: d.blocks.map((b, j) => (j === i ? v : b)) }));
-  const addBlock = () => setDraft((d) => ({ ...d, blocks: [...d.blocks, ""] }));
-  const removeBlock = (i: number) =>
-    setDraft((d) => ({ ...d, blocks: d.blocks.filter((_, j) => j !== i) }));
+  const setBlocks = (blocks: string[]) => setDraft((d) => ({ ...d, blocks }));
 
   const view = editing ? draft : current;
 
@@ -155,30 +154,26 @@ export function ArticleEditor({ locale, article }: { locale: Locale; article: Ar
 
           <div>
             <span className="mb-2 block text-sm text-ink-muted">{t("editor.bodyLabel")}</span>
-            <div className="flex flex-col gap-3">
-              {draft.blocks.map((b, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <Textarea
-                    value={b}
-                    placeholder={t("editor.blockPlaceholder")}
-                    onChange={(e) => setBlock(i, e.target.value)}
-                    className="flex-1"
-                  />
-                  <IconButton
-                    aria-label={t("editor.removeBlock")}
-                    onClick={() => removeBlock(i)}
-                    className="mt-1 h-9 w-9 shadow-none"
-                  >
-                    <CloseIcon width={16} height={16} />
-                  </IconButton>
-                </div>
-              ))}
-            </div>
-            <Button variant="cream" size="sm" onClick={addBlock} className="mt-3">
-              <PlusIcon width={15} height={15} />
-              {t("editor.addBlock")}
-            </Button>
+            {/* Tiptap-Oberfläche über dem Block-Modell: bei jeder Änderung
+                zurück nach string[] serialisiert (rich-doc.ts), key erzwingt
+                Remount beim Editieren-Start (frischer Draft-Stand). */}
+            <ArticleBodyEditor
+              key={editing ? "editing" : "idle"}
+              locale={locale}
+              initialBlocks={draft.blocks}
+              onChange={setBlocks}
+            />
           </div>
+
+          {/* Bilder wirken sofort (eigener API-Zyklus, s. ArticleImagesManager). */}
+          <ArticleImagesManager
+            locale={locale}
+            articleId={article.id}
+            initialImages={article.images ?? []}
+          />
+
+          {/* Sprachfassungen (Translation-Set; KI-Übersetzung = Credits). */}
+          <ArticleTranslations locale={locale} articleId={article.id} />
         </div>
       ) : (
         /* ————— View mode ————— */
@@ -196,9 +191,7 @@ export function ArticleEditor({ locale, article }: { locale: Locale; article: Ar
             <span>{t("hc.readingTime", { min: article.readingMinutes })}</span>
           </div>
           <div className="flex flex-col gap-4 text-[15px] leading-relaxed text-ink">
-            {view.blocks.map((p, i) => (
-              <p key={i}>{p}</p>
-            ))}
+            <RichTextView body={view.blocks} />
           </div>
         </article>
       )}

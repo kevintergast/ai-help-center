@@ -5,6 +5,7 @@ import { getT } from "@/i18n/t";
 import type { Locale } from "@/lib/tenant/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { ErrorNote } from "@/components/auth/notes";
 import { TurnstileWidget } from "@/components/security/turnstile-widget";
 
@@ -49,6 +50,7 @@ export function CreateWizard({
   const [colorPrimary, setColorPrimary] = useState("#4f46e5");
   const [colorAccent, setColorAccent] = useState("#06b6d4");
   const [useBranding, setUseBranding] = useState(false);
+  const [seoIndexable, setSeoIndexable] = useState(true);
   const [availability, setAvailability] = useState<Availability>({ state: "idle" });
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -123,6 +125,7 @@ export function CreateWizard({
           name,
           slug,
           defaultLocale,
+          seoIndexable,
           ...(useBranding ? { colorPrimary, colorAccent } : {}),
         }),
       });
@@ -202,6 +205,17 @@ export function CreateWizard({
             <option value="en">{t("operator.wizard.localeEn")}</option>
           </select>
         </label>
+
+        {/* SEO-Abfrage bei der Erstellung (User-Vorgabe 2026-07-16): Default AN;
+            später jederzeit in den Einstellungen änderbar (owner-only). */}
+        <div className="flex flex-col gap-1.5 rounded-std border border-hairline p-3">
+          <Switch
+            checked={seoIndexable}
+            onCheckedChange={setSeoIndexable}
+            label={t("operator.wizard.seoLabel")}
+          />
+          <p className="text-xs text-ink-muted">{t("operator.wizard.seoHint")}</p>
+        </div>
 
         <fieldset className="flex flex-col gap-3 rounded-std border border-hairline p-3">
           <label className="flex items-center gap-2 text-sm text-ink">

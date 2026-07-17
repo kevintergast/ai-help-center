@@ -28,6 +28,9 @@
     "seed:content:prod": "pnpm seed:content:sql && wrangler d1 execute hallofhelp-prod --env production --remote --file=/tmp/hoh-op-seed.sql"
   },
   "dependencies": {
+    "@tiptap/extension-link": "^3.28.0",
+    "@tiptap/react": "^3.28.0",
+    "@tiptap/starter-kit": "^3.28.0",
     "better-auth": "^1.2.0",
     "hono": "^4.6.0",
     "next": "^15.1.0",

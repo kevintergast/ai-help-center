@@ -37,7 +37,7 @@ const denyAll: RateLimiterBinding = { limit: async () => ({ success: false }) };
 
 function makeFixture(opts: { deny?: ("ask" | "events" | "sensitive")[] } = {}) {
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0005_content.sql", "0009_usage_billing.sql", "0011_usage_feedback_types.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql", "0009_usage_billing.sql", "0011_usage_feedback_types.sql", "0016_usage_ai_source_type.sql", "0020_usage_ai_translation_type.sql"]);
   sqlite
     .prepare(
       `INSERT INTO articles (id, tenant_id, slug, title, category, status)
@@ -175,5 +175,61 @@ describe("Signierte Besucher-IDs am Beacon", () => {
       .prepare(`SELECT type, credits FROM usage_events WHERE tenant_id = 't_demo'`)
       .get();
     expect(row).toEqual({ type: "feedback_unhelpful", credits: 0 });
+  });
+});
+
+describe("Widget-Transport (x-hoh-vid-Header + /widget/session)", () => {
+  const withHeader = (
+    f: ReturnType<typeof makeFixture>,
+    path: string,
+    body: unknown,
+    vid: string,
+  ) =>
+    f.app.request(path, {
+      method: "POST",
+      headers: {
+        host: HOST,
+        "content-type": "application/json",
+        "x-hoh-vid": vid,
+      },
+      body: JSON.stringify(body),
+    });
+
+  it("/widget/session stellt eine verifizierbare ID aus und REUSED eine gültige", async () => {
+    const f = makeFixture();
+    const first = await f.app.request("/api/v1/widget/session", { headers: { host: HOST } });
+    expect(first.status).toBe(200);
+    const { visitorId } = (await first.json()) as { visitorId: string };
+    expect(await f.codec.verify("t_demo", visitorId)).toBe(visitorId);
+    expect(first.headers.get("set-cookie")).toContain("hoh_vid=");
+
+    // Zweiter Bootstrap MIT gültigem Header: dieselbe Identität zurück
+    // (kein MAU-Inflations-Reset bei jedem Widget-Load).
+    const second = await f.app.request("/api/v1/widget/session", {
+      headers: { host: HOST, "x-hoh-vid": visitorId },
+    });
+    expect(((await second.json()) as { visitorId: string }).visitorId).toBe(visitorId);
+  });
+
+  it("gültiger Header identifiziert (Dedup greift, kein neues Cookie); gefälschter nicht", async () => {
+    const f = makeFixture();
+    const { visitorId } = (await (
+      await f.app.request("/api/v1/widget/session", { headers: { host: HOST } })
+    ).json()) as { visitorId: string };
+
+    // Zwei Views mit demselben Header = EIN Event (Dedup über die Header-Identität).
+    const v1 = await withHeader(f, "/api/v1/events/view", { slug: "erste-schritte" }, visitorId);
+    expect(v1.status).toBe(204);
+    expect(v1.headers.get("set-cookie")).toBeNull();
+    await withHeader(f, "/api/v1/events/view", { slug: "erste-schritte" }, visitorId);
+    const count = f.sqlite.prepare(`SELECT COUNT(*) AS c FROM usage_events`).get() as {
+      c: number;
+    };
+    expect(count.c).toBe(1);
+
+    // Gefälschter Header wird ignoriert → NEUE signierte ID (Cookie gesetzt).
+    const forged = await withHeader(f, "/api/v1/events/view", { slug: "erste-schritte" }, "erfunden.abc");
+    expect(forged.status).toBe(204);
+    expect(forged.headers.get("set-cookie")).toContain("hoh_vid=");
   });
 });

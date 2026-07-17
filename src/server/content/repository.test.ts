@@ -19,7 +19,7 @@ const MIGRATIONS = [
   "0002_auth.sql",
   "0003_branding.sql",
   "0004_two_factor_plugin_columns.sql",
-  "0005_content.sql",
+  "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql",
 ] as const;
 
 const T1 = "t_one";

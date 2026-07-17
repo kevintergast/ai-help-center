@@ -48,7 +48,16 @@ export interface ResolvedActor {
  * Besucher und bekommen eine frisch SIGNIERTE ID. Massen-Rotation läuft damit
  * zwingend durch die rate-limitierten Endpunkte statt durch Cookie-Fantasie
  * (MAU-/Dedup-Integrität, siehe security/visitor-id.ts).
+ *
+ * WIDGET-TRANSPORT (`x-hoh-vid`-Header): Im Cross-Site-iframe des Widgets
+ * blocken Safari & Co. Third-Party-Cookies — das Widget hält seine (vom
+ * Bootstrap-Endpoint ausgestellte, SIGNIERTE) ID deshalb im partitionierten
+ * localStorage und sendet sie als Header. NUR mit gültiger Signatur
+ * akzeptiert (gefälschte Header zählen wie gefälschte Cookies: neue ID);
+ * ohne Codec (dev ohne Secret) wird der Header ignoriert.
  */
+export const VISITOR_HEADER = "x-hoh-vid";
+
 export async function resolveActor(
   c: Context<ApiEnv>,
   codec?: VisitorIdCodec,
@@ -76,6 +85,17 @@ export async function resolveActor(
   }
 
   const tenantId = c.get("tenant").id;
+
+  // 1) Header-Transport (Widget) — nur signiert gültig, sonst ignoriert.
+  const fromHeader = c.req.header(VISITOR_HEADER);
+  if (fromHeader && codec) {
+    const valid = await codec.verify(tenantId, fromHeader);
+    if (valid) {
+      return { actorType: "anon", visitorId: valid, userId: null, setVisitorCookie: null };
+    }
+  }
+
+  // 2) First-Party-Cookie (Hilfezentrum selbst).
   const existing = getCookie(c, VISITOR_COOKIE);
   if (existing) {
     if (codec) {

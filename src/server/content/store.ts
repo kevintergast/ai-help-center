@@ -1,6 +1,7 @@
 import type { AdminArticleRow } from "@/lib/admin/types";
 import type {
   Article,
+  ArticleImage,
   ArticleStatus,
   ArticleSummary,
   CategoryGroup,
@@ -40,18 +41,76 @@ export interface ContentStore {
 
   // ——— Admin (alle Status) ———
   listAdminRows(tenantId: string, locale: string): Promise<AdminArticleRow[]>;
+  /** Vollbestand für den Export (alle Status, inkl. Artikel-locale). */
+  listForTransfer(tenantId: string): Promise<TransferArticle[]>;
   getForEdit(tenantId: string, id: string, locale: string): Promise<Article | null>;
-  create(tenantId: string, input: ArticleInput): Promise<string>;
+  /** `articleKey` verbindet Sprachfassungen (fehlt → neues Set = eigene id). */
+  create(tenantId: string, input: ArticleInput, articleKey?: string): Promise<string>;
   update(tenantId: string, id: string, input: ArticleUpdateInput, authorId?: string | null): Promise<boolean>;
   publish(tenantId: string, id: string, authorId?: string | null): Promise<boolean>;
   unpublish(tenantId: string, id: string): Promise<boolean>;
   remove(tenantId: string, id: string): Promise<boolean>;
+
+  // ——— Übersetzungen (Translation-Sets über article_key) ———
+  /** Alle Sprachfassungen eines Sets (Admin, alle Status). */
+  listTranslations(
+    tenantId: string,
+    articleKey: string,
+  ): Promise<{ id: string; locale: string; slug: string; lifecycle: "draft" | "published" }[]>;
+  /** VERÖFFENTLICHTE Geschwister-Fassungen (Sprachumschalter, public). */
+  getPublishedSiblings(
+    tenantId: string,
+    articleKey: string,
+  ): Promise<{ locale: string; slug: string }[]>;
+
+  // ——— Bilder (Metadaten; Binärdaten in R2, Key aus Ids abgeleitet) ———
+  addImage(tenantId: string, articleId: string, image: ArticleImage): Promise<"ok" | "not_found" | "limit">;
+  removeImage(tenantId: string, articleId: string, imageId: string): Promise<boolean>;
+  /** NUR veröffentlichte Artikel (public Serving, fail-closed für Drafts). */
+  getPublishedImage(
+    tenantId: string,
+    articleKey: string,
+    imageId: string,
+  ): Promise<{ articleId: string; image: ArticleImage } | null>;
+}
+
+/** Max. Bilder je Artikel (Speicher-/UI-Deckel). */
+export const MAX_IMAGES_PER_ARTICLE = 12;
+
+/**
+ * Struktur-kompatibel zum R2-Bucket (MEDIA-Binding) — Fakes in Tests. Nur die
+ * drei benötigten Operationen (kein list: Keys werden IMMER abgeleitet).
+ */
+export interface ArticleMediaBucket {
+  put(
+    key: string,
+    value: ArrayBuffer | Uint8Array,
+    options?: { httpMetadata?: { contentType?: string } },
+  ): Promise<unknown>;
+  get(key: string): Promise<{
+    body: ReadableStream;
+    httpMetadata?: { contentType?: string };
+  } | null>;
+  delete(key: string): Promise<void>;
+}
+
+/** R2-Key eines Artikel-Bilds — IMMER abgeleitet, nie gespeichert/aus Client-Input. */
+export function articleImageKey(tenantId: string, articleId: string, imageId: string): string {
+  return `tenants/${tenantId}/articles/${articleId}/${imageId}`;
 }
 
 /** Pro Request aufgelöste Content-Infrastruktur (`null` = D1-Binding fehlt → 503). */
 export interface ContentDeps {
   store: ContentStore;
+  /** R2 (MEDIA) für Artikel-Bilder; null = Binding fehlt → Upload/Serving 503. */
+  media: ArticleMediaBucket | null;
 }
+
+/** Export-Zeile: Artikel + eigene locale + ROHER Lifecycle-Status. */
+export type TransferArticle = Article & {
+  locale: string;
+  lifecycle: "draft" | "published";
+};
 
 /* ————— Anzeige-Formatierung (i18n über Intl, keine hartkodierten Sprach-Strings) ————— */
 
@@ -91,9 +150,12 @@ interface ArticleRow {
   title: string;
   category: string;
   status: string;
+  locale: string;
+  article_key: string;
   body_json: string;
   videos_json: string;
   related_ids_json: string;
+  images_json: string;
   reading_minutes: number;
   is_ai_generated: number;
   updated_at: number;
@@ -126,6 +188,11 @@ function rowToArticle(row: ArticleRow, locale: string): Article {
     body: parseJsonArray<string>(row.body_json),
     videos: parseJsonArray<Article["videos"][number]>(row.videos_json),
     relatedIds: parseJsonArray<string>(row.related_ids_json),
+    images: parseJsonArray<ArticleImage>(row.images_json).filter(
+      (i) => typeof i?.id === "string" && typeof i?.description === "string",
+    ),
+    locale: row.locale,
+    articleKey: row.article_key,
   };
 }
 
@@ -141,7 +208,7 @@ function rowToSummary(row: ArticleRow, locale: string): ArticleSummary {
 }
 
 const ARTICLE_COLS =
-  "id, slug, title, category, status, body_json, videos_json, related_ids_json, reading_minutes, is_ai_generated, updated_at";
+  "id, slug, title, category, status, locale, article_key, body_json, videos_json, related_ids_json, images_json, reading_minutes, is_ai_generated, updated_at";
 
 function newId(prefix: string): string {
   return `${prefix}_${crypto.randomUUID()}`;
@@ -177,13 +244,16 @@ export class D1ContentRepository implements ContentStore {
   // ——— Öffentlich ———
 
   async listPublishedArticles(tenantId: string, locale: string): Promise<Article[]> {
+    // locale-Filter: Listen/Suche zeigen die Anzeige-Sprache des Tenants;
+    // ÜBERSETZUNGEN bleiben über ihren eigenen Slug + Sprachumschalter
+    // erreichbar (getPublishedArticleBySlugOrId filtert bewusst NICHT).
     const { results } = await this.db
       .prepare(
         `SELECT ${ARTICLE_COLS} FROM articles
-          WHERE tenant_id = ? AND status = 'published'
+          WHERE tenant_id = ? AND status = 'published' AND locale = ?
           ORDER BY created_at ASC`,
       )
-      .bind(tenantId)
+      .bind(tenantId, locale)
       .all<ArticleRow>();
     return results.map((r) => rowToArticle(r, locale));
   }
@@ -196,10 +266,10 @@ export class D1ContentRepository implements ContentStore {
     const { results } = await this.db
       .prepare(
         `SELECT ${ARTICLE_COLS} FROM articles
-          WHERE tenant_id = ? AND status = 'published'
+          WHERE tenant_id = ? AND status = 'published' AND locale = ?
           ORDER BY created_at ASC`,
       )
-      .bind(tenantId)
+      .bind(tenantId, locale)
       .all<ArticleRow>();
     return results.map((r) => rowToSummary(r, locale));
   }
@@ -213,9 +283,10 @@ export class D1ContentRepository implements ContentStore {
       .prepare(
         `SELECT ${ARTICLE_COLS} FROM articles
           WHERE tenant_id = ? AND status = 'published' AND (id = ? OR slug = ?)
+          ORDER BY (locale = ?) DESC
           LIMIT 1`,
       )
-      .bind(tenantId, key, key)
+      .bind(tenantId, key, key, locale)
       .first<ArticleRow>();
     return row ? rowToArticle(row, locale) : null;
   }
@@ -270,6 +341,24 @@ export class D1ContentRepository implements ContentStore {
     }));
   }
 
+  async listForTransfer(tenantId: string): Promise<TransferArticle[]> {
+    const { results } = await this.db
+      .prepare(
+        `SELECT ${ARTICLE_COLS} FROM articles
+          WHERE tenant_id = ? ORDER BY created_at ASC`,
+      )
+      .bind(tenantId)
+      .all<ArticleRow & { locale: string }>();
+    // Anzeige-Labels sind hier egal (Transfer-Daten) → Artikel-locale reicht.
+    // `lifecycle` = ROHER DB-Status ("draft"|"published") — Article.status ist
+    // der ANZEIGE-Status (current/ai/…) und für den Transfer ungeeignet.
+    return results.map((r) => ({
+      ...rowToArticle(r, r.locale),
+      locale: r.locale,
+      lifecycle: r.status === "published" ? ("published" as const) : ("draft" as const),
+    }));
+  }
+
   async getForEdit(tenantId: string, id: string, locale: string): Promise<Article | null> {
     const row = await this.db
       .prepare(`SELECT ${ARTICLE_COLS} FROM articles WHERE tenant_id = ? AND id = ? LIMIT 1`)
@@ -278,20 +367,21 @@ export class D1ContentRepository implements ContentStore {
     return row ? rowToArticle(row, locale) : null;
   }
 
-  async create(tenantId: string, input: ArticleInput): Promise<string> {
+  async create(tenantId: string, input: ArticleInput, articleKey?: string): Promise<string> {
     const id = newId("art");
     try {
       await this.db
         .prepare(
           `INSERT INTO articles
-           (id, tenant_id, locale, slug, title, category, status,
+           (id, tenant_id, locale, article_key, slug, title, category, status,
             body_json, videos_json, related_ids_json, reading_minutes, is_ai_generated)
-         VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?)`,
         )
         .bind(
           id,
           tenantId,
           input.locale,
+          articleKey ?? id,
           input.slug,
           input.title,
           input.category,
@@ -381,6 +471,108 @@ export class D1ContentRepository implements ContentStore {
       .bind(tenantId, id)
       .run();
     return res.meta.changes > 0;
+  }
+
+  // ——— Übersetzungen ———
+
+  async listTranslations(
+    tenantId: string,
+    articleKey: string,
+  ): Promise<{ id: string; locale: string; slug: string; lifecycle: "draft" | "published" }[]> {
+    const { results } = await this.db
+      .prepare(
+        `SELECT id, locale, slug, status FROM articles
+          WHERE tenant_id = ? AND article_key = ? ORDER BY created_at ASC`,
+      )
+      .bind(tenantId, articleKey)
+      .all<{ id: string; locale: string; slug: string; status: string }>();
+    return results.map((r) => ({
+      id: r.id,
+      locale: r.locale,
+      slug: r.slug,
+      lifecycle: r.status === "published" ? "published" : "draft",
+    }));
+  }
+
+  async getPublishedSiblings(
+    tenantId: string,
+    articleKey: string,
+  ): Promise<{ locale: string; slug: string }[]> {
+    const { results } = await this.db
+      .prepare(
+        `SELECT locale, slug FROM articles
+          WHERE tenant_id = ? AND article_key = ? AND status = 'published'
+          ORDER BY locale ASC`,
+      )
+      .bind(tenantId, articleKey)
+      .all<{ locale: string; slug: string }>();
+    return results;
+  }
+
+  // ——— Bilder ———
+
+  async addImage(
+    tenantId: string,
+    articleId: string,
+    image: ArticleImage,
+  ): Promise<"ok" | "not_found" | "limit"> {
+    const row = await this.db
+      .prepare(`SELECT images_json FROM articles WHERE tenant_id = ? AND id = ?`)
+      .bind(tenantId, articleId)
+      .first<{ images_json: string }>();
+    if (!row) return "not_found";
+
+    const images = parseJsonArray<ArticleImage>(row.images_json);
+    if (images.length >= MAX_IMAGES_PER_ARTICLE) return "limit";
+    images.push(image);
+
+    await this.db
+      .prepare(
+        `UPDATE articles SET images_json = ?, updated_at = unixepoch()
+          WHERE tenant_id = ? AND id = ?`,
+      )
+      .bind(JSON.stringify(images), tenantId, articleId)
+      .run();
+    return "ok";
+  }
+
+  async removeImage(tenantId: string, articleId: string, imageId: string): Promise<boolean> {
+    const row = await this.db
+      .prepare(`SELECT images_json FROM articles WHERE tenant_id = ? AND id = ?`)
+      .bind(tenantId, articleId)
+      .first<{ images_json: string }>();
+    if (!row) return false;
+
+    const images = parseJsonArray<ArticleImage>(row.images_json);
+    const remaining = images.filter((i) => i.id !== imageId);
+    if (remaining.length === images.length) return false;
+
+    await this.db
+      .prepare(
+        `UPDATE articles SET images_json = ?, updated_at = unixepoch()
+          WHERE tenant_id = ? AND id = ?`,
+      )
+      .bind(JSON.stringify(remaining), tenantId, articleId)
+      .run();
+    return true;
+  }
+
+  async getPublishedImage(
+    tenantId: string,
+    articleKey: string,
+    imageId: string,
+  ): Promise<{ articleId: string; image: ArticleImage } | null> {
+    const row = await this.db
+      .prepare(
+        `SELECT id, images_json FROM articles
+          WHERE tenant_id = ? AND status = 'published' AND (id = ? OR slug = ?)
+          LIMIT 1`,
+      )
+      .bind(tenantId, articleKey, articleKey)
+      .first<{ id: string; images_json: string }>();
+    if (!row) return null;
+    const image = parseJsonArray<ArticleImage>(row.images_json).find((i) => i.id === imageId);
+    return image ? { articleId: row.id, image } : null;
   }
 
   /** Aktuellen Artikelstand als JSON-Snapshot einfrieren (Audit/Rollback-Basis). */

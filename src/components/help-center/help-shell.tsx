@@ -170,6 +170,12 @@ export function HelpShell({
                   <button onClick={() => openSavedItem(s)} className={NAV_ROW}>
                     <BookmarkIcon width={15} height={15} className="shrink-0 opacity-70" />
                     <span className="truncate">{s.question}</span>
+                    {/* Staleness (Architektur): Quellen geändert → sichtbar markieren. */}
+                    {s.stale ? (
+                      <Badge tone="warn" className="ml-auto shrink-0">
+                        {t("hc.stale.badge")}
+                      </Badge>
+                    ) : null}
                   </button>
                 </li>
               ))}

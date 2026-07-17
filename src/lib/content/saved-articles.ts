@@ -19,8 +19,10 @@ export interface SavedArticle {
   citations: Citation[];
   grounded: boolean;
   savedAt: number;
-  /** Quell-Chunks + content_hash der Generierung (Staleness-Abgleich später). */
+  /** Quell-Chunks + content_hash der Generierung (Staleness-Abgleich). */
   sourceRefs?: SourceRef[];
+  /** Server-Prüfergebnis: Quellen haben sich geändert (applyStaleCheck). */
+  stale?: boolean;
 }
 
 /** Stabile ID aus der Frage → dieselbe Frage wird nicht doppelt gespeichert. */
@@ -83,10 +85,54 @@ export function removeSaved(id: string): void {
 }
 
 /**
- * PLATZHALTER: Sobald ein Konto verbunden ist, werden die lokal gespeicherten
- * Artikel geräteübergreifend nach D1 synchronisiert (Merge über id/savedAt).
- * Ohne Session bleibt Speichern rein lokal. Rückgabe: true, wenn synchronisiert.
+ * STALENESS-MARKIERUNG (Architektur: geänderte Quellen ⇒ Antwort „veraltet";
+ * Nutzer entscheidet: neu generieren / behalten / löschen). `checkedIds` =
+ * alles, was geprüft wurde; nur davon wird der Zustand überschrieben —
+ * ungeprüfte Einträge (z. B. ohne sourceRefs) bleiben unangetastet.
  */
-export async function syncSavedToAccount(): Promise<boolean> {
-  return false;
+export function applyStaleCheck(checkedIds: string[], staleIds: string[]): void {
+  const checked = new Set(checkedIds);
+  const stale = new Set(staleIds);
+  write(
+    read().map((s) =>
+      checked.has(s.id) ? { ...s, stale: stale.has(s.id) || undefined } : s,
+    ),
+  );
+}
+
+/** „Behalten": Veraltet-Markierung bewusst verwerfen (bis zur nächsten Quell-Änderung). */
+export function keepStale(id: string): void {
+  write(read().map((s) => (s.id === id ? { ...s, stale: undefined } : s)));
+}
+
+/**
+ * KONTO-MERGE (Account-Sync): Remote-Stände einspielen — pro id gewinnt der
+ * NEUERE savedAt; lokale neuere Stände bleiben (sie werden separat hochgepusht).
+ * Rückgabe: ids, die lokal neuer sind als remote (Push-Kandidaten) + lokale
+ * Einträge, die remote fehlen.
+ */
+export function mergeRemoteSaved(remote: SavedArticle[]): {
+  pushCandidates: SavedArticle[];
+} {
+  const local = read();
+  const byId = new Map(local.map((s) => [s.id, s]));
+  const remoteById = new Map(remote.map((s) => [s.id, s]));
+
+  let changed = false;
+  for (const r of remote) {
+    const l = byId.get(r.id);
+    if (!l || r.savedAt > l.savedAt) {
+      byId.set(r.id, { ...r, stale: l?.stale });
+      changed = true;
+    }
+  }
+  if (changed) {
+    write([...byId.values()].sort((a, b) => b.savedAt - a.savedAt));
+  }
+
+  const pushCandidates = local.filter((l) => {
+    const r = remoteById.get(l.id);
+    return !r || l.savedAt > r.savedAt;
+  });
+  return { pushCandidates };
 }

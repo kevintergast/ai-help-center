@@ -2,6 +2,12 @@
   "_readme": "Literale in .tsx, die BEWUSST nicht übersetzt werden (Eigennamen, Dev-only-Labels, Code-Beispiele). Alles andere muss über t() laufen. Prüfung: pnpm i18n:check",
   "phrases": [
     "HallofHelp",
-    "DEV · Tenant"
+    "DEV · Tenant",
+    "B",
+    "I",
+    "H2",
+    "H3",
+    "URL",
+    "&ldquo;&rdquo;"
   ]
 }

@@ -184,6 +184,7 @@ export function operatorRouter(deps: ApiDeps) {
       defaultLocale: parsed.defaultLocale,
       colorPrimary: parsed.colorPrimary,
       colorAccent: parsed.colorAccent,
+      seoIndexable: parsed.seoIndexable,
       operatorUserId: user.id,
       ownerUserId: crypto.randomUUID(),
       ownerEmail: canonicalizeEmail(user.email),

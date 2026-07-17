@@ -39,7 +39,7 @@ describe("checkSlug (Format + Reservierung)", () => {
 describe("parseHelpCenterInput", () => {
   const base = { name: "Acme Support", slug: "acme", defaultLocale: "de" };
 
-  it("nimmt eine gültige Eingabe an (Name getrimmt, optionale Farben null)", () => {
+  it("nimmt eine gültige Eingabe an (Name getrimmt, Farben null, SEO default an)", () => {
     const parsed = parseHelpCenterInput({ ...base, name: "  Acme Support  " });
     expect(parsed).toEqual({
       name: "Acme Support",
@@ -47,7 +47,15 @@ describe("parseHelpCenterInput", () => {
       defaultLocale: "de",
       colorPrimary: null,
       colorAccent: null,
+      seoIndexable: true,
     });
+  });
+
+  it("SEO-Abfrage: false wird übernommen, Nicht-Boolesches abgelehnt", () => {
+    expect(parseHelpCenterInput({ ...base, seoIndexable: false })).toMatchObject({
+      seoIndexable: false,
+    });
+    expect(parseHelpCenterInput({ ...base, seoIndexable: "ja" })).toBe("invalid_seo_indexable");
   });
 
   it("nimmt gültige Hex-Farben an", () => {

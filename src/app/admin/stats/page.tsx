@@ -28,6 +28,7 @@ export default async function AdminStatsPage({
   const stats = await getStatsOverview(tenant, { includeInternal });
   const series = stats?.series ?? [];
   const topArticles = stats?.topArticles ?? [];
+  const topSources = stats?.topSources ?? [];
   const feedback = stats?.feedback ?? { byArticle: {}, answers: { helpful: 0, unhelpful: 0 } };
   const answerVotes = feedback.answers.helpful + feedback.answers.unhelpful;
   const totalVotes =
@@ -70,9 +71,34 @@ export default async function AdminStatsPage({
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="rounded-card border border-hairline bg-surface p-5">
-          <h2 className="mb-4 font-semibold tracking-[-0.3px]">{t("admin.stats.topQuestions")}</h2>
-          {/* Gefüllt, sobald der RAG-Kern KI-Fragen beantwortet (nächste Phase). */}
-          <p className="py-6 text-sm text-ink-muted">{t("admin.stats.questionsEmpty")}</p>
+          {/* „Häufigste Quellen" statt „Häufigste Fragen" (Entscheidung 2026-07-17):
+              Fragetexte werden bewusst NICHT gespeichert — gezählt wird, welche
+              Artikel die KI-Antworten speisen (ai_source-Events). */}
+          <h2 className="mb-4 font-semibold tracking-[-0.3px]">{t("admin.stats.topSources")}</h2>
+          {topSources.length === 0 ? (
+            <p className="py-6 text-sm text-ink-muted">{t("admin.stats.sourcesEmpty")}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-hairline text-left text-xs uppercase tracking-[0.04em] text-ink-muted">
+                    <th className="py-2 pr-3 font-medium">{t("admin.col.title")}</th>
+                    <th className="py-2 text-right font-medium">{t("admin.stats.citations")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topSources.map((s) => (
+                    <tr key={s.articleId} className="border-b border-hairline last:border-b-0">
+                      <td className="py-2.5 pr-3 text-ink">{s.title}</td>
+                      <td className="py-2.5 text-right tabular-nums text-ink-muted">
+                        {nf.format(s.views)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         <section className="rounded-card border border-hairline bg-surface p-5">

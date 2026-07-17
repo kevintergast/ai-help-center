@@ -21,9 +21,17 @@ export const CREDIT_COSTS = {
   article_view: 1,
   ai_generation: 20,
   ai_regeneration: 20,
+  // KI-Übersetzung eines GANZEN Artikels (bezahltes Team-Feature): bewusst
+  // flat statt tokenbasiert — planbar für den Kunden. KEIN internal-Rabatt:
+  // Übersetzen ist team-exklusiv, das Feature IST die Leistung.
+  ai_translation: 50,
   search: 0,
   feedback_helpful: 0,
   feedback_unhelpful: 0,
+  // Zitierte Quelle einer Generierung (ein Event je Artikel): kostenlos —
+  // Rohdatum für „Häufigste Quellen" + späteren Coverage-Score (Architektur:
+  // dieselben Generierungs-Events füttern Score UND Verbrauch).
+  ai_source: 0,
 } as const;
 
 export type UsageEventType = keyof typeof CREDIT_COSTS;
@@ -48,6 +56,10 @@ export const INTERNAL_AI_GENERATION_CREDITS = 5;
  */
 export function creditsFor(type: UsageEventType, actorType: UsageActorType): number {
   if (actorType !== "internal") return CREDIT_COSTS[type];
+  // KI-Übersetzung: IMMER Listenpreis — sie ist team-exklusiv und als
+  // bezahltes Feature konzipiert (User-Entscheidung 2026-07-17), es gibt
+  // keinen "externen" Preis, den man rabattieren könnte.
+  if (type === "ai_translation") return CREDIT_COSTS.ai_translation;
   return type === "ai_generation" || type === "ai_regeneration"
     ? INTERNAL_AI_GENERATION_CREDITS
     : 0;

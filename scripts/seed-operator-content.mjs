@@ -142,12 +142,13 @@ const ARTICLES = [
     category: "Erste Schritte",
     min: 2,
     body: [
-      "Auf der Startseite deines Hilfezentrums können Nutzer der KI eine Frage stellen. Die Antwort wird live aus deinen veröffentlichten Artikeln zusammengestellt — als kompakter, dynamischer Hilfeartikel mit Quellenangaben zum Weiterlesen.",
+      "Auf der Startseite deines Hilfezentrums können Nutzer der KI eine Frage stellen. Die Antwort wird live aus deinen veröffentlichten Artikeln zusammengestellt — als kompakter, dynamischer Hilfeartikel mit Quellenangaben zum Weiterlesen. Auch deine Roadmap- und Changelog-Einträge kann die KI dabei berücksichtigen.",
       "Die KI antwortet nur, wenn deine Artikel die Frage tatsächlich hergeben. Findet sie keine belastbare Grundlage, sagt sie das ehrlich, statt etwas zu erfinden — dann hilft es, die Frage anders zu formulieren oder den passenden Artikel zu ergänzen.",
+      "Unter jeder Antwort können Nutzer mit »War das hilfreich?« Feedback geben und über »Etwas stimmt nicht?« direkt den Support kontaktieren. Beides siehst du im Admin-Bereich: die Hilfreich-Quote in der Statistik, Support-Anfragen in der Inbox.",
       "Nutzer können generierte Antworten auf ihrem Gerät speichern und später wieder öffnen. Beantwortet wird in der Sprache, in der die Frage gestellt wurde.",
-      "Neue oder geänderte Artikel stehen der KI kurz nach dem Veröffentlichen zur Verfügung — der Suchindex aktualisiert sich automatisch.",
+      "Neue oder geänderte Artikel stehen der KI kurz nach dem Veröffentlichen zur Verfügung — der Suchindex aktualisiert sich automatisch. In der Statistik zeigt dir »Häufigste Quellen«, welche Artikel deine KI-Antworten am meisten speisen.",
     ],
-    related: ["artikel-veroeffentlichen", "credits-und-limits"],
+    related: ["artikel-veroeffentlichen", "credits-und-limits", "widget-einbinden"],
   },
   {
     slug: "credits-und-limits",
@@ -155,21 +156,78 @@ const ARTICLES = [
     category: "Plan & Credits",
     min: 2,
     body: [
-      "Die Nutzung deines Hilfezentrums wird in Credits gemessen: Ein Artikel-Aufruf durch Besucher kostet 1 Credit, eine KI-Antwort 20 Credits. Die Suche ist kostenlos, und Aufrufe durch dich und dein Team werden nie berechnet.",
-      "Jeder Plan enthält ein monatliches Credit-Kontingent und eine Obergrenze aktiver Nutzer. Beides setzt sich am Monatsanfang automatisch zurück. Deinen aktuellen Verbrauch siehst du jederzeit im Admin-Bereich unter »Plan & Credits«.",
+      "Die Nutzung deines Hilfezentrums wird in Credits gemessen: Ein Artikel-Aufruf durch Besucher kostet 1 Credit, eine KI-Antwort 20 Credits, eine KI-Übersetzung eines Artikels 50 Credits. Die Suche ist kostenlos. Artikel-Aufrufe durch dich und dein Team werden nie berechnet; KI-Antworten deines Teams zählen zu einem reduzierten internen Satz.",
+      "Jeder Plan enthält ein monatliches Credit-Kontingent und eine Obergrenze aktiver Nutzer. Beides setzt sich am Monatsanfang automatisch zurück. Deinen aktuellen Verbrauch siehst du jederzeit im Admin-Bereich unter »Plan & Credits«. Für größere Anforderungen gibt es den Enterprise-Tarif — sprich dazu direkt mit unserem Vertrieb.",
       "Erreichst du ein Limit, läuft dein Hilfezentrum zunächst 30 Tage normal weiter — du siehst einen Hinweis mit Countdown. Erst danach pausieren KI-Antworten und Inhalts-Änderungen, bis du upgradest. Deine Artikel bleiben dabei durchgehend öffentlich sichtbar; es wird nichts gelöscht.",
     ],
     related: ["ki-antworten"],
   },
+  {
+    slug: "widget-einbinden",
+    title: "Widget: KI-Hilfe auf deiner Website",
+    category: "Integration",
+    min: 2,
+    body: [
+      "Mit dem Widget holst du die KI-Hilfe deines Hilfezentrums direkt auf deine eigene Website: Unten rechts erscheint ein Hilfe-Button in deiner Markenfarbe; ein Klick öffnet den Chat, in dem Besucher Fragen stellen, Quellen-Artikel öffnen, Feedback geben und den Support erreichen.",
+      "Die Einbindung ist ein einziges Script-Tag: Du findest es im Verwaltungsbereich unter »Einstellungen → Widget für deine Website« zum Kopieren. Füge es in deine Website ein — fertig, es ist kein weiterer Code und keine Konfiguration nötig.",
+      "Das Widget übernimmt Branding und Inhalte automatisch von deinem Hilfezentrum. Die Nutzung zählt auf die Credits und aktiven Nutzer deiner Instanz — genau wie das Hilfezentrum selbst.",
+    ],
+    related: ["ki-antworten", "credits-und-limits", "branding-anpassen"],
+  },
+  {
+    slug: "support-tickets",
+    title: "Support-Anfragen & Inbox",
+    category: "Support",
+    min: 2,
+    body: [
+      "Unter jeder KI-Antwort — auch wenn die KI nichts Passendes gefunden hat — können Nutzer über »Etwas stimmt nicht?« ein Support-Anliegen einreichen: mit Beschreibung und optionaler E-Mail-Adresse für deine Rückmeldung.",
+      "Jede Anfrage landet als Ticket in deiner Inbox im Verwaltungsbereich. Dort siehst du die ursprüngliche Frage an die KI als Kontext, markierst Tickets als erledigt oder löschst sie.",
+      "Hinterlegst du in den Einstellungen eine Support-E-Mail-Adresse, bekommst du jedes Ticket zusätzlich per E-Mail zugestellt. Ohne Adresse sammelt die Inbox alle Anfragen — verloren geht nichts.",
+    ],
+    related: ["ki-antworten"],
+  },
+  {
+    slug: "mehrsprachige-artikel",
+    title: "Mehrsprachige Artikel & KI-Übersetzung",
+    category: "Inhalte pflegen",
+    min: 2,
+    body: [
+      "Jeder Artikel kann in mehreren Sprachen existieren — als verbundenes Set: Jede Sprachfassung hat ihren eigenen Link, ihren eigenen Entwurfs-/Veröffentlicht-Status und erscheint im Hilfezentrum in der passenden Sprache. Besucher wechseln auf der Artikelseite per Klick zwischen den verfügbaren Sprachen.",
+      "Im Artikel-Editor findest du den Abschnitt »Übersetzungen«. Dort legst du eine fehlende Sprachfassung an: entweder manuell (der Originaltext wird als Startpunkt kopiert) oder per KI-Übersetzung — sie überträgt Titel, Text samt Formatierung, Links und Bild-Beschreibungen und kopiert die Bilder mit. Eine KI-Übersetzung kostet 50 Credits und wird nur bei Erfolg berechnet.",
+      "Übersetzungen starten immer als Entwurf: Du prüfst den Text und veröffentlichst ihn bewusst. Die KI-Antworten nutzen automatisch die Sprachfassung, die zur Sprache der Frage passt.",
+    ],
+    related: ["artikel-veroeffentlichen", "credits-und-limits"],
+  },
+  {
+    slug: "suchmaschinen-sichtbarkeit",
+    title: "Suchmaschinen & Sichtbarkeit",
+    category: "Sichtbarkeit",
+    min: 2,
+    body: [
+      "Dein Hilfezentrum ist von Haus aus für Suchmaschinen optimiert: Jeder veröffentlichte Artikel hat eine eigene, servergerenderte Seite mit sauberen Meta-Daten, und deine Instanz liefert automatisch eine eigene Sitemap und robots.txt — du musst nichts einrichten.",
+      "Neue Hilfezentren werden zusätzlich zentral bei Google angemeldet, damit sie auch ohne bestehende Verlinkung gefunden werden.",
+      "Soll dein Hilfezentrum nicht öffentlich auffindbar sein — etwa für interne Dokumentation — schaltest du die Indexierung ab: entweder direkt beim Erstellen oder später als Owner in den Einstellungen unter »Suchmaschinen«. Bereits gelistete Seiten verschwinden dann nach dem nächsten Crawl.",
+    ],
+    related: ["hilfezentrum-erstellen", "artikel-veroeffentlichen"],
+  },
 ];
 
-/** Roadmap: aktuell bewusst nur der nächste große Baustein. */
+/** Roadmap: die nächsten Bausteine (nur real Geplantes, kein Wunschkonzert). */
 const ROADMAP = [
-  { title: "Website-Widget", status: "planned", sort: 1 },
+  { title: "Bezahlpläne & Upgrade (Self-Service)", status: "planned", sort: 1 },
+  { title: "Video-Einbindung in Artikeln", status: "planned", sort: 2 },
 ];
 
-/** Changelog: Version 1.0.0 — nur tatsächlich ausgelieferte Meilensteine. */
+/** Changelog: nur tatsächlich ausgelieferte Meilensteine (neueste zuerst gerendert). */
 const CHANGELOG = [
+  { title: "Mehrsprachige Artikel & KI-Übersetzung", description: "Artikel als Sprach-Sets mit eigenem Link je Sprache; KI-Übersetzung inklusive Formatierung, Links und Bildern (50 Credits).", at: BASE + 960 },
+  { title: "Rich-Text-Editor, Bilder & Import/Export", description: "Editor mit Überschriften, Listen und Links; Bilder mit Pflicht-Beschreibung; Export als JSON, Import aus JSON und Markdown.", at: BASE + 930 },
+  { title: "Gespeicherte Antworten im Konto + Veraltet-Erkennung", description: "KI-Antworten geräteübergreifend speichern; bei geänderten Quellen werden sie als veraltet markiert.", at: BASE + 915 },
+  { title: "Website-Widget", description: "KI-Hilfe als einbettbarer Chat auf der eigenen Website — ein Script-Tag, Branding automatisch.", at: BASE + 900 },
+  { title: "Support-Anfragen & Inbox", description: "»Etwas stimmt nicht?« unter KI-Antworten erzeugt Tickets — mit Inbox im Admin und optionaler E-Mail-Zustellung.", at: BASE + 850 },
+  { title: "Feedback & Quellen-Statistik", description: "Hilfreich-Quote zu Artikeln und KI-Antworten plus »Häufigste Quellen« in der Statistik.", at: BASE + 800 },
+  { title: "Suchmaschinen-Steuerung", description: "Automatische Sitemap & robots.txt je Hilfezentrum; Indexierung pro Instanz abschaltbar.", at: BASE + 750 },
+  { title: "KI-Antworten & Credits", description: "Dynamische Hilfeartikel aus den eigenen Inhalten, mit Quellen, Grounding und Credit-Metering.", at: BASE + 700 },
   { title: "Hilfezentrum & Artikel-Verwaltung", description: "Artikel anlegen, in Kategorien pflegen und veröffentlichen; öffentliche Artikelseiten je Hilfezentrum.", at: BASE + 500 },
   { title: "Team, Rollen & Zwei-Faktor-Authentifizierung", description: "Einladungen, abgestufte Rollen und 2FA-Pflicht für Team-Rollen.", at: BASE + 300 },
   { title: "White-Label-Branding", description: "Logo und Farben pro Hilfezentrum, sofort angewendet.", at: BASE + 100 },

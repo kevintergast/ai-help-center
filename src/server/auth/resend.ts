@@ -124,6 +124,46 @@ export async function sendInvitationEmail(
   });
 }
 
+/** HTML-Escape für NUTZER-Eingaben in Mail-Bodies (Ticket-Text ist fremder Input). */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/** Support-Ticket-Mail an die im Tenant hinterlegte Support-Adresse (0014). */
+export async function sendSupportTicketEmail(
+  env: ResendEnv,
+  data: {
+    to: string;
+    tenantName: string;
+    message: string;
+    contactEmail: string | null;
+    question: string | null;
+  },
+): Promise<boolean> {
+  const parts = [
+    `<div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto">`,
+    `<h1 style="font-size:20px">Neues Support-Ticket — ${escapeHtml(data.tenantName)}</h1>`,
+    data.question
+      ? `<p style="font-size:13px;color:#666">Ursprüngliche Frage an die KI: „${escapeHtml(data.question)}“</p>`
+      : "",
+    `<p style="white-space:pre-wrap">${escapeHtml(data.message)}</p>`,
+    data.contactEmail
+      ? `<p style="font-size:13px">Rückmeldung an: <a href="mailto:${escapeHtml(data.contactEmail)}">${escapeHtml(data.contactEmail)}</a></p>`
+      : `<p style="font-size:13px;color:#666">Ohne Rückmelde-Adresse eingereicht.</p>`,
+    `<p style="font-size:12px;color:#666">Dieses Ticket liegt auch in der Support-Inbox deines Hilfezentrums.</p>`,
+    `</div>`,
+  ];
+  return sendEmail(env, {
+    to: data.to,
+    subject: `Support-Ticket: ${data.tenantName}`,
+    html: parts.join(""),
+  });
+}
+
 /** Daten des Email-OTP-Callbacks (two-factor-Plugin, `otpOptions.sendOTP`). */
 interface OtpCallbackData {
   user: EmailUser;

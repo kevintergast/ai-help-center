@@ -31,6 +31,8 @@ export const RESERVED_SLUGS = new Set([
   "help",
   "brandbook",
   "api",
+  // Widget-Embed-Fläche (Bauphase Widget): /widget = iframe-Seite.
+  "widget",
 ]);
 
 export const MAX_TITLE_LENGTH = 300;

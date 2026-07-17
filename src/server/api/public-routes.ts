@@ -33,6 +33,18 @@ export const PUBLIC_ROUTES = {
   // /events/feedback: BEWUSST public — „War das hilfreich?" kommt von anonymen
   // Besuchern; wie /view fire-and-forget (204, kein Orakel), 0 Credits,
   // 24h-Dedup, IP-Rate-Limit.
+  // /support/tickets: BEWUSST public — „Etwas stimmt nicht?" ist der Eskala-
+  // tionsweg ANONYMER Endnutzer (Architektur Support-Flow). Schichten:
+  // IP-Rate-Limit (sensitive), strikte Längen, Mail NUR an die konfigurierte
+  // Tenant-Adresse (nie an Nutzer-Input), Inbox als verlustfreier Fallback.
+  // /widget/session: BEWUSST public — vergibt dem eingebetteten Widget die
+  // signierte Besucher-ID (Cross-Site-iframe kann Cookies nicht lesen).
+  // Reine Identitätsvergabe hinter dem events-Rate-Limit; kein privilegierter
+  // Effekt (Begründung api/widget.ts).
+  // /answers/check: BEWUSST public — Staleness-Prüfung LOKAL gespeicherter
+  // KI-Antworten anonymer Nutzer (local-first-Architektur). Reiner Hash-
+  // Vergleich gegen VERÖFFENTLICHTE Inhalte (kein Draft-Orakel), hinter dem
+  // events-Rate-Limit; der Konto-Sync (/answers CRUD) bleibt session-pflichtig.
   exact: [
     "/api/v1/health",
     "/api/v1/tenant",
@@ -40,6 +52,9 @@ export const PUBLIC_ROUTES = {
     "/api/v1/events/view",
     "/api/v1/events/feedback",
     "/api/v1/ask",
+    "/api/v1/support/tickets",
+    "/api/v1/widget/session",
+    "/api/v1/answers/check",
   ],
   // /api/v1/legal/: BEWUSST public — Besucher müssen Impressum/Datenschutz/AGB
   // OHNE Login lesen können (rechtliche Pflicht). Der /legal-Subbaum ist
@@ -56,7 +71,12 @@ export const PUBLIC_ROUTES = {
   // immer Teil des public Auth-Prefixes. Der GATEWAY-Callback (auf
   // auth.hallofhelp.com) läuft ohnehin VOR dieser Default-Deny-Schicht
   // (app.ts (0b), host-diskriminiert) und erreicht sie nie.
-  prefixes: [`${AUTH_BASE_PATH}/`, "/api/v1/legal/"],
+  // /api/v1/content/images/: BEWUSST public — Bilder VERÖFFENTLICHTER Artikel
+  // müssen ohne Session laden (öffentliches Hilfezentrum, <img>-Tags senden
+  // keine Custom-Header). Fail-closed: ausgeliefert wird nur, was zu einem
+  // published-Artikel DES Host-Tenants gehört (Draft-Bilder nie; Key wird
+  // serverseitig abgeleitet) — s. contentImagesPublicRouter.
+  prefixes: [`${AUTH_BASE_PATH}/`, "/api/v1/legal/", "/api/v1/content/images/"],
 } as const;
 
 /** Ist der Request-Pfad öffentlich (kein Session-Zwang)? */

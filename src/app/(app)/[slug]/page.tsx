@@ -62,6 +62,9 @@ export default async function ArticleRoute({
   // Lese-Bundle für Sidebar/Navigation der gemeinsamen Shell.
   const data = await getHelpCenterData(tenant);
 
+  // Sprachfassungen (Translation-Set) für den Umschalter — nur published.
+  const siblings = article.articleKey ? await repo.siblingsOf(article.articleKey) : [];
+
   // Verwandte Artikel (IDs → Summaries mit slug für die Verlinkung).
   const summaries = await repo.searchItems();
   const byId = new Map(summaries.map((a) => [a.id, a]));
@@ -99,6 +102,7 @@ export default async function ArticleRoute({
         data={data}
         isOperator={tenant.id === "t_operator"}
         viewer={await readPageViewer(tenant)}
+        siblings={siblings}
       />
     </>
   );

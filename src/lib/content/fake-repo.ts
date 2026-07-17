@@ -214,6 +214,7 @@ export const sampleHelpCenterRepo: HelpCenterRepository = {
   listByCategory: async () => groupByCategory(SAMPLE_ARTICLES),
   searchItems: async () => SAMPLE_ARTICLES.map(toSummary),
   listArticles: async () => SAMPLE_ARTICLES,
+  siblingsOf: async () => [],
   getArticle: async (slugOrId) =>
     SAMPLE_ARTICLES.find((a) => a.id === slugOrId || a.slug === slugOrId) ?? null,
   roadmap: async () => SAMPLE_ROADMAP,

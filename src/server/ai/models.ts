@@ -13,6 +13,18 @@ export const EMBEDDING_MODEL = "@cf/baai/bge-m3";
 /** Generierung (RAG, nächste Phase) — hier zentral, damit ein Wechsel ein Einzeiler ist. */
 export const GENERATION_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
+/**
+ * Erkennung DEGENERIERTER Generierungen (Live-Fund 2026-07-17): Das
+ * fp8-fast-Modell produziert selten Token-Salat mit Unicode-Ersatzzeichen
+ * (U+FFFD). Solche Antworten dürfen weder ausgeliefert noch im AI-Gateway-
+ * Cache verewigt werden (runtime-deps: Retry mit skipCache). Bewusst NUR
+ * das harte Signal U+FFFD — Heuristiken über Wortanteile würden legitime
+ * mehrsprachige Antworten riskieren (False Positives).
+ */
+export function looksDegenerate(text: string): boolean {
+  return text.includes("�");
+}
+
 /** Struktureller Embedding-Client (Tests injizieren deterministische Fakes). */
 export interface EmbeddingClient {
   /** Liefert je Eingabetext einen Vektor (Reihenfolge bleibt erhalten). */

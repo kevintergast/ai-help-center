@@ -13,11 +13,12 @@ interface TenantRow {
   color_accent: string;
   color_primary_fg: string;
   seo_indexable: number;
+  support_email: string | null;
 }
 
 const COLS =
   "id, slug, name, custom_domain, default_locale, logo_url, logo_r2_key, branding_updated_at, " +
-  "color_primary, color_accent, color_primary_fg, seo_indexable";
+  "color_primary, color_accent, color_primary_fg, seo_indexable, support_email";
 
 /**
  * `branding.logoUrl` ist ABGELEITET (Priorität dokumentiert in 0003_branding.sql):
@@ -46,6 +47,7 @@ export function rowToTenant(r: TenantRow): Tenant {
       colorPrimaryFg: r.color_primary_fg,
     },
     seoIndexable: r.seo_indexable !== 0,
+    supportEmail: r.support_email,
   };
 }
 
@@ -79,6 +81,14 @@ export class D1TenantRepository {
     await this.db
       .prepare(`UPDATE tenants SET seo_indexable = ? WHERE id = ?`)
       .bind(indexable ? 1 : 0, tenantId)
+      .run();
+  }
+
+  /** Support-E-Mail setzen/entfernen (Settings-API, admin — api/settings.ts). */
+  async setSupportEmail(tenantId: string, email: string | null): Promise<void> {
+    await this.db
+      .prepare(`UPDATE tenants SET support_email = ? WHERE id = ?`)
+      .bind(email, tenantId)
       .run();
   }
 

@@ -5,6 +5,8 @@ import { CustomDomainManager } from "@/components/admin/custom-domain-manager";
 import { LegalDocsManager } from "@/components/admin/legal-docs-manager";
 import { SearchIndexManager } from "@/components/admin/search-index-manager";
 import { SeoIndexingManager } from "@/components/admin/seo-indexing-manager";
+import { SupportEmailManager } from "@/components/admin/support-email-manager";
+import { WidgetSnippet } from "@/components/admin/widget-snippet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -92,13 +94,11 @@ export default async function AdminSettingsPage() {
         </SettingsCard>
 
         <SettingsCard title={t("admin.settings.support")}>
-          <Input
-            label={t("admin.settings.supportEmail")}
-            type="email"
-            defaultValue={`support@${tenant.slug}.de`}
-            className="max-w-md"
+          {/* Echte Persistenz (0014) — ersetzt das frühere tote Eingabefeld. */}
+          <SupportEmailManager
+            locale={tenant.defaultLocale}
+            initialEmail={tenant.supportEmail ?? null}
           />
-          <p className="-mt-2 text-xs text-ink-muted">{t("admin.settings.supportEmailHint")}</p>
         </SettingsCard>
 
         <SettingsCard title={t("admin.settings.domain")}>
@@ -129,6 +129,14 @@ export default async function AdminSettingsPage() {
           <SeoIndexingManager
             locale={tenant.defaultLocale}
             initialIndexable={tenant.seoIndexable !== false}
+          />
+        </SettingsCard>
+
+        <SettingsCard title={t("admin.settings.widget.title")}>
+          {/* Einbettbarer KI-Chat für die eigene Website (Bauphase Widget). */}
+          <WidgetSnippet
+            locale={tenant.defaultLocale}
+            host={`${tenant.slug}.hallofhelp.com`}
           />
         </SettingsCard>
       </div>
