@@ -113,6 +113,12 @@ jobs:
       - name: Deploy Ops-Dashboard (staging)
         run: pnpm exec wrangler deploy --config ops/wrangler.toml
 
+      # Widget-Demo (widget-demo/): fiktive Endkunden-Website auf workers.dev —
+      # EIN Worker ohne Env-Split (testet per Default die Prod-Instanz, per
+      # ?host=… jede andere), deployt daher mit der Staging-Pipeline.
+      - name: Deploy Widget-Demo
+        run: pnpm exec wrangler deploy --config widget-demo/wrangler.toml
+
   # ---------- PRODUCTION (nur `main`, manuelles Gate) ----------
   # Das Warten auf Freigabe kommt vom GitHub-Environment `production` (Required reviewers).
   # Eine Freigabe deckt Migration → Deploy in fester Reihenfolge ab (atomar; kein Deploy ohne

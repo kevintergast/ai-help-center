@@ -30,7 +30,7 @@ import {
 } from "./costs";
 import { listTenants, platformStats, tenantDetail } from "./queries";
 import { PLAN_ORDER } from "@product/server/billing/pricing";
-import { Bars, eur, fmtDate, Layout, nf, RoleBadge, StatusBadge } from "./ui";
+import { Bars, eur, fmtDate, Layout, nf, RoleBadge, StatusBadge, WIDGET_DEMO_URL } from "./ui";
 
 /**
  * HALLOFHELP OPS — internes Betreiber-Dashboard (eigener Worker, Zugriff nur
@@ -230,6 +230,16 @@ app.get("/t/:id", async (c) => {
             <dt>Öffentlich</dt>
             <dd>
               <a href={tenantUrl(row.slug)}>{tenantUrl(row.slug)}</a>
+            </dd>
+            <dt>Widget testen</dt>
+            <dd>
+              <a
+                href={`${WIDGET_DEMO_URL}/?host=${row.slug}.${BASE_DOMAIN}`}
+                target="_blank"
+                rel="noopener"
+              >
+                auf der Demo-Endkundenseite öffnen ↗
+              </a>
             </dd>
             <dt>Owner</dt>
             <dd>{row.ownerEmail ?? "— (kein Owner-Konto!)"}</dd>

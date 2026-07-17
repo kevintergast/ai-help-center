@@ -11,6 +11,10 @@ validiert der Worker jedes Access-JWT selbst (`src/access.ts`, fail-closed).
 - Instanz-Tabelle: Owner, Plan, Status (aktiv/Limit+Kulanz/eingefroren), Credits/MAU, Overage-€, Artikel, Tickets
 - Instanz-Detail: Stammdaten (Domain, SEO, Support-E-Mail), Abo & Nutzung, Nutzerliste (Rolle, Verifiziert, 2FA), offene Einladungen, letzte Tickets
 - Aktionen: **Instanz erstellen** (inkl. Owner-Konto; Zugang via „Passwort vergessen") und **Nutzer einladen** mit Rolle (content/admin; Mail via Resend)
+- **Widget-Demo verlinkt**: Header („Widget-Demo ↗") öffnet die Endkunden-Testseite
+  (`widget-demo/`, workers.dev); auf jeder Instanz-Detailseite öffnet „Widget testen"
+  die Demo direkt mit `?host=<slug>.hallofhelp.com` — ein Klick testet das Widget
+  genau dieser Instanz cross-origin
 
 ## Verwaltung (v2): Blockieren, Enterprise-Rahmen, Löschen
 Auf der Instanz-Detailseite, Sektion „Verwaltung":

@@ -8,6 +8,10 @@ import type { PlanState } from "@product/server/billing/plan-state";
  * prefers-color-scheme.
  */
 
+/** Fiktive Endkunden-Website zum Widget-Testen (widget-demo/, workers.dev).
+ *  `?host=<host>` wählt die Ziel-Instanz. */
+export const WIDGET_DEMO_URL = "https://hallofhelp-widget-demo.kevin-kvano.workers.dev";
+
 const CSS = `
 :root{--bg:#faf9f7;--surface:#fff;--tint:#f1efeb;--ink:#1a1a1a;--ink-muted:#6b6b6b;
 --hairline:#e5e2dc;--brand:#4f46e5;--ok:#0f7b4d;--ok-bg:#e7f5ee;--warn:#8a6100;--warn-bg:#fdf3d8;
@@ -66,6 +70,9 @@ export function Layout({ email, children }: { email: string; children?: Child })
           <a href="/">Übersicht</a>
           <a href="/new">Neue Instanz</a>
           <a href="/kosten">Selbstkosten</a>
+          <a href={WIDGET_DEMO_URL} target="_blank" rel="noopener">
+            Widget-Demo ↗
+          </a>
           <span class="who">{email}</span>
         </header>
         <main>{children}</main>

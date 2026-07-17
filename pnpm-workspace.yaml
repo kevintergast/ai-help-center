@@ -4,3 +4,5 @@
 # pure Produkt-Module über den `@product/*`-Alias (ops/tsconfig.json).
 packages:
   - "ops"
+  # Fiktive Endkunden-Website zum Widget-Testen (eigener Worker, workers.dev).
+  - "widget-demo"

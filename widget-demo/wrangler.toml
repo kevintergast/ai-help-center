@@ -1,0 +1,15 @@
+# WIDGET-DEMO — fiktive Endkunden-Website zum Testen des Widgets.
+#
+# BEWUSST auf workers.dev (KEINE hallofhelp.com-Route): so ist die Seite ein
+# ECHTER Fremd-Origin (andere Zone/Domain) — exakt die Situation eines Kunden,
+# der das Snippet auf seiner eigenen Website einbettet (Cross-Origin-Iframe,
+# Bot-Policies, Cookies). Kollidiert damit auch nie mit der Produkt-
+# Wildcard-Route *.hallofhelp.com/*. Keine Bindings, keine Secrets, ein Env.
+name = "hallofhelp-widget-demo"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+workers_dev = true
+
+[vars]
+# Standard-Instanz, deren Widget getestet wird — per ?host=… übersteuerbar.
+TENANT_HOST = "app.hallofhelp.com"
