@@ -23,9 +23,9 @@ function setup() {
   const sqlite = new BetterSqlite3(":memory:");
   applyMigrations(sqlite, [
     "0001_tenants.sql",
-    "0005_content.sql",
+    "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql",
     "0009_usage_billing.sql",
-    "0011_usage_feedback_types.sql",
+    "0011_usage_feedback_types.sql", "0016_usage_ai_source_type.sql", "0020_usage_ai_translation_type.sql",
     "0012_enterprise_plan.sql",
   ]);
   // Publizierter Artikel je Tenant (+ ein Draft) — Grundlage der View-Buchung.
@@ -308,5 +308,68 @@ describe("countAiGenerationsSince (Besucher-Tagesdeckel)", () => {
     insert.run("g6", "t_demo", "article_view", "v-1", NOW - 60); // anderer Typ
 
     expect(await ctx.repo.countAiGenerationsSince("t_demo", "v-1", NOW - DAY)).toBe(2);
+  });
+});
+
+describe("ai_source-Events + getTopSources (Häufigste Quellen)", () => {
+  it("recordAiGeneration schreibt je zitiertem Artikel EIN 0-Credit-Quell-Event (dedupliziert)", async () => {
+    await ctx.repo.recordAiGeneration({
+      tenantId: "t_demo",
+      actorType: "anon",
+      visitorId: "v-1",
+      nowSec: NOW,
+      citedArticleIds: ["a1", "a1", "a2"], // Duplikat wird verworfen
+    });
+
+    const rows = ctx.sqlite
+      .prepare(
+        `SELECT type, credits, article_id FROM usage_events
+          WHERE tenant_id = 't_demo' ORDER BY type, article_id`,
+      )
+      .all();
+    expect(rows).toEqual([
+      { type: "ai_generation", credits: 20, article_id: null },
+      { type: "ai_source", credits: 0, article_id: "a1" },
+      { type: "ai_source", credits: 0, article_id: "a2" },
+    ]);
+    // Quell-Events erhöhen weder Credits noch MAU über die Generierung hinaus.
+    expect(await ctx.repo.getUsage("t_demo", "2027-01")).toEqual({
+      creditsUsed: 20,
+      mauCount: 1,
+    });
+  });
+
+  it("getTopSources aggregiert je Artikel mit Titel, filtert intern + Fenster + Tenant", async () => {
+    const gen = (visitorId: string, cited: string[], over: { actorType?: "anon" | "internal"; nowSec?: number; tenantId?: string } = {}) =>
+      ctx.repo.recordAiGeneration({
+        tenantId: over.tenantId ?? "t_demo",
+        actorType: over.actorType ?? "anon",
+        visitorId,
+        nowSec: over.nowSec ?? NOW,
+        citedArticleIds: cited,
+      });
+
+    await gen("v-1", ["a1", "a2"]);
+    await gen("v-2", ["a1"]);
+    await gen("u:admin", ["a2"], { actorType: "internal" }); // intern → gefiltert
+    await gen("v-3", ["a1"], { nowSec: NOW - 40 * DAY }); // außerhalb Fenster
+    await gen("v-4", ["a1"], { tenantId: "t_acme" }); // fremder Tenant
+
+    const top = await ctx.repo.getTopSources(
+      "t_demo",
+      { days: 30, excludeInternal: true, nowSec: NOW },
+      5,
+    );
+    expect(top).toEqual([
+      { articleId: "a1", title: "Erste Schritte", views: 2 },
+      { articleId: "a2", title: "Entwurf", views: 1 },
+    ]);
+
+    const withInternal = await ctx.repo.getTopSources(
+      "t_demo",
+      { days: 30, excludeInternal: false, nowSec: NOW },
+      5,
+    );
+    expect(withInternal.find((r) => r.articleId === "a2")?.views).toBe(2);
   });
 });

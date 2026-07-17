@@ -3,6 +3,7 @@ import { getCurrentTenant } from "@/lib/tenant/current";
 import { getT } from "@/i18n/t";
 import { listAdminArticleRows } from "@/server/content/runtime";
 import { AdminPageHeader } from "@/components/admin/admin-shell";
+import { ContentTransfer } from "@/components/admin/content-transfer";
 import { NewArticleButton } from "@/components/admin/new-article-button";
 import { ARTICLE_STATUS } from "@/components/admin/status";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +32,12 @@ export default async function AdminArticlesPage() {
       <AdminPageHeader
         title={t("admin.articles.title")}
         subtitle={t("admin.articles.subtitle")}
-        action={<NewArticleButton locale={tenant.defaultLocale} />}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <ContentTransfer locale={tenant.defaultLocale} />
+            <NewArticleButton locale={tenant.defaultLocale} />
+          </div>
+        }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">

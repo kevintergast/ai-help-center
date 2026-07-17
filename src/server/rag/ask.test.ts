@@ -30,7 +30,7 @@ const ARTICLE = {
 
 function makeFixture(over: Partial<AskPipelineDeps> = {}) {
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0009_usage_billing.sql", "0011_usage_feedback_types.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0009_usage_billing.sql", "0011_usage_feedback_types.sql", "0016_usage_ai_source_type.sql", "0020_usage_ai_translation_type.sql"]);
   const billing = new D1BillingRepository(d1FromSqlite(sqlite));
 
   const calls = { embed: 0, query: 0, generate: 0 };
@@ -76,7 +76,8 @@ describe("answerQuestion", () => {
     expect(outcome.answer.grounded).toBe(true);
     expect(outcome.answer.body).toHaveLength(2);
     expect(outcome.answer.citations).toEqual([
-      { id: "a1", title: "Team einladen", kind: "article" },
+      // slug = kontextfreies Verlinken (Widget-iframe, Bauphase Widget).
+      { id: "a1", title: "Team einladen", kind: "article", slug: "team-einladen" },
     ]);
 
     const expectedHash = (await buildChunks(ARTICLE))[0].hash;

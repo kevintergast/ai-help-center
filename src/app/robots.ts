@@ -54,6 +54,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
           "/invite/",
           "/api/",
           "/brandbook",
+          "/widget",
         ],
       },
     ],

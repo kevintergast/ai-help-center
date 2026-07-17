@@ -12,14 +12,17 @@ import {
 import { enforceSessionTenant } from "@/server/auth/session-guard";
 import { runWithTenant } from "@/server/auth/tenant-context";
 import { freezeGate } from "@/server/billing/enforcement";
+import { answersRouter } from "./answers";
 import { askPublicRouter } from "./ask";
 import { brandingAdminRouter, brandingPublicRouter } from "./branding";
-import { contentAdminRouter } from "./content";
+import { contentAdminRouter, contentImagesPublicRouter } from "./content";
 import type { ApiDeps, ApiEnv, AuthInstance, GuardSessionData } from "./context";
 import { domainAdminRouter } from "./domain";
 import { eventsPublicRouter } from "./events";
 import { legalAdminRouter, legalPublicRouter } from "./legal";
 import { settingsAdminRouter } from "./settings";
+import { supportAdminRouter, supportPublicRouter } from "./support";
+import { widgetPublicRouter } from "./widget";
 import { operatorRouter } from "./operator";
 import { isPublicPath } from "./public-routes";
 import { runtimeDeps } from "./runtime-deps";
@@ -213,6 +216,17 @@ export function buildApiApp(deps: ApiDeps) {
   // Instanz-Einstellungen (owner-only, aktuell SEO-Opt-out).
   app.route("/admin/settings", settingsAdminRouter(deps));
 
+  // Support-Flow: public Ticket-Einreichung + Admin-Inbox.
+  app.route("/support", supportPublicRouter(deps));
+  app.route("/admin/support", supportAdminRouter(deps));
+
+  // Gespeicherte KI-Antworten: /answers/check public (Staleness, anonyme
+  // local-first-Nutzer), Rest session-pflichtig (Konto-Sync).
+  app.route("/answers", answersRouter(deps));
+
+  // Widget-Bootstrap (signierte Besucher-ID für den iframe-Transport).
+  app.route("/widget", widgetPublicRouter(deps));
+
   // Team-Verwaltung (Phase D): Einladungen + Ownership-Transfer + Audit.
   // /invitations/accept ist BEWUSST nicht public (Session-Pflicht via
   // Default-Deny), aber ohne Team-Gate. Details: ./team.ts
@@ -223,6 +237,8 @@ export function buildApiApp(deps: ApiDeps) {
   // Content-Pflege (Punkt 2): Artikel-CRUD + Lifecycle, requireTeam("content").
   // Tenant-scoped; ohne D1-Binding 503. Details/Sicherheit: ./content.ts
   app.route("/admin/articles", contentAdminRouter(deps));
+  // Artikel-Bilder public (nur published-Artikel, s. contentImagesPublicRouter).
+  app.route("/content/images", contentImagesPublicRouter(deps));
 
   // Nutzungs-Events (Infra-Plan Schritt 3): public View-Beacon-Ingestion
   // (immer 204, No-op ohne D1). Details/Cookie-Semantik: ./events.ts

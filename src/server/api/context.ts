@@ -13,6 +13,10 @@ import type { OperatorRepository } from "@/server/operator/repository";
 import type { OwnerSetupResult } from "@/server/operator/onboarding";
 import type { TurnstileVerify } from "@/server/security/turnstile";
 import type { AskInput, AskOutcome } from "@/server/rag/ask";
+import type { SupportRepository } from "@/server/support/store";
+import type { AnswerRefs } from "@/server/answers/staleness";
+import type { TranslateArticleInput, TranslateArticleResult } from "@/server/content/translate";
+import type { SavedAnswersRepository } from "@/server/answers/store";
 import type { CustomHostnameProvisioner } from "@/server/domains/provisioner";
 import type { VisitorIdCodec } from "@/server/security/visitor-id";
 import type { RateLimiters } from "./rate-limit";
@@ -114,6 +118,18 @@ export interface ApiDeps {
    */
   getSettingsDeps?(): Promise<SettingsDeps | null>;
   /**
+   * Support-Flow (Tickets + Mail; api/support.ts). `null`/fehlend ⇒ 503.
+   * Tests injizieren Fakes (Mail-Recorder statt Resend).
+   */
+  getSupportDeps?(): Promise<SupportDeps | null>;
+  /**
+   * Gespeicherte KI-Antworten (Konto-Sync + Staleness-Check). `null`/fehlend
+   * ⇒ /answers* antwortet 503 (Bindings fehlen). Tests injizieren sqlite/Fakes.
+   */
+  getAnswersDeps?(): Promise<AnswersDeps | null>;
+  /** KI-Übersetzer (Mehrsprachigkeit; s. ArticleTranslator). */
+  getTranslator?(): Promise<ArticleTranslator | null>;
+  /**
    * IP-Rate-Limits (Abuse-Härtung): fehlend ⇒ fail-open (dev/Tests).
    * Deployed aus den wrangler-`ratelimit`-Bindings (runtime-deps).
    */
@@ -126,13 +142,40 @@ export interface ApiDeps {
 }
 
 /** Pro Request aufgelöste Frage-Pipeline (Impl: runtime-deps auf rag/ask.ts). */
+/** Support-Flow (Impl: D1SupportRepository + Resend via runtime-deps). */
+export interface SupportDeps {
+  repo: SupportRepository;
+  /** Mail an die Tenant-Support-Adresse; false = No-op (kein RESEND_API_KEY). */
+  sendTicketMail(data: {
+    to: string;
+    tenantName: string;
+    message: string;
+    contactEmail: string | null;
+    question: string | null;
+  }): Promise<boolean>;
+}
+
 /** Instanz-Einstellungen (Impl: D1TenantRepository via runtime-deps). */
 export interface SettingsDeps {
   setSeoIndexable(tenantId: string, indexable: boolean): Promise<void>;
+  setSupportEmail(tenantId: string, email: string | null): Promise<void>;
 }
 
 export interface AskRuntime {
   answer(input: AskInput): Promise<AskOutcome>;
+}
+
+/**
+ * KI-Übersetzer (Mehrsprachigkeit): übersetzt Titel/Blöcke/Bild-Beschreibungen
+ * eines Artikels. `null`/fehlend ⇒ der ai-Modus antwortet 503; die Route
+ * verbucht Credits erst NACH Erfolg. Tests injizieren Fakes.
+ */
+export type ArticleTranslator = (input: TranslateArticleInput) => Promise<TranslateArticleResult>;
+
+/** Gespeicherte KI-Antworten: Konto-Store + Staleness-Prüfung (answers.ts). */
+export interface AnswersDeps {
+  repo: SavedAnswersRepository;
+  findStale(tenantId: string, answers: AnswerRefs[]): Promise<string[]>;
 }
 
 /**

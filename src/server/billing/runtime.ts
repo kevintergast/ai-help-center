@@ -95,6 +95,8 @@ export interface StatsOverview {
   deltaPct: number | null;
   /** „War das hilfreich?"-Stimmen (Artikel + KI-Antworten, gleiches Fenster). */
   feedback: FeedbackStats;
+  /** Meistzitierte Artikel in KI-Antworten (ai_source; ersetzt „Häufigste Fragen"). */
+  topSources: TopArticleRow[];
 }
 
 const STATS_DAYS = 30;
@@ -114,17 +116,18 @@ export async function getStatsOverview(
   const nowSec = Math.floor(Date.now() / 1000);
 
   const window = { days: STATS_DAYS, excludeInternal: !opts.includeInternal, nowSec };
-  const [series, topArticles, total60, feedback] = await Promise.all([
+  const [series, topArticles, total60, feedback, topSources] = await Promise.all([
     repo.getDailyViews(tenant.id, window),
     repo.getTopArticles(tenant.id, window, 5),
     repo.getViewTotal(tenant.id, { ...window, days: STATS_DAYS * 2 }),
     repo.getFeedbackStats(tenant.id, window),
+    repo.getTopSources(tenant.id, window, 5),
   ]);
   const totalViews = series.reduce((a, b) => a + b, 0);
   const prevTotal = total60 - totalViews;
   const deltaPct = prevTotal > 0 ? Math.round(((totalViews - prevTotal) / prevTotal) * 100) : null;
 
-  return { series, topArticles, totalViews, deltaPct, feedback };
+  return { series, topArticles, totalViews, deltaPct, feedback, topSources };
 }
 
 export interface AdminUsageKpis {

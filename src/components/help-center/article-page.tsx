@@ -6,6 +6,7 @@ import type { MessageKey } from "@/i18n/messages/de";
 import { getT } from "@/i18n/t";
 import { HelpShell } from "./help-shell";
 import { ArticleAskPrompt } from "./article-ask-prompt";
+import { RichTextView } from "./rich-text-view";
 import { ViewBeacon } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
 import { ArticleFeedback } from "./article-feedback";
@@ -38,6 +39,8 @@ export interface ArticlePageProps {
   isOperator?: boolean;
   /** Angemeldeter Betrachter (serverseitig gelesen) → Konto-Popup im Header. */
   viewer?: HelpViewer | null;
+  /** Veröffentlichte Sprachfassungen des Sets (Sprachumschalter; leer = keiner). */
+  siblings?: { locale: string; slug: string }[];
 }
 
 export function ArticlePage({
@@ -49,6 +52,7 @@ export function ArticlePage({
   data,
   isOperator,
   viewer = null,
+  siblings = [],
 }: ArticlePageProps) {
   const t = getT(locale);
   const s = STATUS[article.status];
@@ -88,12 +92,55 @@ export function ArticlePage({
               <span>{t("hc.updated", { when: article.updatedLabel })}</span>
               <span aria-hidden>·</span>
               <span>{t("hc.readingTime", { min: article.readingMinutes })}</span>
+              {siblings.length > 1 ? (
+                <span
+                  className="ml-auto inline-flex items-center gap-1"
+                  aria-label={t("hc.languages")}
+                >
+                  {siblings.map((sib) => {
+                    const active = sib.slug === article.slug;
+                    return active ? (
+                      <span
+                        key={sib.locale}
+                        className="rounded-full border border-brand bg-tint px-2.5 py-1 text-xs font-semibold uppercase text-brand"
+                      >
+                        {sib.locale}
+                      </span>
+                    ) : (
+                      <Link
+                        key={sib.locale}
+                        href={`/${sib.slug}`}
+                        className="rounded-full border border-hairline px-2.5 py-1 text-xs font-semibold uppercase text-ink-muted transition-colors hover:text-ink"
+                      >
+                        {sib.locale}
+                      </Link>
+                    );
+                  })}
+                </span>
+              ) : null}
             </div>
             <div className="flex flex-col gap-4 text-[15px] leading-relaxed text-ink">
-              {article.body.map((p, i) => (
-                <p key={i}>{p}</p>
-              ))}
+              <RichTextView body={article.body} />
             </div>
+            {(article.images?.length ?? 0) > 0 ? (
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                {article.images!.map((img) => (
+                  <figure key={img.id}>
+                    {/* Beschreibung = Alt-Text (Architektur-Pflicht, a11y). */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/v1/content/images/${article.slug}/${img.id}`}
+                      alt={img.description}
+                      loading="lazy"
+                      className="w-full rounded-comfy border border-hairline bg-surface"
+                    />
+                    <figcaption className="mt-1.5 text-xs text-ink-muted">
+                      {img.description}
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            ) : null}
             <div className="mt-8">
               <ArticleFeedback
                 slug={article.slug}

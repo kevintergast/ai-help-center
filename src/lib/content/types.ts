@@ -13,6 +13,8 @@ export interface Citation {
   title: string;
   /** Quellen-Art (fehlt = "article"; Roadmap/Changelog = Pseudo-Quellen). */
   kind?: "article" | "roadmap" | "changelog";
+  /** Artikel-Slug (nur kind article) — fürs Verlinken OHNE Lese-Bundle (Widget-iframe). */
+  slug?: string;
 }
 
 export interface ArticleVideo {
@@ -37,12 +39,27 @@ export interface ArticleSummary {
   updatedLabel: string;
 }
 
+/**
+ * Bild eines Artikels (Metadaten; Binärdatei liegt in R2 unter dem aus den
+ * Ids ABGELEITETEN Key). `description` ist PFLICHT — sie ist zugleich
+ * Alt-Text (a11y) und KI-Kontext (fließt in die Such-Chunks, Architektur).
+ */
+export interface ArticleImage {
+  id: string;
+  description: string;
+}
+
 export interface Article extends ArticleSummary {
   readingMinutes: number;
   /** Absätze des Artikelkörpers (Rich-Text kommt später). */
   body: string[];
   videos: ArticleVideo[];
   relatedIds: string[];
+  /** Bilder (fehlend = keine — Altbestände/Fakes ohne Feld bleiben gültig). */
+  images?: ArticleImage[];
+  /** Sprach-/Set-Infos (Translation-Sets; fehlend bei Sample-/Altdaten). */
+  locale?: string;
+  articleKey?: string;
 }
 
 export interface CategoryGroup {
@@ -101,6 +118,8 @@ export interface HelpCenterRepository {
   /** Alle veröffentlichten Artikel als Volltext (für das Client-Bundle: Detail + Verwandte). */
   listArticles(): Promise<Article[]>;
   getArticle(slugOrId: string): Promise<Article | null>;
+  /** Veröffentlichte Sprachfassungen eines Sets (Sprachumschalter). */
+  siblingsOf(articleKey: string): Promise<{ locale: string; slug: string }[]>;
   roadmap(): Promise<RoadmapItem[]>;
   changelog(): Promise<ChangelogEntry[]>;
   promptSuggestions(): Promise<string[]>;

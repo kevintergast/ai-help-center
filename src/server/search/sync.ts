@@ -19,12 +19,22 @@ export function buildIndexer(env: IndexerEnv): ArticleIndexer {
   });
 }
 
-/** Zeile aus `articles` → Indexer-Eingabe (body_json = JSON string[]). */
+/**
+ * Zeile aus `articles` → Indexer-Eingabe (body_json = JSON string[]).
+ *
+ * KANONISCHER Dokument-Builder: Indexierung, Antwort-Kontext (runtime-deps)
+ * UND Staleness (answers/staleness.ts) MÜSSEN denselben Builder nutzen, damit
+ * die content_hashes aller drei Seiten exakt übereinstimmen. Bild-
+ * BESCHREIBUNGEN (Architektur: Pflicht, Alt-Text + KI-Kontext) werden als
+ * eigene Absätze angehängt — ändert sich eine Beschreibung, ändern sich die
+ * Hashes und gespeicherte Antworten werden korrekt „veraltet".
+ */
 export function toIndexable(row: {
   id: string;
   slug: string;
   title: string;
   body_json: string;
+  images_json?: string;
 }): IndexableArticle {
   let body: string[] = [];
   try {
@@ -32,6 +42,21 @@ export function toIndexable(row: {
     if (Array.isArray(parsed)) body = parsed.filter((p): p is string => typeof p === "string");
   } catch {
     /* leerer Body → Artikel fällt aus dem Index */
+  }
+  if (row.images_json) {
+    try {
+      const images = JSON.parse(row.images_json) as unknown;
+      if (Array.isArray(images)) {
+        for (const img of images) {
+          const desc = (img as { description?: unknown })?.description;
+          if (typeof desc === "string" && desc.trim().length > 0) {
+            body.push(`Bild: ${desc.trim()}`);
+          }
+        }
+      }
+    } catch {
+      /* fehlerhafte Metadaten → Bild fällt aus dem Kontext */
+    }
   }
   return { id: row.id, slug: row.slug, title: row.title, body };
 }
@@ -46,7 +71,7 @@ export async function syncArticleIndex(
   articleId: string,
 ): Promise<void> {
   const row = await env.DB.prepare(
-    `SELECT id, slug, title, body_json FROM articles
+    `SELECT id, slug, title, body_json, images_json FROM articles
       WHERE tenant_id = ? AND id = ? AND status = 'published'`,
   )
     .bind(tenantId, articleId)
@@ -68,7 +93,7 @@ export async function rebuildTenantIndex(
   tenantId: string,
 ): Promise<{ articles: number; extras: number; chunks: number; embedded: number }> {
   const rows = await env.DB.prepare(
-    `SELECT id, slug, title, body_json FROM articles
+    `SELECT id, slug, title, body_json, images_json FROM articles
       WHERE tenant_id = ? AND status = 'published'`,
   )
     .bind(tenantId)

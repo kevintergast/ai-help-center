@@ -9,17 +9,25 @@ import { getT } from "@/i18n/t";
 import type { Article, ArticleSummary, AskAnswer, HelpCenterData } from "@/lib/content/types";
 import { PENDING_ASK_KEY, OPEN_ANSWER_KEY } from "@/lib/content/handoff";
 import {
+  deleteSavedFromAccount,
+  pushSavedToAccount,
+  syncSavedAnswers,
+} from "@/lib/content/answer-sync";
+import {
   answerId,
   getSavedById,
   isSaved,
+  keepStale,
   removeSaved,
   saveAnswer,
   type SavedArticle,
 } from "@/lib/content/saved-articles";
 import { cn } from "@/lib/ui/cn";
 import { HelpShell } from "./help-shell";
+import { SupportTicketForm } from "./support-ticket-form";
 import { sendFeedback } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { PromptBox } from "@/components/ui/prompt-box";
 import { AnswerBlock } from "@/components/ui/answer-block";
 import { FeedbackBar } from "@/components/ui/feedback-bar";
@@ -36,7 +44,9 @@ type T = ReturnType<typeof getT>;
 type View =
   | { kind: "welcome" }
   | { kind: "loading"; question: string }
-  | { kind: "answer"; answer: AskAnswer }
+  // savedId/savedStale: gesetzt, wenn eine GESPEICHERTE Antwort geöffnet wurde
+  // (Staleness-Banner mit Neu generieren / Behalten / Löschen).
+  | { kind: "answer"; answer: AskAnswer; savedId?: string; savedStale?: boolean }
   | { kind: "error"; question: string; code: "frozen" | "unavailable" };
 
 export interface HelpCenterProps {
@@ -67,7 +77,7 @@ export function HelpCenter({
 
   const [view, setView] = useState<View>({ kind: "welcome" });
 
-  async function ask(text: string) {
+  async function ask(text: string, opts: { resave?: boolean } = {}) {
     // ECHTER RAG-Pfad (Punkt 3): POST /api/v1/ask → dynamischer KI-Artikel.
     // Nicht geerdet kommt als grounded:false zurück (AnswerView zeigt die
     // ehrliche No-Answer); frozen/Ausfall werden als Fehlerzustand gerendert.
@@ -79,7 +89,16 @@ export function HelpCenter({
         body: JSON.stringify({ question: text }),
       });
       if (res.ok) {
-        setView({ kind: "answer", answer: (await res.json()) as AskAnswer });
+        const answer = (await res.json()) as AskAnswer;
+        // „Neu generieren" einer veralteten gespeicherten Antwort: frischen
+        // Stand unter derselben id ablegen (Staleness-Flag verschwindet mit).
+        if (opts.resave && answer.grounded) {
+          const entry = saveAnswer(answer);
+          if (viewer) pushSavedToAccount(entry);
+          setView({ kind: "answer", answer, savedId: entry.id, savedStale: false });
+          return;
+        }
+        setView({ kind: "answer", answer });
         return;
       }
       setView({
@@ -100,7 +119,15 @@ export function HelpCenter({
   function openSavedAnswer(s: SavedArticle) {
     setView({
       kind: "answer",
-      answer: { question: s.question, body: s.body, citations: s.citations, grounded: s.grounded },
+      answer: {
+        question: s.question,
+        body: s.body,
+        citations: s.citations,
+        grounded: s.grounded,
+        sourceRefs: s.sourceRefs,
+      },
+      savedId: s.id,
+      savedStale: s.stale === true,
     });
   }
 
@@ -122,7 +149,14 @@ export function HelpCenter({
     } catch {
       /* ignore */
     }
-     
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Konto-Sync (eingeloggt) + Staleness-Check (immer) — einmal pro Mount,
+  // best effort; localStorage-Events aktualisieren Sidebar/Ansicht von selbst.
+  useEffect(() => {
+    void syncSavedAnswers(viewer !== null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const promptModes = [
@@ -177,10 +211,31 @@ export function HelpCenter({
         <div className="px-5 py-8 md:px-10">
           <AnswerView
             t={t}
+            locale={locale}
             answer={view.answer}
             getArticle={getArticle}
             onOpen={openArticle}
             onBack={goHome}
+            loggedIn={viewer !== null}
+            savedStale={view.savedStale === true}
+            onRegenerate={() => void ask(view.answer.question, { resave: true })}
+            onKeepStale={
+              view.savedId
+                ? () => {
+                    keepStale(view.savedId as string);
+                    setView({ ...view, savedStale: false });
+                  }
+                : undefined
+            }
+            onDeleteSaved={
+              view.savedId
+                ? () => {
+                    removeSaved(view.savedId as string);
+                    if (viewer) deleteSavedFromAccount(view.savedId as string);
+                    goHome();
+                  }
+                : undefined
+            }
           />
         </div>
       )}
@@ -280,16 +335,28 @@ function ArticleMiniList({
 
 function AnswerView({
   t,
+  locale,
   answer,
   getArticle,
   onOpen,
   onBack,
+  loggedIn,
+  savedStale,
+  onRegenerate,
+  onKeepStale,
+  onDeleteSaved,
 }: {
   t: T;
+  locale: Locale;
   answer: AskAnswer;
   getArticle: (id: string) => Article | null;
   onOpen: (id: string) => void;
   onBack: () => void;
+  loggedIn: boolean;
+  savedStale: boolean;
+  onRegenerate: () => void;
+  onKeepStale?: () => void;
+  onDeleteSaved?: () => void;
 }) {
   // Artikel-Zitate sind klickbar (öffnen den Artikel); Roadmap-/Changelog-
   // Zitate werden gekennzeichnet gelistet (keine eigenen Seiten).
@@ -308,6 +375,27 @@ function AnswerView({
   return (
     <div className="mx-auto max-w-3xl">
       <BackButton t={t} onBack={onBack} />
+      {savedStale ? (
+        <div className="mb-5 rounded-comfy border border-warn-bd bg-warn-bg px-4 py-3">
+          <p className="text-sm font-medium text-warn">{t("hc.stale.title")}</p>
+          <p className="mt-1 text-sm text-ink-muted">{t("hc.stale.body")}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" onClick={onRegenerate}>
+              {t("hc.stale.regenerate")}
+            </Button>
+            {onKeepStale ? (
+              <Button size="sm" variant="ghost" onClick={onKeepStale}>
+                {t("hc.stale.keep")}
+              </Button>
+            ) : null}
+            {onDeleteSaved ? (
+              <Button size="sm" variant="ghost" onClick={onDeleteSaved}>
+                {t("hc.stale.delete")}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.08em] text-ink-muted">{t("hc.answerHeading")}</p>
@@ -315,7 +403,7 @@ function AnswerView({
             {answer.question}
           </h1>
         </div>
-        {answer.grounded ? <SaveToggle t={t} answer={answer} /> : null}
+        {answer.grounded ? <SaveToggle t={t} answer={answer} loggedIn={loggedIn} /> : null}
       </div>
       <AnswerBlock
         heading={t("hc.answerHeading")}
@@ -344,10 +432,16 @@ function AnswerView({
         ) : null}
       </AnswerBlock>
       <p className="mt-3 flex flex-wrap items-center gap-x-1.5 text-xs text-ink-muted">
-        <span>{t("hc.savedLocalHint")}</span>
-        <Link href="/login" className="text-brand hover:underline">
-          {t("hc.savedAccountCta")}
-        </Link>
+        {loggedIn ? (
+          <span>{t("hc.savedAccountActive")}</span>
+        ) : (
+          <>
+            <span>{t("hc.savedLocalHint")}</span>
+            <Link href="/login" className="text-brand hover:underline">
+              {t("hc.savedAccountCta")}
+            </Link>
+          </>
+        )}
       </p>
       <ArticleMiniList
         heading={t("hc.sourcesHeading")}
@@ -366,12 +460,19 @@ function AnswerView({
           onVote={(v) => sendFeedback(null, v === "up")}
         />
       </div>
+      {/* Support-Eskalation NACH der KI-Triage (grounded UND no-answer). */}
+      <div className="mt-4">
+        <SupportTicketForm locale={locale} question={answer.question} />
+      </div>
     </div>
   );
 }
 
-/** Speichern-Toggle für eine generierte Antwort (localStorage, local-first). */
-function SaveToggle({ t, answer }: { t: T; answer: AskAnswer }) {
+/**
+ * Speichern-Toggle für eine generierte Antwort — local-first (localStorage);
+ * MIT Konto wird zusätzlich ins Konto gespiegelt (Architektur: Account-Sync).
+ */
+function SaveToggle({ t, answer, loggedIn }: { t: T; answer: AskAnswer; loggedIn: boolean }) {
   const id = answerId(answer.question);
   const [saved, setSaved] = useState(false);
   useEffect(() => {
@@ -381,9 +482,11 @@ function SaveToggle({ t, answer }: { t: T; answer: AskAnswer }) {
   function toggle() {
     if (saved) {
       removeSaved(id);
+      if (loggedIn) deleteSavedFromAccount(id);
       setSaved(false);
     } else {
-      saveAnswer(answer);
+      const entry = saveAnswer(answer);
+      if (loggedIn) pushSavedToAccount(entry);
       setSaved(true);
     }
   }

@@ -21,8 +21,9 @@ const MIGRATIONS = [
   "0002_auth.sql",
   "0003_branding.sql",
   "0004_two_factor_plugin_columns.sql",
-  "0005_content.sql",
+  "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql",
   "0006_operator.sql",
+  "0013_seo_indexable.sql",
 ] as const;
 
 const OP_A = "op_a"; // Operator-Konto A (in t_operator)
@@ -34,6 +35,7 @@ function makeInput(over: Partial<NewHelpCenter> & { slug: string; tenantId: stri
     defaultLocale: "de",
     colorPrimary: null,
     colorAccent: null,
+    seoIndexable: true,
     operatorUserId: OP_A,
     ownerUserId: `owner_${over.tenantId}`,
     ownerEmail: "operator@example.com",
@@ -64,13 +66,21 @@ describe("D1OperatorRepository gegen die echten Migrationen (D1-Shim über bette
   afterEach(() => db.close());
 
   it("createHelpCenter legt Tenant + GENAU 1 Owner (role=owner, verifiziert, ohne Passwort) im NEUEN Tenant + Mapping an", async () => {
-    const input = makeInput({ slug: "acmehelp", tenantId: "t_acme_new" });
+    const input = makeInput({ slug: "acmehelp", tenantId: "t_acme_new", seoIndexable: false });
     expect(await repo.createHelpCenter(input)).toBe("created");
 
-    const tenant = db.prepare("SELECT slug, name, plan FROM tenants WHERE id = ?").get("t_acme_new") as
-      | { slug: string; name: string; plan: string }
+    const tenant = db
+      .prepare("SELECT slug, name, plan, seo_indexable FROM tenants WHERE id = ?")
+      .get("t_acme_new") as
+      | { slug: string; name: string; plan: string; seo_indexable: number }
       | undefined;
-    expect(tenant).toMatchObject({ slug: "acmehelp", name: "Acme Support", plan: "free" });
+    // Wizard-Abfrage (2026-07-16): Opt-out landet direkt am neuen Tenant.
+    expect(tenant).toMatchObject({
+      slug: "acmehelp",
+      name: "Acme Support",
+      plan: "free",
+      seo_indexable: 0,
+    });
 
     const owners = db
       .prepare("SELECT id, tenant_id, email, email_verified, role FROM auth_user WHERE tenant_id = ?")

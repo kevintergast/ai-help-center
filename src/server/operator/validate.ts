@@ -70,10 +70,17 @@ export interface HelpCenterInput {
   defaultLocale: NewLocale;
   colorPrimary: string | null;
   colorAccent: string | null;
+  /** Suchmaschinen-Indexierung (Wizard-Abfrage; Default true, Migration 0013). */
+  seoIndexable: boolean;
 }
 
 /** Fehlercode einer verworfenen Create-Eingabe (Route → 400/…). */
-export type CreateRejection = "invalid_name" | "invalid_slug" | "invalid_locale" | "invalid_color";
+export type CreateRejection =
+  | "invalid_name"
+  | "invalid_slug"
+  | "invalid_locale"
+  | "invalid_color"
+  | "invalid_seo_indexable";
 
 /**
  * Parst den Create-Body. Gibt die validierte Eingabe ODER einen stabilen
@@ -106,5 +113,19 @@ export function parseHelpCenterInput(body: unknown): HelpCenterInput | CreateRej
     colorAccent = b.colorAccent;
   }
 
-  return { name, slug: b.slug as string, defaultLocale: b.defaultLocale, colorPrimary, colorAccent };
+  // Indexierung: optional, strikt boolesch (fehlend = true — öffentliche
+  // Hilfezentren sollen ranken; das Opt-out ist die bewusste Ausnahme).
+  if (b.seoIndexable !== undefined && typeof b.seoIndexable !== "boolean") {
+    return "invalid_seo_indexable";
+  }
+  const seoIndexable = b.seoIndexable !== false;
+
+  return {
+    name,
+    slug: b.slug as string,
+    defaultLocale: b.defaultLocale,
+    colorPrimary,
+    colorAccent,
+    seoIndexable,
+  };
 }

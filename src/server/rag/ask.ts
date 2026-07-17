@@ -165,7 +165,13 @@ export async function answerQuestion(deps: AskPipelineDeps, input: AskInput): Pr
   for (const c of context) {
     if (!cited.has(c.doc.id)) {
       cited.add(c.doc.id);
-      citations.push({ id: c.doc.id, title: c.doc.title, kind: c.doc.kind });
+      citations.push({
+        id: c.doc.id,
+        title: c.doc.title,
+        kind: c.doc.kind,
+        // Artikel-Slug fürs kontextfreie Verlinken (Widget öffnet /<slug> im neuen Tab).
+        ...(c.doc.kind === "article" && c.doc.slug ? { slug: c.doc.slug } : {}),
+      });
     }
     sourceRefs.push({
       articleId: c.doc.id,
@@ -177,6 +183,9 @@ export async function answerQuestion(deps: AskPipelineDeps, input: AskInput): Pr
 
   // 6) Verbuchen — NACH erfolgreicher Generierung (interne Nutzer: reduzierter
   //    Selbstkosten-Satz statt Endnutzer-Preis, s. pricing.creditsFor).
+  //    citedArticleIds: NUR echte Artikel (kind article) → ai_source-Events
+  //    („Häufigste Quellen" + Score-Basis); Roadmap/Changelog-Pseudo-Docs
+  //    bleiben bewusst draußen (kein Artikel, kein Beitrags-Score).
   if (deps.billing) {
     await deps.billing.recordAiGeneration({
       tenantId: input.tenantId,
@@ -184,6 +193,7 @@ export async function answerQuestion(deps: AskPipelineDeps, input: AskInput): Pr
       visitorId: input.actor.visitorId,
       userId: input.actor.userId,
       nowSec: input.nowSec,
+      citedArticleIds: citations.filter((c) => c.kind === "article").map((c) => c.id),
     });
   }
 

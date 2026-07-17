@@ -33,7 +33,7 @@ type Row = Record<string, unknown>;
 function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
   const { settingsAvailable = true } = opts;
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0003_branding.sql", "0013_seo_indexable.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql"]);
   const repo = new D1TenantRepository(d1FromSqlite(sqlite));
 
   const authDb: Record<string, Row[]> = {
@@ -57,7 +57,10 @@ function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
     getContentDeps: async () => null,
     getSettingsDeps: async () =>
       settingsAvailable
-        ? { setSeoIndexable: (tenantId, indexable) => repo.setSeoIndexable(tenantId, indexable) }
+        ? {
+            setSeoIndexable: (tenantId, indexable) => repo.setSeoIndexable(tenantId, indexable),
+            setSupportEmail: (tenantId, email) => repo.setSupportEmail(tenantId, email),
+          }
         : null,
   };
   return { app: buildApiApp(deps), sqlite, repo, authDb };
@@ -152,5 +155,48 @@ describe("PUT /api/v1/admin/settings/seo (Owner-Gate + Wirkung)", () => {
     const without = makeFixture({ settingsAvailable: false });
     const ownerCookie = await session(without, "owner3@example.com", "owner");
     expect((await putSeo(without, { indexable: false }, ownerCookie)).status).toBe(503);
+  });
+});
+
+const putSupport = (f: Fixture, body: unknown, cookie?: string) =>
+  f.app.request("/api/v1/admin/settings/support", {
+    method: "PUT",
+    headers: {
+      host: HOST_DEMO,
+      "content-type": "application/json",
+      ...(cookie ? { cookie } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+describe("PUT /api/v1/admin/settings/support (der frühere Speichern-Bug)", () => {
+  let f: Fixture;
+  beforeEach(() => {
+    f = makeFixture();
+  });
+
+  it("admin: speichert kanonisiert, persistiert am Tenant; Leeren entfernt", async () => {
+    const cookie = await session(f, "admin@example.com", "admin");
+
+    const set = await putSupport(f, { email: " Hilfe@Firma.DE " }, cookie);
+    expect(set.status).toBe(200);
+    expect(await set.json()).toEqual({ ok: true, email: "hilfe@firma.de" });
+    expect((await f.repo.getBySlug("demo"))?.supportEmail).toBe("hilfe@firma.de");
+
+    const clear = await putSupport(f, { email: null }, cookie);
+    expect(clear.status).toBe(200);
+    expect((await f.repo.getBySlug("demo"))?.supportEmail).toBeNull();
+  });
+
+  it("user-Rolle → 403 (admin-Gate); anonym → 401; Unsinn → 400 invalid_email", async () => {
+    expect((await putSupport(f, { email: "a@b.de" })).status).toBe(401);
+
+    const userCookie = await session(f, "user@example.com", "user");
+    expect((await putSupport(f, { email: "a@b.de" }, userCookie)).status).toBe(403);
+
+    const adminCookie = await session(f, "admin2@example.com", "admin");
+    expect((await putSupport(f, { email: "kein-at-zeichen" }, adminCookie)).status).toBe(400);
+    expect((await putSupport(f, { email: 42 }, adminCookie)).status).toBe(400);
+    expect((await f.repo.getBySlug("demo"))?.supportEmail).toBeNull();
   });
 });

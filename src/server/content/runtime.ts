@@ -30,6 +30,7 @@ function d1HelpCenterRepo(db: D1Database, tenant: Tenant): HelpCenterRepository 
     searchItems: () => store.searchItems(tid, locale),
     listArticles: () => store.listPublishedArticles(tid, locale),
     getArticle: (key) => store.getPublishedArticleBySlugOrId(tid, locale, key),
+    siblingsOf: (articleKey) => store.getPublishedSiblings(tid, articleKey),
     // RAG-STUB (Punkt 3): geerdete Beispielantwort über die echten Artikel.
     roadmap: () => store.roadmap(tid),
     changelog: () => store.changelog(tid, locale),

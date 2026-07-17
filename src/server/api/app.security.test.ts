@@ -392,6 +392,16 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
     // public-routes.ts bzw. api/ask.ts (Missbrauchsschutz-Schichten).
     // 2026-07-16: + /events/feedback („War das hilfreich?", 0 Credits,
     // 24h-Dedup, IP-Rate-Limit — Begründung in public-routes.ts).
+    // 2026-07-17: + /support/tickets („Etwas stimmt nicht?" — anonymer
+    // Eskalationsweg; Schichten in public-routes.ts/api/support.ts).
+    // 2026-07-17: + /widget/session (signierte Besucher-ID fürs eingebettete
+    // Widget — Begründung in api/widget.ts).
+    // 2026-07-17: + /answers/check (Staleness-Prüfung LOKAL gespeicherter
+    // Antworten anonymer local-first-Nutzer; Hash-Vergleich nur gegen
+    // VERÖFFENTLICHTES, kein Draft-Orakel — Begründung public-routes.ts).
+    // 2026-07-17: + /content/images/-Prefix (Bilder VERÖFFENTLICHTER Artikel;
+    // <img> sendet keine Header, Draft-Bilder bleiben fail-closed gesperrt —
+    // Begründung public-routes.ts/contentImagesPublicRouter).
     expect(PUBLIC_ROUTES).toMatchInlineSnapshot(`
       {
         "exact": [
@@ -401,10 +411,14 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
           "/api/v1/events/view",
           "/api/v1/events/feedback",
           "/api/v1/ask",
+          "/api/v1/support/tickets",
+          "/api/v1/widget/session",
+          "/api/v1/answers/check",
         ],
         "prefixes": [
           "/api/v1/auth/",
           "/api/v1/legal/",
+          "/api/v1/content/images/",
         ],
       }
     `);

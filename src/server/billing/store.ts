@@ -84,6 +84,8 @@ export interface RecordGenerationInput {
   visitorId: string;
   userId?: string | null;
   nowSec: number;
+  /** Zitierte Artikel (je einer ein ai_source-Event, 0 Credits — Stats/Score). */
+  citedArticleIds?: string[];
 }
 
 export interface RecordFeedbackInput {
@@ -112,6 +114,12 @@ export interface BillingRepository {
    */
   recordAiGeneration(input: RecordGenerationInput): Promise<PlanState>;
   /**
+   * Verbucht eine KI-ÜBERSETZUNG (bezahltes Team-Feature): IMMER Listenpreis
+   * (auch intern — creditsFor), kein MAU, kein Dedup. Aufruf erst NACH
+   * erfolgreich angelegter Übersetzung (Fehlschläge kosten nichts).
+   */
+  recordAiTranslation(input: RecordGenerationInput & { articleId: string }): Promise<PlanState>;
+  /**
    * „War das hilfreich?"-Feedback (0 Credits, kein MAU): Event-only fürs
    * Statistik-Aggregat (Hilfreich-Quote). Dedup: gleiche Richtung, gleicher
    * Besucher, gleiches Ziel innerhalb 24h wird verworfen (Klick-Spam);
@@ -129,6 +137,12 @@ export interface BillingRepository {
    * KI-Antworten (article_id NULL), im Zeitfenster, interne optional raus.
    */
   getFeedbackStats(tenantId: string, opts: StatsWindow): Promise<FeedbackStats>;
+  /**
+   * „Häufigste Quellen": meistzitierte Artikel in KI-Antworten (ai_source-
+   * Events) im Zeitfenster — ersetzt die frühere „Häufigste Fragen"-Karte
+   * (Fragetexte werden bewusst NICHT gespeichert).
+   */
+  getTopSources(tenantId: string, window: StatsWindow, limit: number): Promise<TopArticleRow[]>;
   /** Verbrauch der Periode (Credits aus Aggregat, MAU als COUNT über usage_mau). */
   getUsage(tenantId: string, period: string): Promise<UsageSnapshot>;
   /** Plan-Zeile (fehlend = Free, kein Marker). */
@@ -209,8 +223,22 @@ export class D1BillingRepository implements BillingRepository {
     return { result: "recorded", state };
   }
 
-  async recordAiGeneration(input: RecordGenerationInput): Promise<PlanState> {
+  async recordAiTranslation(
+    input: RecordGenerationInput & { articleId: string },
+  ): Promise<PlanState> {
     return this.charge({
+      tenantId: input.tenantId,
+      type: "ai_translation",
+      actorType: input.actorType,
+      visitorId: input.visitorId,
+      userId: input.userId ?? null,
+      articleId: input.articleId,
+      nowSec: input.nowSec,
+    });
+  }
+
+  async recordAiGeneration(input: RecordGenerationInput): Promise<PlanState> {
+    const state = await this.charge({
       tenantId: input.tenantId,
       type: "ai_generation",
       actorType: input.actorType,
@@ -219,6 +247,33 @@ export class D1BillingRepository implements BillingRepository {
       articleId: null,
       nowSec: input.nowSec,
     });
+
+    // Quellen-Events (0 Credits, Event-only): Rohdaten für „Häufigste
+    // Quellen" und den späteren Artikel-Beitrags-Score. Bewusst NACH dem
+    // Charge und ohne MAU/usage-Inkremente.
+    const cited = [...new Set(input.citedArticleIds ?? [])];
+    if (cited.length > 0) {
+      await this.db.batch(
+        cited.map((articleId) =>
+          this.db
+            .prepare(
+              `INSERT INTO usage_events
+                 (id, tenant_id, type, credits, actor_type, visitor_id, user_id, article_id, created_at)
+               VALUES (?, ?, 'ai_source', 0, ?, ?, ?, ?, ?)`,
+            )
+            .bind(
+              crypto.randomUUID(),
+              input.tenantId,
+              input.actorType,
+              input.visitorId,
+              input.userId ?? null,
+              articleId,
+              input.nowSec,
+            ),
+        ),
+      );
+    }
+    return state;
   }
 
   async recordFeedback(input: RecordFeedbackInput): Promise<void> {
@@ -472,6 +527,32 @@ export class D1BillingRepository implements BillingRepository {
       .bind(tenantId, startSec)
       .first<{ c: number }>();
     return row?.c ?? 0;
+  }
+
+  async getTopSources(
+    tenantId: string,
+    window: StatsWindow,
+    limit: number,
+  ): Promise<TopArticleRow[]> {
+    const startSec = startOfUtcDay(window.nowSec) - (window.days - 1) * DAY_SEC;
+    const rows = await this.db
+      .prepare(
+        `SELECT e.article_id AS articleId, COUNT(*) AS views, a.title AS title
+           FROM usage_events e
+           LEFT JOIN articles a ON a.tenant_id = e.tenant_id AND a.id = e.article_id
+          WHERE e.tenant_id = ? AND e.type = 'ai_source' AND e.created_at >= ?
+            ${window.excludeInternal ? "AND e.actor_type != 'internal'" : ""}
+          GROUP BY e.article_id
+          ORDER BY views DESC, e.article_id
+          LIMIT ?`,
+      )
+      .bind(tenantId, startSec, limit)
+      .all<{ articleId: string; views: number; title: string | null }>();
+    return rows.results.map((r) => ({
+      articleId: r.articleId,
+      title: r.title ?? r.articleId,
+      views: r.views,
+    }));
   }
 
   async getFeedbackStats(tenantId: string, window: StatsWindow): Promise<FeedbackStats> {
