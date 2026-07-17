@@ -22,11 +22,11 @@ const DAY = 86_400;
 function setup() {
   const sqlite = new BetterSqlite3(":memory:");
   applyMigrations(sqlite, [
-    "0001_tenants.sql",
+    "0001_tenants.sql", "0021_tenant_suspend.sql",
     "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql",
     "0009_usage_billing.sql",
     "0011_usage_feedback_types.sql", "0016_usage_ai_source_type.sql", "0020_usage_ai_translation_type.sql",
-    "0012_enterprise_plan.sql",
+    "0012_enterprise_plan.sql", "0022_plan_custom_limits.sql",
   ]);
   // Publizierter Artikel je Tenant (+ ein Draft) — Grundlage der View-Buchung.
   const insert = sqlite.prepare(

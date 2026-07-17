@@ -55,6 +55,9 @@ export interface UsageSnapshot {
 export interface PlanRow {
   plan: PlanId;
   overLimitSince: number | null;
+  /** Per-Instanz-Rahmen (0022; null = Plan-Standard) — s. plan-state.ts. */
+  customIncludedCredits: number | null;
+  customMauLimit: number | null;
 }
 
 export interface StatsWindow {
@@ -177,6 +180,8 @@ export async function readPlanState(
     creditsUsed: usage.creditsUsed,
     mauCount: usage.mauCount,
     overLimitSince: row.overLimitSince,
+    customIncludedCredits: row.customIncludedCredits,
+    customMauLimit: row.customMauLimit,
     nowSec,
   });
 }
@@ -434,12 +439,25 @@ export class D1BillingRepository implements BillingRepository {
 
   async getPlanRow(tenantId: string): Promise<PlanRow> {
     const row = await this.db
-      .prepare(`SELECT plan, over_limit_since FROM tenant_plan WHERE tenant_id = ?`)
+      .prepare(
+        `SELECT plan, over_limit_since, custom_included_credits, custom_mau_limit
+           FROM tenant_plan WHERE tenant_id = ?`,
+      )
       .bind(tenantId)
-      .first<{ plan: PlanId; over_limit_since: number | null }>();
+      .first<{
+        plan: PlanId;
+        over_limit_since: number | null;
+        custom_included_credits: number | null;
+        custom_mau_limit: number | null;
+      }>();
     return row
-      ? { plan: row.plan, overLimitSince: row.over_limit_since }
-      : { plan: "free", overLimitSince: null };
+      ? {
+          plan: row.plan,
+          overLimitSince: row.over_limit_since,
+          customIncludedCredits: row.custom_included_credits,
+          customMauLimit: row.custom_mau_limit,
+        }
+      : { plan: "free", overLimitSince: null, customIncludedCredits: null, customMauLimit: null };
   }
 
   async syncOverLimitMarker(tenantId: string, isOver: boolean, nowSec: number): Promise<void> {

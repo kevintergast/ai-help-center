@@ -1,0 +1,6 @@
+# Monorepo-light (Entscheidung 2026-07-17): Das Produkt bleibt im Root
+# unangetastet; `ops/` ist das EIGENSTÄNDIGE Betreiber-Dashboard (eigener
+# Worker, eigene Domain, Cloudflare Access) — geteilt wird nur die D1 und
+# pure Produkt-Module über den `@product/*`-Alias (ops/tsconfig.json).
+packages:
+  - "ops"

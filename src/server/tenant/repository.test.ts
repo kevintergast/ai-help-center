@@ -87,7 +87,7 @@ describe("D1TenantRepository", () => {
       "0002_auth.sql",
       "0003_branding.sql",
       "0004_two_factor_plugin_columns.sql",
-      "0013_seo_indexable.sql",
+      "0013_seo_indexable.sql", "0021_tenant_suspend.sql",
       "0014_support_email.sql",
     ]);
     db.prepare(
@@ -111,6 +111,39 @@ describe("D1TenantRepository", () => {
 
     // Slug-Auflösung bleibt davon unberührt:
     expect((await repo.getBySlug("corp"))?.id).toBe("t_c");
+    db.close();
+  });
+});
+
+describe("Instanz-Sperre (0021, Ops)", () => {
+  // Verhinderter realer Fehlerfall: eine im Ops-Dashboard blockierte Instanz
+  // bliebe über Subdomain ODER Custom-Domain weiter erreichbar.
+  it("suspended_at gesetzt → weder Slug- noch Domain-Auflösung; NULL → wieder da", async () => {
+    const db = new Database(":memory:");
+    applyMigrations(db, [
+      "0001_tenants.sql",
+      "0002_auth.sql",
+      "0003_branding.sql",
+      "0004_two_factor_plugin_columns.sql",
+      "0013_seo_indexable.sql", "0021_tenant_suspend.sql",
+      "0014_support_email.sql",
+    ]);
+    // Migration 0001 seedet 'demo'; Custom-Domain verified dazu:
+    db.prepare("UPDATE tenants SET custom_domain = 'help.demo.example' WHERE slug = 'demo'").run();
+    db.prepare(
+      `INSERT INTO tenant_domain (id, tenant_id, domain, verification_token, status)
+       SELECT 'd9', id, 'help.demo.example', 'txt', 'verified' FROM tenants WHERE slug = 'demo'`,
+    ).run();
+    const repo = new D1TenantRepository(d1FromSqlite(db));
+    expect((await repo.getBySlug("demo"))?.slug).toBe("demo");
+    expect((await repo.getByCustomDomain("help.demo.example"))?.slug).toBe("demo");
+
+    db.prepare(`UPDATE tenants SET suspended_at = 123 WHERE slug = 'demo'`).run();
+    expect(await repo.getBySlug("demo")).toBeNull();
+    expect(await repo.getByCustomDomain("help.demo.example")).toBeNull();
+
+    db.prepare(`UPDATE tenants SET suspended_at = NULL WHERE slug = 'demo'`).run();
+    expect((await repo.getBySlug("demo"))?.slug).toBe("demo");
     db.close();
   });
 });

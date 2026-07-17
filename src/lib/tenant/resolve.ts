@@ -40,6 +40,7 @@ const RESERVED_SUBDOMAINS: ReadonlySet<string> = new Set([
   "www",
   "auth",
   "api",
+  "ops", // internes Betreiber-Dashboard (eigener Worker, ops/)
   OPERATOR_SUBDOMAIN,
 ]);
 

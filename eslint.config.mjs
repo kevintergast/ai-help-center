@@ -21,6 +21,10 @@ const eslintConfig = [
       "cloudflare-env.d.ts",
       // Build-/Tooling-Config im Root — von `next lint` nie gelintet, hier ebenso ausgenommen.
       "*.config.{js,cjs,mjs,ts}",
+      // Ops-Dashboard (ops/): eigenes Paket mit hono/jsx — React-Regeln
+      // (className, jsx-key-Semantik) passen dort nicht; Qualitätssicherung
+      // läuft über `pnpm -C ops typecheck` (strict) + Vitest.
+      "ops/**",
     ],
   },
   ...compat.extends("next/core-web-vitals"),

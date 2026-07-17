@@ -132,3 +132,44 @@ describe("periodOf / periodResetMs — UTC-Monatsgrenzen", () => {
     expect(periodOf(aug1)).toBe("2026-08");
   });
 });
+
+describe("Per-Instanz-Rahmen (0022, Ops: Enterprise-Deckel)", () => {
+  it("Overrides ersetzen die Plan-Standards und steuern die Limit-Prüfung", () => {
+    // Enterprise-Standard wäre 1 Mio Credits / 100k MAU — der individuelle
+    // Deckel (500/50) muss die Prüfung übernehmen (sonst wäre er nur Anzeige).
+    const over = evaluatePlanState({
+      plan: "enterprise",
+      creditsUsed: 600,
+      mauCount: 51,
+      overLimitSince: null,
+      customIncludedCredits: 500,
+      customMauLimit: 50,
+      nowSec: NOW,
+    });
+    expect(over.plan.includedCredits).toBe(500);
+    expect(over.plan.mauLimit).toBe(50);
+    expect(over.isOver).toBe(true);
+
+    const within = evaluatePlanState({
+      plan: "enterprise",
+      creditsUsed: 400,
+      mauCount: 10,
+      overLimitSince: null,
+      customIncludedCredits: 500,
+      customMauLimit: 50,
+      nowSec: NOW,
+    });
+    expect(within.status).toBe("active");
+
+    // Ohne Overrides: Plan-Standard unverändert.
+    const std = evaluatePlanState({
+      plan: "enterprise",
+      creditsUsed: 600,
+      mauCount: 51,
+      overLimitSince: null,
+      nowSec: NOW,
+    });
+    expect(std.plan.includedCredits).toBe(PLANS.enterprise.includedCredits);
+    expect(std.isOver).toBe(false);
+  });
+});
