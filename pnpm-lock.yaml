@@ -104,6 +104,18 @@ importers:
         specifier: ^4.0.0
         version: 4.109.0(@cloudflare/workers-types@5.20260708.1)
 
+  widget-demo:
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^5.20260708.1
+        version: 5.20260708.1
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      wrangler:
+        specifier: ^4.0.0
+        version: 4.109.0(@cloudflare/workers-types@5.20260708.1)
+
 packages:
 
   '@alloc/quick-lru@5.2.0':

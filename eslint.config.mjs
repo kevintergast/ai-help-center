@@ -25,6 +25,7 @@ const eslintConfig = [
       // (className, jsx-key-Semantik) passen dort nicht; Qualitätssicherung
       // läuft über `pnpm -C ops typecheck` (strict) + Vitest.
       "ops/**",
+      "widget-demo/**",
     ],
   },
   ...compat.extends("next/core-web-vitals"),
