@@ -777,3 +777,49 @@ describe("POST /api/v1/admin/articles/:id/translations", () => {
     ]);
   });
 });
+
+describe("Videos im Entwurfs-Zyklus (YouTube v1)", () => {
+  it("PUT mit videos: URL→ID normalisiert + persistiert; ungültige Quelle → 400", async () => {
+    const f = makeApp();
+    const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
+    const { firstId } = await seedTwoArticles(f, cookie);
+
+    const put = await f.app.request(`/api/v1/admin/articles/${firstId}`, {
+      method: "PUT",
+      headers: { host: HOST_A, "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        videos: [
+          {
+            id: "v1",
+            title: "Produkt-Rundgang",
+            description: "Zeigt die ersten Schritte im Hilfezentrum",
+            youtubeUrl: "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+            durationLabel: "0:19",
+          },
+        ],
+      }),
+    });
+    expect(put.status).toBe(200);
+
+    const article = await f.store.getForEdit("t_a", firstId, "de");
+    expect(article?.videos).toEqual([
+      {
+        id: "v1",
+        title: "Produkt-Rundgang",
+        durationLabel: "0:19",
+        description: "Zeigt die ersten Schritte im Hilfezentrum",
+        youtubeId: "jNQXAC9IVRw",
+      },
+    ]);
+
+    const bad = await f.app.request(`/api/v1/admin/articles/${firstId}`, {
+      method: "PUT",
+      headers: { host: HOST_A, "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        videos: [{ id: "v2", title: "x", description: "d", youtubeUrl: "https://vimeo.com/1" }],
+      }),
+    });
+    expect(bad.status).toBe(400);
+    expect(await bad.json()).toMatchObject({ error: "youtube_url_invalid" });
+  });
+});

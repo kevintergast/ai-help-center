@@ -95,8 +95,42 @@ function parseBody(value: unknown): ParseResult<string[]> {
 }
 
 /**
- * Prüft ein Video-Array. JEDES Video braucht id/title/durationLabel UND eine
- * nicht-leere `description` (a11y/KI-Pflicht — härtester Fail-Punkt der Task).
+ * YouTube-Video-ID aus Nutzereingabe extrahieren: akzeptiert die rohe
+ * 11-Zeichen-ID sowie die üblichen URL-Formen (watch?v=, youtu.be/, /shorts/,
+ * /embed/, /live/ — inkl. m.- und nocookie-Hosts). Alles andere → null.
+ * Gespeichert wird IMMER nur die validierte ID (keine rohen URLs im Storage).
+ */
+export function parseYouTubeId(input: string): string | null {
+  const raw = input.trim();
+  if (/^[A-Za-z0-9_-]{11}$/.test(raw)) return raw;
+
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+
+  const host = url.hostname.toLowerCase().replace(/^www\.|^m\./, "");
+  const idOk = (id: string | null | undefined): string | null =>
+    id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
+
+  if (host === "youtu.be") return idOk(url.pathname.split("/")[1]);
+  if (host === "youtube.com" || host === "youtube-nocookie.com") {
+    const fromQuery = idOk(url.searchParams.get("v"));
+    if (fromQuery) return fromQuery;
+    const m = /^\/(?:embed|shorts|live)\/([A-Za-z0-9_-]{11})/.exec(url.pathname);
+    return idOk(m?.[1]);
+  }
+  return null;
+}
+
+/**
+ * Prüft ein Video-Array. JEDES Video braucht id/title, eine YOUTUBE-Quelle
+ * (`youtubeId` ODER `youtubeUrl`, s. parseYouTubeId — v1 ist bewusst nur
+ * YouTube) UND eine nicht-leere `description` (a11y/KI-Pflicht — härtester
+ * Fail-Punkt der Task). `durationLabel` ist optional (leer = ausgeblendet).
  */
 function parseVideos(value: unknown): ParseResult<ArticleVideo[]> {
   if (!Array.isArray(value)) return fail("invalid_videos");
@@ -105,21 +139,26 @@ function parseVideos(value: unknown): ParseResult<ArticleVideo[]> {
   for (const v of value) {
     if (typeof v !== "object" || v === null) return fail("invalid_video");
     const o = v as Record<string, unknown>;
-    if (
-      typeof o.id !== "string" ||
-      typeof o.title !== "string" ||
-      typeof o.durationLabel !== "string"
-    ) {
+    if (typeof o.id !== "string" || typeof o.title !== "string" || o.title.trim().length === 0) {
       return fail("invalid_video");
     }
     if (typeof o.description !== "string" || o.description.trim().length === 0) {
       return fail("video_description_required");
     }
+    const source =
+      typeof o.youtubeId === "string"
+        ? o.youtubeId
+        : typeof o.youtubeUrl === "string"
+          ? o.youtubeUrl
+          : null;
+    const youtubeId = source === null ? null : parseYouTubeId(source);
+    if (!youtubeId) return fail("youtube_url_invalid");
     out.push({
       id: o.id,
-      title: o.title,
-      durationLabel: o.durationLabel,
+      title: o.title.trim(),
+      durationLabel: typeof o.durationLabel === "string" ? o.durationLabel.trim() : "",
       description: o.description,
+      youtubeId,
     });
   }
   return { ok: true, value: out };

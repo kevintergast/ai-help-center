@@ -94,6 +94,7 @@ export const de = {
   "hc.support.error": "Senden fehlgeschlagen — bitte versuche es erneut.",
   "hc.relatedHeading": "Verwandte Artikel",
   "hc.videosHeading": "Videos",
+  "hc.videoPlay": "Video abspielen",
   "hc.readingTime": "{min} Min. Lesezeit",
   "hc.updated": "Aktualisiert {when}",
   "hc.backToOverview": "Zurück zur Übersicht",
@@ -181,6 +182,22 @@ export const de = {
   "editor.rich.ol": "Nummerierte Liste",
   "editor.rich.quote": "Zitat",
   "editor.rich.codeBlock": "Code-Block",
+
+  "editor.videos.title": "Videos",
+  "editor.videos.hint":
+    "Binde YouTube-Videos ein — sie erscheinen neben dem Artikel. Die Beschreibung ist Pflicht: Sie dient als Alt-Text und fließt als Kontext in die KI-Antworten ein.",
+  "editor.videos.empty": "Noch keine Videos in diesem Artikel.",
+  "editor.videos.urlLabel": "YouTube-Link",
+  "editor.videos.titleLabel": "Titel",
+  "editor.videos.titlePlaceholder": "Worum geht es im Video?",
+  "editor.videos.descriptionLabel": "Beschreibung (Pflicht)",
+  "editor.videos.descriptionPlaceholder": "Was zeigt das Video? (KI-Kontext)",
+  "editor.videos.durationLabel": "Dauer (optional)",
+  "editor.videos.add": "Video hinzufügen",
+  "editor.videos.delete": "Video entfernen",
+  "editor.videos.errUrl": "Das ist kein gültiger YouTube-Link (z. B. youtube.com/watch?v=… oder youtu.be/…).",
+  "editor.videos.errTitle": "Bitte gib dem Video einen Titel.",
+  "editor.videos.errDescription": "Die Beschreibung ist Pflicht — sie dient als Alt-Text und KI-Kontext.",
 
   "editor.images.title": "Bilder",
   "editor.images.hint":

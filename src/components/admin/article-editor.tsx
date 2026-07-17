@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Locale } from "@/lib/tenant/types";
-import type { Article, ArticleStatus } from "@/lib/content/types";
+import type { Article, ArticleStatus, ArticleVideo } from "@/lib/content/types";
 import { getT } from "@/i18n/t";
 import { cn } from "@/lib/ui/cn";
 import { ArticleBodyEditor } from "@/components/admin/article-body-editor";
 import { ArticleImagesManager } from "@/components/admin/article-images";
+import { ArticleVideosEditor } from "@/components/admin/article-videos-editor";
 import { ArticleTranslations } from "@/components/admin/article-translations";
 import { ARTICLE_STATUS } from "@/components/admin/status";
 import { RichTextView } from "@/components/help-center/rich-text-view";
@@ -24,13 +25,21 @@ interface Draft {
   category: string;
   status: ArticleStatus;
   blocks: string[];
+  videos: ArticleVideo[];
 }
 
-const toDraft = (a: { title: string; category: string; status: ArticleStatus; body: string[] }): Draft => ({
+const toDraft = (a: {
+  title: string;
+  category: string;
+  status: ArticleStatus;
+  body: string[];
+  videos: ArticleVideo[];
+}): Draft => ({
   title: a.title,
   category: a.category,
   status: a.status,
   blocks: [...a.body],
+  videos: [...a.videos],
 });
 
 export function ArticleEditor({ locale, article }: { locale: Locale; article: Article }) {
@@ -68,7 +77,8 @@ export function ArticleEditor({ locale, article }: { locale: Locale; article: Ar
    * Speichert den Entwurf (PUT) und veröffentlicht ihn (POST /publish) gegen die
    * tenant-gebundene Content-API. Cookies (Session) gehen bei same-origin
    * automatisch mit; die API erzwingt requireTeam("content") + Tenant-Scope.
-   * Videos/Verwandte werden hier NICHT gesendet → das Repo behält sie (Teil-Update).
+   * Verwandte werden hier NICHT gesendet → das Repo behält sie (Teil-Update);
+   * Videos gehören seit der YouTube-Einbindung zum Entwurfs-Zyklus.
    */
   async function publish() {
     setSaving(true);
@@ -80,6 +90,7 @@ export function ArticleEditor({ locale, article }: { locale: Locale; article: Ar
           title: draft.title,
           category: draft.category,
           body: draft.blocks,
+          videos: draft.videos,
         }),
       });
       if (!put.ok) throw new Error("save_failed");
@@ -164,6 +175,13 @@ export function ArticleEditor({ locale, article }: { locale: Locale; article: Ar
               onChange={setBlocks}
             />
           </div>
+
+          {/* Videos gehören zum Entwurf (mit „Veröffentlichen" gespeichert). */}
+          <ArticleVideosEditor
+            locale={locale}
+            videos={draft.videos}
+            onChange={(videos) => setDraft((d) => ({ ...d, videos }))}
+          />
 
           {/* Bilder wirken sofort (eigener API-Zyklus, s. ArticleImagesManager). */}
           <ArticleImagesManager

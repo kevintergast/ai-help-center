@@ -47,7 +47,7 @@ export async function findStaleAnswers(
   if (articleIds.size > 0) {
     const placeholders = [...articleIds].map(() => "?").join(",");
     const rows = await env.DB.prepare(
-      `SELECT id, slug, title, body_json, images_json FROM articles
+      `SELECT id, slug, title, body_json, images_json, videos_json FROM articles
         WHERE tenant_id = ? AND status = 'published' AND id IN (${placeholders})`,
     )
       .bind(tenantId, ...articleIds)
