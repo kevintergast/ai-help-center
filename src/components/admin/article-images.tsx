@@ -33,6 +33,8 @@ export function ArticleImagesManager({
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Vormerkung, die der nächste Upload ERFÜLLT (wird danach entfernt). */
+  const [fulfillId, setFulfillId] = useState<string | null>(null);
 
   function errorText(code: string): string {
     switch (code) {
@@ -77,6 +79,14 @@ export function ArticleImagesManager({
         return;
       }
       setImages((list) => [...list, data.image as ArticleImage]);
+      // Erfüllte Vormerkung entfernen (das echte Bild ersetzt sie).
+      if (fulfillId) {
+        await fetch(`/api/v1/admin/articles/${articleId}/images/${fulfillId}`, {
+          method: "DELETE",
+        }).catch(() => null);
+        setImages((list) => list.filter((i) => i.id !== fulfillId));
+        setFulfillId(null);
+      }
       setDescription("");
       if (fileRef.current) fileRef.current.value = "";
     } catch {
@@ -105,15 +115,45 @@ export function ArticleImagesManager({
           {images.map((img) => (
             <li
               key={img.id}
-              className="flex items-start gap-3 rounded-comfy border border-hairline bg-surface p-3"
+              className={`flex items-start gap-3 rounded-comfy border p-3 ${
+                img.pending ? "border-dashed border-hairline-strong bg-tint" : "border-hairline bg-surface"
+              }`}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`/api/v1/admin/articles/${articleId}/images/${img.id}`}
-                alt={img.description}
-                className="h-16 w-16 shrink-0 rounded-md border border-hairline object-cover"
-              />
-              <span className="flex-1 text-sm text-ink">{img.description}</span>
+              {img.pending ? (
+                // Vormerkung (Import): es gibt noch KEIN Binärbild.
+                <span className="grid h-16 w-16 shrink-0 place-items-center rounded-md border border-dashed border-hairline text-lg text-ink-muted">
+                  ?
+                </span>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={`/api/v1/admin/articles/${articleId}/images/${img.id}`}
+                  alt={img.description}
+                  className="h-16 w-16 shrink-0 rounded-md border border-hairline object-cover"
+                />
+              )}
+              <span className="flex-1 text-sm text-ink">
+                {img.pending ? (
+                  <span className="mb-1 block text-xs font-medium text-warn">
+                    {t("editor.images.pendingBadge")}
+                  </span>
+                ) : null}
+                {img.description}
+                {img.pending ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFulfillId(img.id);
+                      setDescription(img.description);
+                      setError(null);
+                      fileRef.current?.click();
+                    }}
+                    className="mt-1.5 block text-xs font-medium text-brand hover:underline"
+                  >
+                    {t("editor.images.pendingUpload")}
+                  </button>
+                ) : null}
+              </span>
               <IconButton
                 aria-label={t("editor.images.delete")}
                 onClick={() => void remove(img.id)}
@@ -127,6 +167,9 @@ export function ArticleImagesManager({
       ) : (
         <p className="mb-4 text-sm text-ink-muted">{t("editor.images.empty")}</p>
       )}
+      {fulfillId ? (
+        <p className="mb-2 text-xs text-ink-muted">{t("editor.images.pendingFulfillHint")}</p>
+      ) : null}
 
       <div className="flex flex-wrap items-end gap-2">
         <input

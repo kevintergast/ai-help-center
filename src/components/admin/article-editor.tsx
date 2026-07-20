@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Locale } from "@/lib/tenant/types";
-import type { Article, ArticleStatus, ArticleVideo } from "@/lib/content/types";
+import type {
+  Article,
+  ArticleStatus,
+  ArticleTranslationInfo,
+  ArticleVideo,
+} from "@/lib/content/types";
 import { getT } from "@/i18n/t";
 import { cn } from "@/lib/ui/cn";
 import { ArticleBodyEditor } from "@/components/admin/article-body-editor";
@@ -42,8 +48,17 @@ const toDraft = (a: {
   videos: [...a.videos],
 });
 
-export function ArticleEditor({ locale, article }: { locale: Locale; article: Article }) {
+export function ArticleEditor({
+  locale,
+  article,
+  translations = [],
+}: {
+  locale: Locale;
+  article: Article;
+  translations?: ArticleTranslationInfo[];
+}) {
   const t = getT(locale);
+  const router = useRouter();
   const statusOptions = (["current", "stale", "ai", "draft"] as ArticleStatus[]).map((s) => ({
     value: s,
     label: t(ARTICLE_STATUS[s].key),
@@ -54,10 +69,44 @@ export function ArticleEditor({ locale, article }: { locale: Locale; article: Ar
   const [draft, setDraft] = useState<Draft>(current);
   const [editing, setEditing] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(current);
+  const dirtyInEdit = editing && dirty;
+
+  // DATENVERLUST-SCHUTZ: Tab-Schließen/Navigation mit ungespeichertem Stand
+  // fragt nach (der gemeldete Fall: Übersetzen/Wechsel warf den Entwurf weg).
+  useEffect(() => {
+    if (!dirtyInEdit) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirtyInEdit]);
+
+  // ÜBERSETZUNGS-STALENESS: dieser Artikel ist eine Übersetzung und das
+  // Original (Standardsprache) wurde seit seiner letzten Bearbeitung geändert.
+  const self = translations.find((m) => m.id === article.id) ?? null;
+  const original =
+    article.locale !== locale ? (translations.find((m) => m.locale === locale) ?? null) : null;
+  const translationStale = !!(original && self && original.updatedAt > self.updatedAt);
+  const siblings = translations.filter((m) => m.id !== article.id);
+
+  async function deleteArticle() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/v1/admin/articles/${article.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("delete_failed");
+      router.push("/admin/articles");
+    } catch {
+      setDeleteOpen(false);
+      setSaving(false);
+      showToast(t("editor.delete.error"));
+    }
+  }
 
   function showToast(message: string) {
     setToast(message);
@@ -124,17 +173,63 @@ export function ArticleEditor({ locale, article }: { locale: Locale; article: Ar
           <ArrowLeftIcon width={16} height={16} />
           {t("editor.back")}
         </Link>
-        {editing ? (
-          <Badge tone="brand" dot>
-            {t("editor.mode")}
-          </Badge>
-        ) : (
-          <Button variant="primary" size="sm" onClick={enterEdit}>
-            <PencilIcon width={15} height={15} />
-            {t("editor.edit")}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Sprachwechsel im Editor: aktuelle Fassung + Geschwister-Chips.
+              Bei ungespeicherten Änderungen deaktiviert (Datenverlust-Schutz). */}
+          {siblings.length > 0 ? (
+            <span className="mr-1 flex items-center gap-1.5">
+              <span className="rounded-full border border-hairline bg-tint px-2 py-0.5 text-[11px] font-semibold uppercase text-ink-muted">
+                {article.locale ?? locale}
+              </span>
+              {siblings.map((m) =>
+                dirtyInEdit ? (
+                  <span
+                    key={m.id}
+                    title={t("editor.translations.dirtyHint")}
+                    className="cursor-not-allowed rounded-full border border-hairline bg-surface px-2 py-0.5 text-[11px] font-semibold uppercase text-ink-muted/50"
+                  >
+                    {m.locale}
+                  </span>
+                ) : (
+                  <Link
+                    key={m.id}
+                    href={`/admin/articles/${m.id}`}
+                    title={m.title}
+                    className="rounded-full border border-hairline bg-surface px-2 py-0.5 text-[11px] font-semibold uppercase text-brand hover:underline"
+                  >
+                    {m.locale}
+                  </Link>
+                ),
+              )}
+            </span>
+          ) : null}
+          {editing ? (
+            <Badge tone="brand" dot>
+              {t("editor.mode")}
+            </Badge>
+          ) : (
+            <Button variant="primary" size="sm" onClick={enterEdit}>
+              <PencilIcon width={15} height={15} />
+              {t("editor.edit")}
+            </Button>
+          )}
+        </div>
       </div>
+
+      {translationStale && original ? (
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-comfy border border-warn/40 bg-warn/10 px-4 py-3 text-sm text-ink">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-warn" />
+          <span className="flex-1">
+            {t("editor.translations.staleBanner", { locale: original.locale.toUpperCase() })}
+          </span>
+          <Link
+            href={`/admin/articles/${original.id}`}
+            className="text-sm font-medium text-brand hover:underline"
+          >
+            {t("editor.translations.staleOpenOriginal")}
+          </Link>
+        </div>
+      ) : null}
 
       {editing ? (
         /* ————— Editor mode ————— */
@@ -190,8 +285,22 @@ export function ArticleEditor({ locale, article }: { locale: Locale; article: Ar
             initialImages={article.images ?? []}
           />
 
-          {/* Sprachfassungen (Translation-Set; KI-Übersetzung = Credits). */}
-          <ArticleTranslations locale={locale} articleId={article.id} />
+          {/* Sprachfassungen (Translation-Set; KI-Übersetzung = Credits).
+              dirty-Gate: Übersetzen/Wechseln erst nach dem Veröffentlichen —
+              sonst ginge der ungespeicherte Entwurf bei der Navigation verloren. */}
+          <ArticleTranslations
+            locale={locale}
+            articleId={article.id}
+            members={translations}
+            dirty={dirty}
+          />
+
+          {/* Gefahrenzone: Löschen entfernt DIESE Sprachfassung endgültig. */}
+          <div className="border-t border-hairline pt-5">
+            <Button variant="ghost" size="sm" onClick={() => setDeleteOpen(true)}>
+              <span className="text-crit">{t("editor.delete.button")}</span>
+            </Button>
+          </div>
         </div>
       ) : (
         /* ————— View mode ————— */
@@ -255,6 +364,25 @@ export function ArticleEditor({ locale, article }: { locale: Locale; article: Ar
         }
       >
         {t("editor.confirmBody")}
+      </Dialog>
+
+      <Dialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title={t("editor.delete.title")}
+        closeLabel={t("editor.close")}
+        footer={
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setDeleteOpen(false)}>
+              {t("editor.cancel")}
+            </Button>
+            <Button variant="primary" size="sm" onClick={deleteArticle} disabled={saving}>
+              {t("editor.delete.confirm")}
+            </Button>
+          </>
+        }
+      >
+        {t("editor.delete.body")}
       </Dialog>
 
       <Toast

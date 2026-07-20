@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { getT } from "@/i18n/t";
-import { getArticleForEdit } from "@/server/content/runtime";
+import { getArticleForEdit, listArticleTranslations } from "@/server/content/runtime";
 import { ArticleEditor } from "@/components/admin/article-editor";
 
 export default async function AdminArticleEditPage({
@@ -26,5 +26,11 @@ export default async function AdminArticleEditPage({
     );
   }
 
-  return <ArticleEditor locale={tenant.defaultLocale} article={article} />;
+  // Sprachfassungen server-seitig mitladen: Sprachwechsel/Staleness-Banner im
+  // Editor brauchen keinen Client-Fetch (und sind damit SSR-fest).
+  const translations = await listArticleTranslations(tenant, article);
+
+  return (
+    <ArticleEditor locale={tenant.defaultLocale} article={article} translations={translations} />
+  );
 }

@@ -459,6 +459,56 @@ describe("POST /api/v1/admin/articles/import", () => {
     expect(f.indexCalls).toHaveLength(1);
   });
 
+  it("Bild-VORMERKUNGEN: images im JSON + ![…] im Markdown → pending; Re-Import dedupliziert", async () => {
+    const f = makeApp();
+    const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
+
+    // JSON-Import mit Bild-Beschreibungen (Export-Form):
+    const file = {
+      format: "hallofhelp/articles@1",
+      exportedAt: "2026-01-01T00:00:00.000Z",
+      articles: [
+        {
+          slug: "mit-bildern",
+          title: "Mit Bildern",
+          category: "Import",
+          body: ["Absatz."],
+          images: [{ description: "Screenshot A" }, { description: "Screenshot B" }],
+        },
+      ],
+    };
+    const res = await postJson(f.app, "/api/v1/admin/articles/import", HOST_A, file, cookie);
+    expect(await res.json()).toMatchObject({ created: 1, pendingImages: 2 });
+
+    const article = (await f.store.listForTransfer("t_a")).find((a) => a.slug === "mit-bildern")!;
+    expect(article.images?.map((i) => ({ d: i.description, p: i.pending }))).toEqual([
+      { d: "Screenshot A", p: true },
+      { d: "Screenshot B", p: true },
+    ]);
+
+    // Re-Import derselben Datei: KEINE Doppel-Vormerkungen.
+    const again = await postJson(f.app, "/api/v1/admin/articles/import", HOST_A, file, cookie);
+    expect(await again.json()).toMatchObject({ updated: 1, pendingImages: 0 });
+    const after = (await f.store.listForTransfer("t_a")).find((a) => a.slug === "mit-bildern")!;
+    expect(after.images).toHaveLength(2);
+
+    // Markdown-Pfad: Bildverweis → Vormerkung, Body ohne Bild-Syntax.
+    const md = "# MD Bild\n\nText davor.\n\n![Diagramm der Architektur](x.png)\n";
+    const mdRes = await postJson(
+      f.app,
+      "/api/v1/admin/articles/import",
+      HOST_A,
+      { markdown: md },
+      cookie,
+    );
+    expect(await mdRes.json()).toMatchObject({ created: 1, pendingImages: 1 });
+    const mdArticle = (await f.store.listForTransfer("t_a")).find((a) => a.slug === "md-bild")!;
+    expect(mdArticle.images).toEqual([
+      expect.objectContaining({ description: "Diagramm der Architektur", pending: true }),
+    ]);
+    expect(mdArticle.body.join(" ")).not.toContain("![");
+  });
+
   it("Markdown-Import: Front-Matter + H1 → Draft; ohne H1 → 400; Teilfehler brechen Bulk nicht ab", async () => {
     const f = makeApp();
     const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");

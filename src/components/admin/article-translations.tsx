@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { ArticleTranslationInfo } from "@/lib/content/types";
 import type { Locale } from "@/lib/tenant/types";
 import { getT } from "@/i18n/t";
 import { CREDIT_COSTS } from "@/server/billing/pricing";
@@ -14,46 +15,30 @@ import { Button } from "@/components/ui/button";
  * Sprachfassungen des Sets und legt fehlende an — manuell (Kopie als
  * Startpunkt) oder per KI (bezahlt, Credits-Preis steht am Button; verbucht
  * wird serverseitig NACH Erfolg). Neue Fassungen starten als Entwurf.
+ *
+ * DIRTY-GATE (Datenverlust-Schutz): Anlegen UND Wechseln navigieren zum
+ * Ziel-Artikel — mit ungespeicherten Änderungen wäre der Entwurf weg.
+ * Deshalb sind beide Aktionen erst nach dem Veröffentlichen möglich.
+ * Die Mitglieder kommen als SERVER-Prop (kein Client-Fetch, SSR-fest).
  */
 
 const ALL_LOCALES: Locale[] = ["de", "en"];
 
-interface Member {
-  id: string;
-  locale: string;
-  slug: string;
-  lifecycle: "draft" | "published";
-}
-
 export function ArticleTranslations({
   locale,
   articleId,
+  members,
+  dirty = false,
 }: {
   locale: Locale;
   articleId: string;
+  members: ArticleTranslationInfo[];
+  dirty?: boolean;
 }) {
   const t = getT(locale);
   const router = useRouter();
-  const [members, setMembers] = useState<Member[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch(`/api/v1/admin/articles/${articleId}/translations`);
-        if (!res.ok) return;
-        const data = (await res.json()) as { members: Member[] };
-        if (!cancelled) setMembers(data.members);
-      } catch {
-        /* Sektion bleibt dann leer — kein Blocker fürs Editieren */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [articleId]);
 
   async function createTranslation(target: Locale, mode: "manual" | "ai") {
     setBusy(`${target}:${mode}`);
@@ -83,8 +68,6 @@ export function ArticleTranslations({
     }
   }
 
-  if (members === null) return null;
-
   const missing = ALL_LOCALES.filter((l) => !members.some((m) => m.locale === l));
 
   return (
@@ -92,32 +75,39 @@ export function ArticleTranslations({
       <span className="mb-1 block text-sm text-ink-muted">{t("editor.translations.title")}</span>
       <p className="mb-3 text-xs text-ink-muted">{t("editor.translations.hint")}</p>
 
-      <ul className="mb-3 flex flex-col gap-2">
-        {members.map((m) => (
-          <li
-            key={m.id}
-            className="flex items-center gap-3 rounded-comfy border border-hairline bg-surface px-4 py-2.5"
-          >
-            <span className="text-xs font-semibold uppercase text-ink">{m.locale}</span>
-            <Badge tone={m.lifecycle === "published" ? "ok" : "neutral"} dot>
-              {m.lifecycle === "published"
-                ? t("hc.status.current")
-                : t("hc.status.draft")}
-            </Badge>
-            <span className="flex-1 truncate text-sm text-ink-muted">/{m.slug}</span>
-            {m.id === articleId ? (
-              <span className="text-xs text-ink-muted">{t("editor.translations.current")}</span>
-            ) : (
-              <Link
-                href={`/admin/articles/${m.id}`}
-                className="text-sm text-brand hover:underline"
-              >
-                {t("editor.translations.open")}
-              </Link>
-            )}
-          </li>
-        ))}
-      </ul>
+      {members.length > 0 ? (
+        <ul className="mb-3 flex flex-col gap-2">
+          {members.map((m) => (
+            <li
+              key={m.id}
+              className="flex items-center gap-3 rounded-comfy border border-hairline bg-surface px-4 py-2.5"
+            >
+              <span className="text-xs font-semibold uppercase text-ink">{m.locale}</span>
+              <Badge tone={m.lifecycle === "published" ? "ok" : "neutral"} dot>
+                {m.lifecycle === "published" ? t("hc.status.current") : t("hc.status.draft")}
+              </Badge>
+              <span className="flex-1 truncate text-sm text-ink-muted">/{m.slug}</span>
+              {m.id === articleId ? (
+                <span className="text-xs text-ink-muted">{t("editor.translations.current")}</span>
+              ) : dirty ? (
+                <span
+                  title={t("editor.translations.dirtyHint")}
+                  className="cursor-not-allowed text-sm text-ink-muted/60"
+                >
+                  {t("editor.translations.open")}
+                </span>
+              ) : (
+                <Link
+                  href={`/admin/articles/${m.id}`}
+                  className="text-sm text-brand hover:underline"
+                >
+                  {t("editor.translations.open")}
+                </Link>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       {missing.map((target) => (
         <div key={target} className="flex flex-wrap items-center gap-2">
@@ -127,7 +117,7 @@ export function ArticleTranslations({
           <Button
             variant="cream"
             size="sm"
-            disabled={busy !== null}
+            disabled={busy !== null || dirty}
             onClick={() => void createTranslation(target, "ai")}
           >
             {busy === `${target}:ai`
@@ -137,13 +127,14 @@ export function ArticleTranslations({
           <Button
             variant="ghost"
             size="sm"
-            disabled={busy !== null}
+            disabled={busy !== null || dirty}
             onClick={() => void createTranslation(target, "manual")}
           >
             {t("editor.translations.manualButton")}
           </Button>
         </div>
       ))}
+      {dirty ? <p className="mt-2 text-xs text-warn">{t("editor.translations.dirtyHint")}</p> : null}
       {error ? <p className="mt-2 text-xs text-crit">{error}</p> : null}
     </div>
   );

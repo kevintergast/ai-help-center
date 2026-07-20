@@ -56,7 +56,17 @@ export interface ContentStore {
   listTranslations(
     tenantId: string,
     articleKey: string,
-  ): Promise<{ id: string; locale: string; slug: string; lifecycle: "draft" | "published" }[]>;
+  ): Promise<
+    {
+      id: string;
+      locale: string;
+      slug: string;
+      lifecycle: "draft" | "published";
+      title: string;
+      /** unixepoch — Basis der Übersetzungs-Staleness (Original neuer = veraltet). */
+      updatedAt: number;
+    }[]
+  >;
   /** VERÖFFENTLICHTE Geschwister-Fassungen (Sprachumschalter, public). */
   getPublishedSiblings(
     tenantId: string,
@@ -339,6 +349,9 @@ export class D1ContentRepository implements ContentStore {
       helpfulPct: null,
       usedIn: 0,
       updatedLabel: relativeTimeLabel(r.updated_at, locale),
+      locale: r.locale,
+      articleKey: r.article_key ?? r.id,
+      updatedAt: r.updated_at,
     }));
   }
 
@@ -479,19 +492,30 @@ export class D1ContentRepository implements ContentStore {
   async listTranslations(
     tenantId: string,
     articleKey: string,
-  ): Promise<{ id: string; locale: string; slug: string; lifecycle: "draft" | "published" }[]> {
+  ): Promise<
+    {
+      id: string;
+      locale: string;
+      slug: string;
+      lifecycle: "draft" | "published";
+      title: string;
+      updatedAt: number;
+    }[]
+  > {
     const { results } = await this.db
       .prepare(
-        `SELECT id, locale, slug, status FROM articles
+        `SELECT id, locale, slug, status, title, updated_at FROM articles
           WHERE tenant_id = ? AND article_key = ? ORDER BY created_at ASC`,
       )
       .bind(tenantId, articleKey)
-      .all<{ id: string; locale: string; slug: string; status: string }>();
+      .all<{ id: string; locale: string; slug: string; status: string; title: string; updated_at: number }>();
     return results.map((r) => ({
       id: r.id,
       locale: r.locale,
       slug: r.slug,
       lifecycle: r.status === "published" ? "published" : "draft",
+      title: r.title,
+      updatedAt: r.updated_at,
     }));
   }
 
