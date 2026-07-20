@@ -25,7 +25,7 @@ const LONG_PARA = "Sehr ausführlicher Einladungs-Absatz. ".repeat(40);
 
 function setup() {
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql"]);
   const insert = sqlite.prepare(
     `INSERT INTO articles (id, tenant_id, slug, title, category, status, body_json)
      VALUES (?, ?, ?, ?, 'Test', ?, ?)`,

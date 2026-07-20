@@ -23,6 +23,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       locale={tenant.defaultLocale}
       tenantName={tenant.name}
       logoUrl={tenant.branding.logoUrl}
+      logoDarkUrl={tenant.branding.logoDarkUrl ?? null}
       isOperator={tenant.id === "t_operator"}
       viewer={await readPageViewer(tenant)}
     >

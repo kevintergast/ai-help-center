@@ -8,6 +8,7 @@ interface TenantRow {
   default_locale: string;
   logo_url: string | null;
   logo_r2_key: string | null;
+  logo_dark_r2_key: string | null;
   branding_updated_at: number | null;
   color_primary: string;
   color_accent: string;
@@ -17,8 +18,8 @@ interface TenantRow {
 }
 
 const COLS =
-  "id, slug, name, custom_domain, default_locale, logo_url, logo_r2_key, branding_updated_at, " +
-  "color_primary, color_accent, color_primary_fg, seo_indexable, support_email";
+  "id, slug, name, custom_domain, default_locale, logo_url, logo_r2_key, logo_dark_r2_key, " +
+  "branding_updated_at, color_primary, color_accent, color_primary_fg, seo_indexable, support_email";
 
 /**
  * `branding.logoUrl` ist ABGELEITET (Priorität dokumentiert in 0003_branding.sql):
@@ -32,6 +33,20 @@ export function deriveLogoUrl(r: Pick<TenantRow, "logo_url" | "logo_r2_key" | "b
   return r.logo_url;
 }
 
+/**
+ * Dark-Mode-Logo (0023): NUR aus R2 (kein externer Fallback wie bei light —
+ * `logo_url` ist per Definition das helle Logo). `null` = kein dunkles Logo
+ * → UI zeigt im Dark Mode das helle (tenant-logo.tsx).
+ */
+export function deriveDarkLogoUrl(
+  r: Pick<TenantRow, "logo_dark_r2_key" | "branding_updated_at">,
+): string | null {
+  if (r.logo_dark_r2_key) {
+    return `/api/v1/branding/logo?variant=dark&v=${r.branding_updated_at ?? 0}`;
+  }
+  return null;
+}
+
 /** Mappt eine D1-Zeile auf das Domänen-Objekt `Tenant`. */
 export function rowToTenant(r: TenantRow): Tenant {
   return {
@@ -42,6 +57,7 @@ export function rowToTenant(r: TenantRow): Tenant {
     defaultLocale: (r.default_locale === "en" ? "en" : "de") as Locale,
     branding: {
       logoUrl: deriveLogoUrl(r),
+      logoDarkUrl: deriveDarkLogoUrl(r),
       colorPrimary: r.color_primary,
       colorAccent: r.color_accent,
       colorPrimaryFg: r.color_primary_fg,
@@ -91,6 +107,14 @@ export class D1TenantRepository {
     await this.db
       .prepare(`UPDATE tenants SET support_email = ? WHERE id = ?`)
       .bind(email, tenantId)
+      .run();
+  }
+
+  /** Standardsprache der Instanz setzen (Settings-API, owner — api/settings.ts). */
+  async setDefaultLocale(tenantId: string, locale: Locale): Promise<void> {
+    await this.db
+      .prepare(`UPDATE tenants SET default_locale = ? WHERE id = ?`)
+      .bind(locale, tenantId)
       .run();
   }
 

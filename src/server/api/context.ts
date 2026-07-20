@@ -159,6 +159,7 @@ export interface SupportDeps {
 export interface SettingsDeps {
   setSeoIndexable(tenantId: string, indexable: boolean): Promise<void>;
   setSupportEmail(tenantId: string, email: string | null): Promise<void>;
+  setDefaultLocale(tenantId: string, locale: "de" | "en"): Promise<void>;
 }
 
 export interface AskRuntime {

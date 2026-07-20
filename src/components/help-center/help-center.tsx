@@ -53,6 +53,8 @@ export interface HelpCenterProps {
   locale: Locale;
   tenantName: string;
   logoUrl: string | null;
+  /** Dark-Mode-Logo (0023) — null: Dark Mode zeigt das helle. */
+  logoDarkUrl?: string | null;
   /** Serverseitig aufgelöstes Lese-Bundle (D1 oder Sample-Fallback). */
   data: HelpCenterData;
   /** Operator-Instanz (app.*) → CTA „Eigenes Hilfezentrum erstellen". */
@@ -65,6 +67,7 @@ export function HelpCenter({
   locale,
   tenantName,
   logoUrl,
+  logoDarkUrl = null,
   data,
   isOperator,
   viewer = null,
@@ -170,6 +173,7 @@ export function HelpCenter({
       locale={locale}
       tenantName={tenantName}
       logoUrl={logoUrl}
+      logoDarkUrl={logoDarkUrl}
       data={data}
       isOperator={isOperator}
       viewer={viewer}

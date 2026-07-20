@@ -4,7 +4,16 @@ import { applyMigrations, d1FromSqlite } from "@product/server/auth/sqlite-test-
 import { readPlanState } from "@product/server/billing/store";
 import { D1BillingRepository } from "@product/server/billing/store";
 import type { OpsEnv } from "./access";
-import { deleteTenant, parsePlanForm, setPlan, suspendTenant, unsuspendTenant } from "./actions";
+import {
+  deleteTenant,
+  deleteUser,
+  parsePlanForm,
+  resetUserMfa,
+  resetUserPassword,
+  setPlan,
+  suspendTenant,
+  unsuspendTenant,
+} from "./actions";
 
 /**
  * OPS-VERWALTUNGSAKTIONEN. Verhinderte Fehlerfälle:
@@ -23,6 +32,8 @@ function setup() {
   applyMigrations(sqlite, [
     "0001_tenants.sql",
     "0002_auth.sql",
+    "0004_two_factor_plugin_columns.sql",
+    "0017_saved_answers.sql",
     "0005_content.sql",
     "0018_article_images.sql",
     "0019_article_translations.sql",
@@ -33,7 +44,7 @@ function setup() {
     "0012_enterprise_plan.sql",
     "0022_plan_custom_limits.sql",
     "0013_seo_indexable.sql",
-    "0021_tenant_suspend.sql",
+    "0021_tenant_suspend.sql", "0023_logo_dark.sql",
     "0010_search_chunks.sql",
   ]);
   sqlite.prepare(`DELETE FROM tenants`).run();
@@ -184,5 +195,120 @@ describe("deleteTenant — Zwei-Schritt + Cleanup", () => {
     expect(ctx.sqlite.prepare(`SELECT COUNT(*) AS n FROM auth_user`).get()).toEqual({ n: 0 });
     expect(ctx.sqlite.prepare(`SELECT COUNT(*) AS n FROM articles`).get()).toEqual({ n: 0 });
     expect(ctx.sqlite.prepare(`SELECT COUNT(*) AS n FROM search_chunks`).get()).toEqual({ n: 0 });
+  });
+});
+
+describe("Nutzer-Aktionen (Zugang-/MFA-Reset, Löschen) — doppelt gescoped", () => {
+  /** Zweiter Nutzer 'uy' (content) mit ALLEM dran: Passwort+Google-Account,
+   *  Session, TOTP, Trusted-Device, gespeicherte Antwort, angenommene
+   *  Einladung (accepted_by, FK OHNE Cascade!) + selbst ausgesprochene. */
+  function seedUserY() {
+    ctx.sqlite
+      .prepare(
+        `INSERT INTO auth_user (id, tenant_id, name, email, email_verified, role, two_factor_enabled, created_at, updated_at)
+         VALUES ('uy','t_x','Y','y@x.de',1,'content',1,?,?)`,
+      )
+      .run(NOW, NOW);
+    ctx.sqlite
+      .prepare(
+        `INSERT INTO auth_account (id, tenant_id, user_id, account_id, provider_id, password)
+         VALUES ('acc-pw','t_x','uy','uy','credential','scrypt-hash'),
+                ('acc-g','t_x','uy','g-123','google',NULL)`,
+      )
+      .run();
+    ctx.sqlite
+      .prepare(
+        `INSERT INTO auth_session (id, tenant_id, user_id, token, expires_at) VALUES ('s1','t_x','uy','tok-1',?)`,
+      )
+      .run(NOW + 3600);
+    ctx.sqlite
+      .prepare(
+        `INSERT INTO auth_two_factor (id, tenant_id, user_id, secret, backup_codes)
+         VALUES ('tf1','t_x','uy','ciphertext','codes')`,
+      )
+      .run();
+    ctx.sqlite
+      .prepare(
+        `INSERT INTO auth_trusted_device (id, tenant_id, user_id, token_hash, expires_at)
+         VALUES ('td1','t_x','uy','th-device',?)`,
+      )
+      .run(NOW + 3600);
+    ctx.sqlite
+      .prepare(
+        `INSERT INTO saved_answers (tenant_id, user_id, id, question, body_json, saved_at, created_at, updated_at)
+         VALUES ('t_x','uy','a1','Frage?','["Antwort"]',?,?,?)`,
+      )
+      .run(NOW, NOW, NOW);
+    // Von ux ausgesprochen, von uy ANGENOMMEN (accepted_by hat KEIN Cascade):
+    ctx.sqlite
+      .prepare(
+        `INSERT INTO auth_invitation (id, tenant_id, email, role, token_hash, inviter_id, status, expires_at, accepted_by)
+         VALUES ('inv-in','t_x','y@x.de','content','th-1','ux','accepted',?, 'uy')`,
+      )
+      .run(NOW);
+    // Von uy ausgesprochen (inviter_id CASCADE räumt sie beim Löschen):
+    ctx.sqlite
+      .prepare(
+        `INSERT INTO auth_invitation (id, tenant_id, email, role, token_hash, inviter_id, status, expires_at)
+         VALUES ('inv-out','t_x','z@x.de','content','th-2','uy','pending',?)`,
+      )
+      .run(NOW + 3600);
+    // Nutzungshistorie bleibt bei ALLEN Aktionen stehen (append-only Abrechnung):
+    ctx.sqlite
+      .prepare(
+        `INSERT INTO usage_events (id, tenant_id, type, credits, actor_type, visitor_id, user_id, article_id, created_at)
+         VALUES ('ev-y','t_x','article_view',1,'user','u:uy','uy',NULL,?)`,
+      )
+      .run(NOW);
+  }
+
+  const count = (sql: string) => (ctx.sqlite.prepare(sql).get() as { n: number }).n;
+
+  it("resetUserPassword: credential weg, Google BLEIBT, Sessions/Geräte beendet", async () => {
+    seedUserY();
+    expect(await resetUserPassword(ctx.db, "t_x", "uy")).toBe("ok");
+
+    expect(count(`SELECT COUNT(*) AS n FROM auth_account WHERE user_id='uy' AND provider_id='credential'`)).toBe(0);
+    expect(count(`SELECT COUNT(*) AS n FROM auth_account WHERE user_id='uy' AND provider_id='google'`)).toBe(1);
+    expect(count(`SELECT COUNT(*) AS n FROM auth_session WHERE user_id='uy'`)).toBe(0);
+    expect(count(`SELECT COUNT(*) AS n FROM auth_trusted_device WHERE user_id='uy'`)).toBe(0);
+
+    // Ohne credential: ehrliches Signal (Sessions werden trotzdem beendet).
+    expect(await resetUserPassword(ctx.db, "t_x", "uy")).toBe("no_credential");
+    // Falscher Tenant zur User-Id → wirkt NIE (doppeltes Scoping):
+    expect(await resetUserPassword(ctx.db, "t_operator", "uy")).toBe("not_found");
+  });
+
+  it("resetUserMfa: TOTP+Flag weg, Sessions beendet; unbekannter Nutzer → not_found", async () => {
+    seedUserY();
+    expect(await resetUserMfa(ctx.db, "t_x", "uy")).toBe("ok");
+
+    expect(count(`SELECT COUNT(*) AS n FROM auth_two_factor WHERE user_id='uy'`)).toBe(0);
+    expect(
+      ctx.sqlite.prepare(`SELECT two_factor_enabled AS n FROM auth_user WHERE id='uy'`).get(),
+    ).toEqual({ n: 0 });
+    expect(count(`SELECT COUNT(*) AS n FROM auth_session WHERE user_id='uy'`)).toBe(0);
+
+    expect(await resetUserMfa(ctx.db, "t_x", "gibtsnicht")).toBe("not_found");
+  });
+
+  it("deleteUser: Owner hart geschützt; content-Nutzer restlos weg, Historie bleibt", async () => {
+    seedUserY();
+    expect(await deleteUser(ctx.db, "t_x", "ux")).toBe("protected");
+    expect(count(`SELECT COUNT(*) AS n FROM auth_user WHERE id='ux'`)).toBe(1);
+
+    expect(await deleteUser(ctx.db, "t_x", "uy")).toBe("ok");
+    expect(count(`SELECT COUNT(*) AS n FROM auth_user WHERE id='uy'`)).toBe(0);
+    expect(count(`SELECT COUNT(*) AS n FROM auth_account WHERE user_id='uy'`)).toBe(0); // CASCADE
+    expect(count(`SELECT COUNT(*) AS n FROM auth_two_factor WHERE user_id='uy'`)).toBe(0);
+    expect(count(`SELECT COUNT(*) AS n FROM saved_answers WHERE user_id='uy'`)).toBe(0);
+    // Angenommene Einladung bleibt als Historie — aber ohne toten FK:
+    expect(
+      ctx.sqlite.prepare(`SELECT accepted_by FROM auth_invitation WHERE id='inv-in'`).get(),
+    ).toEqual({ accepted_by: null });
+    // Selbst ausgesprochene Einladung: via inviter_id-CASCADE weg:
+    expect(count(`SELECT COUNT(*) AS n FROM auth_invitation WHERE id='inv-out'`)).toBe(0);
+    // Abrechnungshistorie bleibt BEWUSST (kein FK, append-only):
+    expect(count(`SELECT COUNT(*) AS n FROM usage_events WHERE user_id='uy'`)).toBe(1);
   });
 });

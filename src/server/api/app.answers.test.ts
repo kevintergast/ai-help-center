@@ -42,7 +42,7 @@ type Row = Record<string, unknown>;
 
 function makeFixture() {
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql", "0017_saved_answers.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql", "0017_saved_answers.sql"]);
   sqlite
     .prepare(
       `INSERT INTO articles (id, tenant_id, slug, title, category, status, body_json)

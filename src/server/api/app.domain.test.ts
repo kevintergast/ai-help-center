@@ -38,7 +38,7 @@ type Row = Record<string, unknown>;
 function makeFixture(opts: { txt?: TxtCheckResult; provision?: ProvisionResult } = {}) {
   const { txt = "verified", provision = "skipped" } = opts;
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0002_auth.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0002_auth.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql"]);
   const d1 = d1FromSqlite(sqlite);
 
   const authDb: Record<string, Row[]> = {

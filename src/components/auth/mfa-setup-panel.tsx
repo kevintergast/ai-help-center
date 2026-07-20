@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { twoFactor, getSessionRole } from "@/lib/auth-client";
 import { mapAuthError } from "@/lib/auth/errors";
+import { otpauthQrDataUrl } from "@/lib/auth/qr";
 import { resolvePostLoginRedirect } from "@/lib/auth/redirect";
 import { validateOtpCode } from "@/lib/auth/validate";
 import { PasswordField } from "./password-field";
@@ -42,6 +43,7 @@ export function MfaSetupPanel({ locale }: { locale: Locale }) {
   const [busy, setBusy] = useState(false);
 
   const secret = otpauth ? secretFromOtpauth(otpauth) : null;
+  const qrDataUrl = otpauthQrDataUrl(otpauth);
 
   async function start(e: FormEvent) {
     e.preventDefault();
@@ -109,6 +111,18 @@ export function MfaSetupPanel({ locale }: { locale: Locale }) {
           <div className="flex flex-col gap-2 rounded-std border border-hairline bg-surface-raised p-4">
             <strong className="text-sm font-semibold text-ink">{t("auth.mfa.scanTitle")}</strong>
             <p className="text-sm text-ink-muted">{t("auth.mfa.scanBody")}</p>
+            {qrDataUrl ? (
+              // Data-URL-SVG: kein next/image nötig (nichts zu optimieren),
+              // fester weißer Grund für Scanner-Kontrast auch im Dark Mode.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={qrDataUrl}
+                alt={t("auth.mfa.qrAlt")}
+                width={176}
+                height={176}
+                className="my-1 h-44 w-44 self-center rounded-std border border-hairline bg-white p-2"
+              />
+            ) : null}
             {secret ? (
               <>
                 <span className="text-xs text-ink-muted">{t("auth.mfa.manualKey")}</span>

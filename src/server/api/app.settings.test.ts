@@ -33,7 +33,7 @@ type Row = Record<string, unknown>;
 function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
   const { settingsAvailable = true } = opts;
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql"]);
   const repo = new D1TenantRepository(d1FromSqlite(sqlite));
 
   const authDb: Record<string, Row[]> = {
@@ -60,6 +60,7 @@ function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
         ? {
             setSeoIndexable: (tenantId, indexable) => repo.setSeoIndexable(tenantId, indexable),
             setSupportEmail: (tenantId, email) => repo.setSupportEmail(tenantId, email),
+            setDefaultLocale: (tenantId, locale) => repo.setDefaultLocale(tenantId, locale),
           }
         : null,
   };
@@ -198,5 +199,41 @@ describe("PUT /api/v1/admin/settings/support (der frühere Speichern-Bug)", () =
     expect((await putSupport(f, { email: "kein-at-zeichen" }, adminCookie)).status).toBe(400);
     expect((await putSupport(f, { email: 42 }, adminCookie)).status).toBe(400);
     expect((await f.repo.getBySlug("demo"))?.supportEmail).toBeNull();
+  });
+});
+
+const putLocale = (f: Fixture, body: unknown, cookie?: string) =>
+  f.app.request("/api/v1/admin/settings/locale", {
+    method: "PUT",
+    headers: {
+      host: HOST_DEMO,
+      "content-type": "application/json",
+      ...(cookie ? { cookie } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+describe("PUT /api/v1/admin/settings/locale (Instanzsprache, Owner-Gate)", () => {
+  let f: Fixture;
+  beforeEach(() => {
+    f = makeFixture();
+  });
+
+  // Verhinderte Fehlerfälle: admin kann die Sprache der GANZEN Instanz kippen
+  // (Grundsatzentscheidung wie SEO), oder unbekannte Locales landen in der DB
+  // (rowToTenant würde still auf "de" zurückfallen = Schein-Speicherung).
+  it("owner: persistiert; admin → 403; Unsinn → 400", async () => {
+    const owner = await session(f, "owner-loc@example.com", "owner");
+    const res = await putLocale(f, { locale: "en" }, owner);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, locale: "en" });
+    expect((await f.repo.getBySlug("demo"))?.defaultLocale).toBe("en");
+
+    const admin = await session(f, "admin-loc@example.com", "admin");
+    expect((await putLocale(f, { locale: "de" }, admin)).status).toBe(403);
+    expect((await f.repo.getBySlug("demo"))?.defaultLocale).toBe("en"); // unverändert
+
+    expect((await putLocale(f, { locale: "fr" }, owner)).status).toBe(400);
+    expect((await putLocale(f, { locale: 1 }, owner)).status).toBe(400);
   });
 });

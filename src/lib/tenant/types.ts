@@ -4,6 +4,12 @@ export type Locale = "de" | "en";
 export interface TenantBranding {
   /** Logo-URL (R2/Stream) oder null → Fallback-Initiale. */
   logoUrl: string | null;
+  /**
+   * Dark-Mode-Logo (Migration 0023). FEHLEND/null = kein eigenes dunkles
+   * Logo → Dark Mode zeigt das helle (optional wie seoIndexable, damit
+   * Dev-Registry/ältere Fixtures ohne das Feld gültig bleiben).
+   */
+  logoDarkUrl?: string | null;
   /** CSS-Farbe, z. B. "#4f46e5". */
   colorPrimary: string;
   /** CSS-Farbe für Akzente. */

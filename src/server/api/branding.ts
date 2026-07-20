@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { requireTeam } from "@/server/auth/guards";
-import { logoKeyFor } from "@/server/branding/store";
+import { logoKeyFor, parseLogoVariant } from "@/server/branding/store";
 import {
   ALLOWED_LOGO_TYPES,
   MAX_LOGO_BYTES,
@@ -16,6 +16,11 @@ import type { ApiDeps, ApiEnv } from "./context";
  *   - PUT  /admin/branding       — Farben (strikt Hex-validiert, siehe validate.ts)
  *   - POST /admin/branding/logo  — Logo-Upload (roher Body) nach R2
  *   - DELETE /admin/branding/logo — Logo entfernen (R2 + Spalten)
+ *
+ * LOGO-VARIANTEN (0023): `?variant=dark` adressiert das Dark-Mode-Logo
+ * (eigener R2-Key + Spalte logo_dark_r2_key); alles andere/fehlend = helles
+ * Logo. Dark ist optional — ohne dunkles Logo zeigt das UI im Dark Mode das
+ * helle (Fallback in tenant-logo.tsx).
  *
  * Public-Teil (`/branding/logo`, BEWUSST in PUBLIC_ROUTES):
  *   - GET /branding/logo         — Logo des AKTUELLEN Tenants ausliefern.
@@ -80,10 +85,11 @@ export function brandingAdminRouter(deps: ApiDeps) {
     if (!branding) return c.json({ error: "branding_unavailable" }, 503);
 
     const tenantId = c.get("tenant").id;
-    const key = logoKeyFor(tenantId); // fester Key pro Tenant → Upload überschreibt
+    const variant = parseLogoVariant(c.req.query("variant"));
+    const key = logoKeyFor(tenantId, variant); // fester Key pro Tenant+Variante → Upload überschreibt
     await branding.bucket.put(key, data, { httpMetadata: { contentType: sniffed } });
-    await branding.repo.setLogoKey(tenantId, key);
-    return c.json({ ok: true });
+    await branding.repo.setLogoKey(tenantId, variant, key);
+    return c.json({ ok: true, variant });
   });
 
   r.delete("/logo", requireTeam("admin"), async (c) => {
@@ -91,9 +97,10 @@ export function brandingAdminRouter(deps: ApiDeps) {
     if (!branding) return c.json({ error: "branding_unavailable" }, 503);
 
     const tenantId = c.get("tenant").id;
-    await branding.bucket.delete(logoKeyFor(tenantId));
-    await branding.repo.clearLogoKey(tenantId);
-    return c.json({ ok: true });
+    const variant = parseLogoVariant(c.req.query("variant"));
+    await branding.bucket.delete(logoKeyFor(tenantId, variant));
+    await branding.repo.clearLogoKey(tenantId, variant);
+    return c.json({ ok: true, variant });
   });
 
   return r;
@@ -106,8 +113,10 @@ export function brandingPublicRouter(deps: ApiDeps) {
     const branding = await deps.getBrandingDeps();
     if (!branding) return c.json({ error: "branding_unavailable" }, 503);
 
-    // Key ausschließlich aus der DB-Zeile des per Host aufgelösten Tenants.
-    const key = await branding.repo.getLogoKey(c.get("tenant").id);
+    // Key ausschließlich aus der DB-Zeile des per Host aufgelösten Tenants;
+    // die Variante wählt nur zwischen den ZWEI festen Spalten dieses Tenants.
+    const variant = parseLogoVariant(c.req.query("variant"));
+    const key = await branding.repo.getLogoKey(c.get("tenant").id, variant);
     if (!key) return c.json({ error: "not_found" }, 404);
 
     const obj = await branding.bucket.get(key);

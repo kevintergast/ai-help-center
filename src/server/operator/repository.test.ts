@@ -17,7 +17,7 @@ import { D1OperatorRepository, type NewHelpCenter } from "./repository";
  */
 
 const MIGRATIONS = [
-  "0001_tenants.sql", "0021_tenant_suspend.sql",
+  "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql",
   "0002_auth.sql",
   "0003_branding.sql",
   "0004_two_factor_plugin_columns.sql",

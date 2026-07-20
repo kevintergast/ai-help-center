@@ -97,6 +97,7 @@ export default async function ArticleRoute({
         locale={tenant.defaultLocale}
         tenantName={tenant.name}
         logoUrl={tenant.branding.logoUrl}
+        logoDarkUrl={tenant.branding.logoDarkUrl ?? null}
         article={article}
         related={related}
         data={data}

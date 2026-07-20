@@ -37,6 +37,23 @@ Auf der Instanz-Detailseite, Sektion „Verwaltung":
 - **Selbstschutz**: `t_operator` (unsere eigene Instanz) kann weder blockiert
   noch gelöscht werden.
 
+## Nutzerverwaltung (Instanz-Detail, Nutzer-Tabelle)
+- **Anmeldung-Spalte**: zeigt die Login-Verfahren je Nutzer (`Passwort`,
+  `google`, …) aus `auth_account`; „—" = noch kein Verfahren (z. B.
+  Ops-erstellter Owner vor dem ersten „Passwort vergessen").
+- **Zugang zurücksetzen**: entfernt den Passwort-Login und beendet alle
+  Sitzungen/vertrauten Geräte. Der Nutzer setzt sich über „Passwort
+  vergessen" auf der Instanz ein neues Passwort (Browser-Flow mit Turnstile —
+  deshalb verschickt Ops die Reset-Mail nicht selbst). Social-Logins bleiben.
+- **MFA zurücksetzen** (auch für Owner — Support-Fall „Authenticator
+  verloren"): löscht TOTP + Backup-Codes, beendet alle Sitzungen; beim
+  nächsten Team-Zugriff leitet das Produkt automatisch zu `/mfa/setup`.
+- **Löschen**: entfernt den Nutzer restlos (Sessions/Accounts/TOTP/
+  Einladungen via Cascade; gespeicherte Antworten mit). **Owner sind nicht
+  löschbar** — erst Ownership im Produkt übertragen. Die Nutzungshistorie
+  (`usage_events`) bleibt bewusst stehen (Abrechnung).
+Alle Aktionen sind doppelt gescoped (Tenant + Nutzer) und landen im Worker-Log.
+
 ## Selbstkostenrechner (`/kosten`)
 Rechnet den Nutzungs-Mix eines individuellen Deals (KI-Antworten, Fragen ohne
 Antwort, Übersetzungen, Views, MAU, Artikelbestand) in monatliche Selbstkosten

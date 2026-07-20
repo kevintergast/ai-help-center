@@ -26,7 +26,7 @@ function setup() {
     "0016_usage_ai_source_type.sql",
     "0020_usage_ai_translation_type.sql",
     "0012_enterprise_plan.sql", "0022_plan_custom_limits.sql",
-    "0013_seo_indexable.sql", "0021_tenant_suspend.sql",
+    "0013_seo_indexable.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql",
     "0014_support_email.sql",
     "0015_support_tickets.sql",
   ]);
@@ -47,6 +47,15 @@ function setup() {
   user.run("u1", "t_a", "Owner A", "owner@alpha.de", "owner", NOW, NOW);
   user.run("u2", "t_a", "Content A", "content@alpha.de", "content", NOW, NOW);
   user.run("u3", "t_b", "Owner B", "owner@beta.de", "owner", NOW, NOW);
+
+  // Anmeldemethoden: u1 hat Passwort+Google, u2 nichts (Ops-erstellt).
+  sqlite
+    .prepare(
+      `INSERT INTO auth_account (id, tenant_id, user_id, account_id, provider_id, password)
+       VALUES ('a1','t_a','u1','u1','credential','hash'),
+              ('a2','t_a','u1','g-1','google',NULL)`,
+    )
+    .run();
 
   const ev = sqlite.prepare(
     `INSERT INTO usage_events (id, tenant_id, type, credits, actor_type, visitor_id, user_id, article_id, created_at)
@@ -115,6 +124,9 @@ describe("tenantDetail", () => {
     const detail = await tenantDetail(ctx.db, "t_a", NOW);
     expect(detail).not.toBeNull();
     expect(detail!.users.map((u) => u.role)).toEqual(["owner", "content"]);
+    // Anmeldemethoden aus auth_account (nie fremde Nutzer/Tenants):
+    expect(detail!.users[0].providers).toEqual(["credential", "google"]);
+    expect(detail!.users[1].providers).toEqual([]);
     expect(detail!.row.ownerEmail).toBe("owner@alpha.de");
     expect(detail!.defaultLocale).toBe("de");
     expect(detail!.viewSeries.length).toBe(30);

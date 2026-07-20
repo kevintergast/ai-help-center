@@ -496,6 +496,7 @@ async function getSettingsDepsRuntime(): Promise<SettingsDeps | null> {
   return {
     setSeoIndexable: (tenantId, indexable) => repo.setSeoIndexable(tenantId, indexable),
     setSupportEmail: (tenantId, email) => repo.setSupportEmail(tenantId, email),
+    setDefaultLocale: (tenantId, locale) => repo.setDefaultLocale(tenantId, locale),
   };
 }
 

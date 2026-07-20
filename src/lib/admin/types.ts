@@ -12,7 +12,8 @@ export interface AdminArticleRow {
   category: string;
   status: ArticleStatus;
   views: number;
-  helpfulPct: number;
+  /** Hilfreich-Quote in % — `null` = noch kein Feedback (UI zeigt „—"). */
+  helpfulPct: number | null;
   usedIn: number;
   updatedLabel: string;
 }
