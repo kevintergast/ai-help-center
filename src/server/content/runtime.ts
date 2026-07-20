@@ -1,4 +1,5 @@
 import type { AdminArticleRow } from "@/lib/admin/types";
+import type { ArticleTranslationInfo } from "@/lib/content/types";
 import type { Article, HelpCenterData, HelpCenterRepository } from "@/lib/content/types";
 import type { Tenant } from "@/lib/tenant/types";
 import {
@@ -87,6 +88,9 @@ export async function listAdminArticleRows(tenant: Tenant): Promise<AdminArticle
     helpfulPct: null,
     usedIn: 0,
     updatedLabel: a.updatedLabel,
+    locale: "de",
+    articleKey: a.id,
+    updatedAt: 0,
   }));
 }
 
@@ -95,6 +99,16 @@ export async function getArticleForEdit(tenant: Tenant, id: string): Promise<Art
   const db = await getDbSafe();
   if (db) return new D1ContentRepository(db).getForEdit(tenant.id, id, tenant.defaultLocale);
   return SAMPLE_ARTICLES.find((a) => a.id === id || a.slug === id) ?? null;
+}
+
+/** Sprachfassungen des Translation-Sets eines Artikels (Editor; Sample: leer). */
+export async function listArticleTranslations(
+  tenant: Tenant,
+  article: Article,
+): Promise<ArticleTranslationInfo[]> {
+  const db = await getDbSafe();
+  if (!db) return [];
+  return new D1ContentRepository(db).listTranslations(tenant.id, article.articleKey ?? article.id);
 }
 
 /** `groupByCategory` re-exportiert, damit Seiten nicht direkt aufs Fake zugreifen müssen. */

@@ -1,5 +1,13 @@
 import type { ArticleVideo } from "@/lib/content/types";
-import type { TransferArticle } from "./store";
+import { MAX_IMAGES_PER_ARTICLE, type TransferArticle } from "./store";
+
+/**
+ * BILDER IM TRANSFER: Binärdaten reisen NICHT mit (R2-Objekte bleiben in der
+ * Quell-Instanz) — wohl aber die BESCHREIBUNGEN. Beim Import werden sie zu
+ * VORMERKUNGEN (`pending`): der Artikel weiß, welche Bilder ihm noch fehlen,
+ * der Editor bietet „Jetzt hochladen" je Vormerkung an. Im Markdown werden
+ * `![Beschreibung](datei)`-Verweise erkannt, extrahiert und vorgemerkt.
+ */
 
 /**
  * CONTENT-IMPORT/-EXPORT (Produkt-Bauphase „Content-Werkzeuge"; Anti-Lock-in
@@ -34,6 +42,8 @@ export interface ExportedArticle {
   /** Querverweise als Slugs (portabel; Ids sind instanz-spezifisch). */
   relatedSlugs: string[];
   readingMinutes: number;
+  /** Bild-BESCHREIBUNGEN (ohne Binärdaten) → beim Import Vormerkungen. */
+  images?: { description: string }[];
 }
 
 export interface ArticleExportFile {
@@ -63,6 +73,7 @@ export function buildExportFile(
         .map((id) => slugById.get(id))
         .filter((s): s is string => typeof s === "string"),
       readingMinutes: a.readingMinutes,
+      images: (a.images ?? []).map((i) => ({ description: i.description })),
     })),
   };
 }
@@ -98,6 +109,29 @@ export interface ParsedMarkdownArticle {
   category: string | null;
   locale: string | null;
   body: string[];
+  /** Aus `![Beschreibung](…)`-Verweisen extrahiert → Bild-Vormerkungen. */
+  images: string[];
+}
+
+/** `![alt](url)`-Verweise (Markdown-Bild-Syntax; url wird verworfen). */
+const MD_IMAGE_RE = /!\[([^\]]*)\]\([^)]*\)/g;
+
+/**
+ * Bild-Verweise aus einem Block ziehen: Alt-Text wird zur Vormerkungs-
+ * Beschreibung (leer → "Bild"), der Verweis verschwindet aus dem Text —
+ * das Rich-Text-Subset kennt keine Bild-Syntax, der Rest bliebe Kauderwelsch.
+ */
+function extractImages(block: string): { text: string; images: string[] } {
+  const images: string[] = [];
+  const text = block
+    .replace(MD_IMAGE_RE, (_m, alt: string) => {
+      images.push(alt.trim().length > 0 ? alt.trim() : "Bild");
+      return "";
+    })
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return { text, images };
 }
 
 /**
@@ -125,6 +159,13 @@ export function parseMarkdownArticle(md: string): ParsedMarkdownArticle | string
 
   let title = meta.title ?? null;
   const blocks: string[] = [];
+  const images: string[] = [];
+  const pushBlock = (raw: string) => {
+    // Bild-Verweise → Vormerkungen; Block nur behalten, wenn Text übrig ist.
+    const extracted = extractImages(raw);
+    images.push(...extracted.images);
+    if (extracted.text.length > 0) blocks.push(extracted.text);
+  };
   for (const rawBlock of rest.split(/\n\s*\n/)) {
     const block = rawBlock.trim();
     if (block.length === 0) continue;
@@ -133,13 +174,13 @@ export function parseMarkdownArticle(md: string): ParsedMarkdownArticle | string
       title = h1[1].trim();
       // Rest des H1-Blocks (falls Text direkt darunter) als eigener Block.
       const tail = block.split("\n").slice(1).join("\n").trim();
-      if (tail.length > 0) blocks.push(tail);
+      if (tail.length > 0) pushBlock(tail);
       continue;
     }
     // Blöcke VERBATIM erhalten: `##`/`###`/`-`/`1.`/`>`/``` sind exakt das
     // Rich-Text-Subset (rich-text.ts) — kein Marker-Strippen mehr, damit
     // Struktur beim Import erhalten bleibt (Anti-Lock-in-Roundtrip).
-    blocks.push(block);
+    pushBlock(block);
   }
 
   if (!title || title.length === 0) return "markdown_title_missing";
@@ -151,6 +192,7 @@ export function parseMarkdownArticle(md: string): ParsedMarkdownArticle | string
     category: meta.category ?? null,
     locale: meta.locale ?? null,
     body: blocks,
+    images,
   };
 }
 
@@ -163,6 +205,28 @@ export interface RawImportArticle {
   videos?: unknown;
   relatedSlugs?: unknown;
   readingMinutes?: unknown;
+  images?: unknown;
+}
+
+/**
+ * Bild-BESCHREIBUNGEN eines Import-Artikels einsammeln — akzeptiert sowohl
+ * die Export-Form `{ description }` als auch nackte Strings (Markdown-Pfad).
+ * Gedeckelt auf das Artikel-Bildlimit; Müll wird still verworfen (Bilder
+ * sind Beiwerk, sie dürfen den Artikel-Import nie scheitern lassen).
+ */
+export function parseImportImageDescriptions(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const entry of raw) {
+    const desc =
+      typeof entry === "string" ? entry : (entry as { description?: unknown } | null)?.description;
+    if (typeof desc === "string") {
+      const d = desc.trim().slice(0, 500);
+      if (d.length > 0) out.push(d);
+    }
+    if (out.length >= MAX_IMAGES_PER_ARTICLE) break;
+  }
+  return out;
 }
 
 /**
@@ -178,3 +242,4 @@ export function parseImportFile(raw: unknown): RawImportArticle[] | string {
   if (o.articles.length > MAX_IMPORT_ARTICLES) return "import_too_large";
   return o.articles as RawImportArticle[];
 }
+

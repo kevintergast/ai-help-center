@@ -53,9 +53,26 @@ export interface ArticleSummary {
  * Ids ABGELEITETEN Key). `description` ist PFLICHT — sie ist zugleich
  * Alt-Text (a11y) und KI-Kontext (fließt in die Such-Chunks, Architektur).
  */
+/** Sprachfassung eines Translation-Sets (Editor/Liste; Staleness via updatedAt). */
+export interface ArticleTranslationInfo {
+  id: string;
+  locale: string;
+  slug: string;
+  lifecycle: "draft" | "published";
+  title: string;
+  /** unixepoch — Original neuer als Übersetzung = Übersetzung veraltet. */
+  updatedAt: number;
+}
+
 export interface ArticleImage {
   id: string;
   description: string;
+  /**
+   * VORMERKUNG (Import ohne Binärdaten): true = Bild fehlt noch, es existiert
+   * nur die Beschreibung. Öffentliche Anzeige und KI-Index ignorieren
+   * Vormerkungen; der Editor zeigt sie mit „Jetzt hochladen"-Aktion.
+   */
+  pending?: boolean;
 }
 
 export interface Article extends ArticleSummary {

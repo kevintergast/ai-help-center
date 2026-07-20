@@ -178,3 +178,21 @@ describe("Video-Beschreibungen als Quell-Kontext (Architektur: wie Bilder)", () 
     expect(await findStaleAnswers(ctx.env, TENANT, [{ id: "v", refs: [ref] }])).toEqual(["v"]);
   });
 });
+
+describe("Bild-VORMERKUNGEN (pending, Import) im Index-Builder", () => {
+  // Verhinderter Fehlerfall: die KI zitiert/beschreibt ein Bild, das es gar
+  // nicht gibt (Vormerkung ohne Binärdatei) — oder das bloße ANLEGEN einer
+  // Vormerkung kippt bestehende Antworten auf „veraltet".
+  it("pending-Bilder erzeugen KEINE 'Bild:'-Zeile und ändern die Chunks nicht", async () => {
+    const before = await currentChunks("a1");
+    ctx.sqlite
+      .prepare(`UPDATE articles SET images_json = ? WHERE id = 'a1' AND tenant_id = ?`)
+      .run(
+        JSON.stringify([{ id: "p1", description: "Noch fehlendes Diagramm", pending: true }]),
+        TENANT,
+      );
+    const after = await currentChunks("a1");
+    expect(after).toEqual(before); // identische Hashes — Vormerkung ist index-neutral
+    expect(after.join(" ")).not.toContain("Noch fehlendes Diagramm");
+  });
+});

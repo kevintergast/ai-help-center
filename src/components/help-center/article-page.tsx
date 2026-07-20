@@ -127,9 +127,10 @@ export function ArticlePage({
             <div className="flex flex-col gap-4 text-[15px] leading-relaxed text-ink">
               <RichTextView body={article.body} />
             </div>
-            {(article.images?.length ?? 0) > 0 ? (
+            {/* Vormerkungen (pending, Import) haben kein Binärbild → nie public. */}
+            {(article.images?.filter((i) => !i.pending).length ?? 0) > 0 ? (
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                {article.images!.map((img) => (
+                {article.images!.filter((i) => !i.pending).map((img) => (
                   <figure key={img.id}>
                     {/* Beschreibung = Alt-Text (Architektur-Pflicht, a11y). */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}

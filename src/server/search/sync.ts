@@ -49,7 +49,11 @@ export function toIndexable(row: {
       const images = JSON.parse(row.images_json) as unknown;
       if (Array.isArray(images)) {
         for (const img of images) {
-          const desc = (img as { description?: unknown })?.description;
+          const i = img as { description?: unknown; pending?: unknown };
+          // Vormerkungen (pending, Import ohne Binärdatei) beschreiben ein
+          // Bild, das es noch NICHT gibt — sie gehören nicht in den KI-Index.
+          if (i?.pending === true) continue;
+          const desc = i?.description;
           if (typeof desc === "string" && desc.trim().length > 0) {
             body.push(`Bild: ${desc.trim()}`);
           }

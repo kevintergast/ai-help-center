@@ -11,6 +11,7 @@ import {
   articleToMarkdown,
   buildExportFile,
   parseImportFile,
+  parseImportImageDescriptions,
   parseMarkdownArticle,
   type RawImportArticle,
 } from "@/server/content/transfer";
@@ -460,6 +461,7 @@ export function contentAdminRouter(deps: ApiDeps) {
           category: md.category ?? undefined,
           locale: md.locale ?? undefined,
           body: md.body,
+          images: md.images,
         },
       ];
     } else {
@@ -472,8 +474,13 @@ export function contentAdminRouter(deps: ApiDeps) {
     const idBySlug = new Map(existing.map((a) => [a.slug, a.id]));
     const statusBySlug = new Map(existing.map((a) => [a.slug, a.lifecycle]));
 
-    const report: { slug: string; action: "created" | "updated" | "failed"; error?: string }[] =
-      [];
+    const report: {
+      slug: string;
+      action: "created" | "updated" | "failed";
+      error?: string;
+      /** Angelegte Bild-VORMERKUNGEN (Beschreibung ohne Binärdatei). */
+      pendingImages?: number;
+    }[] = [];
     const relatedPass: { id: string; relatedSlugs: string[] }[] = [];
     const author = await actorId(c);
 
@@ -512,6 +519,26 @@ export function contentAdminRouter(deps: ApiDeps) {
         ? item.relatedSlugs.filter((s): s is string => typeof s === "string")
         : [];
 
+      // Bild-VORMERKUNGEN (Beschreibungen ohne Binärdaten): Duplikate zu
+      // bereits vorhandenen Bildern/Vormerkungen desselben Artikels werden
+      // übersprungen (Re-Import derselben Datei erzeugt keine Doppel).
+      const imageDescs = parseImportImageDescriptions(item.images);
+      const addPendingImages = async (articleId: string, existingDescs: Set<string>) => {
+        let added = 0;
+        for (const description of imageDescs) {
+          if (existingDescs.has(description)) continue;
+          const res = await content.store.addImage(tenant.id, articleId, {
+            id: crypto.randomUUID(),
+            description,
+            pending: true,
+          });
+          if (res !== "ok") break; // limit/not_found → Rest verwerfen (Beiwerk)
+          existingDescs.add(description);
+          added++;
+        }
+        return added;
+      };
+
       try {
         const existingId = idBySlug.get(valid.value.slug);
         if (existingId) {
@@ -527,17 +554,22 @@ export function contentAdminRouter(deps: ApiDeps) {
             },
             author,
           );
+          const already = new Set(
+            (existing.find((a) => a.id === existingId)?.images ?? []).map((i) => i.description),
+          );
+          const pendingImages = await addPendingImages(existingId, already);
           // Nur Veröffentlichtes ist im Index — Drafts hält der Sync fern.
           if (statusBySlug.get(valid.value.slug) === "published") {
             await syncIndex(tenant.id, existingId);
           }
           relatedPass.push({ id: existingId, relatedSlugs });
-          report.push({ slug: valid.value.slug, action: "updated" });
+          report.push({ slug: valid.value.slug, action: "updated", pendingImages });
         } else {
           const id = await content.store.create(tenant.id, valid.value);
+          const pendingImages = await addPendingImages(id, new Set());
           idBySlug.set(valid.value.slug, id);
           relatedPass.push({ id, relatedSlugs });
-          report.push({ slug: valid.value.slug, action: "created" });
+          report.push({ slug: valid.value.slug, action: "created", pendingImages });
         }
       } catch (err) {
         if (err instanceof SlugConflictError) {
@@ -564,6 +596,7 @@ export function contentAdminRouter(deps: ApiDeps) {
       created: report.filter((r2) => r2.action === "created").length,
       updated: report.filter((r2) => r2.action === "updated").length,
       failed: report.filter((r2) => r2.action === "failed").length,
+      pendingImages: report.reduce((sum, r2) => sum + (r2.pendingImages ?? 0), 0),
       items: report,
     });
   });

@@ -16,4 +16,10 @@ export interface AdminArticleRow {
   helpfulPct: number | null;
   usedIn: number;
   updatedLabel: string;
+  /** Sprache der Fassung (Translation-Sets werden in der Liste gruppiert). */
+  locale: string;
+  /** Set-Schlüssel: Fassungen mit gleichem Key gehören zusammen. */
+  articleKey: string;
+  /** unixepoch — Basis der Übersetzungs-Staleness (Original neuer = veraltet). */
+  updatedAt: number;
 }
