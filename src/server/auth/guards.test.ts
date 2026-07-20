@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import type { Tenant } from "@/lib/tenant/types";
 import type { ApiEnv, AuthInstance, GuardSessionData } from "@/server/api/context";
-import { evaluateTeamAccess, requireFreshMfa } from "./guards";
+import { evaluateTeamAccess, requireFreshMfa, teamPageDisposition } from "./guards";
 import { runWithTenant } from "./tenant-context";
 
 /**
@@ -153,5 +153,35 @@ describe("evaluateTeamAccess (geteilte Team-Gate-Logik)", () => {
     expect(run(full({}, "content"))).toEqual({ ok: true });
     expect(run(full({}, "owner"))).toEqual({ ok: true });
     expect(run(full({}, "owner"), "admin")).toEqual({ ok: true });
+  });
+});
+
+describe("teamPageDisposition (requireTeamPage-Weiche)", () => {
+  // Verhinderter realer Fehlerfall (Live-Fund 2026-07-17): frisch angemeldeter
+  // Owner OHNE eingerichtetes TOTP wird nach /admin geleitet und landet in
+  // einem nackten 404 statt in der MFA-Einrichtung — eine Sackgasse.
+  it("eigene Session, MFA fehlt → Redirect zur Einrichtung bzw. Verifikation", () => {
+    expect(
+      teamPageDisposition({ ok: false, error: "mfa_setup_required", status: 403 }, "/admin"),
+    ).toEqual({ kind: "redirect", to: "/mfa/setup" });
+    expect(
+      teamPageDisposition(
+        { ok: false, error: "mfa_verification_required", status: 403 },
+        "/admin",
+      ),
+    ).toEqual({ kind: "redirect", to: "/mfa?redirect=%2Fadmin" });
+  });
+
+  it("Anonyme/Fremd-Sessions und zu niedrige Rollen bleiben fail-closed 404", () => {
+    expect(teamPageDisposition({ ok: false, error: "unauthorized", status: 401 }, "/admin")).toEqual(
+      { kind: "notFound" },
+    );
+    expect(teamPageDisposition({ ok: false, error: "forbidden", status: 403 }, "/admin")).toEqual({
+      kind: "notFound",
+    });
+  });
+
+  it("Durchlass rendert", () => {
+    expect(teamPageDisposition({ ok: true }, "/admin")).toEqual({ kind: "render" });
   });
 });

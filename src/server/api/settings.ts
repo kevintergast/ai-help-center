@@ -7,6 +7,7 @@ import type { ApiDeps, ApiEnv } from "./context";
  *
  *   PUT /api/v1/admin/settings/seo     { indexable: boolean }      — OWNER
  *   PUT /api/v1/admin/settings/support { email: string | null }    — admin
+ *   PUT /api/v1/admin/settings/locale  { locale: "de" | "en" }     — OWNER
  *
  * SEO-Opt-out (Migration 0013): `false` schaltet die Instanz auf noindex
  * (Meta-Tag auf jeder Seite, robots Disallow-all, leere Sitemap, raus aus dem
@@ -64,6 +65,24 @@ export function settingsAdminRouter(deps: ApiDeps) {
 
     await settings.setSupportEmail(c.get("tenant").id, value);
     return c.json({ ok: true, email: value });
+  });
+
+  // Standardsprache der Instanz (Endnutzer-UI, Meta, Mails) — OWNER wie SEO:
+  // eine Instanz-Grundsatzentscheidung, keine Content-Pflege.
+  r.put("/locale", requireOwner, async (c) => {
+    let locale: unknown;
+    try {
+      locale = ((await c.req.json()) as { locale?: unknown }).locale;
+    } catch {
+      return c.json({ error: "invalid_json" }, 400);
+    }
+    if (locale !== "de" && locale !== "en") return c.json({ error: "invalid_locale" }, 400);
+
+    const settings = await deps.getSettingsDeps?.();
+    if (!settings) return c.json({ error: "settings_unavailable" }, 503);
+
+    await settings.setDefaultLocale(c.get("tenant").id, locale);
+    return c.json({ ok: true, locale });
   });
 
   return r;

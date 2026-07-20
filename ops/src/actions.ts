@@ -93,6 +93,122 @@ export async function setPlan(db: D1Database, input: SetPlanInput): Promise<Acti
   return "ok";
 }
 
+// ——— NUTZER-AKTIONEN (Instanz-Detail) ————————————————————————————————
+// Alle Aktionen sind DOPPELT gescoped (tenant_id UND user_id in jedem WHERE) —
+// eine Ops-URL mit fremder Kombination kann nie in einer anderen Instanz
+// wirken. Sessions/Trusted-Devices werden bei jedem Reset beendet: der Sinn
+// eines Resets ist, dass ALTE Zugänge sofort ungültig sind (kompromittiertes
+// Konto, verlorenes Gerät).
+
+async function findTenantUser(
+  db: D1Database,
+  tenantId: string,
+  userId: string,
+): Promise<{ id: string; role: string } | null> {
+  return db
+    .prepare(`SELECT id, role FROM auth_user WHERE id = ? AND tenant_id = ?`)
+    .bind(userId, tenantId)
+    .first<{ id: string; role: string }>();
+}
+
+/** Alle Sessions + Trusted-Devices eines Nutzers beenden (Teil jedes Resets). */
+function revokeStatements(db: D1Database, tenantId: string, userId: string) {
+  return [
+    db
+      .prepare(`DELETE FROM auth_session WHERE tenant_id = ? AND user_id = ?`)
+      .bind(tenantId, userId),
+    db
+      .prepare(`DELETE FROM auth_trusted_device WHERE tenant_id = ? AND user_id = ?`)
+      .bind(tenantId, userId),
+  ];
+}
+
+/**
+ * ZUGANG ZURÜCKSETZEN: entfernt den Passwort-Login (credential-Account) und
+ * beendet alle Sessions. Der Nutzer setzt sich über „Passwort vergessen" auf
+ * der Instanz selbst ein neues (Browser-Flow mit Turnstile — deshalb löst Ops
+ * die Reset-Mail NICHT server-zu-server aus; better-auth legt beim Reset den
+ * credential-Account wieder an, exakt wie beim Ops-erstellten Owner ohne
+ * Passwort). Social-Logins (Google) bleiben unberührt.
+ * @returns "no_credential" = kein Passwort-Login vorhanden (nur Social) —
+ *          Sessions wurden trotzdem beendet.
+ */
+export async function resetUserPassword(
+  db: D1Database,
+  tenantId: string,
+  userId: string,
+): Promise<ActionResult | "no_credential"> {
+  const user = await findTenantUser(db, tenantId, userId);
+  if (!user) return "not_found";
+
+  const results = await db.batch([
+    db
+      .prepare(
+        `DELETE FROM auth_account WHERE tenant_id = ? AND user_id = ? AND provider_id = 'credential'`,
+      )
+      .bind(tenantId, userId),
+    ...revokeStatements(db, tenantId, userId),
+  ]);
+  return (results[0]?.meta.changes ?? 0) > 0 ? "ok" : "no_credential";
+}
+
+/**
+ * MFA ZURÜCKSETZEN (Support-Fall „Authenticator verloren" — bewusst auch für
+ * Owner erlaubt): löscht das TOTP-Secret samt Backup-Codes, setzt das Flag
+ * zurück und beendet alle Sessions. Beim nächsten Team-Zugriff leitet die
+ * Seiten-Gate zur Neu-Einrichtung (/mfa/setup).
+ */
+export async function resetUserMfa(
+  db: D1Database,
+  tenantId: string,
+  userId: string,
+): Promise<ActionResult> {
+  const user = await findTenantUser(db, tenantId, userId);
+  if (!user) return "not_found";
+
+  await db.batch([
+    db
+      .prepare(`DELETE FROM auth_two_factor WHERE tenant_id = ? AND user_id = ?`)
+      .bind(tenantId, userId),
+    db
+      .prepare(`UPDATE auth_user SET two_factor_enabled = 0 WHERE id = ? AND tenant_id = ?`)
+      .bind(userId, tenantId),
+    ...revokeStatements(db, tenantId, userId),
+  ]);
+  return "ok";
+}
+
+/**
+ * NUTZER LÖSCHEN. Der OWNER ist hart ausgenommen (jede Instanz braucht genau
+ * einen — erst Ownership übertragen, dann löschen). Cascade räumt Sessions/
+ * Accounts/TOTP/Trusted-Devices/ausgesprochene Einladungen; `accepted_by`
+ * (FK OHNE Cascade) wird genullt, gespeicherte Antworten (kein FK) werden
+ * mitgelöscht. `usage_events` bleiben BEWUSST stehen (append-only
+ * Abrechnungshistorie; user_id dort ist nur Filter/Debug, kein FK).
+ */
+export async function deleteUser(
+  db: D1Database,
+  tenantId: string,
+  userId: string,
+): Promise<ActionResult> {
+  const user = await findTenantUser(db, tenantId, userId);
+  if (!user) return "not_found";
+  if (user.role === "owner") return "protected";
+
+  await db.batch([
+    db
+      .prepare(
+        `UPDATE auth_invitation SET accepted_by = NULL WHERE tenant_id = ? AND accepted_by = ?`,
+      )
+      .bind(tenantId, userId),
+    db
+      .prepare(`DELETE FROM saved_answers WHERE tenant_id = ? AND user_id = ?`)
+      .bind(tenantId, userId),
+    db.prepare(`DELETE FROM auth_user WHERE id = ? AND tenant_id = ?`).bind(userId, tenantId),
+  ]);
+  return "ok";
+}
+
 /**
  * Instanz endgültig löschen. Voraussetzungen prüft der Aufrufer (Route):
  * Slug-Bestätigung; hier hart erzwungen: geschützt + NUR blockierte Instanzen.

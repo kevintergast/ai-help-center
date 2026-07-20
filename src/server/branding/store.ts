@@ -8,11 +8,27 @@ import type { BrandingColors } from "./validate";
  * Fakes ein (Repository-/Source-Pattern, keine echten Bindings in Tests).
  */
 
-/** Fester R2-Schlüssel pro Tenant: EIN Logo je Instanz, Upload überschreibt.
- *  Kein User-Input im Key — die Tenant-ID kommt IMMER aus der Host-Auflösung. */
-export function logoKeyFor(tenantId: string): string {
-  return `tenants/${tenantId}/logo`;
+/** Logo-Variante: hell (Standard, Spalte logo_r2_key) oder dunkel (0023,
+ *  logo_dark_r2_key). Dark ist optional — ohne eigenes dunkles Logo zeigt
+ *  das UI im Dark Mode das helle. */
+export type LogoVariant = "light" | "dark";
+
+/** Query-/Body-Wert strikt auf eine Variante mappen (alles außer "dark" = light). */
+export function parseLogoVariant(raw: string | undefined | null): LogoVariant {
+  return raw === "dark" ? "dark" : "light";
 }
+
+/** Fester R2-Schlüssel pro Tenant+Variante: EIN Logo je Slot, Upload überschreibt.
+ *  Kein User-Input im Key — die Tenant-ID kommt IMMER aus der Host-Auflösung. */
+export function logoKeyFor(tenantId: string, variant: LogoVariant = "light"): string {
+  return variant === "dark" ? `tenants/${tenantId}/logo-dark` : `tenants/${tenantId}/logo`;
+}
+
+/** Spalte je Variante — zentral, damit kein SQL-String die Wahl dupliziert. */
+const LOGO_COLUMN: Record<LogoVariant, "logo_r2_key" | "logo_dark_r2_key"> = {
+  light: "logo_r2_key",
+  dark: "logo_dark_r2_key",
+};
 
 /** Minimaler R2-Ausschnitt, den das Logo-Handling braucht (strukturkompatibel zu R2Bucket). */
 export interface LogoBucket {
@@ -32,12 +48,12 @@ export interface LogoBucket {
 export interface BrandingRepository {
   /** Farben aktualisieren + `branding_updated_at` setzen — NUR für diese Tenant-ID. */
   updateColors(tenantId: string, colors: BrandingColors): Promise<void>;
-  /** Nach erfolgreichem R2-Upload: `logo_r2_key` + `branding_updated_at` setzen. */
-  setLogoKey(tenantId: string, key: string): Promise<void>;
-  /** Logo entfernen: `logo_r2_key` nullen, `branding_updated_at` setzen. */
-  clearLogoKey(tenantId: string): Promise<void>;
-  /** Aktueller R2-Schlüssel des Tenants (null = kein hochgeladenes Logo). */
-  getLogoKey(tenantId: string): Promise<string | null>;
+  /** Nach erfolgreichem R2-Upload: Key-Spalte der Variante + `branding_updated_at` setzen. */
+  setLogoKey(tenantId: string, variant: LogoVariant, key: string): Promise<void>;
+  /** Logo der Variante entfernen: Key-Spalte nullen, `branding_updated_at` setzen. */
+  clearLogoKey(tenantId: string, variant: LogoVariant): Promise<void>;
+  /** Aktueller R2-Schlüssel der Variante (null = kein hochgeladenes Logo). */
+  getLogoKey(tenantId: string, variant: LogoVariant): Promise<string | null>;
 }
 
 /** Pro Request aufgelöste Branding-Infrastruktur (null = Bindings fehlen → 503). */
@@ -62,29 +78,31 @@ export class D1BrandingRepository implements BrandingRepository {
       .run();
   }
 
-  async setLogoKey(tenantId: string, key: string): Promise<void> {
+  async setLogoKey(tenantId: string, variant: LogoVariant, key: string): Promise<void> {
+    // Spaltenname aus dem festen Mapping (nie aus User-Input) — kein Injection-Vektor.
     await this.db
       .prepare(
-        `UPDATE tenants SET logo_r2_key = ?, branding_updated_at = unixepoch() WHERE id = ?`,
+        `UPDATE tenants SET ${LOGO_COLUMN[variant]} = ?, branding_updated_at = unixepoch() WHERE id = ?`,
       )
       .bind(key, tenantId)
       .run();
   }
 
-  async clearLogoKey(tenantId: string): Promise<void> {
+  async clearLogoKey(tenantId: string, variant: LogoVariant): Promise<void> {
     await this.db
       .prepare(
-        `UPDATE tenants SET logo_r2_key = NULL, branding_updated_at = unixepoch() WHERE id = ?`,
+        `UPDATE tenants SET ${LOGO_COLUMN[variant]} = NULL, branding_updated_at = unixepoch() WHERE id = ?`,
       )
       .bind(tenantId)
       .run();
   }
 
-  async getLogoKey(tenantId: string): Promise<string | null> {
+  async getLogoKey(tenantId: string, variant: LogoVariant): Promise<string | null> {
+    const col = LOGO_COLUMN[variant];
     const row = await this.db
-      .prepare(`SELECT logo_r2_key FROM tenants WHERE id = ?`)
+      .prepare(`SELECT ${col} AS key FROM tenants WHERE id = ?`)
       .bind(tenantId)
-      .first<{ logo_r2_key: string | null }>();
-    return row?.logo_r2_key ?? null;
+      .first<{ key: string | null }>();
+    return row?.key ?? null;
   }
 }

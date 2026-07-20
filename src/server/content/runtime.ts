@@ -6,6 +6,7 @@ import {
   groupByCategory,
   sampleHelpCenterRepo,
 } from "@/lib/content/fake-repo";
+import { D1BillingRepository } from "@/server/billing/store";
 import { getDbSafe } from "@/server/db/client";
 import { D1ContentRepository } from "./store";
 
@@ -59,10 +60,23 @@ export async function getHelpCenterData(tenant: Tenant): Promise<HelpCenterData>
   return { groups, searchItems, articles, roadmap, changelog, suggestions };
 }
 
-/** Admin-Artikelzeilen des aktuellen Tenants (alle Status; Analytics = 0-Platzhalter). */
+/**
+ * Admin-Artikelzeilen des aktuellen Tenants (alle Status) — die Spalten
+ * Views/Hilfreich/Verwendet kommen aus den ECHTEN usage_events-Aggregaten
+ * (Billing-Store, interne Team-Aufrufe wie im Statistik-Default ausgeblendet).
+ */
 export async function listAdminArticleRows(tenant: Tenant): Promise<AdminArticleRow[]> {
   const db = await getDbSafe();
-  if (db) return new D1ContentRepository(db).listAdminRows(tenant.id, tenant.defaultLocale);
+  if (db) {
+    const [rows, stats] = await Promise.all([
+      new D1ContentRepository(db).listAdminRows(tenant.id, tenant.defaultLocale),
+      new D1BillingRepository(db).getArticleUsageStats(tenant.id),
+    ]);
+    return rows.map((r) => ({
+      ...r,
+      ...(stats[r.id] ?? { views: 0, helpfulPct: null, usedIn: 0 }),
+    }));
+  }
   // Sample-Fallback: aus den Beispiel-Artikeln (updatedLabel ist dort schon ein String).
   return SAMPLE_ARTICLES.map((a) => ({
     id: a.id,
@@ -70,7 +84,7 @@ export async function listAdminArticleRows(tenant: Tenant): Promise<AdminArticle
     category: a.category,
     status: a.status,
     views: 0,
-    helpfulPct: 0,
+    helpfulPct: null,
     usedIn: 0,
     updatedLabel: a.updatedLabel,
   }));

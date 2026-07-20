@@ -72,6 +72,33 @@ export function evaluateTeamAccess(
   return { ok: true };
 }
 
+/** Seiten-Reaktion von `requireTeamPage` auf ein Team-Access-Outcome. */
+export type TeamPageDisposition =
+  | { kind: "render" }
+  | { kind: "redirect"; to: string }
+  | { kind: "notFound" };
+
+/**
+ * ÜBERSETZUNG Outcome → Seitenverhalten (rein, testbar): Ein AUTHENTIFIZIERTER,
+ * tenant-gebundener Team-Anwärter, der NUR am MFA-Gate scheitert, wird zur
+ * Einrichtung (`/mfa/setup`) bzw. Verifikation (`/mfa?redirect=…`) geleitet —
+ * ein nackter 404 wäre für den eigenen Owner direkt nach dem ersten Login eine
+ * Sackgasse (Live-Fund 2026-07-17). KEIN Existenz-Orakel: die Weiche hängt
+ * ausschließlich an der EIGENEN Session; Anonyme, Fremd-Sessions und zu
+ * niedrige Rollen bleiben unverändert bei notFound.
+ */
+export function teamPageDisposition(
+  outcome: TeamAccessOutcome,
+  backTo: string,
+): TeamPageDisposition {
+  if (outcome.ok) return { kind: "render" };
+  if (outcome.error === "mfa_setup_required") return { kind: "redirect", to: "/mfa/setup" };
+  if (outcome.error === "mfa_verification_required") {
+    return { kind: "redirect", to: `/mfa?redirect=${encodeURIComponent(backTo)}` };
+  }
+  return { kind: "notFound" };
+}
+
 export function requireTeam(min: "content" | "admin" | "owner") {
   return async (c: Context<ApiEnv>, next: Next): Promise<Response | void> => {
     let data: GuardSessionData | null = null;

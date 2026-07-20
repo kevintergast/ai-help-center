@@ -1,17 +1,13 @@
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { getT } from "@/i18n/t";
 import { AdminPageHeader } from "@/components/admin/admin-shell";
+import { BrandingManager } from "@/components/admin/branding-manager";
 import { CustomDomainManager } from "@/components/admin/custom-domain-manager";
 import { LegalDocsManager } from "@/components/admin/legal-docs-manager";
 import { SearchIndexManager } from "@/components/admin/search-index-manager";
 import { SeoIndexingManager } from "@/components/admin/seo-indexing-manager";
 import { SupportEmailManager } from "@/components/admin/support-email-manager";
 import { WidgetSnippet } from "@/components/admin/widget-snippet";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { UploadPlaceholder } from "@/components/admin/settings-bits";
 
 function SettingsCard({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -28,69 +24,27 @@ export default async function AdminSettingsPage() {
   const t = getT(tenant.defaultLocale);
   const b = tenant.branding;
 
-  const langOptions = [
-    { value: "de", label: "Deutsch" },
-    { value: "en", label: "English" },
-  ];
-
   return (
     <div>
+      {/* Kein globaler Speichern-Button: jede Karte speichert selbst (der
+          frühere Header-Button war ein toter Dummy — gemeldeter Bug). */}
       <AdminPageHeader
         title={t("admin.settings.title")}
         subtitle={t("admin.settings.subtitle")}
-        action={
-          <Button variant="primary" size="sm">
-            {t("admin.save")}
-          </Button>
-        }
       />
 
       <div className="grid gap-6">
         <SettingsCard title={t("admin.settings.branding")}>
-          <div>
-            <span className="mb-1.5 block text-sm text-ink-muted">{t("admin.settings.logo")}</span>
-            <UploadPlaceholder label={t("admin.settings.uploadLogo")} />
-          </div>
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div>
-              <span className="mb-1.5 block text-sm text-ink-muted">
-                {t("admin.settings.primaryColor")}
-              </span>
-              <div className="flex items-center gap-3">
-                <span
-                  className="h-9 w-9 shrink-0 rounded-comfy border border-hairline"
-                  style={{ background: b.colorPrimary }}
-                />
-                <Input defaultValue={b.colorPrimary} className="w-36 font-mono uppercase" />
-              </div>
-            </div>
-            <div>
-              <span className="mb-1.5 block text-sm text-ink-muted">
-                {t("admin.settings.accentColor")}
-              </span>
-              <div className="flex items-center gap-3">
-                <span
-                  className="h-9 w-9 shrink-0 rounded-comfy border border-hairline"
-                  style={{ background: b.colorAccent }}
-                />
-                <Input defaultValue={b.colorAccent} className="w-36 font-mono uppercase" />
-              </div>
-            </div>
-          </div>
-          <div className="max-w-xs">
-            <span className="mb-1.5 block text-sm text-ink-muted">
-              {t("admin.settings.language")}
-            </span>
-            <Select
-              options={langOptions}
-              defaultValue={tenant.defaultLocale}
-              aria-label={t("admin.settings.language")}
-              className="w-full"
-            />
-          </div>
-          <div className="border-t border-hairline pt-5">
-            <Switch label={t("admin.settings.poweredBy")} defaultChecked />
-          </div>
+          {/* Echte Persistenz (Branding-API 0003 + Dark-Logo 0023) — ersetzt
+              UploadPlaceholder + tote Farb-/Sprachfelder. */}
+          <BrandingManager
+            locale={tenant.defaultLocale}
+            initialPrimary={b.colorPrimary}
+            initialAccent={b.colorAccent}
+            primaryFg={b.colorPrimaryFg}
+            logoUrl={b.logoUrl}
+            logoDarkUrl={b.logoDarkUrl ?? null}
+          />
         </SettingsCard>
 
         <SettingsCard title={t("admin.settings.support")}>

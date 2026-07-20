@@ -13,8 +13,11 @@ import { checkSlug } from "@product/server/operator/validate";
 import { checkAccess, type OpsEnv } from "./access";
 import {
   deleteTenant,
+  deleteUser,
   parsePlanForm,
   PROTECTED_TENANT_ID,
+  resetUserMfa,
+  resetUserPassword,
   setPlan,
   suspendTenant,
   unsuspendTenant,
@@ -215,6 +218,24 @@ app.get("/t/:id", async (c) => {
       {ok === "suspended" ? <p class="note ok">Instanz blockiert — sie ist ab sofort überall 404.</p> : null}
       {ok === "unsuspended" ? <p class="note ok">Instanz entsperrt — wieder erreichbar.</p> : null}
       {ok === "plan" ? <p class="note ok">Plan/Rahmen gespeichert — wirkt sofort in Enforcement und Kunden-Admin.</p> : null}
+      {ok === "zugang-reset" ? (
+        <p class="note ok">
+          Passwort-Login entfernt und alle Sitzungen beendet. Der Nutzer setzt sich über
+          „Passwort vergessen" auf der Instanz ein neues Passwort.
+        </p>
+      ) : null}
+      {ok === "zugang-reset-social" ? (
+        <p class="note ok">
+          Kein Passwort-Login vorhanden (Social-/noch kein Login) — alle Sitzungen wurden beendet.
+        </p>
+      ) : null}
+      {ok === "mfa-reset" ? (
+        <p class="note ok">
+          MFA zurückgesetzt und alle Sitzungen beendet — der Nutzer richtet TOTP beim nächsten
+          Team-Zugriff neu ein (/mfa/setup).
+        </p>
+      ) : null}
+      {ok === "user-geloescht" ? <p class="note ok">Nutzer endgültig gelöscht.</p> : null}
       {err ? <p class="note err">Aktion fehlgeschlagen: {err}</p> : null}
       {row.suspendedAt ? (
         <p class="note err">
@@ -312,9 +333,11 @@ app.get("/t/:id", async (c) => {
             <th>E-Mail</th>
             <th>Name</th>
             <th>Rolle</th>
+            <th>Anmeldung</th>
             <th>Verifiziert</th>
             <th>2FA</th>
             <th>Erstellt</th>
+            <th>Aktionen</th>
           </tr>
         </thead>
         <tbody>
@@ -327,9 +350,62 @@ app.get("/t/:id", async (c) => {
               <td>
                 <RoleBadge role={u.role} />
               </td>
+              <td>
+                {u.providers.length === 0 ? (
+                  <span class="muted" title="Noch kein Login-Verfahren — Zugang via „Passwort vergessen&#8220;">
+                    —
+                  </span>
+                ) : (
+                  u.providers.map((p) => (
+                    <span class="badge b-mut" style="margin-right:4px">
+                      {p === "credential" ? "Passwort" : p}
+                    </span>
+                  ))
+                )}
+              </td>
               <td>{u.emailVerified ? "ja" : "nein"}</td>
               <td>{u.twoFactorEnabled ? "ja" : "nein"}</td>
               <td>{fmtDate(u.createdAt)}</td>
+              <td>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                  <form method="post" action={`/t/${row.id}/users/${u.id}/reset-password`}>
+                    <button
+                      type="submit"
+                      style="padding:4px 10px;font-size:12px"
+                      title="Passwort-Login entfernen + Sitzungen beenden — Nutzer setzt via „Passwort vergessen&#8220; neu"
+                    >
+                      Zugang zurücksetzen
+                    </button>
+                  </form>
+                  <form method="post" action={`/t/${row.id}/users/${u.id}/reset-mfa`}>
+                    <button
+                      type="submit"
+                      style="padding:4px 10px;font-size:12px;background:var(--warn)"
+                      title="TOTP + Backup-Codes löschen, Sitzungen beenden — Neu-Einrichtung beim nächsten Team-Zugriff"
+                    >
+                      MFA zurücksetzen
+                    </button>
+                  </form>
+                  {u.role !== "owner" ? (
+                    <details>
+                      <summary style="cursor:pointer;font-size:12px;color:var(--crit)">Löschen…</summary>
+                      <form
+                        method="post"
+                        action={`/t/${row.id}/users/${u.id}/delete`}
+                        style="margin-top:6px"
+                      >
+                        <button type="submit" style="padding:4px 10px;font-size:12px;background:var(--crit)">
+                          Endgültig löschen
+                        </button>
+                      </form>
+                    </details>
+                  ) : (
+                    <span class="muted" style="font-size:12px" title="Owner sind nicht löschbar — erst Ownership übertragen">
+                      Owner geschützt
+                    </span>
+                  )}
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -604,6 +680,32 @@ app.post("/t/:id/delete", async (c) => {
 
   console.log(`[ops] Instanz ${id} (${tenant.slug}) gelöscht von ${c.get("email")}`);
   return c.redirect("/?ok=deleted", 303);
+});
+
+// ——— Nutzer-Aktionen: Zugang-Reset / MFA-Reset / Löschen ————————————————
+app.post("/t/:id/users/:uid/reset-password", async (c) => {
+  const id = c.req.param("id");
+  const result = await resetUserPassword(c.env.DB, id, c.req.param("uid"));
+  if (result === "not_found") return c.redirect(`/t/${id}?err=nicht-gefunden`, 303);
+  console.log(`[ops] Zugang-Reset für Nutzer ${c.req.param("uid")} in ${id} von ${c.get("email")}`);
+  return c.redirect(`/t/${id}?ok=${result === "ok" ? "zugang-reset" : "zugang-reset-social"}`, 303);
+});
+
+app.post("/t/:id/users/:uid/reset-mfa", async (c) => {
+  const id = c.req.param("id");
+  const result = await resetUserMfa(c.env.DB, id, c.req.param("uid"));
+  if (result !== "ok") return c.redirect(`/t/${id}?err=nicht-gefunden`, 303);
+  console.log(`[ops] MFA-Reset für Nutzer ${c.req.param("uid")} in ${id} von ${c.get("email")}`);
+  return c.redirect(`/t/${id}?ok=mfa-reset`, 303);
+});
+
+app.post("/t/:id/users/:uid/delete", async (c) => {
+  const id = c.req.param("id");
+  const result = await deleteUser(c.env.DB, id, c.req.param("uid"));
+  if (result === "protected") return c.redirect(`/t/${id}?err=owner-geschuetzt`, 303);
+  if (result !== "ok") return c.redirect(`/t/${id}?err=nicht-gefunden`, 303);
+  console.log(`[ops] Nutzer ${c.req.param("uid")} in ${id} gelöscht von ${c.get("email")}`);
+  return c.redirect(`/t/${id}?ok=user-geloescht`, 303);
 });
 
 // ——— Selbstkostenrechner ——————————————————————————————————————————————

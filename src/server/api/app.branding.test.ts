@@ -2,7 +2,7 @@ import { memoryAdapter } from "better-auth/adapters/memory";
 import { describe, expect, it } from "vitest";
 import type { Tenant } from "@/lib/tenant/types";
 import { AUTH_BASE_PATH, buildAuth, tenantAuthOptions } from "@/server/auth/auth";
-import type { BrandingRepository, LogoBucket } from "@/server/branding/store";
+import type { BrandingRepository, LogoBucket, LogoVariant } from "@/server/branding/store";
 import type { BrandingColors } from "@/server/branding/validate";
 import { buildApiApp } from "./app";
 import type { ApiDeps } from "./context";
@@ -63,14 +63,17 @@ class FakeBucket implements LogoBucket {
   }
 }
 
-/** Map-basierter Fake der Branding-Spalten (pro Tenant-ID). */
+/** Map-basierter Fake der Branding-Spalten (pro Tenant-ID, hell+dunkel 0023). */
 class FakeBrandingRepo implements BrandingRepository {
-  readonly rows = new Map<string, { colors: BrandingColors | null; logoKey: string | null }>();
+  readonly rows = new Map<
+    string,
+    { colors: BrandingColors | null; logoKey: string | null; logoDarkKey: string | null }
+  >();
 
   private row(tenantId: string) {
     let r = this.rows.get(tenantId);
     if (!r) {
-      r = { colors: null, logoKey: null };
+      r = { colors: null, logoKey: null, logoDarkKey: null };
       this.rows.set(tenantId, r);
     }
     return r;
@@ -79,14 +82,17 @@ class FakeBrandingRepo implements BrandingRepository {
   async updateColors(tenantId: string, colors: BrandingColors) {
     this.row(tenantId).colors = colors;
   }
-  async setLogoKey(tenantId: string, key: string) {
-    this.row(tenantId).logoKey = key;
+  async setLogoKey(tenantId: string, variant: LogoVariant, key: string) {
+    if (variant === "dark") this.row(tenantId).logoDarkKey = key;
+    else this.row(tenantId).logoKey = key;
   }
-  async clearLogoKey(tenantId: string) {
-    this.row(tenantId).logoKey = null;
+  async clearLogoKey(tenantId: string, variant: LogoVariant) {
+    if (variant === "dark") this.row(tenantId).logoDarkKey = null;
+    else this.row(tenantId).logoKey = null;
   }
-  async getLogoKey(tenantId: string) {
-    return this.rows.get(tenantId)?.logoKey ?? null;
+  async getLogoKey(tenantId: string, variant: LogoVariant) {
+    const r = this.rows.get(tenantId);
+    return (variant === "dark" ? r?.logoDarkKey : r?.logoKey) ?? null;
   }
 }
 
@@ -316,7 +322,7 @@ describe("POST /api/v1/admin/branding/logo (Upload-Härtung)", () => {
 
     expect([...bucket.store.keys()]).toEqual(["tenants/t_a/logo"]);
     expect(bucket.store.get("tenants/t_a/logo")?.contentType).toBe("image/png");
-    expect(await repo.getLogoKey("t_a")).toBe("tenants/t_a/logo");
+    expect(await repo.getLogoKey("t_a", "light")).toBe("tenants/t_a/logo");
 
     // Public (OHNE Session, OHNE Cookie) auf Host A:
     const logo = await app.request("/api/v1/branding/logo?v=123", { headers: { host: HOST_A } });
@@ -358,10 +364,71 @@ describe("DELETE /api/v1/admin/branding/logo", () => {
     expect(del.status).toBe(200);
 
     expect(bucket.store.size).toBe(0);
-    expect(await repo.getLogoKey("t_a")).toBeNull();
+    expect(await repo.getLogoKey("t_a", "light")).toBeNull();
 
     const logo = await app.request("/api/v1/branding/logo", { headers: { host: HOST_A } });
     expect(logo.status).toBe(404);
+  });
+});
+
+describe("Dark-Variante (?variant=dark, 0023)", () => {
+  // Verhinderter Fehlerfall: dunkles Logo überschreibt das helle (ein Slot
+  // statt zwei) oder ist cross-variant/cross-tenant abrufbar.
+  it("eigener Slot: Upload/GET/DELETE dark lassen light unberührt", async () => {
+    const { app, db, bucket, repo } = makeApp();
+    const cookie = await adminSession(app, db, HOST_A);
+
+    expect((await uploadLogo(app, HOST_A, cookie, PNG_BYTES, "image/png")).status).toBe(200);
+    const darkUpload = await app.request("/api/v1/admin/branding/logo?variant=dark", {
+      method: "POST",
+      headers: { host: HOST_A, cookie, "content-type": "image/jpeg" },
+      body: JPEG_BYTES.slice(),
+    });
+    expect(darkUpload.status).toBe(200);
+    expect(await darkUpload.json()).toMatchObject({ ok: true, variant: "dark" });
+
+    // Zwei getrennte Objekte + Spalten:
+    expect([...bucket.store.keys()].sort()).toEqual(["tenants/t_a/logo", "tenants/t_a/logo-dark"]);
+    expect(await repo.getLogoKey("t_a", "light")).toBe("tenants/t_a/logo");
+    expect(await repo.getLogoKey("t_a", "dark")).toBe("tenants/t_a/logo-dark");
+
+    // Public: variant wählt das Objekt; ohne variant weiter das helle.
+    const dark = await app.request("/api/v1/branding/logo?variant=dark&v=1", {
+      headers: { host: HOST_A },
+    });
+    expect(dark.status).toBe(200);
+    expect(dark.headers.get("content-type")).toBe("image/jpeg");
+    const light = await app.request("/api/v1/branding/logo?v=1", { headers: { host: HOST_A } });
+    expect(light.headers.get("content-type")).toBe("image/png");
+
+    // DELETE dark räumt NUR dark:
+    const del = await app.request("/api/v1/admin/branding/logo?variant=dark", {
+      method: "DELETE",
+      headers: { host: HOST_A, cookie },
+    });
+    expect(del.status).toBe(200);
+    expect(await repo.getLogoKey("t_a", "dark")).toBeNull();
+    expect(await repo.getLogoKey("t_a", "light")).toBe("tenants/t_a/logo");
+    expect(
+      (await app.request("/api/v1/branding/logo?variant=dark", { headers: { host: HOST_A } }))
+        .status,
+    ).toBe(404);
+  });
+
+  it("Müll-variant (Traversal-Versuch) fällt auf light zurück — nie ein dritter Key", async () => {
+    const { app, db, bucket } = makeApp();
+    const cookie = await adminSession(app, db, HOST_A);
+    const res = await app.request(
+      `/api/v1/admin/branding/logo?variant=${encodeURIComponent("../../etc")}`,
+      {
+        method: "POST",
+        headers: { host: HOST_A, cookie, "content-type": "image/png" },
+        body: PNG_BYTES.slice(),
+      },
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ variant: "light" });
+    expect([...bucket.store.keys()]).toEqual(["tenants/t_a/logo"]);
   });
 });
 

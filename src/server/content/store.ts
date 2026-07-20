@@ -328,14 +328,15 @@ export class D1ContentRepository implements ContentStore {
       )
       .bind(tenantId)
       .all<ArticleRow>();
-    // views/helpfulPct/usedIn: PLATZHALTER 0 — echte Analytics sind P5 (nicht erfinden).
+    // views/helpfulPct/usedIn: Basiswerte — die echten usage_events-Aggregate
+    // joint listAdminArticleRows (content/runtime.ts) über den Billing-Store.
     return results.map((r) => ({
       id: r.id,
       title: r.title,
       category: r.category,
       status: displayStatus(r.status, r.is_ai_generated),
       views: 0,
-      helpfulPct: 0,
+      helpfulPct: null,
       usedIn: 0,
       updatedLabel: relativeTimeLabel(r.updated_at, locale),
     }));

@@ -22,7 +22,7 @@ const DAY = 86_400;
 function setup() {
   const sqlite = new BetterSqlite3(":memory:");
   applyMigrations(sqlite, [
-    "0001_tenants.sql", "0021_tenant_suspend.sql",
+    "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql",
     "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql",
     "0009_usage_billing.sql",
     "0011_usage_feedback_types.sql", "0016_usage_ai_source_type.sql", "0020_usage_ai_translation_type.sql",
@@ -371,5 +371,43 @@ describe("ai_source-Events + getTopSources (Häufigste Quellen)", () => {
       5,
     );
     expect(withInternal.find((r) => r.articleId === "a2")?.views).toBe(2);
+  });
+});
+
+describe("getArticleUsageStats (Admin-Artikelliste — ersetzt 0-Platzhalter)", () => {
+  // Verhinderte Fehlerfälle: fremde Tenants/interne Team-Aufrufe zählen mit,
+  // oder „kein Feedback" erscheint als 0 % (irreführend statt „—").
+  it("aggregiert je Artikel, blendet interne aus, leakt nie cross-tenant", async () => {
+    const ev = ctx.sqlite.prepare(
+      `INSERT INTO usage_events (id, tenant_id, type, credits, actor_type, visitor_id, user_id, article_id, created_at)
+       VALUES (?, ?, ?, 0, ?, 'v1', NULL, ?, 1000)`,
+    );
+    // Artikel a1: 3 Views (1 davon intern → zählt nicht), 2 hilfreich + 1 nicht, 2 Zitate.
+    ev.run("s1", "t_demo", "article_view", "anon", "a1");
+    ev.run("s2", "t_demo", "article_view", "user", "a1");
+    ev.run("s3", "t_demo", "article_view", "internal", "a1");
+    ev.run("s4", "t_demo", "feedback_helpful", "anon", "a1");
+    ev.run("s5", "t_demo", "feedback_helpful", "user", "a1");
+    ev.run("s6", "t_demo", "feedback_unhelpful", "anon", "a1");
+    ev.run("s7", "t_demo", "ai_source", "anon", "a1");
+    ev.run("s8", "t_demo", "ai_source", "anon", "a1");
+    // Artikel a2: nur Views, KEIN Feedback → helpfulPct null.
+    ev.run("s9", "t_demo", "article_view", "anon", "a2");
+    // KI-Antwort-Feedback (article_id NULL) und FREMDER Tenant: nie dabei.
+    ctx.sqlite
+      .prepare(
+        `INSERT INTO usage_events (id, tenant_id, type, credits, actor_type, visitor_id, user_id, article_id, created_at)
+         VALUES ('s10','t_demo','feedback_helpful',0,'anon','v1',NULL,NULL,1000),
+                ('s11','t_acme','article_view',0,'anon','v9',NULL,'a1',1000)`,
+      )
+      .run();
+
+    const stats = await ctx.repo.getArticleUsageStats("t_demo");
+    expect(stats.a1).toEqual({ views: 2, helpfulPct: 67, usedIn: 2 });
+    expect(stats.a2).toEqual({ views: 1, helpfulPct: null, usedIn: 0 });
+    expect(Object.keys(stats).sort()).toEqual(["a1", "a2"]); // kein t_acme-Leak
+
+    const foreign = await ctx.repo.getArticleUsageStats("t_acme");
+    expect(foreign.a1).toEqual({ views: 1, helpfulPct: null, usedIn: 0 });
   });
 });

@@ -5,12 +5,24 @@ import type { Tenant } from "@/lib/tenant/types";
  * Client-Fetch fürs erste Paint). `logoUrl` ist bereits fertig abgeleitet
  * (R2-Serving-Route mit ?v=-Cache-Buster ODER externe URL — siehe
  * src/server/tenant/repository.ts). Ohne Logo: Initiale in Brand-Farbe.
+ *
+ * DARK-MODE-VARIANTE (0023): Ist ein dunkles Logo hinterlegt, wählt der
+ * Browser es JS-frei über <picture>/<source media> — das Produkt-Theming
+ * hängt ausschließlich an prefers-color-scheme (globals.css), dieselbe
+ * Media-Query gilt daher auch hier. Ohne dunkles Logo: helles für beide.
  */
 export function TenantLogo({ tenant }: { tenant: Tenant }) {
-  if (tenant.branding.logoUrl) {
+  const light = tenant.branding.logoUrl;
+  const dark = tenant.branding.logoDarkUrl ?? null;
+  if (light) {
+    // eslint-disable-next-line @next/next/no-img-element -- Tenant-Logos kommen aus R2/extern; next/image-Optimierung ist im Worker nicht verfügbar.
+    const img = <img src={light} alt={tenant.name} className="h-7" />;
+    if (!dark) return img;
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- Tenant-Logos kommen aus R2/extern; next/image-Optimierung ist im Worker nicht verfügbar.
-      <img src={tenant.branding.logoUrl} alt={tenant.name} className="h-7" />
+      <picture>
+        <source srcSet={dark} media="(prefers-color-scheme: dark)" />
+        {img}
+      </picture>
     );
   }
   return (

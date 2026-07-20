@@ -15,7 +15,7 @@ import type { ArticleInput } from "./validate";
  */
 
 const MIGRATIONS = [
-  "0001_tenants.sql", "0021_tenant_suspend.sql",
+  "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql",
   "0002_auth.sql",
   "0003_branding.sql",
   "0004_two_factor_plugin_columns.sql",
@@ -68,7 +68,7 @@ describe("D1ContentRepository gegen die echten Migrationen (D1-Shim über better
       expect(rows.map((r) => r.id)).toEqual([id]);
       expect(rows[0].status).toBe("draft");
       // Analytics sind Platzhalter (P5), nicht erfunden.
-      expect(rows[0]).toMatchObject({ views: 0, helpfulPct: 0, usedIn: 0 });
+      expect(rows[0]).toMatchObject({ views: 0, helpfulPct: null, usedIn: 0 });
     });
 
     it("publish macht sichtbar, setzt published_at UND schreibt einen Version-Snapshot", async () => {

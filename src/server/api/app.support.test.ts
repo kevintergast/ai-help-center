@@ -45,7 +45,7 @@ const VALID_MESSAGE = "Der Passwort-Reset-Link kommt bei mir nie an.";
 
 function makeFixture(opts: { denySensitive?: boolean } = {}) {
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0015_support_tickets.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0015_support_tickets.sql"]);
   const repo = new D1SupportRepository(d1FromSqlite(sqlite));
 
   const authDb: Record<string, Row[]> = {

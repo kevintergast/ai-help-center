@@ -108,7 +108,7 @@ describe("Schema-Parität: getAuthTables(tenantAuthOptions) ↔ migrations/", ()
   // Parität nicht sieht (z. B. ein NOT-NULL-Feld, das der Adapter nie setzt).
   it("signUp gegen die echten migrations/*.sql funktioniert und schreibt tenant_id", async () => {
     const db = new Database(":memory:");
-    for (const f of ["0001_tenants.sql", "0021_tenant_suspend.sql", "0002_auth.sql", "0004_two_factor_plugin_columns.sql"]) {
+    for (const f of ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0002_auth.sql", "0004_two_factor_plugin_columns.sql"]) {
       db.exec(readFileSync(join(process.cwd(), "migrations", f), "utf8"));
     }
     db.prepare("INSERT INTO tenants (id, slug, name) VALUES ('t_real', 'real', 'Real')").run();

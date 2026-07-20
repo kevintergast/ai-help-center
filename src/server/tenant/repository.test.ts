@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 import { applyMigrations, d1FromSqlite } from "@/server/auth/sqlite-test-support";
-import { D1TenantRepository, deriveLogoUrl, rowToTenant } from "./repository";
+import { D1TenantRepository, deriveDarkLogoUrl, deriveLogoUrl, rowToTenant } from "./repository";
 
 const row = {
   id: "t_x",
@@ -11,6 +11,7 @@ const row = {
   default_locale: "en",
   logo_url: null,
   logo_r2_key: null,
+  logo_dark_r2_key: null,
   branding_updated_at: null,
   color_primary: "#111111",
   color_accent: "#222222",
@@ -54,6 +55,13 @@ describe("deriveLogoUrl (Prioritätskette R2 → extern → null)", () => {
     ).toBe("https://cdn.example.com/l.png");
     expect(deriveLogoUrl({ logo_r2_key: null, branding_updated_at: null, logo_url: null })).toBeNull();
   });
+
+  it("Dark-Variante (0023): eigener variant-Parameter, KEIN externer Fallback", () => {
+    expect(deriveDarkLogoUrl({ logo_dark_r2_key: "tenants/t_x/logo-dark", branding_updated_at: 42 })).toBe(
+      "/api/v1/branding/logo?variant=dark&v=42",
+    );
+    expect(deriveDarkLogoUrl({ logo_dark_r2_key: null, branding_updated_at: 42 })).toBeNull();
+  });
 });
 
 describe("D1TenantRepository", () => {
@@ -87,7 +95,7 @@ describe("D1TenantRepository", () => {
       "0002_auth.sql",
       "0003_branding.sql",
       "0004_two_factor_plugin_columns.sql",
-      "0013_seo_indexable.sql", "0021_tenant_suspend.sql",
+      "0013_seo_indexable.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql",
       "0014_support_email.sql",
     ]);
     db.prepare(
@@ -125,7 +133,7 @@ describe("Instanz-Sperre (0021, Ops)", () => {
       "0002_auth.sql",
       "0003_branding.sql",
       "0004_two_factor_plugin_columns.sql",
-      "0013_seo_indexable.sql", "0021_tenant_suspend.sql",
+      "0013_seo_indexable.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql",
       "0014_support_email.sql",
     ]);
     // Migration 0001 seedet 'demo'; Custom-Domain verified dazu:

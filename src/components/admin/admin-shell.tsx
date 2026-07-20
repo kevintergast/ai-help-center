@@ -39,6 +39,8 @@ export interface AdminShellProps {
   locale: Locale;
   tenantName: string;
   logoUrl: string | null;
+  /** Dark-Mode-Logo (0023) — null: Dark Mode zeigt das helle. */
+  logoDarkUrl?: string | null;
   /** Operator-Instanz → Logo mit Claim statt Initial+Name (wie HelpShell). */
   isOperator?: boolean;
   /** Angemeldetes Team-Mitglied (Layout-Gate garantiert eine Session). */
@@ -50,6 +52,7 @@ export function AdminShell({
   locale,
   tenantName,
   logoUrl,
+  logoDarkUrl = null,
   isOperator = false,
   viewer = null,
   children,
@@ -112,8 +115,11 @@ export function AdminShell({
             ) : (
               <>
                 {logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={logoUrl} alt={tenantName} className="h-7 w-auto" />
+                  <picture>
+                    {logoDarkUrl ? <source srcSet={logoDarkUrl} media="(prefers-color-scheme: dark)" /> : null}
+                    { }
+                    <img src={logoUrl} alt={tenantName} className="h-7 w-auto" />
+                  </picture>
                 ) : (
                   <span className="grid h-8 w-8 place-items-center rounded-comfy bg-brand text-sm font-semibold text-brand-fg">
                     {tenantName.charAt(0)}

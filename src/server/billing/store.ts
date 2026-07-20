@@ -81,6 +81,15 @@ export interface FeedbackStats {
   answers: { helpful: number; unhelpful: number };
 }
 
+/** Nutzungs-Aggregate eines Artikels (Admin-Artikelliste). */
+export interface ArticleUsageStats {
+  views: number;
+  /** Hilfreich-Quote in % — `null` = noch kein Feedback (UI: „—" statt 0 %). */
+  helpfulPct: number | null;
+  /** Wie oft der Artikel als Quelle einer KI-Antwort zitiert wurde. */
+  usedIn: number;
+}
+
 export interface RecordGenerationInput {
   tenantId: string;
   actorType: UsageActorType;
@@ -140,6 +149,13 @@ export interface BillingRepository {
    * KI-Antworten (article_id NULL), im Zeitfenster, interne optional raus.
    */
   getFeedbackStats(tenantId: string, opts: StatsWindow): Promise<FeedbackStats>;
+  /**
+   * Gesamt-Aggregate JE ARTIKEL für die Admin-Artikelliste (Views,
+   * Hilfreich-Quote, „in KI-Antworten verwendet" = ai_source-Zitate).
+   * Ohne Zeitfenster (Bestandsübersicht); interne Team-Aufrufe zählen wie
+   * im Statistik-Default NICHT mit. Ersetzt die früheren 0-Platzhalter.
+   */
+  getArticleUsageStats(tenantId: string): Promise<Record<string, ArticleUsageStats>>;
   /**
    * „Häufigste Quellen": meistzitierte Artikel in KI-Antworten (ai_source-
    * Events) im Zeitfenster — ersetzt die frühere „Häufigste Fragen"-Karte
@@ -595,6 +611,35 @@ export class D1BillingRepository implements BillingRepository {
       } else {
         (stats.byArticle[r.articleId] ??= { helpful: 0, unhelpful: 0 })[key] += r.n;
       }
+    }
+    return stats;
+  }
+
+  async getArticleUsageStats(tenantId: string): Promise<Record<string, ArticleUsageStats>> {
+    const { results } = await this.db
+      .prepare(
+        `SELECT article_id AS articleId,
+                SUM(CASE WHEN type = 'article_view' THEN 1 ELSE 0 END) AS views,
+                SUM(CASE WHEN type = 'feedback_helpful' THEN 1 ELSE 0 END) AS helpful,
+                SUM(CASE WHEN type = 'feedback_unhelpful' THEN 1 ELSE 0 END) AS unhelpful,
+                SUM(CASE WHEN type = 'ai_source' THEN 1 ELSE 0 END) AS usedIn
+           FROM usage_events
+          WHERE tenant_id = ? AND article_id IS NOT NULL
+            AND type IN ('article_view', 'feedback_helpful', 'feedback_unhelpful', 'ai_source')
+            AND actor_type != 'internal'
+          GROUP BY article_id`,
+      )
+      .bind(tenantId)
+      .all<{ articleId: string; views: number; helpful: number; unhelpful: number; usedIn: number }>();
+
+    const stats: Record<string, ArticleUsageStats> = {};
+    for (const r of results) {
+      const votes = r.helpful + r.unhelpful;
+      stats[r.articleId] = {
+        views: r.views,
+        helpfulPct: votes > 0 ? Math.round((r.helpful / votes) * 100) : null,
+        usedIn: r.usedIn,
+      };
     }
     return stats;
   }

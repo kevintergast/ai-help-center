@@ -1,10 +1,10 @@
 import { headers } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { GuardSessionData } from "@/server/api/context";
 import { getEnvSafe } from "@/server/api/runtime-deps";
 import type { HelpViewer } from "@/lib/auth/viewer";
 import type { Tenant } from "@/lib/tenant/types";
-import { evaluateTeamAccess } from "./guards";
+import { evaluateTeamAccess, teamPageDisposition } from "./guards";
 import { createAuth } from "./runtime";
 import { runWithTenant } from "./tenant-context";
 
@@ -29,6 +29,8 @@ import { runWithTenant } from "./tenant-context";
 export async function requireTeamPage(
   tenant: Tenant,
   min: "content" | "admin" | "owner",
+  /** Rücksprungziel nach einer MFA-Verifikation (Standard: Admin-Start). */
+  backTo = "/admin",
 ): Promise<void> {
   const env = await getEnvSafe();
   if (!env) return; // DEV-ONLY: Sample-Fallback, keine echten Daten (s. o.).
@@ -48,7 +50,11 @@ export async function requireTeamPage(
     return evaluateTeamAccess(data, min);
   });
 
-  if (!outcome.ok) notFound();
+  // MFA-Sackgasse vermeiden: eigene Session, nur MFA fehlt → zur Einrichtung/
+  // Verifikation leiten; alles andere bleibt fail-closed 404 (teamPageDisposition).
+  const action = teamPageDisposition(outcome, backTo);
+  if (action.kind === "redirect") redirect(action.to);
+  if (action.kind === "notFound") notFound();
 }
 
 /**

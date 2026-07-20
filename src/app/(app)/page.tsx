@@ -20,6 +20,7 @@ export default async function Home() {
       locale={tenant.defaultLocale}
       tenantName={tenant.name}
       logoUrl={tenant.branding.logoUrl}
+      logoDarkUrl={tenant.branding.logoDarkUrl ?? null}
       data={data}
       isOperator={tenant.id === "t_operator"}
       viewer={viewer}

@@ -176,6 +176,10 @@ export interface TenantUser {
   twoFactorEnabled: number;
   banned: number | null;
   createdAt: number | string | null;
+  /** Anmeldemethoden aus auth_account: 'credential' (Passwort), 'google', … —
+   *  leer = noch kein Login-Verfahren (z. B. Ops-erstellter Owner vor dem
+   *  ersten „Passwort vergessen"). */
+  providers: string[];
 }
 
 export interface PendingInvitation {
@@ -233,10 +237,12 @@ export async function tenantDetail(
       }>(),
     db
       .prepare(
-        `SELECT id, email, name, role, email_verified, two_factor_enabled, banned, created_at
-           FROM auth_user WHERE tenant_id = ?
-          ORDER BY CASE role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'content' THEN 2 ELSE 3 END,
-                   created_at ASC`,
+        `SELECT u.id, u.email, u.name, u.role, u.email_verified, u.two_factor_enabled, u.banned, u.created_at,
+                (SELECT GROUP_CONCAT(a.provider_id) FROM auth_account a
+                  WHERE a.tenant_id = u.tenant_id AND a.user_id = u.id) AS providers
+           FROM auth_user u WHERE u.tenant_id = ?
+          ORDER BY CASE u.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'content' THEN 2 ELSE 3 END,
+                   u.created_at ASC`,
       )
       .bind(tenantId)
       .all<{
@@ -248,6 +254,7 @@ export async function tenantDetail(
         two_factor_enabled: number;
         banned: number | null;
         created_at: number | null;
+        providers: string | null;
       }>(),
     db
       .prepare(
@@ -310,6 +317,7 @@ export async function tenantDetail(
       twoFactorEnabled: u.two_factor_enabled,
       banned: u.banned,
       createdAt: u.created_at,
+      providers: (u.providers ?? "").split(",").filter(Boolean).sort(),
     })),
     invitations: invitations.results.map((i) => ({
       id: i.id,
