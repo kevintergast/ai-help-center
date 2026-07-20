@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { parseArticleBody } from "@/lib/content/blocks";
 import { applyMigrations, d1FromSqlite } from "@/server/auth/sqlite-test-support";
 import { D1ContentRepository } from "./store";
 import type { ArticleInput } from "./validate";
@@ -19,7 +20,7 @@ const MIGRATIONS = [
   "0002_auth.sql",
   "0003_branding.sql",
   "0004_two_factor_plugin_columns.sql",
-  "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql",
+  "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql", "0024_article_flag.sql",
 ] as const;
 
 const T1 = "t_one";
@@ -32,7 +33,7 @@ function makeInput(over: Partial<ArticleInput> = {}): ArticleInput {
     title: "Konto einrichten",
     category: "Erste Schritte",
     locale: LOCALE,
-    body: ["Absatz eins.", "Absatz zwei."],
+    body: parseArticleBody(["Absatz eins.", "Absatz zwei."]),
     videos: [
       { id: "v1", title: "Rundgang", durationLabel: "1:30", description: "Kurzer Rundgang." },
     ],
@@ -104,11 +105,13 @@ describe("D1ContentRepository gegen die echten Migrationen (D1-Shim über better
 
     it("update erzeugt einen Snapshot und ändert die Felder", async () => {
       const id = await repo.create(T1, makeInput());
-      expect(await repo.update(T1, id, { title: "Neuer Titel", body: ["nur ein Absatz"] })).toBe(true);
+      expect(
+        await repo.update(T1, id, { title: "Neuer Titel", body: parseArticleBody(["nur ein Absatz"]) }),
+      ).toBe(true);
 
       const article = await repo.getForEdit(T1, id, LOCALE);
       expect(article?.title).toBe("Neuer Titel");
-      expect(article?.body).toEqual(["nur ein Absatz"]);
+      expect(article?.body).toEqual(parseArticleBody(["nur ein Absatz"]));
 
       const snaps = db
         .prepare("SELECT COUNT(*) AS n FROM article_versions WHERE tenant_id = ? AND article_id = ?")
@@ -169,7 +172,7 @@ describe("D1ContentRepository gegen die echten Migrationen (D1-Shim über better
         category: "Erste Schritte",
         status: "ai", // published + is_ai_generated
         readingMinutes: 4,
-        body: ["Absatz eins.", "Absatz zwei."],
+        body: parseArticleBody(["Absatz eins.", "Absatz zwei."]),
         relatedIds: ["other"],
       });
       expect(a?.videos[0]).toMatchObject({ id: "v1", description: "Kurzer Rundgang." });

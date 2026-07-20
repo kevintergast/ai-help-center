@@ -1,3 +1,5 @@
+import type { ArticleBlock, ArticleFlag } from "./blocks";
+
 /**
  * Domänen-Typen der Inhalts-/RAG-Schicht (transport-agnostisch).
  * Die UI baut ausschließlich gegen diese Typen. Gelesen wird über die (async)
@@ -77,8 +79,12 @@ export interface ArticleImage {
 
 export interface Article extends ArticleSummary {
   readingMinutes: number;
-  /** Absätze des Artikelkörpers (Rich-Text kommt später). */
-  body: string[];
+  /** GEORDNETE Blöcke des Artikelkörpers (lib/content/blocks.ts) — Text-
+   *  Varianten, Inline-Bilder/-Videos, Artikel-Link-Cards. Bestands-Strings
+   *  werden beim Lesen zu Standard-Textblöcken normalisiert. */
+  body: ArticleBlock[];
+  /** Optionales Badge (z. B. „Beta") mit Paletten-Farbe; fehlend/null = keins. */
+  flag?: ArticleFlag | null;
   videos: ArticleVideo[];
   relatedIds: string[];
   /** Bilder (fehlend = keine — Altbestände/Fakes ohne Feld bleiben gültig). */

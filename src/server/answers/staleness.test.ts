@@ -25,7 +25,7 @@ const LONG_PARA = "Sehr ausführlicher Einladungs-Absatz. ".repeat(40);
 
 function setup() {
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql", "0024_article_flag.sql"]);
   const insert = sqlite.prepare(
     `INSERT INTO articles (id, tenant_id, slug, title, category, status, body_json)
      VALUES (?, ?, ?, ?, 'Test', ?, ?)`,
@@ -194,5 +194,37 @@ describe("Bild-VORMERKUNGEN (pending, Import) im Index-Builder", () => {
     const after = await currentChunks("a1");
     expect(after).toEqual(before); // identische Hashes — Vormerkung ist index-neutral
     expect(after.join(" ")).not.toContain("Noch fehlendes Diagramm");
+  });
+});
+
+describe("Block-Modell im Index-Builder (Umbau 2026-07-20)", () => {
+  // Verhinderte Fehlerfälle: (1) Bestands-Strings liefern nach dem Umbau
+  // andere Chunks (alle Antworten kippen auf veraltet); (2) Texte neuer
+  // Block-Typen (Callout/Card) fehlen im KI-Kontext.
+  it("String-Body: Chunks IDENTISCH; Callout-/Card-Blöcke steuern Text bei", async () => {
+    const before = await currentChunks("a1");
+    // Body unverändert neu speichern (No-op) → Chunks müssen gleich bleiben.
+    const raw = ctx.sqlite
+      .prepare(`SELECT body_json FROM articles WHERE id = 'a1' AND tenant_id = ?`)
+      .get(TENANT) as { body_json: string };
+    ctx.sqlite
+      .prepare(`UPDATE articles SET body_json = ? WHERE id = 'a1' AND tenant_id = ?`)
+      .run(raw.body_json, TENANT);
+    expect(await currentChunks("a1")).toEqual(before);
+
+    // Typisierte Blöcke anhängen → deren TEXTE erscheinen in den Chunks.
+    const mixed = JSON.parse(raw.body_json) as unknown[];
+    mixed.push(
+      { type: "text", variant: "warning", text: "Wichtiger Warnhinweis für die KI." },
+      { type: "articleLink", slug: "ziel", title: "Setup-Guide", description: "Schritt für Schritt", tag: null },
+      { type: "image", imageId: "nur-referenz" },
+    );
+    ctx.sqlite
+      .prepare(`UPDATE articles SET body_json = ? WHERE id = 'a1' AND tenant_id = ?`)
+      .run(JSON.stringify(mixed), TENANT);
+    const after = JSON.stringify(await currentChunks("a1"));
+    expect(after).toContain("Wichtiger Warnhinweis");
+    expect(after).toContain("→ Setup-Guide: Schritt für Schritt");
+    expect(after).not.toContain("nur-referenz"); // Bild-Block = reine Referenz
   });
 });

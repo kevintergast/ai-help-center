@@ -36,7 +36,7 @@ function setup() {
     "0017_saved_answers.sql",
     "0005_content.sql",
     "0018_article_images.sql",
-    "0019_article_translations.sql",
+    "0019_article_translations.sql", "0024_article_flag.sql",
     "0009_usage_billing.sql",
     "0011_usage_feedback_types.sql",
     "0016_usage_ai_source_type.sql",

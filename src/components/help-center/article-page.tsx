@@ -6,7 +6,7 @@ import type { MessageKey } from "@/i18n/messages/de";
 import { getT } from "@/i18n/t";
 import { HelpShell } from "./help-shell";
 import { ArticleAskPrompt } from "./article-ask-prompt";
-import { RichTextView } from "./rich-text-view";
+import { ArticleBlocksView, referencedIds } from "./article-blocks-view";
 import { ViewBeacon } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
 import { ArticleFeedback } from "./article-feedback";
@@ -60,6 +60,10 @@ export function ArticlePage({
 }: ArticlePageProps) {
   const t = getT(locale);
   const s = STATUS[article.status];
+  // In Blöcken platzierte Anhänge NICHT doppelt unten rendern.
+  const refs = referencedIds(article.body);
+  const galleryImages = (article.images ?? []).filter((i) => !i.pending && !refs.images.has(i.id));
+  const asideVideos = article.videos.filter((v) => !refs.videos.has(v.id));
 
   return (
     <HelpShell
@@ -94,6 +98,8 @@ export function ArticlePage({
               <Badge tone={s.tone} dot>
                 {t(s.key)}
               </Badge>
+              {/* Artikel-Flag (0024): Paletten-Farbe, reiner Text. */}
+              {article.flag ? <Badge tone={article.flag.color}>{article.flag.text}</Badge> : null}
               <span>{t("hc.updated", { when: article.updatedLabel })}</span>
               <span aria-hidden>·</span>
               <span>{t("hc.readingTime", { min: article.readingMinutes })}</span>
@@ -124,13 +130,17 @@ export function ArticlePage({
                 </span>
               ) : null}
             </div>
-            <div className="flex flex-col gap-4 text-[15px] leading-relaxed text-ink">
-              <RichTextView body={article.body} />
-            </div>
-            {/* Vormerkungen (pending, Import) haben kein Binärbild → nie public. */}
-            {(article.images?.filter((i) => !i.pending).length ?? 0) > 0 ? (
+            <ArticleBlocksView
+              blocks={article.body}
+              images={article.images ?? []}
+              videos={article.videos}
+              articleSlug={article.slug}
+              videoPlayLabel={t("hc.videoPlay")}
+            />
+            {/* Galerie: nur NICHT in Blöcken platzierte Bilder (pending nie). */}
+            {galleryImages.length > 0 ? (
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                {article.images!.filter((i) => !i.pending).map((img) => (
+                {galleryImages.map((img) => (
                   <figure key={img.id}>
                     {/* Beschreibung = Alt-Text (Architektur-Pflicht, a11y). */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -182,13 +192,13 @@ export function ArticlePage({
             ) : null}
           </article>
 
-          {article.videos.length > 0 ? (
+          {asideVideos.length > 0 ? (
             <aside className="w-full shrink-0 lg:w-64">
               <h2 className="mb-3 text-sm uppercase tracking-[0.08em] text-ink-muted">
                 {t("hc.videosHeading")}
               </h2>
               {/* Klick-zum-Laden-Player (YouTube nocookie) — article-videos.tsx. */}
-              <ArticleVideos videos={article.videos} playLabel={t("hc.videoPlay")} />
+              <ArticleVideos videos={asideVideos} playLabel={t("hc.videoPlay")} />
             </aside>
           ) : null}
         </div>

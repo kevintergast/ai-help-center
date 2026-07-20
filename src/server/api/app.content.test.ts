@@ -5,6 +5,7 @@ import type { Tenant } from "@/lib/tenant/types";
 import { AUTH_BASE_PATH, buildAuth, tenantAuthOptions } from "@/server/auth/auth";
 import { applyMigrations, d1FromSqlite } from "@/server/auth/sqlite-test-support";
 import { D1ContentRepository } from "@/server/content/store";
+import { parseArticleBody } from "@/lib/content/blocks";
 import { buildApiApp } from "./app";
 import type { BillingDeps } from "@/server/billing/store";
 import type { TranslateArticleInput, TranslateArticleResult } from "@/server/content/translate";
@@ -29,7 +30,7 @@ const MIGRATIONS = [
   "0002_auth.sql",
   "0003_branding.sql",
   "0004_two_factor_plugin_columns.sql",
-  "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql",
+  "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql", "0024_article_flag.sql",
 ] as const;
 
 function makeTenant(id: string, slug: string): Tenant {
@@ -453,7 +454,7 @@ describe("POST /api/v1/admin/articles/import", () => {
     const after = await f.store.listForTransfer("t_a");
     const first = after.find((a) => a.slug === "erster-artikel")!;
     expect(first.lifecycle).toBe("published");
-    expect(first.body).toEqual(["Absatz A1 GEÄNDERT."]);
+    expect(first.body).toEqual(parseArticleBody(["Absatz A1 GEÄNDERT."]));
     // Index-Sync NUR für den veröffentlichten Artikel (Draft bleibt draußen).
     expect(f.indexCalls.map((cl) => cl.articleId)).toContain(firstId);
     expect(f.indexCalls).toHaveLength(1);
@@ -535,11 +536,13 @@ describe("POST /api/v1/admin/articles/import", () => {
     expect(created.title).toBe("Aus Markdown");
     expect(created.category).toBe("Import-Test");
     // Struktur bleibt VERBATIM erhalten (Rich-Text-Subset), nicht mehr gestrippt.
-    expect(created.body).toEqual([
-      "Erster Absatz aus Markdown.",
-      "## Zwischentitel",
-      "- Punkt eins\n- Punkt zwei",
-    ]);
+    expect(created.body).toEqual(
+      parseArticleBody([
+        "Erster Absatz aus Markdown.",
+        "## Zwischentitel",
+        "- Punkt eins\n- Punkt zwei",
+      ]),
+    );
 
     expect(
       (
@@ -727,7 +730,7 @@ describe("POST /api/v1/admin/articles/:id/translations", () => {
     const all = await f.store.listForTransfer("t_a");
     const en = all.find((a) => a.slug === "erster-artikel-en")!;
     expect(en.articleKey).toBe(firstId);
-    expect(en.body).toEqual(["Absatz A1.", "Absatz A2."]); // Kopie als Startpunkt
+    expect(en.body).toEqual(parseArticleBody(["Absatz A1.", "Absatz A2."])); // Kopie als Startpunkt
 
     const dup = await postJson(
       f.app,
@@ -759,7 +762,7 @@ describe("POST /api/v1/admin/articles/:id/translations", () => {
 
     const en = (await f.store.listForTransfer("t_a")).find((a) => a.id === id)!;
     expect(en.title).toBe("EN: Erster Artikel");
-    expect(en.body).toEqual(["EN: Absatz A1.", "EN: Absatz A2."]);
+    expect(en.body).toEqual(parseArticleBody(["EN: Absatz A1.", "EN: Absatz A2."]));
     expect(en.lifecycle).toBe("draft");
     expect(f.translationCharges).toEqual([{ tenantId: "t_a", articleId: id }]);
   });

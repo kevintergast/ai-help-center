@@ -15,6 +15,7 @@ import {
   parseMarkdownArticle,
   type RawImportArticle,
 } from "@/server/content/transfer";
+import { applyTranslatedTexts, extractTranslatableTexts } from "@/lib/content/blocks";
 import { parseCreateArticle, parseUpdateArticle } from "@/server/content/validate";
 import type { ApiDeps, ApiEnv, GuardSessionData } from "./context";
 
@@ -218,15 +219,18 @@ export function contentAdminRouter(deps: ApiDeps) {
       const translator = await deps.getTranslator?.();
       if (!translator) return c.json({ error: "translator_unavailable" }, 503);
       try {
+        // Block-Modell: NUR die übersetzbaren Textfelder (Text-Blöcke außer
+        // Code, Card-Titel/-Beschreibung) reisen zum LLM; die Struktur bleibt
+        // hier und wird nach der Übersetzung wieder befüllt (blocks.ts).
         const result = await translator({
           sourceLocale: source.locale ?? tenant.defaultLocale,
           targetLocale,
           title: source.title,
-          body: source.body,
+          body: extractTranslatableTexts(source.body),
           imageDescriptions,
         });
         title = result.title;
-        blocks = result.body;
+        blocks = applyTranslatedTexts(source.body, result.body);
         imageDescriptions = result.imageDescriptions;
       } catch (err) {
         // Format-/Modellfehler: nichts angelegt, NICHTS verbucht.

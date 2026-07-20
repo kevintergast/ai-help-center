@@ -1,4 +1,5 @@
 import type { ArticleVideo } from "@/lib/content/types";
+import { blockTexts, serializeBody } from "@/lib/content/blocks";
 import { MAX_IMAGES_PER_ARTICLE, type TransferArticle } from "./store";
 
 /**
@@ -37,7 +38,8 @@ export interface ExportedArticle {
   category: string;
   locale: string;
   status: "draft" | "published";
-  body: string[];
+  /** Mixed: Strings (Standard-Text) + typisierte Blöcke (blocks.ts). */
+  body: unknown[];
   videos: ArticleVideo[];
   /** Querverweise als Slugs (portabel; Ids sind instanz-spezifisch). */
   relatedSlugs: string[];
@@ -67,7 +69,8 @@ export function buildExportFile(
       category: a.category,
       locale: a.locale,
       status: a.lifecycle,
-      body: a.body,
+      // Blockform in Speicher-Kanonik (Standard-Text = String) — reimportierbar.
+      body: serializeBody(a.body),
       videos: a.videos,
       relatedSlugs: a.relatedIds
         .map((id) => slugById.get(id))
@@ -94,7 +97,7 @@ export function articleToMarkdown(a: TransferArticle): string {
     "",
     `# ${a.title}`,
     "",
-    a.body.join("\n\n"),
+    blockTexts(a.body).join("\n\n"),
   ];
   if (a.videos.length > 0) {
     lines.push("", "## Videos", "");
