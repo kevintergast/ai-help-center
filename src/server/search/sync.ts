@@ -1,3 +1,4 @@
+import { blockTexts, parseArticleBody } from "@/lib/content/blocks";
 import { makeWorkersAiEmbeddings } from "@/server/ai/models";
 import { changelogDoc, roadmapDoc } from "./aux-docs";
 import { ArticleIndexer, type IndexableArticle } from "./indexer";
@@ -40,7 +41,10 @@ export function toIndexable(row: {
   let body: string[] = [];
   try {
     const parsed = JSON.parse(row.body_json) as unknown;
-    if (Array.isArray(parsed)) body = parsed.filter((p): p is string => typeof p === "string");
+    // Block-Modell: Strings (Standard-Text) bleiben EXAKT erhalten
+    // (Hash-Invariante für Bestandsdaten); typisierte Blöcke steuern ihre
+    // Text-Ableitung bei (Callouts/Code/Card — Bild/Video via Anhang-Pässe).
+    if (Array.isArray(parsed)) body = blockTexts(parseArticleBody(parsed));
   } catch {
     /* leerer Body → Artikel fällt aus dem Index */
   }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Locale } from "@/lib/tenant/types";
+import { TAG_COLORS, type ArticleFlag, type TagColor } from "@/lib/content/blocks";
 import type {
   Article,
   ArticleStatus,
@@ -12,12 +13,17 @@ import type {
 } from "@/lib/content/types";
 import { getT } from "@/i18n/t";
 import { cn } from "@/lib/ui/cn";
-import { ArticleBodyEditor } from "@/components/admin/article-body-editor";
+import {
+  ArticleBlocksEditor,
+  COLOR_KEYS,
+  wrapBlocks,
+  type EditorBlock,
+} from "@/components/admin/article-blocks-editor";
 import { ArticleImagesManager } from "@/components/admin/article-images";
 import { ArticleVideosEditor } from "@/components/admin/article-videos-editor";
 import { ArticleTranslations } from "@/components/admin/article-translations";
 import { ARTICLE_STATUS } from "@/components/admin/status";
-import { RichTextView } from "@/components/help-center/rich-text-view";
+import { ArticleBlocksView } from "@/components/help-center/article-blocks-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,23 +36,22 @@ interface Draft {
   title: string;
   category: string;
   status: ArticleStatus;
-  blocks: string[];
+  blocks: EditorBlock[];
   videos: ArticleVideo[];
+  flag: ArticleFlag | null;
 }
 
-const toDraft = (a: {
-  title: string;
-  category: string;
-  status: ArticleStatus;
-  body: string[];
-  videos: ArticleVideo[];
-}): Draft => ({
+const toDraft = (a: Article): Draft => ({
   title: a.title,
   category: a.category,
   status: a.status,
-  blocks: [...a.body],
+  blocks: wrapBlocks(a.body),
   videos: [...a.videos],
+  flag: a.flag ?? null,
 });
+
+/** Vergleichsbasis OHNE Client-uids (die sind flüchtig, nie „dirty"). */
+const essence = (d: Draft) => ({ ...d, blocks: d.blocks.map((w) => w.block) });
 
 export function ArticleEditor({
   locale,
@@ -73,7 +78,7 @@ export function ArticleEditor({
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  const dirty = JSON.stringify(draft) !== JSON.stringify(current);
+  const dirty = JSON.stringify(essence(draft)) !== JSON.stringify(essence(current));
   const dirtyInEdit = editing && dirty;
 
   // DATENVERLUST-SCHUTZ: Tab-Schließen/Navigation mit ungespeichertem Stand
@@ -138,8 +143,9 @@ export function ArticleEditor({
         body: JSON.stringify({
           title: draft.title,
           category: draft.category,
-          body: draft.blocks,
+          body: draft.blocks.map((w) => w.block),
           videos: draft.videos,
+          flag: draft.flag,
         }),
       });
       if (!put.ok) throw new Error("save_failed");
@@ -159,7 +165,7 @@ export function ArticleEditor({
     }
   }
 
-  const setBlocks = (blocks: string[]) => setDraft((d) => ({ ...d, blocks }));
+  const setBlocks = (blocks: EditorBlock[]) => setDraft((d) => ({ ...d, blocks }));
 
   const view = editing ? draft : current;
 
@@ -251,23 +257,60 @@ export function ArticleEditor({
               />
             </div>
           </div>
-          <Input
-            label={t("editor.categoryLabel")}
-            value={draft.category}
-            onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}
-            className="max-w-xs"
-          />
+          <div className="flex flex-wrap items-end gap-3">
+            <Input
+              label={t("editor.categoryLabel")}
+              value={draft.category}
+              onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}
+              className="max-w-xs"
+            />
+            {/* Artikel-FLAG (0024): Badge mit Paletten-Farbe; leer = keins. */}
+            <Input
+              label={t("editor.flag.label")}
+              value={draft.flag?.text ?? ""}
+              onChange={(e) =>
+                setDraft((d) => ({
+                  ...d,
+                  flag:
+                    e.target.value.trim().length === 0
+                      ? null
+                      : { text: e.target.value, color: d.flag?.color ?? "neutral" },
+                }))
+              }
+              placeholder={t("editor.flag.placeholder")}
+              className="w-44"
+            />
+            {draft.flag ? (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-sm text-ink-muted">{t("editor.flag.color")}</span>
+                <Select
+                  options={TAG_COLORS.map((c) => ({ value: c, label: t(COLOR_KEYS[c]) }))}
+                  value={draft.flag.color}
+                  onValueChange={(v) =>
+                    setDraft((d) => ({
+                      ...d,
+                      flag: d.flag ? { text: d.flag.text, color: v as TagColor } : null,
+                    }))
+                  }
+                  aria-label={t("editor.flag.color")}
+                  className="w-36"
+                />
+              </div>
+            ) : null}
+          </div>
 
           <div>
             <span className="mb-2 block text-sm text-ink-muted">{t("editor.bodyLabel")}</span>
-            {/* Tiptap-Oberfläche über dem Block-Modell: bei jeder Änderung
-                zurück nach string[] serialisiert (rich-doc.ts), key erzwingt
-                Remount beim Editieren-Start (frischer Draft-Stand). */}
-            <ArticleBodyEditor
-              key={editing ? "editing" : "idle"}
+            {/* BLOCK-EDITOR: Reihenfolge der Blöcke = Reihenfolge im Artikel.
+                Bilder wirken sofort (eigener Zyklus) — der Editor referenziert
+                sie deshalb über article.images; Videos aus dem Entwurf. */}
+            <ArticleBlocksEditor
               locale={locale}
-              initialBlocks={draft.blocks}
+              value={draft.blocks}
               onChange={setBlocks}
+              images={article.images ?? []}
+              videos={draft.videos}
+              articleId={article.id}
             />
           </div>
 
@@ -313,13 +356,21 @@ export function ArticleEditor({
             <Badge tone={ARTICLE_STATUS[view.status].tone} dot>
               {t(ARTICLE_STATUS[view.status].key)}
             </Badge>
+            {view.flag ? <Badge tone={view.flag.color}>{view.flag.text}</Badge> : null}
             <span>{t("hc.updated", { when: article.updatedLabel })}</span>
             <span aria-hidden>·</span>
             <span>{t("hc.readingTime", { min: article.readingMinutes })}</span>
           </div>
-          <div className="flex flex-col gap-4 text-[15px] leading-relaxed text-ink">
-            <RichTextView body={view.blocks} />
-          </div>
+          {/* Vorschau über den ECHTEN Public-Renderer (identisches Ergebnis);
+              Bilder über die team-gegatete Admin-Route (zeigt auch Drafts). */}
+          <ArticleBlocksView
+            blocks={view.blocks.map((w) => w.block)}
+            images={article.images ?? []}
+            videos={view.videos}
+            articleSlug={article.slug}
+            videoPlayLabel={t("hc.videoPlay")}
+            imageSrc={(imageId) => `/api/v1/admin/articles/${article.id}/images/${imageId}`}
+          />
         </article>
       )}
 

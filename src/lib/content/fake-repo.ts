@@ -1,3 +1,4 @@
+import { parseArticleBody } from "./blocks";
 import type {
   Article,
   ArticleSummary,
@@ -21,7 +22,8 @@ import type {
   Storage-Formen draft/published/archived + Zeitstempel).
 */
 
-export const SAMPLE_ARTICLES: Article[] = [
+// Rohdaten mit string[]-Bodies (lesbar); Export normalisiert zu Blöcken.
+const RAW_SAMPLE_ARTICLES: (Omit<Article, "body"> & { body: string[] })[] = [
   {
     id: "start-account",
     slug: "konto-einrichten",
@@ -148,6 +150,11 @@ export const SAMPLE_ARTICLES: Article[] = [
     relatedIds: ["start-account"],
   },
 ];
+
+export const SAMPLE_ARTICLES: Article[] = RAW_SAMPLE_ARTICLES.map((a) => ({
+  ...a,
+  body: parseArticleBody(a.body),
+}));
 
 export const SAMPLE_ROADMAP: RoadmapItem[] = [
   { id: "r1", title: "Video-Kapitel mit Sprungmarken", status: "in_progress" },

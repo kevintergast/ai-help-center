@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { blockTexts } from "@/lib/content/blocks";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { readPageViewer } from "@/server/auth/page-guard";
 import { getHelpCenterData, getHelpCenterRepo } from "@/server/content/runtime";
@@ -36,7 +37,7 @@ export async function generateMetadata({
   const loaded = await loadArticle(slug);
   if (!loaded) return {};
   const { tenant, article } = loaded;
-  const description = (article.body[0] ?? "").replace(/\s+/g, " ").trim().slice(0, 155);
+  const description = (blockTexts(article.body)[0] ?? "").replace(/\s+/g, " ").trim().slice(0, 155);
   return {
     title: `${article.title} · ${tenant.name}`,
     description: description || undefined,
@@ -72,7 +73,7 @@ export default async function ArticleRoute({
     .map((id) => byId.get(id))
     .filter((a): a is NonNullable<typeof a> => a !== undefined);
 
-  const description = (article.body[0] ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
+  const description = (blockTexts(article.body)[0] ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",

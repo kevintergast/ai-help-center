@@ -1,3 +1,4 @@
+import { blockTexts, parseTagInput, validateBodyInput, type ArticleBlock, type ArticleFlag } from "@/lib/content/blocks";
 import type { ArticleVideo } from "@/lib/content/types";
 
 /**
@@ -48,7 +49,8 @@ export interface ArticleInput {
   title: string;
   category: string;
   locale: string;
-  body: string[];
+  body: ArticleBlock[];
+  flag?: ArticleFlag | null;
   videos: ArticleVideo[];
   relatedIds: string[];
   readingMinutes: number;
@@ -59,7 +61,9 @@ export interface ArticleInput {
 export interface ArticleUpdateInput {
   title?: string;
   category?: string;
-  body?: string[];
+  body?: ArticleBlock[];
+  /** undefined = unberührt; null = Flag entfernen. */
+  flag?: ArticleFlag | null;
   videos?: ArticleVideo[];
   relatedIds?: string[];
   readingMinutes?: number;
@@ -81,17 +85,18 @@ function isNonEmptyString(v: unknown, max: number): v is string {
 }
 
 /** Wörter/200 (min. 1) — grobe Lesezeit, wenn der Client keine mitschickt. */
-export function estimateReadingMinutes(body: string[]): number {
-  const words = body.join(" ").trim().split(/\s+/).filter(Boolean).length;
+export function estimateReadingMinutes(body: ArticleBlock[]): number {
+  const words = blockTexts(body).join(" ").trim().split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.round(words / 200));
 }
 
-/** Prüft ein JSON-Array von Absatz-Strings. */
-function parseBody(value: unknown): ParseResult<string[]> {
+/** Prüft den Body: Strings (Standard-Text) + typisierte Blöcke (blocks.ts). */
+function parseBody(value: unknown): ParseResult<ArticleBlock[]> {
   if (!Array.isArray(value)) return fail("invalid_body");
   if (value.length > MAX_BODY_BLOCKS) return fail("body_too_large");
-  if (!value.every((p) => typeof p === "string")) return fail("invalid_body");
-  return { ok: true, value: value as string[] };
+  const parsed = validateBodyInput(value);
+  if (!parsed.ok) return fail(parsed.error);
+  return { ok: true, value: parsed.value };
 }
 
 /**
@@ -190,6 +195,9 @@ export function parseCreateArticle(body: unknown, defaultLocale: string): ParseR
   const relatedRes = parseRelated(b.relatedIds);
   if (!relatedRes.ok) return relatedRes;
 
+  const flag = parseTagInput(b.flag);
+  if (flag === undefined) return fail("invalid_flag");
+
   const locale = typeof b.locale === "string" && b.locale.length > 0 ? b.locale : defaultLocale;
   const readingMinutes =
     typeof b.readingMinutes === "number" && b.readingMinutes > 0
@@ -204,6 +212,7 @@ export function parseCreateArticle(body: unknown, defaultLocale: string): ParseR
       category: b.category,
       locale,
       body: bodyRes.value,
+      flag,
       videos: videosRes.value,
       relatedIds: relatedRes.value,
       readingMinutes,
@@ -231,6 +240,11 @@ export function parseUpdateArticle(body: unknown): ParseResult<ArticleUpdateInpu
     if (!res.ok) return res;
     out.body = res.value;
     out.readingMinutes = estimateReadingMinutes(res.value);
+  }
+  if (b.flag !== undefined) {
+    const flag = parseTagInput(b.flag);
+    if (flag === undefined) return fail("invalid_flag");
+    out.flag = flag;
   }
   if (b.videos !== undefined) {
     const res = parseVideos(b.videos);

@@ -1,4 +1,5 @@
 import type { AdminArticleRow } from "@/lib/admin/types";
+import { parseArticleBody, parseTagInput, serializeBody, type ArticleFlag } from "@/lib/content/blocks";
 import type {
   Article,
   ArticleImage,
@@ -166,6 +167,7 @@ interface ArticleRow {
   videos_json: string;
   related_ids_json: string;
   images_json: string;
+  flag_json: string | null;
   reading_minutes: number;
   is_ai_generated: number;
   updated_at: number;
@@ -186,6 +188,17 @@ function parseJsonArray<T>(raw: string): T[] {
   }
 }
 
+/** flag_json → validiertes Flag (kaputte Daten = kein Flag, nie ein Crash). */
+function parseFlagJson(raw: string | null): ArticleFlag | null {
+  if (!raw) return null;
+  try {
+    const parsed = parseTagInput(JSON.parse(raw));
+    return parsed ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function rowToArticle(row: ArticleRow, locale: string): Article {
   return {
     id: row.id,
@@ -195,7 +208,8 @@ function rowToArticle(row: ArticleRow, locale: string): Article {
     status: displayStatus(row.status, row.is_ai_generated),
     updatedLabel: relativeTimeLabel(row.updated_at, locale),
     readingMinutes: row.reading_minutes,
-    body: parseJsonArray<string>(row.body_json),
+    body: parseArticleBody(parseJsonArray<unknown>(row.body_json)),
+    flag: parseFlagJson(row.flag_json),
     videos: parseJsonArray<Article["videos"][number]>(row.videos_json),
     relatedIds: parseJsonArray<string>(row.related_ids_json),
     images: parseJsonArray<ArticleImage>(row.images_json).filter(
@@ -218,7 +232,7 @@ function rowToSummary(row: ArticleRow, locale: string): ArticleSummary {
 }
 
 const ARTICLE_COLS =
-  "id, slug, title, category, status, locale, article_key, body_json, videos_json, related_ids_json, images_json, reading_minutes, is_ai_generated, updated_at";
+  "id, slug, title, category, status, locale, article_key, body_json, videos_json, related_ids_json, images_json, flag_json, reading_minutes, is_ai_generated, updated_at";
 
 function newId(prefix: string): string {
   return `${prefix}_${crypto.randomUUID()}`;
@@ -388,8 +402,8 @@ export class D1ContentRepository implements ContentStore {
         .prepare(
           `INSERT INTO articles
            (id, tenant_id, locale, article_key, slug, title, category, status,
-            body_json, videos_json, related_ids_json, reading_minutes, is_ai_generated)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?)`,
+            body_json, videos_json, related_ids_json, flag_json, reading_minutes, is_ai_generated)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           id,
@@ -399,9 +413,11 @@ export class D1ContentRepository implements ContentStore {
           input.slug,
           input.title,
           input.category,
-          JSON.stringify(input.body),
+          // Kanonische Speicherform: Standard-Text als String (Hash-Invariante).
+          JSON.stringify(serializeBody(input.body)),
           JSON.stringify(input.videos),
           JSON.stringify(input.relatedIds),
+          input.flag ? JSON.stringify(input.flag) : null,
           input.readingMinutes,
           input.isAiGenerated ? 1 : 0,
         )
@@ -428,7 +444,8 @@ export class D1ContentRepository implements ContentStore {
     };
     if (input.title !== undefined) push("title", input.title);
     if (input.category !== undefined) push("category", input.category);
-    if (input.body !== undefined) push("body_json", JSON.stringify(input.body));
+    if (input.body !== undefined) push("body_json", JSON.stringify(serializeBody(input.body)));
+    if (input.flag !== undefined) push("flag_json", input.flag ? JSON.stringify(input.flag) : null);
     if (input.videos !== undefined) push("videos_json", JSON.stringify(input.videos));
     if (input.relatedIds !== undefined) push("related_ids_json", JSON.stringify(input.relatedIds));
     if (input.readingMinutes !== undefined) push("reading_minutes", input.readingMinutes);

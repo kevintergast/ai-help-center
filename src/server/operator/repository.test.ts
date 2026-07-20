@@ -21,7 +21,7 @@ const MIGRATIONS = [
   "0002_auth.sql",
   "0003_branding.sql",
   "0004_two_factor_plugin_columns.sql",
-  "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql",
+  "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql", "0024_article_flag.sql",
   "0006_operator.sql",
   "0013_seo_indexable.sql",
 ] as const;
