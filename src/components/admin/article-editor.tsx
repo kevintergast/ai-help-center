@@ -13,14 +13,8 @@ import type {
 } from "@/lib/content/types";
 import { getT } from "@/i18n/t";
 import { cn } from "@/lib/ui/cn";
-import {
-  ArticleBlocksEditor,
-  COLOR_KEYS,
-  wrapBlocks,
-  type EditorBlock,
-} from "@/components/admin/article-blocks-editor";
-import { ArticleImagesManager } from "@/components/admin/article-images";
-import { ArticleVideosEditor } from "@/components/admin/article-videos-editor";
+import { wrapBlocks, type EditorBlock } from "@/lib/admin/block-draft";
+import { ArticleBlocksEditor, COLOR_KEYS } from "@/components/admin/article-blocks-editor";
 import { ArticleTranslations } from "@/components/admin/article-translations";
 import { ARTICLE_STATUS } from "@/components/admin/status";
 import { ArticleBlocksView } from "@/components/help-center/article-blocks-view";
@@ -71,6 +65,9 @@ export function ArticleEditor({
 
   // `current` = veröffentlichter Stand (Ansichtsmodus). `draft` = Bearbeitungsstand.
   const [current, setCurrent] = useState<Draft>(() => toDraft(article));
+  // Bild-ANHÄNGE (Sofort-Zyklus): Uploads passieren IM Block-Editor und
+  // erweitern diese Liste — sie speist Editor-Vorschau UND Ansichtsmodus.
+  const [images, setImages] = useState(article.images ?? []);
   const [draft, setDraft] = useState<Draft>(current);
   const [editing, setEditing] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -301,32 +298,20 @@ export function ArticleEditor({
 
           <div>
             <span className="mb-2 block text-sm text-ink-muted">{t("editor.bodyLabel")}</span>
-            {/* BLOCK-EDITOR: Reihenfolge der Blöcke = Reihenfolge im Artikel.
-                Bilder wirken sofort (eigener Zyklus) — der Editor referenziert
-                sie deshalb über article.images; Videos aus dem Entwurf. */}
+            {/* WYSIWYG-BLOCK-EDITOR: sieht aus wie der Artikel; Bild-/Video-
+                Eingaben leben IM jeweiligen Block (keine Extra-Sektionen). */}
             <ArticleBlocksEditor
               locale={locale}
               value={draft.blocks}
               onChange={setBlocks}
-              images={article.images ?? []}
+              images={images}
+              onImagesChange={setImages}
               videos={draft.videos}
+              onVideosChange={(videos) => setDraft((d) => ({ ...d, videos }))}
               articleId={article.id}
+              videoPlayLabel={t("hc.videoPlay")}
             />
           </div>
-
-          {/* Videos gehören zum Entwurf (mit „Veröffentlichen" gespeichert). */}
-          <ArticleVideosEditor
-            locale={locale}
-            videos={draft.videos}
-            onChange={(videos) => setDraft((d) => ({ ...d, videos }))}
-          />
-
-          {/* Bilder wirken sofort (eigener API-Zyklus, s. ArticleImagesManager). */}
-          <ArticleImagesManager
-            locale={locale}
-            articleId={article.id}
-            initialImages={article.images ?? []}
-          />
 
           {/* Sprachfassungen (Translation-Set; KI-Übersetzung = Credits).
               dirty-Gate: Übersetzen/Wechseln erst nach dem Veröffentlichen —
@@ -365,7 +350,7 @@ export function ArticleEditor({
               Bilder über die team-gegatete Admin-Route (zeigt auch Drafts). */}
           <ArticleBlocksView
             blocks={view.blocks.map((w) => w.block)}
-            images={article.images ?? []}
+            images={images}
             videos={view.videos}
             articleSlug={article.slug}
             videoPlayLabel={t("hc.videoPlay")}
