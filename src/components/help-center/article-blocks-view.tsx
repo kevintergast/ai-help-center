@@ -12,6 +12,9 @@ import { RichTextView } from "./rich-text-view";
  * Tag-/Flag-Farben kommen aus der festen Palette (Badge-Töne, kein CSS aus
  * Nutzerdaten). Bild-/Video-Blöcke referenzieren ANHÄNGE — fehlende oder
  * vorgemerkte (pending) Referenzen werden still übersprungen.
+ *
+ * `SingleBlockView` ist DIE eine Darstellung eines Blocks — der WYSIWYG-
+ * Editor rendert damit identisch zur veröffentlichten Seite (Wiedererkennung).
  */
 
 const CALLOUT_STYLES: Record<"info" | "warning" | "error", string> = {
@@ -26,6 +29,83 @@ const toParagraphs = (text: string): string[] =>
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter((p) => p.length > 0);
+
+export interface BlockViewContext {
+  images: ArticleImage[];
+  videos: ArticleVideo[];
+  videoPlayLabel: string;
+  /** Bild-URL-Bau (public Route bzw. team-gegatete Admin-Route im Editor). */
+  srcFor: (imageId: string) => string;
+}
+
+/** Genau EIN Block, exakt wie im veröffentlichten Artikel. `null` = nichts zu zeigen. */
+export function SingleBlockView({ block, ctx }: { block: ArticleBlock; ctx: BlockViewContext }) {
+  if (block.type === "text") {
+    if (block.variant === "code") {
+      return (
+        <pre className="overflow-x-auto rounded-comfy border border-hairline bg-surface-raised px-4 py-3 font-mono text-[13px] leading-relaxed text-ink">
+          <code>{block.text}</code>
+        </pre>
+      );
+    }
+    if (block.variant === "standard") {
+      return (
+        <div className="flex flex-col gap-4">
+          <RichTextView body={toParagraphs(block.text)} />
+        </div>
+      );
+    }
+    return (
+      <div className={`flex flex-col gap-4 rounded-comfy border px-4 py-3 ${CALLOUT_STYLES[block.variant]}`}>
+        <RichTextView body={toParagraphs(block.text)} />
+      </div>
+    );
+  }
+
+  if (block.type === "image") {
+    const img = ctx.images.find((im) => im.id === block.imageId && !im.pending);
+    if (!img) return null;
+    return (
+      <figure>
+        {/* Beschreibung = Alt-Text (Architektur-Pflicht, a11y). */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={ctx.srcFor(img.id)}
+          alt={img.description}
+          loading="lazy"
+          className="w-full rounded-comfy border border-hairline bg-surface"
+        />
+        <figcaption className="mt-1.5 text-xs text-ink-muted">{img.description}</figcaption>
+      </figure>
+    );
+  }
+
+  if (block.type === "video") {
+    const video = ctx.videos.find((v) => v.id === block.videoId);
+    if (!video) return null;
+    return <ArticleVideos videos={[video]} playLabel={ctx.videoPlayLabel} />;
+  }
+
+  // articleLink — Card mit eigenem Titel/Beschreibung + Tag-Badge.
+  return (
+    <Link
+      href={`/${block.slug}`}
+      className="group flex items-start gap-3 rounded-comfy border border-hairline bg-surface px-4 py-3 transition-colors hover:border-hairline-strong hover:bg-tint"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block font-medium text-ink group-hover:text-brand">{block.title}</span>
+        {block.description.length > 0 ? (
+          <span className="mt-0.5 block text-sm text-ink-muted">{block.description}</span>
+        ) : null}
+      </span>
+      {block.tag ? (
+        <Badge tone={block.tag.color} className="shrink-0">
+          {block.tag.text}
+        </Badge>
+      ) : null}
+    </Link>
+  );
+}
 
 export function ArticleBlocksView({
   blocks,
@@ -45,78 +125,17 @@ export function ArticleBlocksView({
    *  team-gegatete Route (zeigt auch Draft-Bilder). */
   imageSrc?: (imageId: string) => string;
 }) {
-  const srcFor = imageSrc ?? ((id: string) => `/api/v1/content/images/${articleSlug}/${id}`);
+  const ctx: BlockViewContext = {
+    images,
+    videos,
+    videoPlayLabel,
+    srcFor: imageSrc ?? ((id: string) => `/api/v1/content/images/${articleSlug}/${id}`),
+  };
   return (
     <div className="flex flex-col gap-4 text-[15px] leading-relaxed text-ink">
-      {blocks.map((block, i) => {
-        if (block.type === "text") {
-          if (block.variant === "code") {
-            return (
-              <pre
-                key={i}
-                className="overflow-x-auto rounded-comfy border border-hairline bg-surface-raised px-4 py-3 font-mono text-[13px] leading-relaxed text-ink"
-              >
-                <code>{block.text}</code>
-              </pre>
-            );
-          }
-          if (block.variant === "standard") {
-            return <RichTextView key={i} body={toParagraphs(block.text)} />;
-          }
-          return (
-            <div key={i} className={`rounded-comfy border px-4 py-3 ${CALLOUT_STYLES[block.variant]}`}>
-              <RichTextView body={toParagraphs(block.text)} />
-            </div>
-          );
-        }
-
-        if (block.type === "image") {
-          const img = images.find((im) => im.id === block.imageId && !im.pending);
-          if (!img) return null;
-          return (
-            <figure key={i}>
-              {/* Beschreibung = Alt-Text (Architektur-Pflicht, a11y). */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={srcFor(img.id)}
-                alt={img.description}
-                loading="lazy"
-                className="w-full rounded-comfy border border-hairline bg-surface"
-              />
-              <figcaption className="mt-1.5 text-xs text-ink-muted">{img.description}</figcaption>
-            </figure>
-          );
-        }
-
-        if (block.type === "video") {
-          const video = videos.find((v) => v.id === block.videoId);
-          if (!video) return null;
-          return <ArticleVideos key={i} videos={[video]} playLabel={videoPlayLabel} />;
-        }
-
-        // articleLink — Card mit eigenem Titel/Beschreibung + Tag-Badge.
-        return (
-          <Link
-            key={i}
-            href={`/${block.slug}`}
-            className="group flex items-start gap-3 rounded-comfy border border-hairline bg-surface px-4 py-3 transition-colors hover:border-hairline-strong hover:bg-tint"
-          >
-            <span className="min-w-0 flex-1">
-              <span className="block font-medium text-ink group-hover:text-brand">
-                {block.title}
-              </span>
-              {block.description.length > 0 ? (
-                <span className="mt-0.5 block text-sm text-ink-muted">{block.description}</span>
-              ) : null}
-            </span>
-            {block.tag ? (
-              <Badge tone={block.tag.color} className="shrink-0">
-                {block.tag.text}
-              </Badge>
-            ) : null}
-          </Link>
-        );
-      })}
+      {blocks.map((block, i) => (
+        <SingleBlockView key={i} block={block} ctx={ctx} />
+      ))}
     </div>
   );
 }
