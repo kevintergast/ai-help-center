@@ -1,3 +1,4 @@
+import type { UpdatesStore } from "@/server/content/updates";
 import type { betterAuth } from "better-auth";
 import type { Tenant } from "@/lib/tenant/types";
 import type { AuditRepository } from "@/server/auth/audit";
@@ -120,6 +121,8 @@ export interface ApiDeps {
    * `null`/fehlend ⇒ 503 (keine D1-Bindings). Tests injizieren Fakes.
    */
   getSettingsDeps?(): Promise<SettingsDeps | null>;
+  /** Changelog-/Roadmap-Pflege (api/updates.ts + MCP). `null`/fehlend ⇒ 503. */
+  getUpdatesStore?(): Promise<UpdatesStore | null>;
   /**
    * Support-Flow (Tickets + Mail; api/support.ts). `null`/fehlend ⇒ 503.
    * Tests injizieren Fakes (Mail-Recorder statt Resend).
@@ -174,6 +177,21 @@ export interface SupportDeps {
 }
 
 /** Instanz-Einstellungen (Impl: D1TenantRepository via runtime-deps). */
+/**
+ * Pflege von Changelog + Roadmap (Produkt-Updates). `null` ⇒ 503 — ohne D1
+ * gibt es keinen stillen Erfolg.
+ */
+export interface UpdatesDeps {
+  listChangelog: UpdatesStore["listChangelog"];
+  createChangelog: UpdatesStore["createChangelog"];
+  updateChangelog: UpdatesStore["updateChangelog"];
+  deleteChangelog: UpdatesStore["deleteChangelog"];
+  listRoadmap: UpdatesStore["listRoadmap"];
+  createRoadmap: UpdatesStore["createRoadmap"];
+  updateRoadmap: UpdatesStore["updateRoadmap"];
+  deleteRoadmap: UpdatesStore["deleteRoadmap"];
+}
+
 export interface SettingsDeps {
   setSeoIndexable(tenantId: string, indexable: boolean): Promise<void>;
   setSupportEmail(tenantId: string, email: string | null): Promise<void>;

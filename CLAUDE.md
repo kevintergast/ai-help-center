@@ -34,6 +34,21 @@ lesen diese Variablen. Neue Tenants brauchen daher **keinen** Code — nur einen
 
 ## Konventionen
 - **Commits:** Conventional Commits (`type(scope): subject`, Imperativ, ≤72). Siehe `docs/git-strategy.md`.
+- **Versionierung:** SemVer in `package.json` (Quelle der Wahrheit) + Git-Tag `vX.Y.Z` + `CHANGELOG.md`.
+  Release: `pnpm changelog` (Vorschau) → `pnpm release [patch|minor|major]` → Commit/Tag **von Hand**.
+  Was läuft: `pnpm version:deployed` bzw. `GET /api/v1/health` (Version/Commit/Build-Zeit/Umgebung),
+  Ops-Dashboard „Ausgelieferte Versionen". CI blockt Prod-Deploys ohne CHANGELOG-Abschnitt und prüft
+  nach dem Deploy die laufende Version. **Zwei Changelogs:** `CHANGELOG.md` = Entwickler-Sicht,
+  Produkt-Changelog im Seed = Kunden-Sicht. Details: `docs/versioning.md`.
+  **Stufen-Regel (verbindlich):** *Claude* entscheidet die Stufe und zählt **defensiv** —
+  `patch` für Bugfixes/kleine Feature-Anpassungen (Normalfall), `minor` nur für
+  substanziell neue Fähigkeiten (z. B. MCP-Server, ein ganzer Satz neuer Bausteine),
+  `major`/1.0 **nur nach gemeinsamer Entscheidung** (Skript verlangt `--confirm-major`).
+  Stufe immer mit `--reason "…"` begründen (landet im CHANGELOG).
+  **Minor ⇒ Produkt-Changelog:** Zu jedem Minor-/Major-Release gehört ein Eintrag im
+  Kunden-Changelog mit dieser Version (Verwaltungsbereich → Updates, API, MCP oder Seed);
+  `pnpm release minor` bricht sonst ab. Changelog-Einträge tragen optional Version + Stufe
+  (Migration 0030) und sind SOFORT öffentlich (kein Entwurf).
 - **Branches:** `feature/<issue>-<slug>` von `development`; `development`→Staging, `main`→Prod. Nie direkt pushen. CI = **GitHub Actions** (`.github/workflows/ci.yml`); Setup: `docs/ci-cd-setup.md`.
 - **D1-Migrationen:** forward-only, additiv (expand/contract), eine logische Änderung pro Datei.
 - **Sicherheit:** keine Secrets im Repo/Log. Werte via `wrangler login` (lokal) bzw. Secrets Store/CI.

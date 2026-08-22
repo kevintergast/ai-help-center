@@ -357,16 +357,27 @@ export class D1ContentRepository implements ContentStore {
   async changelog(tenantId: string, locale: string): Promise<ChangelogEntry[]> {
     const { results } = await this.db
       .prepare(
-        `SELECT id, published_at, title, description FROM changelog_entries
+        // Version/Stufe (0030) mitlesen — sie gehören zur öffentlichen Anzeige.
+        `SELECT id, published_at, title, description, version, level FROM changelog_entries
           WHERE tenant_id = ? ORDER BY published_at DESC`,
       )
       .bind(tenantId)
-      .all<{ id: string; published_at: number; title: string; description: string }>();
+      .all<{
+        id: string;
+        published_at: number;
+        title: string;
+        description: string;
+        version: string | null;
+        level: string | null;
+      }>();
     return results.map((r) => ({
       id: r.id,
       dateLabel: dateLabel(r.published_at, locale),
       title: r.title,
       description: r.description,
+      version: r.version,
+      level:
+        r.level === "major" || r.level === "minor" || r.level === "patch" ? r.level : null,
     }));
   }
 

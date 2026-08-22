@@ -1,6 +1,6 @@
 {
   "name": "hallofhelp",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "private": true,
   "packageManager": "pnpm@10.15.1",
   "engines": {
@@ -22,6 +22,9 @@
     "db:migrate:local": "wrangler d1 migrations apply hallofhelp-staging --local",
     "db:migrate:staging": "wrangler d1 migrations apply hallofhelp-staging --remote",
     "db:migrate:prod": "wrangler d1 migrations apply hallofhelp-prod --env production --remote",
+    "changelog": "node scripts/changelog.mjs",
+    "release": "node scripts/release.mjs",
+    "version:deployed": "node scripts/version-deployed.mjs",
     "seed:content:sql": "node scripts/seed-operator-content.mjs > /tmp/hoh-op-seed.sql",
     "seed:content:local": "pnpm seed:content:sql && wrangler d1 execute hallofhelp-staging --local --file=/tmp/hoh-op-seed.sql",
     "seed:content:staging": "pnpm seed:content:sql && wrangler d1 execute hallofhelp-staging --remote --file=/tmp/hoh-op-seed.sql",

@@ -1,0 +1,122 @@
+# Changelog
+
+Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
+[Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
+[Semantic Versioning](https://semver.org/lang/de/).
+
+**Wie das hier zusammenhängt** (Details: [docs/versioning.md](docs/versioning.md)):
+
+- `package.json` → `version` ist die **Quelle der Wahrheit**; jeder Release trägt
+  einen Git-Tag `vX.Y.Z`.
+- Was **läuft**, fragt man beim Deployment selbst ab: `pnpm version:deployed`
+  bzw. `GET /api/v1/health` (liefert Version, Commit, Build-Zeit, Umgebung).
+- Diese Liste ist die **Entwickler-Sicht**. Die **Nutzer-Sicht** ist der
+  Produkt-Changelog im Hilfezentrum (`scripts/seed-operator-content.mjs`,
+  Array `CHANGELOG`) — dort steht nur, was Kunden merken.
+- Einträge entstehen aus [Conventional Commits](docs/git-strategy.md);
+  `pnpm changelog` zeigt den offenen Stand, `pnpm release` schreibt ihn fest.
+
+> **Vor 0.1.0 wurde nicht versioniert.** Es gab keine Tags, `version` stand auf
+> `0.0.0`. `0.1.0` fasst deshalb den zum Zeitpunkt der Umstellung ausgelieferten
+> Stand zusammen, statt 33 Commits nachträglich zu rekonstruieren. Ein Tag
+> `v0.1.0` existiert bewusst nicht: derselbe Commit trägt bereits `0.2.0` — der
+> erste echte Release-Tag ist `v0.2.0`.
+
+## [Unreleased]
+
+_Noch keine Einträge._
+
+## [0.2.0] – 2026-08-23
+
+_Minor: MCP-Server mit Schreibzugriff, Changelog-/Roadmap-Pflege mit Versionsnummern,
+vier neue Bausteine samt Inhaltsverzeichnis. Die Arbeit lag beim Release noch
+uncommittet vor, deshalb ist dieser Abschnitt von Hand geschrieben statt aus
+Commit-Nachrichten erzeugt._
+
+### Hinzugefügt
+
+- **content:** Vier neue Bausteine — aufklappbare Abschnitte (`<details>`, ohne
+  JavaScript), Aktions-Buttons mit Ziel-Whitelist, Trennlinien und Datei-Anhänge
+  (PDF, CSV, TXT, DOCX, XLSX, PPTX bis 10 MB) mit Byte-Prüfung und
+  `attachment`-Auslieferung.
+- **content:** Automatisches Inhaltsverzeichnis ab drei Überschriften, aus derselben
+  Quelle wie die Abschnitts-Anker (rechts sticky, auf Mobil über dem Artikel).
+- **updates:** Changelog und Roadmap sind pflegbar — neue Admin-Seite „Updates",
+  API unter `/api/v1/admin/changelog` und `/roadmap`. Vorher gab es dafür nur das
+  Seed-Skript.
+- **updates:** Changelog-Einträge tragen optional eine freie Versionsnummer und eine
+  Stufe; Leser sehen daraus „Großes Update" / „Neue Funktionen" / „Verbesserungen".
+- **mcp:** Fünf Schreibwerkzeuge für Changelog und Roadmap unter dem neuen Scope
+  `updates:write`; Löschen nur über das Zwei-Schritt-Bestätigungstoken.
+- **widget:** Das Widget lässt sich zusätzlich im eigenen Hilfezentrum einblenden
+  (Schalter in den Einstellungen) — eingebunden wird genau das Kunden-Snippet.
+- **content:** URL-Import übernimmt jetzt auch Tabellen, Hinweisboxen,
+  aufklappbare Abschnitte und Trennlinien; Bild-Limit von 12 auf 40 erhöht.
+- **release:** Versionierung mit `CHANGELOG.md`, Git-Tags und Build-Auskunft über
+  `/api/v1/health`; Werkzeuge `pnpm changelog`, `pnpm release`, `pnpm version:deployed`.
+  Anzeige im Ops-Dashboard und im Admin-Bereich, CI-Gates vor und nach dem Deploy.
+
+### Geändert
+
+- **content:** Video-Karten neu gestaltet — weißes Play-Symbol im Glas-Kreis,
+  Verlauf statt Flächen-Grau, Dauer-Badge.
+- **content:** Überschriften sind einzeln teilbar (Link-Symbol kopiert die Adresse
+  samt Sprungmarke).
+
+### Behoben
+
+- **content:** Beim Löschen eines Artikels blieben die Bilder für immer in R2
+  liegen — jetzt werden Bilder und Dateien mit abgeräumt.
+- **widget:** Der Loader fand seinen Origin nicht, wenn das Script dynamisch
+  eingefügt wurde (Google Tag Manager, React-Hoisting) — das Widget erschien dort
+  nie. Jetzt mit Fallback über das Script-Tag im DOM.
+- **updates:** Das Changelog zeigte ein hartkodiertes Badge „Version 1.0.0";
+  jetzt erscheint die Version des neuesten Eintrags, der eine trägt.
+- **content:** Datei-Anhänge unter 1 KB wurden als „0 KB" angezeigt.
+
+### Sicherheit
+
+- **updates:** Der Scope `updates:write` ist von `articles:write` getrennt, weil
+  Changelog-Einträge keinen Entwurfszustand haben und sofort öffentlich sind.
+- **content:** Datei-Uploads werden aus den Bytes typisiert (kein HTML, SVG, JS
+  oder EXE) und immer als `attachment` mit `nosniff` ausgeliefert.
+## [0.1.0] – 2026-08-22
+
+Erste versionierte Fassung — Zusammenfassung des ausgelieferten Stands.
+
+### Hinzugefügt
+
+- **Plattform:** Multi-Tenant-Hilfezentrum auf Cloudflare Workers (Next.js via
+  OpenNext), Tenant-Auflösung pro Request aus dem Host, fail-closed bei
+  unbekannten Hosts; White-Label-Branding über CSS-Variablen (Logo hell/dunkel,
+  Farben, Instanzname im Header abschaltbar).
+- **Inhalte:** Artikel als geordnete Blöcke — Text (Standard, Info, Warnung,
+  Fehler, Code), Bilder mit Pflicht-Beschreibung, YouTube-Videos, Artikel-Link-
+  Karten, Tabellen, aufklappbare Abschnitte, Buttons, Trennlinien und
+  Datei-Anhänge; Artikel-Flags, Entwurf/Veröffentlichen/Zurückziehen,
+  Versionierung je Änderung, Abschnitts-Anker mit Teilen-Link und automatisches
+  Inhaltsverzeichnis.
+- **Import/Export:** JSON-Export des Vollbestands, Import aus JSON und Markdown,
+  Import per URL (inklusive Bildern, Videos, Tabellen und Hinweisboxen) sowie
+  Bild-Vormerkungen für Inhalte ohne Binärdaten.
+- **KI:** RAG über Vectorize und Workers AI mit Grounding-Schwelle, Quellen und
+  Credit-Metering; gespeicherte Antworten mit Veraltet-Erkennung; KI-Übersetzung
+  ganzer Artikel; Video-Aufbereitung aus eingefügten Transkripten.
+- **Widget:** einbettbarer KI-Chat als ein Script-Tag, optional auch im eigenen
+  Hilfezentrum; eigenständige Test-Seite zum Ausprobieren.
+- **Konten & Team:** Better Auth mit strikter Instanz-Isolation, Rollen
+  (Nutzer/Redaktion/Admin/Owner), Einladungen, 2FA-Pflicht für Team-Rollen,
+  Eigentümer-Übertragung.
+- **Betrieb:** Ops-Dashboard (Instanzen sperren/löschen, Enterprise-Rahmen,
+  Selbstkostenrechner), Support-Tickets mit Inbox, Feedback- und
+  Quellen-Statistik, SEO-Steuerung mit Sitemaps, Rechtstexte je Instanz.
+- **CI/CD:** GitHub Actions mit Gates (Typecheck, Lint, i18n, Tests, Build),
+  automatischen D1-Migrationen und getrennten Deploys für Staging und
+  Produktion.
+
+### Sicherheit
+
+- Mandanten-Isolation als Invariante (kein Cross-Tenant-Zugriff auf Inhalte,
+  Bilder, Dateien oder Sessions), MFA-Gates auf Team-Routen, SSRF-Schutz beim
+  URL-Import, Byte-Prüfung und `attachment`-Auslieferung für Datei-Anhänge,
+  Rate-Limits und Turnstile auf öffentlichen Endpunkten.

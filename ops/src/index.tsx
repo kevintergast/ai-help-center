@@ -34,6 +34,7 @@ import {
 import { listTenants, platformStats, tenantDetail } from "./queries";
 import { PLAN_ORDER } from "@product/server/billing/pricing";
 import { Bars, eur, fmtDate, Layout, nf, RoleBadge, StatusBadge, WIDGET_DEMO_URL } from "./ui";
+import { buildAge, fetchDeployments, releasePending } from "./versions";
 
 /**
  * HALLOFHELP OPS — internes Betreiber-Dashboard (eigener Worker, Zugriff nur
@@ -86,9 +87,12 @@ const nowSec = () => Math.floor(Date.now() / 1000);
 // ——— Übersicht ————————————————————————————————————————————————————————
 app.get("/", async (c) => {
   const now = nowSec();
-  const [stats, tenants] = await Promise.all([
+  // Versionen der Umgebungen mitladen (fehlertolerant: eine nicht erreichbare
+  // Umgebung blockiert das Dashboard nicht, sie wird als solche angezeigt).
+  const [stats, tenants, deployments] = await Promise.all([
     platformStats(c.env.DB, now),
     listTenants(c.env.DB, now),
+    fetchDeployments(),
   ]);
 
   const ok = c.req.query("ok");
@@ -140,6 +144,51 @@ app.get("/", async (c) => {
           </span>
           <Bars values={stats.series.generations} green />
         </div>
+      </div>
+
+      <h2>Ausgelieferte Versionen</h2>
+      <div class="card">
+        {releasePending(deployments) ? (
+          <p class="note warn" style="margin-top:0">
+            Staging ist Produktion voraus — ein Release wartet auf den Merge nach main.
+          </p>
+        ) : null}
+        <table>
+          <thead>
+            <tr>
+              <th>Umgebung</th>
+              <th>Version</th>
+              <th>Commit</th>
+              <th>Gebaut</th>
+              <th>Adresse</th>
+            </tr>
+          </thead>
+          <tbody>
+            {deployments.map((d) => (
+              <tr>
+                <td>{d.label}</td>
+                <td>
+                  {d.error ? (
+                    <span class="muted">— {d.error}</span>
+                  ) : (
+                    <b>{d.app?.version ?? "unbekannt"}</b>
+                  )}
+                </td>
+                <td>
+                  <code>{d.error ? "—" : (d.app?.commit ?? "unbekannt")}</code>
+                </td>
+                <td class="muted">
+                  {d.error ? "—" : (buildAge(d.app?.builtAt, now * 1000) ?? "unbekannt")}
+                </td>
+                <td>
+                  <a href={`${d.url}/api/v1/health`} target="_blank" rel="noopener">
+                    /health ↗
+                  </a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <h2>Instanzen</h2>

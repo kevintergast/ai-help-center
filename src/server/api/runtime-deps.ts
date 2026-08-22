@@ -14,6 +14,7 @@ import { getAuthSecret } from "@/server/auth/secret";
 import { D1TeamUserRepository } from "@/server/auth/team-users";
 import { D1BrandingRepository, type BrandingDeps } from "@/server/branding/store";
 import { D1ContentRepository, type ContentDeps } from "@/server/content/store";
+import { D1UpdatesStore, type UpdatesStore } from "@/server/content/updates";
 import { getDbSafe } from "@/server/db/client";
 import { D1LegalRepository, type LegalDeps } from "@/server/legal/store";
 import { makeSendOwnerSetup } from "@/server/operator/onboarding";
@@ -279,6 +280,19 @@ async function getDomainDepsRuntime(): Promise<DomainDeps | null> {
  * `ctx.waitUntil` (bzw. inline ohne Worker-Kontext). Beide Wege nutzen
  * DIESELBE Logik (search/sync.ts) — der Consumer lebt in worker.ts.
  */
+/**
+ * Changelog-/Roadmap-Pflege (0030). Ohne D1-Bindung `null` → die Routen
+ * antworten 503 statt still zu tun, als hätten sie gespeichert.
+ */
+async function getUpdatesStoreRuntime(): Promise<UpdatesStore | null> {
+  const env = await getEnvSafe();
+  if (!env?.DB) return null;
+  // Locale-Default genügt: Das Datums-Label des Stores ist nur Beigabe — die
+  // Admin-Oberfläche formatiert aus `publishedAt` selbst, und die öffentliche
+  // Anzeige läuft über den Content-Store mit der Tenant-Locale.
+  return new D1UpdatesStore(env.DB);
+}
+
 async function getContentIndexerRuntime(): Promise<ContentIndexer | null> {
   const env = await getEnvSafe();
   if (!env?.DB || !env.VECTORIZE || !env.AI) return null;
@@ -609,6 +623,7 @@ export const runtimeDeps: ApiDeps = {
   getBillingDeps: getBillingDepsRuntime,
   getDomainDeps: getDomainDepsRuntime,
   getContentIndexer: getContentIndexerRuntime,
+  getUpdatesStore: getUpdatesStoreRuntime,
   getAskDeps: getAskDepsRuntime,
   getTranslator: getTranslatorRuntime,
   getVideoSummarizer: getVideoSummarizerRuntime,

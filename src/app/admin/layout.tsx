@@ -25,6 +25,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       logoUrl={tenant.branding.logoUrl}
       logoDarkUrl={tenant.branding.logoDarkUrl ?? null}
       showName={tenant.showHeaderName ?? true}
+      build={{
+        // Zur Build-Zeit eingebacken (next.config.ts) — siehe docs/versioning.md.
+        version: process.env.APP_VERSION ?? "dev",
+        commit: process.env.APP_COMMIT ?? "local",
+      }}
       isOperator={tenant.id === "t_operator"}
       viewer={await readPageViewer(tenant)}
     >

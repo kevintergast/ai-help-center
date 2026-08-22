@@ -150,6 +150,13 @@ export interface ChangelogEntry {
   dateLabel: string;
   title: string;
   description: string;
+  /**
+   * Versionsnummer des KUNDEN-Produkts (0030) — freier Text, optional.
+   * Kein SemVer-Zwang: „2.4.0", „R25-08" und „Frühjahr 2026" sind alle gültig.
+   */
+  version?: string | null;
+  /** Art des Updates (Badge) — optional. */
+  level?: "major" | "minor" | "patch" | null;
 }
 
 /**
