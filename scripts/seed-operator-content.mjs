@@ -128,6 +128,8 @@ const ARTICLES = [
       "Für den Import gibt es zwei Formate: unsere JSON-Export-Datei (mehrere Artikel auf einmal) oder eine Markdown-Datei je Artikel. Der Import-Dialog erklärt beide Formate und bietet Beispieldateien zum Herunterladen — so siehst du genau, wie deine Datei aufgebaut sein muss.",
       "Markdown-Aufbau: optionaler Kopf zwischen ---‑Zeilen (slug, category, locale), dann # Titel, Absätze durch Leerzeilen. Zwischenüberschriften (##), Listen, **fett** und [Links] bleiben erhalten.",
       "Bilder reisen nicht als Datei mit. Stattdessen werden Bildverweise (im Markdown ![Beschreibung](bild.png), im JSON images-Einträge) als VORMERKUNG angelegt: Der Artikel-Editor zeigt dir, welche Bilder noch fehlen, übernimmt die Beschreibung und du lädst das Bild dort mit einem Klick nach.",
+      "Am schnellsten geht der Umzug von einer bestehenden Hilfe-Seite: Gib im Import-Dialog unter »Von einer Website importieren« die Adressen der Artikel an (eine pro Zeile). Wir holen Titel, Text, Überschriften, Listen, Bilder und YouTube-Videos in der Original-Reihenfolge — Bilder werden mit ihrem Alternativtext als Beschreibung in dein Hilfezentrum kopiert. Voraussetzung: Die Seite liefert ihren Inhalt im HTML (bei rein per JavaScript aufgebauten Seiten bleibt der Datei-Import).",
+      "Wichtig: Importiere nur Inhalte, die dir gehören oder für die du die Rechte hast. Video-Beschreibungen setzt du danach im Editor über »Inhalt automatisch erfassen«.",
       "Importierte neue Artikel starten immer als Entwurf — veröffentlicht wird bewusst von Hand. Existiert ein Artikel mit gleichem Slug bereits, wird sein Inhalt aktualisiert; sein Status bleibt unverändert.",
     ],
     related: ["artikel-veroeffentlichen"],
