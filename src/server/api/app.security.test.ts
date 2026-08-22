@@ -402,6 +402,10 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
     // 2026-07-17: + /content/images/-Prefix (Bilder VERÖFFENTLICHTER Artikel;
     // <img> sendet keine Header, Draft-Bilder bleiben fail-closed gesperrt —
     // Begründung public-routes.ts/contentImagesPublicRouter).
+    // 2026-08-22: + /content/files/-Prefix (Datei-Anhänge VERÖFFENTLICHTER
+    // Artikel, 0029). Gleiche Begründung wie bei Bildern: ein Download-Link
+    // sendet keine Header. Dateien an Drafts bleiben fail-closed gesperrt,
+    // ausgeliefert wird immer als attachment + nosniff (kein Render im Origin).
     expect(PUBLIC_ROUTES).toMatchInlineSnapshot(`
       {
         "exact": [
@@ -419,6 +423,7 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
           "/api/v1/auth/",
           "/api/v1/legal/",
           "/api/v1/content/images/",
+          "/api/v1/content/files/",
         ],
       }
     `);

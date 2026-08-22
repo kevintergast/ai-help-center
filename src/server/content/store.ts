@@ -2,6 +2,7 @@ import type { AdminArticleRow } from "@/lib/admin/types";
 import { parseArticleBody, parseTagInput, serializeBody, type ArticleFlag } from "@/lib/content/blocks";
 import type {
   Article,
+  ArticleFile,
   ArticleImage,
   ArticleStatus,
   ArticleSummary,
@@ -51,6 +52,11 @@ export interface ContentStore {
   publish(tenantId: string, id: string, authorId?: string | null): Promise<boolean>;
   unpublish(tenantId: string, id: string): Promise<boolean>;
   remove(tenantId: string, id: string): Promise<boolean>;
+  /**
+   * Anhang-Ids eines Artikels — Grundlage fürs R2-Aufräumen VOR dem Löschen
+   * (sonst bleiben Bilder und Dateien als verwaiste Objekte im Bucket liegen).
+   */
+  attachmentIds(tenantId: string, id: string): Promise<{ images: string[]; files: string[] }>;
 
   // ——— Übersetzungen (Translation-Sets über article_key) ———
   /** Alle Sprachfassungen eines Sets (Admin, alle Status). */
@@ -74,6 +80,16 @@ export interface ContentStore {
     articleKey: string,
   ): Promise<{ locale: string; slug: string }[]>;
 
+  // ——— Datei-Anhänge (0029; Struktur wie Bilder) ———
+  addFile(tenantId: string, articleId: string, file: ArticleFile): Promise<"ok" | "not_found" | "limit">;
+  removeFile(tenantId: string, articleId: string, fileId: string): Promise<boolean>;
+  /** NUR veröffentlichte Artikel (public Serving, fail-closed für Drafts). */
+  getPublishedFile(
+    tenantId: string,
+    articleKey: string,
+    fileId: string,
+  ): Promise<{ articleId: string; file: ArticleFile } | null>;
+
   // ——— Bilder (Metadaten; Binärdaten in R2, Key aus Ids abgeleitet) ———
   addImage(tenantId: string, articleId: string, image: ArticleImage): Promise<"ok" | "not_found" | "limit">;
   removeImage(tenantId: string, articleId: string, imageId: string): Promise<boolean>;
@@ -86,7 +102,7 @@ export interface ContentStore {
 }
 
 /** Max. Bilder je Artikel (Speicher-/UI-Deckel). */
-export const MAX_IMAGES_PER_ARTICLE = 12;
+export const MAX_IMAGES_PER_ARTICLE = 40;
 
 /**
  * Struktur-kompatibel zum R2-Bucket (MEDIA-Binding) — Fakes in Tests. Nur die
@@ -109,6 +125,14 @@ export interface ArticleMediaBucket {
 export function articleImageKey(tenantId: string, articleId: string, imageId: string): string {
   return `tenants/${tenantId}/articles/${articleId}/${imageId}`;
 }
+
+/** R2-Key eines Datei-Anhangs (0029) — wie beim Bild IMMER abgeleitet. */
+export function articleFileKey(tenantId: string, articleId: string, fileId: string): string {
+  return `tenants/${tenantId}/articles/${articleId}/files/${fileId}`;
+}
+
+/** Max. Datei-Anhänge je Artikel (Speicher-/UI-Deckel). */
+export const MAX_FILES_PER_ARTICLE = 10;
 
 /** Pro Request aufgelöste Content-Infrastruktur (`null` = D1-Binding fehlt → 503). */
 export interface ContentDeps {
@@ -167,6 +191,7 @@ interface ArticleRow {
   videos_json: string;
   related_ids_json: string;
   images_json: string;
+  files_json: string;
   flag_json: string | null;
   reading_minutes: number;
   is_ai_generated: number;
@@ -215,6 +240,9 @@ function rowToArticle(row: ArticleRow, locale: string): Article {
     images: parseJsonArray<ArticleImage>(row.images_json).filter(
       (i) => typeof i?.id === "string" && typeof i?.description === "string",
     ),
+    files: parseJsonArray<ArticleFile>(row.files_json ?? "[]").filter(
+      (f) => typeof f?.id === "string" && typeof f?.name === "string",
+    ),
     locale: row.locale,
     articleKey: row.article_key,
   };
@@ -232,7 +260,7 @@ function rowToSummary(row: ArticleRow, locale: string): ArticleSummary {
 }
 
 const ARTICLE_COLS =
-  "id, slug, title, category, status, locale, article_key, body_json, videos_json, related_ids_json, images_json, flag_json, reading_minutes, is_ai_generated, updated_at";
+  "id, slug, title, category, status, locale, article_key, body_json, videos_json, related_ids_json, images_json, files_json, flag_json, reading_minutes, is_ai_generated, updated_at";
 
 function newId(prefix: string): string {
   return `${prefix}_${crypto.randomUUID()}`;
@@ -491,6 +519,21 @@ export class D1ContentRepository implements ContentStore {
     return res.meta.changes > 0;
   }
 
+  async attachmentIds(
+    tenantId: string,
+    id: string,
+  ): Promise<{ images: string[]; files: string[] }> {
+    const row = await this.db
+      .prepare(`SELECT images_json, files_json FROM articles WHERE tenant_id = ? AND id = ?`)
+      .bind(tenantId, id)
+      .first<{ images_json: string; files_json: string }>();
+    if (!row) return { images: [], files: [] };
+    return {
+      images: parseJsonArray<ArticleImage>(row.images_json).map((i) => i.id),
+      files: parseJsonArray<ArticleFile>(row.files_json ?? "[]").map((f) => f.id),
+    };
+  }
+
   async remove(tenantId: string, id: string): Promise<boolean> {
     // Versionen defensiv mitlöschen (FK-CASCADE ist in D1 nicht garantiert aktiv).
     await this.db
@@ -597,6 +640,72 @@ export class D1ContentRepository implements ContentStore {
       .bind(JSON.stringify(remaining), tenantId, articleId)
       .run();
     return true;
+  }
+
+  // ——— Datei-Anhänge (0029) ———
+
+  async addFile(
+    tenantId: string,
+    articleId: string,
+    file: ArticleFile,
+  ): Promise<"ok" | "not_found" | "limit"> {
+    const row = await this.db
+      .prepare(`SELECT files_json FROM articles WHERE tenant_id = ? AND id = ?`)
+      .bind(tenantId, articleId)
+      .first<{ files_json: string }>();
+    if (!row) return "not_found";
+
+    const files = parseJsonArray<ArticleFile>(row.files_json);
+    if (files.length >= MAX_FILES_PER_ARTICLE) return "limit";
+    files.push(file);
+
+    await this.db
+      .prepare(
+        `UPDATE articles SET files_json = ?, updated_at = unixepoch()
+          WHERE tenant_id = ? AND id = ?`,
+      )
+      .bind(JSON.stringify(files), tenantId, articleId)
+      .run();
+    return "ok";
+  }
+
+  async removeFile(tenantId: string, articleId: string, fileId: string): Promise<boolean> {
+    const row = await this.db
+      .prepare(`SELECT files_json FROM articles WHERE tenant_id = ? AND id = ?`)
+      .bind(tenantId, articleId)
+      .first<{ files_json: string }>();
+    if (!row) return false;
+
+    const files = parseJsonArray<ArticleFile>(row.files_json);
+    const remaining = files.filter((f) => f.id !== fileId);
+    if (remaining.length === files.length) return false;
+
+    await this.db
+      .prepare(
+        `UPDATE articles SET files_json = ?, updated_at = unixepoch()
+          WHERE tenant_id = ? AND id = ?`,
+      )
+      .bind(JSON.stringify(remaining), tenantId, articleId)
+      .run();
+    return true;
+  }
+
+  async getPublishedFile(
+    tenantId: string,
+    articleKey: string,
+    fileId: string,
+  ): Promise<{ articleId: string; file: ArticleFile } | null> {
+    const row = await this.db
+      .prepare(
+        `SELECT id, files_json FROM articles
+          WHERE tenant_id = ? AND status = 'published' AND (id = ? OR slug = ?)
+          LIMIT 1`,
+      )
+      .bind(tenantId, articleKey, articleKey)
+      .first<{ id: string; files_json: string }>();
+    if (!row) return null;
+    const file = parseJsonArray<ArticleFile>(row.files_json).find((f) => f.id === fileId);
+    return file ? { articleId: row.id, file } : null;
   }
 
   async getPublishedImage(

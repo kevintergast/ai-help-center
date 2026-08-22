@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Tenant } from "@/lib/tenant/types";
 import { AUTH_BASE_PATH, buildAuth, tenantAuthOptions } from "@/server/auth/auth";
 import { applyMigrations, d1FromSqlite } from "@/server/auth/sqlite-test-support";
-import { D1ContentRepository } from "@/server/content/store";
+import { D1ContentRepository, MAX_IMAGES_PER_ARTICLE } from "@/server/content/store";
 import { parseArticleBody } from "@/lib/content/blocks";
 import { buildApiApp } from "./app";
 import type { BillingDeps } from "@/server/billing/store";
@@ -27,11 +27,11 @@ const HOST_A = "tenant-a.hallofhelp.com";
 const HOST_B = "tenant-b.hallofhelp.com";
 
 const MIGRATIONS = [
-  "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql",
+  "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql",
   "0002_auth.sql",
   "0003_branding.sql",
   "0004_two_factor_plugin_columns.sql",
-  "0005_content.sql", "0018_article_images.sql", "0019_article_translations.sql", "0024_article_flag.sql",
+  "0005_content.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql",
 ] as const;
 
 function makeTenant(id: string, slug: string): Tenant {
@@ -598,6 +598,143 @@ function uploadImage(
   });
 }
 
+function pdfFile(name = "vorlage.pdf", size = 64): File {
+  const bytes = new Uint8Array(size);
+  bytes.set([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37]); // %PDF-1.7
+  return new File([bytes as unknown as BlobPart], name, { type: "application/pdf" });
+}
+
+function uploadFile(
+  f: ReturnType<typeof makeApp>,
+  articleId: string,
+  cookie: string,
+  opts: { file?: File | null; name?: string } = {},
+) {
+  const form = new FormData();
+  if (opts.file !== null) form.append("file", opts.file ?? pdfFile());
+  if (opts.name !== undefined) form.append("name", opts.name);
+  return f.app.request(`/api/v1/admin/articles/${articleId}/files`, {
+    method: "POST",
+    headers: { host: HOST_A, cookie },
+    body: form,
+  });
+}
+
+/**
+ * DATEI-ANHÄNGE (0029). Verhinderte Fehlerfälle:
+ *  - Ein HTML-Upload wird vom eigenen Origin ausgeliefert (gespeichertes XSS).
+ *  - Dateien an DRAFTS sind öffentlich abrufbar (Vor-Veröffentlichung-Leak).
+ *  - Dateien eines fremden Tenants sind über die Slug-URL erreichbar.
+ *  - Der Download rendert im Browser statt herunterzuladen (kein attachment).
+ */
+describe("Datei-Anhänge: Upload, Serving, Isolation", () => {
+  it("PDF-Upload → 201 mit Metadaten, R2-Objekt und Index-Sync", async () => {
+    const f = makeApp();
+    const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
+    const { firstId } = await seedTwoArticles(f, cookie);
+    f.indexCalls.length = 0;
+
+    const res = await uploadFile(f, firstId, cookie, { name: "Checkliste Onboarding.pdf" });
+    expect(res.status).toBe(201);
+    const { file } = (await res.json()) as { file: { id: string; name: string; mime: string; size: number } };
+    expect(file.name).toBe("Checkliste Onboarding.pdf");
+    expect(file.mime).toBe("application/pdf");
+
+    const article = await f.store.getForEdit("t_a", firstId, "de");
+    expect(article?.files).toEqual([file]);
+    expect(f.mediaObjects.has(`tenants/t_a/articles/${firstId}/files/${file.id}`)).toBe(true);
+    // Dateiname ist KI-Kontext („Wo finde ich die Vorlage?") → Index-Sync.
+    expect(f.indexCalls.map((cl) => cl.articleId)).toContain(firstId);
+  });
+
+  it("HTML/SVG/EXE → 415 und KEIN R2-Objekt; leere Datei → 400", async () => {
+    const f = makeApp();
+    const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
+    const { firstId } = await seedTwoArticles(f, cookie);
+
+    const html = new File(["<html><script>alert(1)</script></html>" as unknown as BlobPart], "seite.html");
+    expect((await uploadFile(f, firstId, cookie, { file: html })).status).toBe(415);
+    const svg = new File(["<svg onload=alert(1)></svg>" as unknown as BlobPart], "bild.svg");
+    expect((await uploadFile(f, firstId, cookie, { file: svg })).status).toBe(415);
+    const exe = new File([new Uint8Array([0x4d, 0x5a, 0x90]) as unknown as BlobPart], "setup.exe");
+    expect((await uploadFile(f, firstId, cookie, { file: exe })).status).toBe(415);
+
+    const empty = new File([new Uint8Array(0) as unknown as BlobPart], "leer.pdf");
+    expect((await uploadFile(f, firstId, cookie, { file: empty })).status).toBe(400);
+
+    const article = await f.store.getForEdit("t_a", firstId, "de");
+    expect(article?.files ?? []).toEqual([]);
+    expect([...f.mediaObjects.keys()].some((k) => k.includes("/files/"))).toBe(false);
+  });
+
+  it("öffentlicher Download: nur published, immer attachment+nosniff, kein Cross-Tenant", async () => {
+    const f = makeApp();
+    const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
+    const { firstId, secondId } = await seedTwoArticles(f, cookie);
+
+    // firstId ist published (seedTwoArticles), secondId bleibt Draft.
+    const pub = (await (await uploadFile(f, firstId, cookie)).json()) as { file: { id: string } };
+    const draft = (await (await uploadFile(f, secondId, cookie)).json()) as { file: { id: string } };
+
+    const serve = await f.app.request(`/api/v1/content/files/erster-artikel/${pub.file.id}`, {
+      headers: { host: HOST_A },
+    });
+    expect(serve.status).toBe(200);
+    expect(serve.headers.get("content-type")).toBe("application/pdf");
+    // Nie im Browser rendern (gilt auch für CSV/TXT-Uploads).
+    expect(serve.headers.get("content-disposition")).toContain("attachment");
+    expect(serve.headers.get("x-content-type-options")).toBe("nosniff");
+
+    // Draft-Datei ist öffentlich NICHT erreichbar (fail-closed).
+    const draftServe = await f.app.request(`/api/v1/content/files/zweiter-artikel/${draft.file.id}`, {
+      headers: { host: HOST_A },
+    });
+    expect(draftServe.status).toBe(404);
+
+    // Anderer Tenant, gleiche URL → 404 (kein Cross-Tenant-Zugriff).
+    const cross = await f.app.request(`/api/v1/content/files/erster-artikel/${pub.file.id}`, {
+      headers: { host: HOST_B },
+    });
+    expect(cross.status).toBe(404);
+  });
+
+  it("Löschen entfernt Metadaten und R2-Objekt", async () => {
+    const f = makeApp();
+    const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
+    const { firstId } = await seedTwoArticles(f, cookie);
+    const { file } = (await (await uploadFile(f, firstId, cookie)).json()) as { file: { id: string } };
+
+    const del = await f.app.request(`/api/v1/admin/articles/${firstId}/files/${file.id}`, {
+      method: "DELETE",
+      headers: { host: HOST_A, cookie },
+    });
+    expect(del.status).toBe(200);
+    expect((await f.store.getForEdit("t_a", firstId, "de"))?.files ?? []).toEqual([]);
+    expect(f.mediaObjects.has(`tenants/t_a/articles/${firstId}/files/${file.id}`)).toBe(false);
+  });
+
+  it("Artikel löschen räumt Bilder UND Dateien aus R2 (verwaiste Objekte)", async () => {
+    const f = makeApp();
+    const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
+    const { firstId } = await seedTwoArticles(f, cookie);
+
+    const { image } = (await (await uploadImage(f, firstId, cookie, { description: "Screenshot" })).json()) as {
+      image: { id: string };
+    };
+    const { file } = (await (await uploadFile(f, firstId, cookie)).json()) as { file: { id: string } };
+    expect(f.mediaObjects.size).toBeGreaterThanOrEqual(2);
+
+    const del = await f.app.request(`/api/v1/admin/articles/${firstId}`, {
+      method: "DELETE",
+      headers: { host: HOST_A, cookie },
+    });
+    expect(del.status).toBe(200);
+    // Vor dem Fix blieben beide Objekte für immer im Bucket liegen.
+    expect(f.mediaObjects.has(`tenants/t_a/articles/${firstId}/${image.id}`)).toBe(false);
+    expect(f.mediaObjects.has(`tenants/t_a/articles/${firstId}/files/${file.id}`)).toBe(false);
+  });
+});
+
 describe("Artikel-Bilder: Upload + Validierung + Serving", () => {
   it("Upload mit Pflicht-Beschreibung → 201, Metadaten + R2-Objekt + Index-Sync", async () => {
     const f = makeApp();
@@ -693,11 +830,14 @@ describe("Artikel-Bilder: Upload + Validierung + Serving", () => {
     ).toBe(404);
   });
 
-  it("Limit: ab Bild Nr. 13 → 409 too_many_images", async () => {
+  it("Limit: ein Bild über MAX_IMAGES_PER_ARTICLE → 409 too_many_images", async () => {
     const f = makeApp();
     const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
     const { firstId } = await seedTwoArticles(f, cookie);
-    const filled = Array.from({ length: 12 }, (_, i) => ({ id: `img${i}`, description: `d${i}` }));
+    const filled = Array.from({ length: MAX_IMAGES_PER_ARTICLE }, (_, i) => ({
+      id: `img${i}`,
+      description: `d${i}`,
+    }));
     f.contentDb
       .prepare(`UPDATE articles SET images_json = ? WHERE id = ? AND tenant_id = 't_a'`)
       .run(JSON.stringify(filled), firstId);

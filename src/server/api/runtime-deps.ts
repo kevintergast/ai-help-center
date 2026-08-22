@@ -5,6 +5,10 @@ import { D1InvitationRepository } from "@/server/auth/invitations";
 import { createKvNonceStore, type OAuthGatewayDeps } from "@/server/auth/oauth-gateway";
 import { sendInvitationEmail, sendSupportTicketEmail } from "@/server/auth/resend";
 import { D1SupportRepository } from "@/server/support/store";
+import { D1ApiKeyRepository, type ApiKeyDeps } from "@/server/apikeys/store";
+import { makeConfirmationCodec } from "@/server/mcp/confirm";
+import type { ConfirmationCodec } from "@/server/mcp/tools/types";
+import { deriveTenantKey } from "@/server/auth/crypto";
 import { createAuth } from "@/server/auth/runtime";
 import { getAuthSecret } from "@/server/auth/secret";
 import { D1TeamUserRepository } from "@/server/auth/team-users";
@@ -506,7 +510,37 @@ async function getSettingsDepsRuntime(): Promise<SettingsDeps | null> {
     setSupportEmail: (tenantId, email) => repo.setSupportEmail(tenantId, email),
     setDefaultLocale: (tenantId, locale) => repo.setDefaultLocale(tenantId, locale),
     setShowHeaderName: (tenantId, show) => repo.setShowHeaderName(tenantId, show),
+    setWidgetOnSite: (tenantId, on) => repo.setWidgetOnSite(tenantId, on),
   };
+}
+
+/**
+ * Bestätigungs-Token für zerstörende MCP-Werkzeuge: HMAC mit tenant-eigenem
+ * Schlüssel (kein Token wirkt in einer fremden Instanz) + Einmalverbrauch im
+ * KV `CACHE`. Ohne AUTH_SECRET (lokal) fällt der Router auf einen
+ * Prozess-Notnagel zurück — deployed ist das Secret immer da.
+ */
+async function getConfirmationsRuntime(tenantId: string): Promise<ConfirmationCodec> {
+  const env = await getEnvSafe();
+  // Dieselbe Secret-Quelle wie die Besucher-IDs (String ODER Secrets-Store).
+  const base = (await visitorSecret()) ?? crypto.randomUUID();
+  return makeConfirmationCodec({
+    secret: await deriveTenantKey(base, tenantId),
+    now: () => Math.floor(Date.now() / 1000),
+    store: env?.CACHE
+      ? {
+          get: (key) => env.CACHE.get(key),
+          put: (key, value, options) => env.CACHE.put(key, value, options),
+        }
+      : null,
+  });
+}
+
+/** Zugriffs-Schlüssel (MCP/Maschinen-Zugang) — reines D1, keine weiteren Bindings. */
+async function getApiKeyDepsRuntime(): Promise<ApiKeyDeps | null> {
+  const db = await getDbSafe();
+  if (!db) return null;
+  return { repo: new D1ApiKeyRepository(db) };
 }
 
 /**
@@ -530,6 +564,7 @@ const rateLimitersRuntime: RateLimiters = {
   ask: makeLazyLimiter((env) => env.RL_ASK),
   events: makeLazyLimiter((env) => env.RL_EVENTS),
   sensitive: makeLazyLimiter((env) => env.RL_SENSITIVE),
+  mcp: makeLazyLimiter((env) => env.RL_MCP),
 };
 
 async function visitorSecret(): Promise<string | null> {
@@ -580,6 +615,8 @@ export const runtimeDeps: ApiDeps = {
   getSettingsDeps: getSettingsDepsRuntime,
   getSupportDeps: getSupportDepsRuntime,
   getAnswersDeps: getAnswersDepsRuntime,
+  getApiKeyDeps: getApiKeyDepsRuntime,
+  getConfirmations: getConfirmationsRuntime,
   rateLimiters: rateLimitersRuntime,
   visitorCodec: visitorCodecRuntime,
 };

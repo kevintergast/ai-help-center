@@ -7,10 +7,12 @@ import { getT } from "@/i18n/t";
 import { HelpShell } from "./help-shell";
 import { ArticleAskPrompt } from "./article-ask-prompt";
 import { ArticleBlocksView, referencedIds } from "./article-blocks-view";
+import { ArticleToc, hasToc } from "./article-toc";
 import { ViewBeacon } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
 import { ArticleFeedback } from "./article-feedback";
 import { ArticleVideos } from "./article-videos";
+import { articleHeadings } from "@/lib/content/headings";
 import { ArrowLeftIcon, DocIcon } from "@/components/ui/icons";
 
 /**
@@ -67,6 +69,9 @@ export function ArticlePage({
   const refs = referencedIds(article.body);
   const galleryImages = (article.images ?? []).filter((i) => !i.pending && !refs.images.has(i.id));
   const asideVideos = article.videos.filter((v) => !refs.videos.has(v.id));
+  // Inhaltsverzeichnis: identische Ids wie die Anker im Renderer (headings.ts).
+  const headings = articleHeadings(article.body);
+  const showToc = hasToc(headings);
 
   return (
     <HelpShell
@@ -134,12 +139,23 @@ export function ArticlePage({
                 </span>
               ) : null}
             </div>
+            {showToc ? (
+              <ArticleToc
+                headings={headings}
+                label={t("hc.tocHeading")}
+                className="mb-6 rounded-comfy border border-hairline bg-surface px-4 py-3 lg:hidden"
+              />
+            ) : null}
             <ArticleBlocksView
               blocks={article.body}
               images={article.images ?? []}
               videos={article.videos}
+              files={article.files ?? []}
               articleSlug={article.slug}
               videoPlayLabel={t("hc.videoPlay")}
+              fileDownloadLabel={t("hc.fileDownload")}
+              locale={locale}
+              anchorLocale={locale}
             />
             {/* Galerie: nur NICHT in Blöcken platzierte Bilder (pending nie). */}
             {galleryImages.length > 0 ? (
@@ -196,13 +212,27 @@ export function ArticlePage({
             ) : null}
           </article>
 
-          {asideVideos.length > 0 ? (
+          {asideVideos.length > 0 || showToc ? (
             <aside className="w-full shrink-0 lg:w-64">
-              <h2 className="mb-3 text-sm uppercase tracking-[0.08em] text-ink-muted">
-                {t("hc.videosHeading")}
-              </h2>
-              {/* Klick-zum-Laden-Player (YouTube nocookie) — article-videos.tsx. */}
-              <ArticleVideos videos={asideVideos} playLabel={t("hc.videoPlay")} />
+              <div className="flex flex-col gap-8 lg:sticky lg:top-24">
+                {/* Inhaltsverzeichnis nur ab drei Überschriften (article-toc.tsx). */}
+                {showToc ? (
+                  <ArticleToc
+                    headings={headings}
+                    label={t("hc.tocHeading")}
+                    className="hidden lg:block"
+                  />
+                ) : null}
+                {asideVideos.length > 0 ? (
+                  <div>
+                    <h2 className="mb-3 text-sm uppercase tracking-[0.08em] text-ink-muted">
+                      {t("hc.videosHeading")}
+                    </h2>
+                    {/* Klick-zum-Laden-Player (YouTube nocookie) — article-videos.tsx. */}
+                    <ArticleVideos videos={asideVideos} playLabel={t("hc.videoPlay")} />
+                  </div>
+                ) : null}
+              </div>
             </aside>
           ) : null}
         </div>

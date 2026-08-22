@@ -20,7 +20,19 @@ export type AuditAction =
   | "invitation.accepted"
   | "invitation.revoked"
   | "invitation.expired"
-  | "ownership.transferred";
+  | "ownership.transferred"
+  // Maschinen-Zugang (0027): wer wann welchen Schlüssel mit welchen Rechten
+  // erzeugt/widerrufen hat. NIE der Schlüssel selbst — nur Name/Scopes/Ablauf.
+  | "api_key.created"
+  | "api_key.revoked"
+  // Über den MCP-Server (also aus einem KI-Client) ausgelöste Inhaltsänderungen.
+  // `actorId` ist dort NULL — gehandelt hat ein Schlüssel, kein Konto; welcher,
+  // steht in `metadata.keyId`.
+  | "mcp.article.created"
+  | "mcp.article.updated"
+  | "mcp.article.published"
+  | "mcp.article.unpublished"
+  | "mcp.article.deleted";
 
 export interface AuditEvent {
   tenantId: string;

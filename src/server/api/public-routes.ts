@@ -76,7 +76,12 @@ export const PUBLIC_ROUTES = {
   // keine Custom-Header). Fail-closed: ausgeliefert wird nur, was zu einem
   // published-Artikel DES Host-Tenants gehört (Draft-Bilder nie; Key wird
   // serverseitig abgeleitet) — s. contentImagesPublicRouter.
-  prefixes: [`${AUTH_BASE_PATH}/`, "/api/v1/legal/", "/api/v1/content/images/"],
+  prefixes: [
+    `${AUTH_BASE_PATH}/`,
+    "/api/v1/legal/",
+    "/api/v1/content/images/",
+    "/api/v1/content/files/",
+  ],
 } as const;
 
 /** Ist der Request-Pfad öffentlich (kein Session-Zwang)? */

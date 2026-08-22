@@ -33,7 +33,7 @@ type Row = Record<string, unknown>;
 function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
   const { settingsAvailable = true } = opts;
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql"]);
   const repo = new D1TenantRepository(d1FromSqlite(sqlite));
 
   const authDb: Record<string, Row[]> = {
@@ -62,6 +62,7 @@ function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
             setSupportEmail: (tenantId, email) => repo.setSupportEmail(tenantId, email),
             setDefaultLocale: (tenantId, locale) => repo.setDefaultLocale(tenantId, locale),
             setShowHeaderName: (tenantId, show) => repo.setShowHeaderName(tenantId, show),
+            setWidgetOnSite: (tenantId, on) => repo.setWidgetOnSite(tenantId, on),
           }
         : null,
   };
@@ -272,5 +273,48 @@ describe("PUT /api/v1/admin/settings/header-name (0025)", () => {
     expect((await f.repo.getBySlug("demo"))?.showHeaderName).toBe(false); // unverändert
 
     expect((await putHeaderName(f, { show: "ja" }, admin)).status).toBe(400);
+  });
+});
+
+const putWidgetOnSite = (f: Fixture, body: unknown, cookie?: string) =>
+  f.app.request("/api/v1/admin/settings/widget-on-site", {
+    method: "PUT",
+    headers: {
+      host: HOST_DEMO,
+      "content-type": "application/json",
+      ...(cookie ? { cookie } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+describe("PUT /api/v1/admin/settings/widget-on-site (0028)", () => {
+  let f: Fixture;
+  beforeEach(() => {
+    f = makeFixture();
+  });
+
+  // Verhinderte Fehlerfälle: Endnutzer schalten das Widget (und damit
+  // Credit-Verbrauch) auf der öffentlichen Seite frei; oder der Schalter
+  // schreibt, ohne dass rowToTenant den Wert liest → Layout bindet nie ein.
+  it("admin: persistiert; user → 403; Unsinn → 400; Default ist aus", async () => {
+    expect((await f.repo.getBySlug("demo"))?.widgetOnSite).toBe(false); // 0027-Default
+
+    const admin = await session(f, "admin-w@example.com", "admin");
+    const on = await putWidgetOnSite(f, { on: true }, admin);
+    expect(on.status).toBe(200);
+    expect(await on.json()).toEqual({ ok: true, on: true });
+    expect((await f.repo.getBySlug("demo"))?.widgetOnSite).toBe(true);
+
+    const user = await session(f, "user-w@example.com", "user");
+    expect((await putWidgetOnSite(f, { on: false }, user)).status).toBe(403);
+    expect((await f.repo.getBySlug("demo"))?.widgetOnSite).toBe(true); // unverändert
+
+    expect((await putWidgetOnSite(f, { on: "an" }, admin)).status).toBe(400);
+  });
+
+  it("ohne Settings-Bindings → 503 (kein stiller Erfolg)", async () => {
+    const noDeps = makeFixture({ settingsAvailable: false });
+    const admin = await session(noDeps, "admin-w2@example.com", "admin");
+    expect((await putWidgetOnSite(noDeps, { on: true }, admin)).status).toBe(503);
   });
 });

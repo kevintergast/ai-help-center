@@ -94,7 +94,10 @@ export const de = {
   "hc.support.error": "Senden fehlgeschlagen — bitte versuche es erneut.",
   "hc.relatedHeading": "Verwandte Artikel",
   "hc.videosHeading": "Videos",
+  "hc.tocHeading": "Inhalt",
   "hc.videoPlay": "Video abspielen",
+  "hc.anchor.copy": "Link zu diesem Abschnitt kopieren",
+  "hc.anchor.copied": "Link kopiert",
   "hc.readingTime": "{min} Min. Lesezeit",
   "hc.updated": "Aktualisiert {when}",
   "hc.backToOverview": "Zurück zur Übersicht",
@@ -463,6 +466,13 @@ export const de = {
   "admin.settings.widget.copied": "Kopiert!",
   "admin.settings.widget.billingNote":
     "Widget-Nutzung zählt auf die Credits und aktiven Nutzer deiner Instanz — wie das Hilfezentrum selbst.",
+  "admin.settings.widget.site.label": "Widget auch im eigenen Hilfezentrum anzeigen",
+  "admin.settings.widget.site.hint": "Zeigt den Hilfe-Button unten rechts auch auf den öffentlichen Seiten dieser Instanz — genau so, wie er auf deiner Website aussieht. Ein zweiter Einstieg neben Suche und „Frage stellen“.",
+  "admin.settings.widget.site.saving": "Wird gespeichert …",
+  "admin.settings.widget.site.savedOn": "Gespeichert — das Widget erscheint jetzt auch hier.",
+  "admin.settings.widget.site.savedOff": "Gespeichert — das Widget erscheint nur auf deiner Website.",
+  "admin.settings.widget.site.adminOnly": "Nur Administratoren können diese Einstellung ändern.",
+  "admin.settings.widget.site.error": "Speichern fehlgeschlagen — bitte erneut versuchen.",
 
   "admin.settings.domain": "Domain",
   "admin.settings.subdomain": "Subdomain",
@@ -512,6 +522,32 @@ export const de = {
   "editor.blocks.type.image": "Bild",
   "editor.blocks.type.video": "Video",
   "editor.blocks.type.card": "Artikel verlinken",
+  "editor.blocks.type.table": "Tabelle",
+  "editor.blocks.type.accordion": "Aufklappbar",
+  "editor.blocks.type.button": "Button",
+  "editor.blocks.type.divider": "Trennlinie",
+  "editor.blocks.type.file": "Datei",
+  "editor.blocks.accordionTitle": "Titel des Abschnitts",
+  "editor.blocks.accordionTitlePlaceholder": "z. B. „Was kostet das?“",
+  "editor.blocks.buttonLabel": "Beschriftung",
+  "editor.blocks.buttonLabelPlaceholder": "z. B. „Zum Verwaltungsbereich“",
+  "editor.blocks.buttonHref": "Ziel",
+  "editor.blocks.buttonHrefPlaceholder": "https://… oder /artikel-slug",
+  "editor.blocks.buttonHrefHint": "Erlaubt sind vollständige https-Adressen und interne Pfade, die mit / beginnen.",
+  "editor.blocks.buttonHrefInvalid": "Ungültiges Ziel — nutze https://… oder einen internen Pfad wie /konto-erstellen.",
+  "editor.blocks.dividerHint": "Eine Trennlinie hat keine Einstellungen.",
+  "editor.blocks.fileUpload": "Datei hochladen",
+  "editor.blocks.fileReplace": "Datei ersetzen",
+  "editor.blocks.fileName": "Anzeigename",
+  "editor.blocks.fileNamePlaceholder": "Leer lassen = Dateiname übernehmen",
+  "editor.blocks.fileHint": "PDF, CSV, TXT, DOCX, XLSX oder PPTX — bis 10 MB.",
+  "editor.blocks.fileErrRequired": "Bitte eine Datei auswählen.",
+  "editor.blocks.fileErrTooLarge": "Die Datei ist größer als 10 MB.",
+  "editor.blocks.fileErrType": "Dieser Dateityp ist nicht erlaubt.",
+  "editor.blocks.fileErrTooMany": "Dieser Artikel hat schon die maximale Anzahl an Dateien.",
+  "editor.blocks.fileErrGeneric": "Hochladen fehlgeschlagen — bitte erneut versuchen.",
+  "hc.fileDownload": "Herunterladen",
+  "editor.blocks.tableHint": "Eine Zeile pro Tabellenzeile, Spalten mit | trennen. Die erste Zeile ist die Kopfzeile.",
   "editor.blocks.variantLabel": "Textblock-Typ",
   "editor.blocks.empty": "Noch keine Blöcke — unten einen hinzufügen.",
   "editor.blocks.add": "Block hinzufügen:",
@@ -761,6 +797,106 @@ export const de = {
   "operator.success.devLink": "Dev-Link zum Passwort setzen:",
   "operator.success.openHelpCenter": "Hilfezentrum öffnen",
   "operator.success.backToConsole": "Zurück zur Übersicht",
+
+  // ——— Zugriffs-Schlüssel (MCP/API, Migration 0027) ———
+  "admin.nav.apiKeys": "Zugriffs-Schlüssel",
+  "admin.apiKeys.title": "Zugriffs-Schlüssel",
+  "admin.apiKeys.subtitle":
+    "Verbinde deine KI (z. B. Claude) mit deinem Hilfezentrum — sie kann dann Artikel für dich schreiben und pflegen.",
+
+  "admin.apiKeys.new.title": "Neuen Schlüssel erstellen",
+  "admin.apiKeys.new.subtitle":
+    "Erlaube nur, was wirklich gebraucht wird. Jede Berechtigung steht unten im Klartext.",
+  "admin.apiKeys.new.nameLabel": "Name",
+  "admin.apiKeys.new.namePlaceholder": "z. B. Claude Code, Redaktion",
+  "admin.apiKeys.new.expiryLabel": "Gültig für",
+  "admin.apiKeys.new.expiry.30": "30 Tage",
+  "admin.apiKeys.new.expiry.90": "90 Tage",
+  "admin.apiKeys.new.expiry.365": "1 Jahr",
+  "admin.apiKeys.new.submit": "Schlüssel erstellen",
+  "admin.apiKeys.new.creating": "Wird erstellt …",
+  "admin.apiKeys.new.ackMissing": "Bitte bestätige die rot markierten Rechte.",
+  "admin.apiKeys.new.error": "Der Schlüssel konnte nicht erstellt werden.",
+
+  "admin.apiKeys.created.title": "Schlüssel erstellt",
+  "admin.apiKeys.created.onceOnly":
+    "Kopiere ihn jetzt — er wird dir kein zweites Mal angezeigt. Wir speichern ihn nur verschlüsselt.",
+  "admin.apiKeys.created.allows": "Dieser Schlüssel darf:",
+  "admin.apiKeys.created.copy": "Kopieren",
+  "admin.apiKeys.created.done": "Fertig",
+
+  "admin.apiKeys.tier.read": "Lesen",
+  "admin.apiKeys.tier.write": "Inhalte schreiben",
+  "admin.apiKeys.tier.public": "Wirkt nach außen",
+  "admin.apiKeys.tier.destructive": "Löschen",
+
+  "admin.apiKeys.risk.label": "Risiko dieses Schlüssels:",
+  "admin.apiKeys.risk.low": "niedrig",
+  "admin.apiKeys.risk.medium": "mittel",
+  "admin.apiKeys.risk.high": "hoch",
+  "admin.apiKeys.risk.critical": "kritisch",
+
+  "admin.apiKeys.warn.draftsOnly":
+    "Dieser Schlüssel kann höchstens Entwürfe anlegen. Nichts wird ohne dich veröffentlicht.",
+  "admin.apiKeys.warn.public.title": "Wirkt sofort nach außen",
+  "admin.apiKeys.warn.public.text":
+    "Mit diesen Rechten kann die KI Änderungen vornehmen, die deine Besucher unmittelbar sehen — ohne dass du sie vorher prüfst.",
+  "admin.apiKeys.warn.pii.title": "Personenbezogene Daten verlassen dein Hilfezentrum",
+  "admin.apiKeys.warn.pii.text":
+    "Support-Tickets enthalten E-Mail-Adressen und Freitext deiner Kunden. Mit diesem Recht liest sie dein KI-Anbieter mit. Erteile es nur, wenn deine Datenschutz-Vereinbarungen das abdecken.",
+  "admin.apiKeys.warn.destructive.title": "Dieser Schlüssel kann Inhalte endgültig löschen",
+  "admin.apiKeys.warn.destructive.text":
+    "Gelöschtes ist weg — auch die Versionsgeschichte. Die KI muss jede Löschung zwar erst bestätigen lassen, aber der Schlüssel selbst kann es. Vergib das Recht nur, wenn du es wirklich brauchst.",
+  "admin.apiKeys.warn.broad.title": "Das ist praktisch ein Generalschlüssel",
+  "admin.apiKeys.warn.broad.text":
+    "Veröffentlichen, löschen und Einstellungen ändern in einem Schlüssel: Wer ihn in die Hände bekommt, kann dein Hilfezentrum umbauen. Besser zwei Schlüssel — einen zum Recherchieren, einen engen zum Schreiben.",
+
+  "admin.apiKeys.scope.articles:read.label": "Artikel und Entwürfe lesen",
+  "admin.apiKeys.scope.articles:read.hint":
+    "Sieht alle Artikel inklusive unveröffentlichter Entwürfe, Kategorien und Übersetzungen.",
+  "admin.apiKeys.scope.analytics:read.label": "Statistiken lesen",
+  "admin.apiKeys.scope.analytics:read.hint":
+    "Aufrufe, beliebteste Artikel, Hilfreich-Quote sowie Plan und Verbrauch. Nur Summen, keine einzelnen Besucher.",
+  "admin.apiKeys.scope.settings:read.label": "Einstellungen lesen",
+  "admin.apiKeys.scope.settings:read.hint": "Name, Farben, Sprache und Domain deines Hilfezentrums.",
+  "admin.apiKeys.scope.articles:write.label": "Artikel schreiben und ändern",
+  "admin.apiKeys.scope.articles:write.hint":
+    "Legt Artikel an, bearbeitet sie, importiert Seiten und übersetzt — immer als Entwurf. Veröffentlichen kann dieses Recht nicht.",
+  "admin.apiKeys.scope.articles:publish.label": "Artikel veröffentlichen und zurückziehen",
+  "admin.apiKeys.scope.articles:publish.hint":
+    "Ein veröffentlichter Artikel ist sofort für alle Besucher sichtbar.",
+  "admin.apiKeys.scope.settings:write.label": "Einstellungen und Branding ändern",
+  "admin.apiKeys.scope.settings:write.hint":
+    "Farben, Kopfzeile, Suchmaschinen-Indexierung, Support-Adresse und Standardsprache.",
+  "admin.apiKeys.scope.support:read.label": "Support-Tickets lesen",
+  "admin.apiKeys.scope.support:read.hint":
+    "Enthält personenbezogene Daten deiner Kunden (E-Mail-Adressen, Freitext).",
+  "admin.apiKeys.scope.support:write.label": "Support-Tickets bearbeiten",
+  "admin.apiKeys.scope.support:write.hint": "Status setzen, Tickets abschließen.",
+  "admin.apiKeys.scope.articles:delete.label": "Artikel und Bilder löschen",
+  "admin.apiKeys.scope.articles:delete.hint":
+    "Endgültig, inklusive Versionsgeschichte. Jede Löschung muss in der KI-Sitzung ausdrücklich bestätigt werden.",
+  "admin.apiKeys.scope.support:delete.label": "Support-Tickets löschen",
+  "admin.apiKeys.scope.support:delete.hint": "Endgültig. Ebenfalls nur mit ausdrücklicher Bestätigung.",
+
+  "admin.apiKeys.ack.articles:delete":
+    "Mir ist klar, dass eine KI mit diesem Schlüssel Artikel endgültig löschen kann.",
+  "admin.apiKeys.ack.support:delete":
+    "Mir ist klar, dass eine KI mit diesem Schlüssel Support-Tickets endgültig löschen kann.",
+
+  "admin.apiKeys.connect.title": "So verbindest du deine KI",
+  "admin.apiKeys.connect.subtitle":
+    "Adresse deines Hilfezentrums für KI-Clients (MCP). Trage sie zusammen mit dem Schlüssel in deinem KI-Werkzeug ein.",
+  "admin.apiKeys.connect.claudeCode": "Beispiel für Claude Code:",
+
+  "admin.apiKeys.list.title": "Bestehende Schlüssel",
+  "admin.apiKeys.list.empty": "Noch kein Schlüssel angelegt.",
+  "admin.apiKeys.list.revoke": "Widerrufen",
+  "admin.apiKeys.list.expires": "Gültig bis",
+  "admin.apiKeys.list.lastUsed": "zuletzt benutzt",
+  "admin.apiKeys.list.neverUsed": "noch nie benutzt",
+  "admin.apiKeys.list.status.revoked": "widerrufen",
+  "admin.apiKeys.list.status.expired": "abgelaufen",
 } as const;
 
 export type MessageKey = keyof typeof de;

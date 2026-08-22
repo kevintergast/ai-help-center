@@ -9,7 +9,7 @@ import {
   parseImportImageDescriptions,
   parseMarkdownArticle,
 } from "./transfer";
-import type { TransferArticle } from "./store";
+import { MAX_IMAGES_PER_ARTICLE, type TransferArticle } from "./store";
 import { parseCreateArticle } from "./validate";
 
 /**
@@ -90,8 +90,10 @@ describe("parseImportImageDescriptions", () => {
       ]),
     ).toEqual(["Screenshot A", "Screenshot B"]);
     expect(parseImportImageDescriptions("kein-array")).toEqual([]);
-    expect(parseImportImageDescriptions(Array.from({ length: 30 }, (_, i) => `B${i}`)).length).toBe(
-      12,
+    // Deckel = MAX_IMAGES_PER_ARTICLE (2026-08-22 auf 40 erhöht: Doku-Artikel
+    // haben real bis 22 Screenshots — Import verlor vorher welche).
+    expect(parseImportImageDescriptions(Array.from({ length: 60 }, (_, i) => `B${i}`)).length).toBe(
+      MAX_IMAGES_PER_ARTICLE,
     );
   });
 });

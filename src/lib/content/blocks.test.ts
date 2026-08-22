@@ -122,3 +122,92 @@ describe("parseTagInput", () => {
     expect(parseTagInput({ text: "x".repeat(40), color: "ok" })).toBeUndefined();
   });
 });
+
+/**
+ * NEUE BAUSTEINE (2026-08-22, Referenz Zendesk/Intercom): Aufklappbar, Button,
+ * Trennlinie, Datei. Verhinderte Fehlerfälle:
+ *  - Ein Button-Ziel wie `javascript:…` kommt durch → Skript-Ausführung per
+ *    Klick auf einen redaktionell gepflegten Button.
+ *  - Aufklappbarer Inhalt landet NICHT im KI-Index → die Antwort auf eine
+ *    FAQ-Frage fehlt, obwohl sie im Artikel steht.
+ *  - Übersetzung schreibt die Ziel-URL um (Link zeigt danach ins Leere).
+ */
+describe("neue Block-Typen", () => {
+  it("Button: nur https und interne Pfade — Skript-Schemata fliegen raus", () => {
+    const ok = (href: string) =>
+      validateBodyInput([{ type: "button", label: "Los", href }]).ok;
+    expect(ok("https://example.com/app")).toBe(true);
+    expect(ok("http://example.com")).toBe(true);
+    expect(ok("/konto-erstellen")).toBe(true);
+    expect(ok("javascript:alert(1)")).toBe(false);
+    expect(ok("data:text/html,<script>alert(1)</script>")).toBe(false);
+    expect(ok("//fremde-domain.example")).toBe(false);
+    expect(ok("mailto:hallo@example.com")).toBe(false);
+    expect(ok("")).toBe(false);
+  });
+
+  it("Button ohne Beschriftung wird abgelehnt (leerer Klickfleck)", () => {
+    const res = validateBodyInput([{ type: "button", label: "  ", href: "/x" }]);
+    expect(res).toEqual({ ok: false, error: "invalid_button_label" });
+  });
+
+  it("Aufklappbar: Titel ist Pflicht, Inhalt darf leer sein", () => {
+    expect(validateBodyInput([{ type: "accordion", title: "Kosten?", text: "" }]).ok).toBe(true);
+    expect(validateBodyInput([{ type: "accordion", title: "", text: "Text" }])).toEqual({
+      ok: false,
+      error: "invalid_accordion_title",
+    });
+  });
+
+  it("Trennlinie und Datei-Block", () => {
+    const res = validateBodyInput([{ type: "divider" }, { type: "file", fileId: "f1" }]);
+    expect(res).toEqual({ ok: true, value: [{ type: "divider" }, { type: "file", fileId: "f1" }] });
+    expect(validateBodyInput([{ type: "file", fileId: "" }]).ok).toBe(false);
+  });
+
+  it("kaputte Blöcke werden beim LESEN verworfen, nicht geworfen", () => {
+    const blocks = parseArticleBody([
+      { type: "button", label: "Hack", href: "javascript:alert(1)" }, // fliegt raus
+      { type: "accordion", title: "Bleibt", text: "Inhalt" },
+      { type: "divider" },
+    ]);
+    expect(blocks).toEqual([
+      { type: "accordion", title: "Bleibt", text: "Inhalt" },
+      { type: "divider" },
+    ]);
+  });
+
+  it("KI-Index: Aufklappbares und Button tragen Text bei, Trennlinie/Datei nicht", () => {
+    const texts = blockTexts([
+      { type: "accordion", title: "Was kostet das?", text: "Ab 29 € im Monat." },
+      { type: "button", label: "Zum Konto", href: "/konto" },
+      { type: "divider" },
+      { type: "file", fileId: "f1" },
+    ]);
+    expect(texts).toEqual(["Was kostet das?\nAb 29 € im Monat.", "→ Zum Konto: /konto"]);
+  });
+
+  it("Übersetzung: Beschriftung und Inhalt ja, Ziel-URL nein", () => {
+    const blocks: ArticleBlock[] = [
+      { type: "accordion", title: "Kosten", text: "Ab 29 €." },
+      { type: "button", label: "Zum Konto", href: "/konto" },
+      { type: "divider" },
+    ];
+    expect(extractTranslatableTexts(blocks)).toEqual(["Kosten", "Ab 29 €.", "Zum Konto"]);
+    const translated = applyTranslatedTexts(blocks, ["Costs", "From €29.", "To account"]);
+    expect(translated).toEqual([
+      { type: "accordion", title: "Costs", text: "From €29." },
+      { type: "button", label: "To account", href: "/konto" },
+      { type: "divider" },
+    ]);
+  });
+
+  it("Speicherform: neue Blöcke bleiben Objekte, Standard-Text bleibt String", () => {
+    expect(
+      serializeBody([
+        { type: "text", variant: "standard", text: "Fließtext" },
+        { type: "divider" },
+      ]),
+    ).toEqual(["Fließtext", { type: "divider" }]);
+  });
+});

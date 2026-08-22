@@ -2,7 +2,14 @@
 
 import { useRef, useState } from "react";
 import type { ArticleBlock, TagColor, TextVariant } from "@/lib/content/blocks";
-import { TAG_COLORS, TEXT_VARIANTS } from "@/lib/content/blocks";
+import {
+  isAllowedButtonHref,
+  pipeToTable,
+  tableToPipe,
+  TAG_COLORS,
+  TEXT_VARIANTS,
+} from "@/lib/content/blocks";
+import { MAX_FILE_BYTES } from "@/server/content/files";
 import {
   insertBlockAt,
   moveBlock,
@@ -11,7 +18,7 @@ import {
   upsertVideoForBlock,
   type EditorBlock,
 } from "@/lib/admin/block-draft";
-import type { ArticleImage, ArticleVideo } from "@/lib/content/types";
+import type { ArticleFile, ArticleImage, ArticleVideo } from "@/lib/content/types";
 import type { Locale } from "@/lib/tenant/types";
 import type { MessageKey } from "@/i18n/messages/de";
 import { getT } from "@/i18n/t";
@@ -70,7 +77,12 @@ type AddKind =
   | { kind: "text"; variant: TextVariant }
   | { kind: "image" }
   | { kind: "video" }
-  | { kind: "card" };
+  | { kind: "card" }
+  | { kind: "table" }
+  | { kind: "accordion" }
+  | { kind: "button" }
+  | { kind: "divider" }
+  | { kind: "file" };
 
 function blankBlock(pick: AddKind): ArticleBlock {
   switch (pick.kind) {
@@ -82,6 +94,16 @@ function blankBlock(pick: AddKind): ArticleBlock {
       return { type: "video", videoId: "" };
     case "card":
       return { type: "articleLink", slug: "", title: "", description: "", tag: null };
+    case "table":
+      return { type: "table", head: ["Feld", "Bedeutung"], rows: [["", ""]] };
+    case "accordion":
+      return { type: "accordion", title: "", text: "" };
+    case "button":
+      return { type: "button", label: "", href: "" };
+    case "divider":
+      return { type: "divider" };
+    case "file":
+      return { type: "file", fileId: "" };
   }
 }
 
@@ -104,6 +126,92 @@ function RoundAction({
     >
       {children}
     </IconButton>
+  );
+}
+
+/**
+ * DATEI-UPLOAD IM BLOCK (0029). Wie beim Bild ein eigener Sofort-Zyklus:
+ * die Datei landet direkt in R2, der Block referenziert danach den Anhang.
+ * Serverseitig entscheidet die Byte-Prüfung über den Typ — die Auswahl im
+ * Dateidialog (accept) ist nur Komfort, keine Sicherheitsgrenze.
+ */
+function FileUploadForm({
+  locale,
+  articleId,
+  submitLabel,
+  onUploaded,
+}: {
+  locale: Locale;
+  articleId: string;
+  submitLabel: string;
+  onUploaded: (file: ArticleFile) => void | Promise<void>;
+}) {
+  const t = getT(locale);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function upload() {
+    const picked = fileRef.current?.files?.[0];
+    if (!picked) return setError(t("editor.blocks.fileErrRequired"));
+    if (picked.size > MAX_FILE_BYTES) return setError(t("editor.blocks.fileErrTooLarge"));
+    setBusy(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("file", picked);
+      if (name.trim().length > 0) form.append("name", name.trim());
+      const res = await fetch(`/api/v1/admin/articles/${articleId}/files`, {
+        method: "POST",
+        body: form,
+      });
+      const data = (await res.json().catch(() => null)) as
+        | { error?: string; file?: ArticleFile }
+        | null;
+      if (!res.ok || !data?.file) {
+        setError(
+          data?.error === "unsupported_file_type"
+            ? t("editor.blocks.fileErrType")
+            : data?.error === "file_too_large"
+              ? t("editor.blocks.fileErrTooLarge")
+              : data?.error === "too_many_files"
+                ? t("editor.blocks.fileErrTooMany")
+                : t("editor.blocks.fileErrGeneric"),
+        );
+        return;
+      }
+      await onUploaded(data.file);
+    } catch {
+      setError(t("editor.blocks.fileErrGeneric"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs text-ink-muted">{t("editor.blocks.fileHint")}</p>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".pdf,.csv,.txt,.docx,.xlsx,.pptx"
+        aria-label={t("editor.blocks.type.file")}
+        className="text-sm text-ink file:mr-3 file:rounded-std file:border file:border-hairline file:bg-surface-raised file:px-3 file:py-1.5 file:text-sm file:text-ink"
+      />
+      <Input
+        label={t("editor.blocks.fileName")}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder={t("editor.blocks.fileNamePlaceholder")}
+      />
+      <div>
+        <Button variant="cream" size="sm" disabled={busy} onClick={() => void upload()}>
+          {submitLabel}
+        </Button>
+      </div>
+      {error ? <p className="text-xs text-crit">{error}</p> : null}
+    </div>
   );
 }
 
@@ -363,6 +471,8 @@ export function ArticleBlocksEditor({
   onImagesChange,
   videos,
   onVideosChange,
+  files,
+  onFilesChange,
   articleId,
   videoPlayLabel,
 }: {
@@ -373,6 +483,8 @@ export function ArticleBlocksEditor({
   onImagesChange: (next: ArticleImage[]) => void;
   videos: ArticleVideo[];
   onVideosChange: (next: ArticleVideo[]) => void;
+  files: ArticleFile[];
+  onFilesChange: (next: ArticleFile[]) => void;
   articleId: string;
   videoPlayLabel: string;
 }) {
@@ -383,8 +495,12 @@ export function ArticleBlocksEditor({
   const ctx: BlockViewContext = {
     images,
     videos,
+    files,
     videoPlayLabel,
+    fileDownloadLabel: t("hc.fileDownload"),
+    locale,
     srcFor: (id) => `/api/v1/admin/articles/${articleId}/images/${id}`,
+    fileSrcFor: (id) => `/api/v1/admin/articles/${articleId}/files/${id}`,
     // Editor: Cards sind Attrappen — ein Klick würde den Entwurf verlieren.
     linksActive: false,
   };
@@ -409,6 +525,11 @@ export function ArticleBlocksEditor({
     if (b.type === "text") return t(VARIANT_KEYS[b.variant]);
     if (b.type === "image") return t("editor.blocks.type.image");
     if (b.type === "video") return t("editor.blocks.type.video");
+    if (b.type === "table") return t("editor.blocks.type.table");
+    if (b.type === "accordion") return t("editor.blocks.type.accordion");
+    if (b.type === "button") return t("editor.blocks.type.button");
+    if (b.type === "divider") return t("editor.blocks.type.divider");
+    if (b.type === "file") return t("editor.blocks.type.file");
     return t("editor.blocks.type.card");
   };
 
@@ -427,6 +548,21 @@ export function ArticleBlocksEditor({
           </Button>
           <Button variant="cream" size="sm" onClick={() => pickAt(index, { kind: "video" })}>
             {t("editor.blocks.type.video")}
+          </Button>
+          <Button variant="cream" size="sm" onClick={() => pickAt(index, { kind: "table" })}>
+            {t("editor.blocks.type.table")}
+          </Button>
+          <Button variant="cream" size="sm" onClick={() => pickAt(index, { kind: "file" })}>
+            {t("editor.blocks.type.file")}
+          </Button>
+          <Button variant="cream" size="sm" onClick={() => pickAt(index, { kind: "accordion" })}>
+            {t("editor.blocks.type.accordion")}
+          </Button>
+          <Button variant="cream" size="sm" onClick={() => pickAt(index, { kind: "button" })}>
+            {t("editor.blocks.type.button")}
+          </Button>
+          <Button variant="cream" size="sm" onClick={() => pickAt(index, { kind: "divider" })}>
+            {t("editor.blocks.type.divider")}
           </Button>
           <Button variant="cream" size="sm" onClick={() => pickAt(index, { kind: "card" })}>
             {t("editor.blocks.type.card")}
@@ -461,7 +597,7 @@ export function ArticleBlocksEditor({
     </div>
   );
 
-  const unplaced = unplacedAttachments(value, images, videos);
+  const unplaced = unplacedAttachments(value, images, videos, files);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -553,6 +689,71 @@ export function ArticleBlocksEditor({
                         setEditingUid(null);
                       }}
                     />
+                  ) : b.type === "table" ? (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-xs text-ink-muted">{t("editor.blocks.tableHint")}</p>
+                      <textarea
+                        value={tableToPipe(b)}
+                        onChange={(e) => update(i, { type: "table", ...pipeToTable(e.target.value) })}
+                        rows={Math.min(12, b.rows.length + 3)}
+                        aria-label={t("editor.blocks.type.table")}
+                        className="w-full rounded-std border border-hairline bg-surface-raised px-3 py-2 font-mono text-[13px] text-ink focus-visible:outline-none focus-visible:shadow-focusglow"
+                      />
+                    </div>
+                  ) : b.type === "accordion" ? (
+                    <div className="flex flex-col gap-2">
+                      <Input
+                        label={t("editor.blocks.accordionTitle")}
+                        value={b.title}
+                        onChange={(e) => update(i, { ...b, title: e.target.value })}
+                        placeholder={t("editor.blocks.accordionTitlePlaceholder")}
+                      />
+                      <ArticleBodyEditor
+                        key={w.uid}
+                        locale={locale}
+                        initialBlocks={toParagraphs(b.text)}
+                        onChange={(paragraphs) => update(i, { ...b, text: paragraphs.join("\n\n") })}
+                      />
+                    </div>
+                  ) : b.type === "button" ? (
+                    <div className="flex flex-col gap-2">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Input
+                          label={t("editor.blocks.buttonLabel")}
+                          value={b.label}
+                          onChange={(e) => update(i, { ...b, label: e.target.value })}
+                          placeholder={t("editor.blocks.buttonLabelPlaceholder")}
+                        />
+                        <Input
+                          label={t("editor.blocks.buttonHref")}
+                          value={b.href}
+                          onChange={(e) => update(i, { ...b, href: e.target.value })}
+                          placeholder={t("editor.blocks.buttonHrefPlaceholder")}
+                        />
+                      </div>
+                      {/* Sofort-Hinweis statt erst beim Speichern (die API
+                          lehnt fremde Schemata ab — invalid_button_href). */}
+                      {b.href.trim().length > 0 && !isAllowedButtonHref(b.href) ? (
+                        <p className="text-xs text-crit">{t("editor.blocks.buttonHrefInvalid")}</p>
+                      ) : (
+                        <p className="text-xs text-ink-muted">{t("editor.blocks.buttonHrefHint")}</p>
+                      )}
+                    </div>
+                  ) : b.type === "divider" ? (
+                    <p className="text-xs text-ink-muted">{t("editor.blocks.dividerHint")}</p>
+                  ) : b.type === "file" ? (
+                    <FileUploadForm
+                      locale={locale}
+                      articleId={articleId}
+                      submitLabel={
+                        b.fileId ? t("editor.blocks.fileReplace") : t("editor.blocks.fileUpload")
+                      }
+                      onUploaded={(file) => {
+                        onFilesChange([...files, file]);
+                        update(i, { ...b, fileId: file.id });
+                        setEditingUid(null);
+                      }}
+                    />
                   ) : (
                     <div className="flex flex-col gap-3">
                       <div className="grid gap-3 sm:grid-cols-2">
@@ -617,7 +818,12 @@ export function ArticleBlocksEditor({
                       !images.some((im) => im.id === b.imageId && !im.pending)) ||
                     (b.type === "video" && !videos.some((v) => v.id === b.videoId)) ||
                     (b.type === "text" && b.text.trim().length === 0) ||
-                    (b.type === "articleLink" && b.title.trim().length === 0);
+                    (b.type === "articleLink" && b.title.trim().length === 0) ||
+                    (b.type === "table" && b.rows.every((r) => r.every((c) => c.trim().length === 0))) ||
+                    (b.type === "accordion" && b.title.trim().length === 0) ||
+                    (b.type === "button" &&
+                      (b.label.trim().length === 0 || b.href.trim().length === 0)) ||
+                    (b.type === "file" && !files.some((f) => f.id === b.fileId));
                   if (isEmptyRef) {
                     return (
                       <button
@@ -642,7 +848,7 @@ export function ArticleBlocksEditor({
         <InsertLine index={value.length} area />
       </div>
 
-      {unplaced.images.length > 0 || unplaced.videos.length > 0 ? (
+      {unplaced.images.length > 0 || unplaced.videos.length > 0 || unplaced.files.length > 0 ? (
         <div className="mt-4 rounded-comfy border border-hairline bg-tint p-3">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.04em] text-ink-muted">
             {t("editor.blocks.unplacedTitle")}
@@ -699,6 +905,34 @@ export function ArticleBlocksEditor({
                       method: "DELETE",
                     }).then((res) => {
                       if (res.ok) onImagesChange(images.filter((x) => x.id !== im.id));
+                    });
+                  }}
+                >
+                  {t("editor.blocks.deleteAttachment")}
+                </Button>
+              </li>
+            ))}
+            {unplaced.files.map((f) => (
+              <li key={f.id} className="flex flex-wrap items-center gap-3 rounded-std border border-hairline bg-surface px-3 py-2">
+                <span className="min-w-0 flex-1 truncate text-sm text-ink">{f.name}</span>
+                <Button
+                  variant="cream"
+                  size="sm"
+                  onClick={() => {
+                    const { next } = insertBlockAt(value, value.length, { type: "file", fileId: f.id });
+                    onChange(next);
+                  }}
+                >
+                  {t("editor.blocks.place")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    void fetch(`/api/v1/admin/articles/${articleId}/files/${f.id}`, {
+                      method: "DELETE",
+                    }).then((res) => {
+                      if (res.ok) onFilesChange(files.filter((x) => x.id !== f.id));
                     });
                   }}
                 >

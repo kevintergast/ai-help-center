@@ -18,6 +18,14 @@ const LOADER_JS = `(function () {
   window.__hohWidget = 1;
 
   var script = document.currentScript;
+  if (!script) {
+    // KEIN currentScript, wenn der Loader dynamisch eingefügt wurde: Google Tag
+    // Manager & Co. injizieren Script-Tags per JS, ebenso React beim Hoisten
+    // eines <script async>. Dann das passende Tag im DOM suchen (letztes
+    // gewinnt) — sonst würde das Widget bei diesen Einbau-Wegen still ausfallen.
+    var tags = document.querySelectorAll('script[src*="/widget.js"]');
+    script = tags.length ? tags[tags.length - 1] : null;
+  }
   var origin;
   try {
     origin = new URL(script && script.src ? script.src : "").origin;

@@ -48,7 +48,7 @@ let indexer: ArticleIndexer;
 
 beforeEach(() => {
   sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0010_search_chunks.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0010_search_chunks.sql"]);
   fakes = makeFakes();
   indexer = new ArticleIndexer({
     db: d1FromSqlite(sqlite),

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
 import type { Tenant } from "@/lib/tenant/types";
 import { requireTeam } from "@/server/auth/guards";
 import { allowRequest, clientIp, rateLimited } from "./rate-limit";
@@ -15,7 +16,11 @@ import { freezeGate } from "@/server/billing/enforcement";
 import { answersRouter } from "./answers";
 import { askPublicRouter } from "./ask";
 import { brandingAdminRouter, brandingPublicRouter } from "./branding";
-import { contentAdminRouter, contentImagesPublicRouter } from "./content";
+import {
+  contentAdminRouter,
+  contentFilesPublicRouter,
+  contentImagesPublicRouter,
+} from "./content";
 import { videosAdminRouter } from "./videos";
 import type { ApiDeps, ApiEnv, AuthInstance, GuardSessionData } from "./context";
 import { domainAdminRouter } from "./domain";
@@ -26,6 +31,10 @@ import { supportAdminRouter, supportPublicRouter } from "./support";
 import { widgetPublicRouter } from "./widget";
 import { operatorRouter } from "./operator";
 import { isPublicPath } from "./public-routes";
+import { isMachinePath } from "./machine-routes";
+import { authenticateApiKey } from "@/server/apikeys/authenticate";
+import { apiKeysAdminRouter } from "./api-keys";
+import { mcpRouter } from "@/server/mcp/router";
 import { runtimeDeps } from "./runtime-deps";
 import { invitationsAcceptRouter, invitationsAdminRouter, ownershipRouter } from "./team";
 
@@ -102,11 +111,31 @@ export function buildApiApp(deps: ApiDeps) {
     await runWithTenant(tenant.id, () => next());
   });
 
-  // (2) DEFAULT-DENY: ohne gültige, tenant-gebundene Session ist JEDE
-  // nicht-öffentliche Route (auch eine unbekannte) 401.
+  // (2) DEFAULT-DENY: ohne gültiges Credential ist JEDE nicht-öffentliche
+  // Route (auch eine unbekannte) 401. Es gibt genau zwei Credential-Arten,
+  // und sie schließen sich pro Pfad aus (s. machine-routes.ts).
   app.use("*", async (c, next) => {
     if (isPublicPath(c.req.path)) return next();
 
+    // (2a) MASCHINEN-PFAD: nur Bearer-API-Key, NIE Cookies (E7/CSRF).
+    if (isMachinePath(c.req.path)) {
+      const keyDeps = await deps.getApiKeyDeps?.();
+      // Ohne Persistenz kann kein Schlüssel gültig sein → 401, nicht 503:
+      // ein fehlendes Binding darf die Fläche nicht offener machen.
+      const principal = keyDeps
+        ? await authenticateApiKey(
+            keyDeps.repo,
+            c.get("tenant").id,
+            c.req.header("authorization"),
+            Math.floor(Date.now() / 1000),
+          )
+        : null;
+      if (!principal) return unauthorizedBearer(c);
+      c.set("apiKey", principal);
+      return next();
+    }
+
+    // (2b) MENSCH-PFAD: tenant-gebundene Session (unverändert).
     let data: GuardSessionData | null = null;
     try {
       const auth = await c.get("getAuth")();
@@ -171,8 +200,9 @@ export function buildApiApp(deps: ApiDeps) {
     return auth.handler(c.req.raw);
   });
 
-  // TODO (mit der Public-API-Freigabe): API-Key-Auth-Middleware + CORS (hono/cors)
-  //       für cross-origin Zugriff durch Widget/Voice/Drittsysteme.
+  // API-Key-Auth existiert seit 0027 — aber BEWUSST nur auf den Maschinen-Pfaden
+  // (machine-routes.ts, heute /mcp). Die Freigabe weiterer /api/v1-Routen für
+  // Schlüssel ist je Route eine eigene Entscheidung (+ CORS via hono/cors).
 
   // (4) Aktuellen Mandanten (mandantensicher aus dem Host aufgelöst) zurückgeben.
   app.get("/tenant", (c) => {
@@ -219,6 +249,10 @@ export function buildApiApp(deps: ApiDeps) {
   // Instanz-Einstellungen (owner-only, aktuell SEO-Opt-out).
   app.route("/admin/settings", settingsAdminRouter(deps));
 
+  // Zugriffs-Schlüssel (Maschinen-Zugang für MCP/API): Anlegen/Liste/Widerruf.
+  // requireTeam("admin") ⇒ nur eine MFA-verifizierte Session erzeugt Schlüssel.
+  app.route("/admin/api-keys", apiKeysAdminRouter(deps));
+
   // Support-Flow: public Ticket-Einreichung + Admin-Inbox.
   app.route("/support", supportPublicRouter(deps));
   app.route("/admin/support", supportAdminRouter(deps));
@@ -244,6 +278,8 @@ export function buildApiApp(deps: ApiDeps) {
   app.route("/admin/videos", videosAdminRouter(deps));
   // Artikel-Bilder public (nur published-Artikel, s. contentImagesPublicRouter).
   app.route("/content/images", contentImagesPublicRouter(deps));
+  // Datei-Anhänge public (0029; gleiche fail-closed-Regel wie Bilder).
+  app.route("/content/files", contentFilesPublicRouter(deps));
 
   // Nutzungs-Events (Infra-Plan Schritt 3): public View-Beacon-Ingestion
   // (immer 204, No-op ohne D1). Details/Cookie-Semantik: ./events.ts
@@ -259,6 +295,11 @@ export function buildApiApp(deps: ApiDeps) {
   // Pflicht via Default-Deny; ohne Operator-Bindings 503. Details: ./operator.ts
   app.route("/operator", operatorRouter(deps));
 
+  // MCP-SERVER (Maschinen-Pfad): Hilfeartikel aus dem KI-Client des Kunden
+  // pflegen. Authentifizierung passiert bereits in (2a) — Bearer-Schlüssel,
+  // niemals Cookies. Werkzeuge/Scopes: server/mcp/tools, Plan: docs/mcp-plan.md
+  app.route("/mcp", mcpRouter(deps));
+
   // Dynamischer KI-Artikel (RAG-Kern, Punkt 3): public Frage-Endpoint.
   // Pipeline/Invarianten (frozen-Gate, Grounding, Credits): server/rag/ask.ts
   app.route("/ask", askPublicRouter(deps));
@@ -271,6 +312,18 @@ export function buildApiApp(deps: ApiDeps) {
   });
 
   return app;
+}
+
+/**
+ * 401 auf dem Maschinen-Pfad. Der `WWW-Authenticate`-Header ist Pflicht der
+ * MCP-Autorisierung (RFC 6750/9728): ein Client soll daraus ableiten können,
+ * WIE er sich ausweist. Der `resource_metadata`-Verweis kommt mit dem
+ * OAuth-Schritt dazu; heute ist der Schlüssel der einzige Weg.
+ */
+function unauthorizedBearer(c: Context<ApiEnv>) {
+  return c.json({ error: "unauthorized" }, 401, {
+    "WWW-Authenticate": 'Bearer realm="hallofhelp"',
+  });
 }
 
 /**

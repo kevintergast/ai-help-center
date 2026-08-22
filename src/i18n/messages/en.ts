@@ -95,7 +95,10 @@ export const en: Record<MessageKey, string> = {
   "hc.support.error": "Sending failed — please try again.",
   "hc.relatedHeading": "Related articles",
   "hc.videosHeading": "Videos",
+  "hc.tocHeading": "Contents",
   "hc.videoPlay": "Play video",
+  "hc.anchor.copy": "Copy link to this section",
+  "hc.anchor.copied": "Link copied",
   "hc.readingTime": "{min} min read",
   "hc.updated": "Updated {when}",
   "hc.backToOverview": "Back to overview",
@@ -464,6 +467,13 @@ export const en: Record<MessageKey, string> = {
   "admin.settings.widget.copied": "Copied!",
   "admin.settings.widget.billingNote":
     "Widget usage counts toward your instance's credits and active users — just like the help center itself.",
+  "admin.settings.widget.site.label": "Show the widget in this help center too",
+  "admin.settings.widget.site.hint": "Shows the help button in the bottom right corner on this instance's public pages as well — exactly as it looks on your website. A second entry point next to search and “Ask a question”.",
+  "admin.settings.widget.site.saving": "Saving …",
+  "admin.settings.widget.site.savedOn": "Saved — the widget now appears here as well.",
+  "admin.settings.widget.site.savedOff": "Saved — the widget appears on your website only.",
+  "admin.settings.widget.site.adminOnly": "Only administrators can change this setting.",
+  "admin.settings.widget.site.error": "Could not save — please try again.",
 
   "admin.settings.domain": "Domain",
   "admin.settings.subdomain": "Subdomain",
@@ -513,6 +523,32 @@ export const en: Record<MessageKey, string> = {
   "editor.blocks.type.image": "Image",
   "editor.blocks.type.video": "Video",
   "editor.blocks.type.card": "Link article",
+  "editor.blocks.type.table": "Table",
+  "editor.blocks.type.accordion": "Collapsible",
+  "editor.blocks.type.button": "Button",
+  "editor.blocks.type.divider": "Divider",
+  "editor.blocks.type.file": "File",
+  "editor.blocks.accordionTitle": "Section title",
+  "editor.blocks.accordionTitlePlaceholder": "e.g. “What does it cost?”",
+  "editor.blocks.buttonLabel": "Label",
+  "editor.blocks.buttonLabelPlaceholder": "e.g. “Go to admin area”",
+  "editor.blocks.buttonHref": "Target",
+  "editor.blocks.buttonHrefPlaceholder": "https://… or /article-slug",
+  "editor.blocks.buttonHrefHint": "Full https addresses and internal paths starting with / are allowed.",
+  "editor.blocks.buttonHrefInvalid": "Invalid target — use https://… or an internal path like /create-account.",
+  "editor.blocks.dividerHint": "A divider has no settings.",
+  "editor.blocks.fileUpload": "Upload file",
+  "editor.blocks.fileReplace": "Replace file",
+  "editor.blocks.fileName": "Display name",
+  "editor.blocks.fileNamePlaceholder": "Leave empty to use the file name",
+  "editor.blocks.fileHint": "PDF, CSV, TXT, DOCX, XLSX or PPTX — up to 10 MB.",
+  "editor.blocks.fileErrRequired": "Please choose a file.",
+  "editor.blocks.fileErrTooLarge": "The file is larger than 10 MB.",
+  "editor.blocks.fileErrType": "This file type is not allowed.",
+  "editor.blocks.fileErrTooMany": "This article already has the maximum number of files.",
+  "editor.blocks.fileErrGeneric": "Upload failed — please try again.",
+  "hc.fileDownload": "Download",
+  "editor.blocks.tableHint": "One line per table row, separate columns with |. The first line is the header.",
   "editor.blocks.variantLabel": "Text block type",
   "editor.blocks.empty": "No blocks yet — add one below.",
   "editor.blocks.add": "Add block:",
@@ -760,4 +796,104 @@ export const en: Record<MessageKey, string> = {
   "operator.success.devLink": "Dev link to set the password:",
   "operator.success.openHelpCenter": "Open help center",
   "operator.success.backToConsole": "Back to overview",
+
+  // ——— Access keys (MCP/API) ———
+  "admin.nav.apiKeys": "Access keys",
+  "admin.apiKeys.title": "Access keys",
+  "admin.apiKeys.subtitle":
+    "Connect your AI (for example Claude) to your help center so it can write and maintain articles for you.",
+
+  "admin.apiKeys.new.title": "Create a new key",
+  "admin.apiKeys.new.subtitle":
+    "Only allow what is actually needed. Every permission is spelled out below.",
+  "admin.apiKeys.new.nameLabel": "Name",
+  "admin.apiKeys.new.namePlaceholder": "e.g. Claude Code, editorial",
+  "admin.apiKeys.new.expiryLabel": "Valid for",
+  "admin.apiKeys.new.expiry.30": "30 days",
+  "admin.apiKeys.new.expiry.90": "90 days",
+  "admin.apiKeys.new.expiry.365": "1 year",
+  "admin.apiKeys.new.submit": "Create key",
+  "admin.apiKeys.new.creating": "Creating …",
+  "admin.apiKeys.new.ackMissing": "Please confirm the permissions marked in red.",
+  "admin.apiKeys.new.error": "The key could not be created.",
+
+  "admin.apiKeys.created.title": "Key created",
+  "admin.apiKeys.created.onceOnly":
+    "Copy it now — it will not be shown again. We only store it hashed.",
+  "admin.apiKeys.created.allows": "This key may:",
+  "admin.apiKeys.created.copy": "Copy",
+  "admin.apiKeys.created.done": "Done",
+
+  "admin.apiKeys.tier.read": "Read",
+  "admin.apiKeys.tier.write": "Write content",
+  "admin.apiKeys.tier.public": "Affects your visitors",
+  "admin.apiKeys.tier.destructive": "Delete",
+
+  "admin.apiKeys.risk.label": "Risk of this key:",
+  "admin.apiKeys.risk.low": "low",
+  "admin.apiKeys.risk.medium": "medium",
+  "admin.apiKeys.risk.high": "high",
+  "admin.apiKeys.risk.critical": "critical",
+
+  "admin.apiKeys.warn.draftsOnly":
+    "This key can create drafts at most. Nothing is published without you.",
+  "admin.apiKeys.warn.public.title": "Takes effect immediately",
+  "admin.apiKeys.warn.public.text":
+    "With these permissions the AI can make changes your visitors see right away — without you reviewing them first.",
+  "admin.apiKeys.warn.pii.title": "Personal data leaves your help center",
+  "admin.apiKeys.warn.pii.text":
+    "Support tickets contain your customers' email addresses and free text. With this permission your AI provider reads them too. Only grant it if your data protection agreements cover that.",
+  "admin.apiKeys.warn.destructive.title": "This key can delete content permanently",
+  "admin.apiKeys.warn.destructive.text":
+    "Deleted means gone, version history included. The AI has to have every deletion confirmed first, but the key itself can do it. Only grant this if you really need it.",
+  "admin.apiKeys.warn.broad.title": "This is effectively a master key",
+  "admin.apiKeys.warn.broad.text":
+    "Publishing, deleting and changing settings in one key: whoever gets hold of it can rebuild your help center. Better to use two keys — one for research, a narrow one for writing.",
+
+  "admin.apiKeys.scope.articles:read.label": "Read articles and drafts",
+  "admin.apiKeys.scope.articles:read.hint":
+    "Sees all articles including unpublished drafts, categories and translations.",
+  "admin.apiKeys.scope.analytics:read.label": "Read statistics",
+  "admin.apiKeys.scope.analytics:read.hint":
+    "Views, top articles, helpfulness plus plan and usage. Totals only, never individual visitors.",
+  "admin.apiKeys.scope.settings:read.label": "Read settings",
+  "admin.apiKeys.scope.settings:read.hint": "Name, colors, language and domain of your help center.",
+  "admin.apiKeys.scope.articles:write.label": "Write and edit articles",
+  "admin.apiKeys.scope.articles:write.hint":
+    "Creates articles, edits them, imports pages and translates — always as a draft. This permission cannot publish.",
+  "admin.apiKeys.scope.articles:publish.label": "Publish and unpublish articles",
+  "admin.apiKeys.scope.articles:publish.hint":
+    "A published article is immediately visible to every visitor.",
+  "admin.apiKeys.scope.settings:write.label": "Change settings and branding",
+  "admin.apiKeys.scope.settings:write.hint":
+    "Colors, header, search engine indexing, support address and default language.",
+  "admin.apiKeys.scope.support:read.label": "Read support tickets",
+  "admin.apiKeys.scope.support:read.hint":
+    "Contains personal data of your customers (email addresses, free text).",
+  "admin.apiKeys.scope.support:write.label": "Update support tickets",
+  "admin.apiKeys.scope.support:write.hint": "Set status, close tickets.",
+  "admin.apiKeys.scope.articles:delete.label": "Delete articles and images",
+  "admin.apiKeys.scope.articles:delete.hint":
+    "Permanent, version history included. Every deletion has to be explicitly confirmed in the AI session.",
+  "admin.apiKeys.scope.support:delete.label": "Delete support tickets",
+  "admin.apiKeys.scope.support:delete.hint": "Permanent. Also requires explicit confirmation.",
+
+  "admin.apiKeys.ack.articles:delete":
+    "I understand that an AI with this key can permanently delete articles.",
+  "admin.apiKeys.ack.support:delete":
+    "I understand that an AI with this key can permanently delete support tickets.",
+
+  "admin.apiKeys.connect.title": "How to connect your AI",
+  "admin.apiKeys.connect.subtitle":
+    "Address of your help center for AI clients (MCP). Enter it together with the key in your AI tool.",
+  "admin.apiKeys.connect.claudeCode": "Example for Claude Code:",
+
+  "admin.apiKeys.list.title": "Existing keys",
+  "admin.apiKeys.list.empty": "No key created yet.",
+  "admin.apiKeys.list.revoke": "Revoke",
+  "admin.apiKeys.list.expires": "Valid until",
+  "admin.apiKeys.list.lastUsed": "last used",
+  "admin.apiKeys.list.neverUsed": "never used",
+  "admin.apiKeys.list.status.revoked": "revoked",
+  "admin.apiKeys.list.status.expired": "expired",
 };

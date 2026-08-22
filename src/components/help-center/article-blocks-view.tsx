@@ -1,7 +1,11 @@
 import Link from "next/link";
 import type { ArticleBlock } from "@/lib/content/blocks";
-import type { ArticleImage, ArticleVideo } from "@/lib/content/types";
+import { textToParagraphs } from "@/lib/content/headings";
+import { formatFileSize } from "@/lib/content/file-size";
+import type { ArticleFile, ArticleImage, ArticleVideo } from "@/lib/content/types";
+import type { Locale } from "@/lib/tenant/types";
 import { Badge } from "@/components/ui/badge";
+import { ChevronRightIcon, DownloadIcon, ExternalLinkIcon } from "@/components/ui/icons";
 import { ArticleVideos } from "./article-videos";
 import { RichTextView } from "./rich-text-view";
 
@@ -23,19 +27,21 @@ const CALLOUT_STYLES: Record<"info" | "warning" | "error", string> = {
   error: "border-crit-bd bg-crit-bg",
 };
 
-/** Ein Text-Block kann mehrere Markdown-Absätze enthalten (\n\n-getrennt). */
-const toParagraphs = (text: string): string[] =>
-  text
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
-
 export interface BlockViewContext {
   images: ArticleImage[];
   videos: ArticleVideo[];
+  files?: ArticleFile[];
   videoPlayLabel: string;
+  /** Label des Download-Blocks (i18n kommt von der Server-Seite). */
+  fileDownloadLabel?: string;
+  /** Datei-URL-Bau (public Route bzw. team-gegatete Admin-Route im Editor). */
+  fileSrcFor?: (fileId: string) => string;
+  /** Locale für Zahlenformate (Dateigrößen). */
+  locale?: string;
   /** Bild-URL-Bau (public Route bzw. team-gegatete Admin-Route im Editor). */
   srcFor: (imageId: string) => string;
+  /** Überschriften-Anker („Abschnitt teilen") — nur öffentlich, nicht im Editor. */
+  anchors?: { locale: Locale; taken: Set<string> };
   /**
    * `false` = Artikel-Link-Cards rendern als NICHT-klickbare Attrappe.
    * Der Editor setzt das: ein Klick würde client-seitig wegnavigieren und
@@ -57,13 +63,13 @@ export function SingleBlockView({ block, ctx }: { block: ArticleBlock; ctx: Bloc
     if (block.variant === "standard") {
       return (
         <div className="flex flex-col gap-4">
-          <RichTextView body={toParagraphs(block.text)} />
+          <RichTextView body={textToParagraphs(block.text)} anchors={ctx.anchors} />
         </div>
       );
     }
     return (
       <div className={`flex flex-col gap-4 rounded-comfy border px-4 py-3 ${CALLOUT_STYLES[block.variant]}`}>
-        <RichTextView body={toParagraphs(block.text)} />
+        <RichTextView body={textToParagraphs(block.text)} anchors={ctx.anchors} />
       </div>
     );
   }
@@ -91,6 +97,120 @@ export function SingleBlockView({ block, ctx }: { block: ArticleBlock; ctx: Bloc
     if (!video) return null;
     return <ArticleVideos videos={[video]} playLabel={ctx.videoPlayLabel} />;
   }
+
+  if (block.type === "table") {
+    const cols = Math.max(block.head.length, ...block.rows.map((r) => r.length), 1);
+    return (
+      // Breite Tabellen scrollen im eigenen Container (nie die Seite).
+      <div className="overflow-x-auto rounded-comfy border border-hairline">
+        <table className="w-full border-collapse text-sm">
+          {block.head.length > 0 ? (
+            <thead>
+              <tr className="border-b border-hairline bg-tint text-left">
+                {Array.from({ length: cols }, (_, i) => (
+                  <th key={i} className="px-3 py-2 font-medium text-ink">
+                    {block.head[i] ?? ""}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+          ) : null}
+          <tbody>
+            {block.rows.map((row, ri) => (
+              <tr key={ri} className="border-b border-hairline last:border-b-0">
+                {Array.from({ length: cols }, (_, ci) => (
+                  <td key={ci} className="px-3 py-2 align-top text-ink-muted">
+                    {row[ci] ?? ""}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  if (block.type === "accordion") {
+    return (
+      // <details> = natives Auf-/Zuklappen, ohne JavaScript und ohne State —
+      // funktioniert server-gerendert, im Ausdruck und mit Screenreadern.
+      <details className="group/acc rounded-comfy border border-hairline bg-surface open:bg-tint/40">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 font-medium text-ink marker:content-none hover:text-brand [&::-webkit-details-marker]:hidden">
+          <ChevronRightIcon
+            width={16}
+            height={16}
+            className="shrink-0 text-ink-muted transition-transform group-open/acc:rotate-90"
+            aria-hidden
+          />
+          {block.title}
+        </summary>
+        <div className="flex flex-col gap-4 border-t border-hairline px-4 py-3">
+          <RichTextView body={textToParagraphs(block.text)} anchors={ctx.anchors} />
+        </div>
+      </details>
+    );
+  }
+
+  if (block.type === "divider") {
+    return <hr className="my-2 border-0 border-t border-hairline" />;
+  }
+
+  if (block.type === "button") {
+    const external = /^https?:\/\//i.test(block.href);
+    const cls =
+      "inline-flex w-fit items-center gap-2 rounded-std bg-brand px-4 py-2.5 text-sm font-medium text-brand-fg transition-opacity hover:opacity-90";
+    // Im Editor NICHT klickbar (wie die Cards) — kein Wegnavigieren mit
+    // ungespeichertem Entwurf.
+    if (ctx.linksActive === false) {
+      return (
+        <span className={cls}>
+          {block.label}
+          {external ? <ExternalLinkIcon width={14} height={14} aria-hidden /> : null}
+        </span>
+      );
+    }
+    return external ? (
+      <a href={block.href} target="_blank" rel="noopener noreferrer" className={cls}>
+        {block.label}
+        <ExternalLinkIcon width={14} height={14} aria-hidden />
+      </a>
+    ) : (
+      <Link href={block.href} className={cls}>
+        {block.label}
+      </Link>
+    );
+  }
+
+  if (block.type === "file") {
+    const file = ctx.files?.find((f) => f.id === block.fileId);
+    if (!file || !ctx.fileSrcFor) return null;
+    const meta = formatFileSize(file.size, ctx.locale ?? "de");
+    const cls =
+      "group flex items-center gap-3 rounded-comfy border border-hairline bg-surface px-4 py-3 transition-colors hover:border-hairline-strong hover:bg-tint";
+    const inner = (
+      <>
+        <DownloadIcon width={18} height={18} className="shrink-0 text-ink-muted" aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium text-ink group-hover:text-brand">
+            {file.name}
+          </span>
+          <span className="mt-0.5 block text-xs text-ink-muted">{meta}</span>
+        </span>
+        {ctx.fileDownloadLabel ? (
+          <span className="shrink-0 text-xs text-ink-muted">{ctx.fileDownloadLabel}</span>
+        ) : null}
+      </>
+    );
+    if (ctx.linksActive === false) return <span className={cls}>{inner}</span>;
+    return (
+      <a href={ctx.fileSrcFor(file.id)} className={cls} download={file.name}>
+        {inner}
+      </a>
+    );
+  }
+
+  if (block.type !== "articleLink") return null;
 
   // articleLink — Card mit eigenem Titel/Beschreibung + Tag-Badge.
   const cardClass =
@@ -125,29 +245,49 @@ export function ArticleBlocksView({
   blocks,
   images,
   videos,
+  files = [],
   articleSlug,
   videoPlayLabel,
+  fileDownloadLabel,
   imageSrc,
+  fileSrc,
   linksActive,
+  anchorLocale,
+  locale,
 }: {
   blocks: ArticleBlock[];
   images: ArticleImage[];
   videos: ArticleVideo[];
+  files?: ArticleFile[];
   articleSlug: string;
   /** i18n-Label des Video-Players (kommt von der Server-Seite). */
   videoPlayLabel: string;
   /** Bild-URL-Bau — Default: public Route; der Admin-Editor injiziert die
    *  team-gegatete Route (zeigt auch Draft-Bilder). */
   imageSrc?: (imageId: string) => string;
+  /** Label am Download-Block (i18n). */
+  fileDownloadLabel?: string;
+  /** Datei-URL-Bau — Default: public Route (wie imageSrc). */
+  fileSrc?: (fileId: string) => string;
+  /** Locale für Zahlenformate (Dateigrößen); Default de. */
+  locale?: string;
   /** `false` im Editor: Cards sind nicht klickbar (kein Entwurfs-Verlust). */
   linksActive?: boolean;
+  /** Locale für die Anker-Buttons; fehlt = keine Anker (Editor-Vorschau). */
+  anchorLocale?: Locale;
 }) {
   const ctx: BlockViewContext = {
     images,
     videos,
+    files,
     videoPlayLabel,
+    fileDownloadLabel,
+    locale,
     srcFor: imageSrc ?? ((id: string) => `/api/v1/content/images/${articleSlug}/${id}`),
+    fileSrcFor: fileSrc ?? ((id: string) => `/api/v1/content/files/${articleSlug}/${id}`),
     linksActive,
+    // Ein gemeinsames Set über ALLE Blöcke → artikelweit eindeutige Anker.
+    anchors: anchorLocale ? { locale: anchorLocale, taken: new Set<string>() } : undefined,
   };
   return (
     <div className="flex flex-col gap-4 text-[15px] leading-relaxed text-ink">
@@ -162,12 +302,15 @@ export function ArticleBlocksView({
 export function referencedIds(blocks: ArticleBlock[]): {
   images: Set<string>;
   videos: Set<string>;
+  files: Set<string>;
 } {
   const images = new Set<string>();
   const videos = new Set<string>();
+  const files = new Set<string>();
   for (const b of blocks) {
     if (b.type === "image") images.add(b.imageId);
     else if (b.type === "video") videos.add(b.videoId);
+    else if (b.type === "file") files.add(b.fileId);
   }
-  return { images, videos };
+  return { images, videos, files };
 }

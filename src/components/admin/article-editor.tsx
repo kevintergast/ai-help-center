@@ -69,6 +69,9 @@ export function ArticleEditor({
   // Bild-ANHÄNGE (Sofort-Zyklus): Uploads passieren IM Block-Editor und
   // erweitern diese Liste — sie speist Editor-Vorschau UND Ansichtsmodus.
   const [images, setImages] = useState(article.images ?? []);
+  // Datei-Anhänge (0029) laufen wie Bilder im SOFORT-Zyklus (Upload/Delete
+  // treffen die API direkt) — der Entwurf referenziert sie nur.
+  const [files, setFiles] = useState(article.files ?? []);
   const [draft, setDraft] = useState<Draft>(current);
   const [editing, setEditing] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -399,6 +402,8 @@ export function ArticleEditor({
               onImagesChange={setImages}
               videos={draft.videos}
               onVideosChange={(videos) => setDraft((d) => ({ ...d, videos }))}
+              files={files}
+              onFilesChange={setFiles}
               articleId={article.id}
               videoPlayLabel={t("hc.videoPlay")}
             />
@@ -443,9 +448,13 @@ export function ArticleEditor({
             blocks={view.blocks.map((w) => w.block)}
             images={images}
             videos={view.videos}
+            files={files}
             articleSlug={article.slug}
             videoPlayLabel={t("hc.videoPlay")}
+            fileDownloadLabel={t("hc.fileDownload")}
+            locale={locale}
             imageSrc={(imageId) => `/api/v1/admin/articles/${article.id}/images/${imageId}`}
+            fileSrc={(fileId) => `/api/v1/admin/articles/${article.id}/files/${fileId}`}
             linksActive={false}
           />
         </article>
