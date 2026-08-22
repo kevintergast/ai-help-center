@@ -191,11 +191,15 @@ jobs:
       - name: Laufende Version verifizieren (production)
         run: node scripts/verify-deployed-version.mjs https://app.hallofhelp.com
 
-  # ---------- RELEASE-TAG (automatisch, nach erfolgreichem Prod-Deploy) ----------
-  # Der Tag markiert damit GENAU den Stand, der live gegangen ist — nicht einen
-  # Commit, von dem man hofft, dass er deployt wurde. Niemand muss ihn von Hand
-  # setzen (Anforderung Kevin, 2026-08-23); existiert er schon, endet der Job
-  # still. `contents: write` gilt nur für diesen Job, nicht workflow-weit.
+  # ---------- RELEASE-TAG (nach erfolgreichem Prod-Deploy) ----------
+  # Der Tag markiert GENAU den Stand, der live gegangen ist. `contents: write`
+  # gilt nur für diesen Job, nicht workflow-weit.
+  #
+  # WICHTIG: Fehlen dem GITHUB_TOKEN die Schreibrechte (Repo-Einstellung
+  # "Workflow permissions" = read-only, für uns derzeit nicht umstellbar), dann
+  # SCHEITERT der Push — und der Job bleibt trotzdem GRÜN und schreibt einen
+  # Hinweis in die Zusammenfassung. Ein erfolgreicher Deploy soll nicht wegen
+  # eines fehlenden Tags rot aussehen; nachgezogen wird er dann mit `pnpm tag`.
   tag-release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [deploy-production]
@@ -219,5 +223,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "$TAG" -m "$TAG"
-          git push origin "$TAG"
-          echo "### Release-Tag \`$TAG\` gesetzt auf ${GITHUB_SHA::7}" >> "$GITHUB_STEP_SUMMARY"
+          if git push origin "$TAG"; then
+            echo "### Release-Tag \`$TAG\` gesetzt auf ${GITHUB_SHA::7}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "### Release-Tag \`$TAG\` NICHT gesetzt"
+              echo ""
+              echo "Dem GITHUB_TOKEN fehlen die Schreibrechte (Settings → Actions →"
+              echo "General → Workflow permissions). Der Deploy selbst ist erfolgreich."
+              echo ""
+              echo "Nachziehen mit: \`pnpm tag\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Tag konnte nicht gepusht werden — mit 'pnpm tag' nachziehen."
+          fi
