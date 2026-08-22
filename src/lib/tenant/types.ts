@@ -47,4 +47,9 @@ export interface Tenant {
    * Namen IMMER (sonst leerer Header).
    */
   showHeaderName?: boolean;
+  /**
+   * Widget-Launcher auf den eigenen öffentlichen Seiten anzeigen (0028).
+   * `undefined` = wie `false` behandeln (Registry-Fallback ohne CF-Kontext).
+   */
+  widgetOnSite?: boolean;
 }

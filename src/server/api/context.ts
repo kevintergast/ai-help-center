@@ -19,6 +19,9 @@ import type { TranslateArticleInput, TranslateArticleResult } from "@/server/con
 import type { SavedAnswersRepository } from "@/server/answers/store";
 import type { CustomHostnameProvisioner } from "@/server/domains/provisioner";
 import type { VisitorIdCodec } from "@/server/security/visitor-id";
+import type { ApiKeyDeps } from "@/server/apikeys/store";
+import type { ApiKeyPrincipal } from "@/server/apikeys/keys";
+import type { ConfirmationCodec } from "@/server/mcp/tools/types";
 import type { RateLimiters } from "./rate-limit";
 import type { DomainRepository } from "@/server/domains/store";
 import type { TxtChecker } from "@/server/domains/verify";
@@ -132,6 +135,19 @@ export interface ApiDeps {
   /** KI-Aufbereitung von Video-Transkripten (0026; null ohne AI-Binding). */
   getVideoSummarizer?(): Promise<import("@/server/content/video-summary").VideoSummarizer | null>;
   /**
+   * API-Keys (Maschinen-Zugang: MCP, später öffentliche REST-API).
+   * `null`/fehlend ⇒ die Key-Verwaltung antwortet 503 UND der Bearer-Pfad in
+   * der Default-Deny-Schicht ist schlicht nicht vorhanden (fail-closed: ohne
+   * Persistenz kann kein Schlüssel gültig sein). Tests injizieren sqlite-Fakes.
+   */
+  getApiKeyDeps?(): Promise<ApiKeyDeps | null>;
+  /**
+   * Bestätigungs-Token für zerstörende MCP-Werkzeuge (HMAC + Einmalverbrauch
+   * in KV). Fehlend ⇒ der MCP-Router nutzt einen Prozess-lokalen Notnagel
+   * (Signatur/Ablauf wirken, Einmalverbrauch nicht) — nur dev/Tests.
+   */
+  getConfirmations?(tenantId: string): Promise<ConfirmationCodec>;
+  /**
    * IP-Rate-Limits (Abuse-Härtung): fehlend ⇒ fail-open (dev/Tests).
    * Deployed aus den wrangler-`ratelimit`-Bindings (runtime-deps).
    */
@@ -163,6 +179,7 @@ export interface SettingsDeps {
   setSupportEmail(tenantId: string, email: string | null): Promise<void>;
   setDefaultLocale(tenantId: string, locale: "de" | "en"): Promise<void>;
   setShowHeaderName(tenantId: string, show: boolean): Promise<void>;
+  setWidgetOnSite(tenantId: string, on: boolean): Promise<void>;
 }
 
 export interface AskRuntime {
@@ -237,6 +254,13 @@ export type ApiEnv = {
   Variables: {
     tenant: Tenant;
     getAuth: () => Promise<AuthInstance>;
+    /**
+     * Gesetzt, wenn der Request über einen gültigen API-Key authentifiziert
+     * wurde (Maschinen-Pfad). Sitzung und Schlüssel schließen sich aus: ein
+     * Request hat höchstens EINEN Prinzipal. Team-Guards (`requireTeam`) lesen
+     * die Variable nicht und laufen deshalb für Schlüssel ins 401 — Absicht.
+     */
+    apiKey?: ApiKeyPrincipal;
   };
 };
 

@@ -22,16 +22,27 @@ import {
   ExternalLinkIcon,
   MenuIcon,
   CloseIcon,
+  KeyIcon,
 } from "@/components/ui/icons";
 
 type IconType = typeof GridIcon;
 
-const NAV: { href: string; key: MessageKey; icon: IconType; badge?: boolean }[] = [
+const NAV: {
+  href: string;
+  key: MessageKey;
+  icon: IconType;
+  badge?: boolean;
+  /** Nur für diese Rollen sichtbar (fehlt = alle Team-Rollen). Reine UI-Kosmetik —
+   *  die Seiten gaten serverseitig selbst (page-guard). */
+  roles?: readonly string[];
+}[] = [
   { href: "/admin", key: "admin.nav.overview", icon: GridIcon },
   { href: "/admin/articles", key: "admin.nav.articles", icon: DocIcon },
   { href: "/admin/stats", key: "admin.nav.stats", icon: ChartBarIcon },
   { href: "/admin/plan", key: "admin.nav.plan", icon: CreditCardIcon },
   { href: "/admin/inbox", key: "admin.nav.inbox", icon: InboxIcon, badge: true },
+  // Schlüssel vergeben Rechte → wie die Seite selbst admin/owner-exklusiv.
+  { href: "/admin/api-keys", key: "admin.nav.apiKeys", icon: KeyIcon, roles: ["admin", "owner"] },
   { href: "/admin/settings", key: "admin.nav.settings", icon: SettingsIcon },
 ];
 
@@ -71,7 +82,7 @@ export function AdminShell({
 
   const nav = (
     <nav className="flex flex-col gap-0.5 p-3" aria-label={t("admin.nav.overview")}>
-      {NAV.map((item) => {
+      {NAV.filter((item) => !item.roles || item.roles.includes(viewer?.role ?? "")).map((item) => {
         const Icon = item.icon;
         const active = isActive(item.href);
         return (

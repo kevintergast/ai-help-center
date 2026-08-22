@@ -7,6 +7,7 @@ import { LegalDocsManager } from "@/components/admin/legal-docs-manager";
 import { SearchIndexManager } from "@/components/admin/search-index-manager";
 import { SeoIndexingManager } from "@/components/admin/seo-indexing-manager";
 import { SupportEmailManager } from "@/components/admin/support-email-manager";
+import { WidgetSiteToggle } from "@/components/admin/widget-site-toggle";
 import { WidgetSnippet } from "@/components/admin/widget-snippet";
 
 function SettingsCard({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
@@ -92,6 +93,11 @@ export default async function AdminSettingsPage() {
           <WidgetSnippet
             locale={tenant.defaultLocale}
             host={`${tenant.slug}.hallofhelp.com`}
+          />
+          {/* Dasselbe Snippet zusätzlich im eigenen Hilfezentrum (0028). */}
+          <WidgetSiteToggle
+            locale={tenant.defaultLocale}
+            initialOn={tenant.widgetOnSite === true}
           />
         </SettingsCard>
       </div>

@@ -1,5 +1,5 @@
 import type { ArticleBlock } from "@/lib/content/blocks";
-import type { ArticleImage, ArticleVideo } from "@/lib/content/types";
+import type { ArticleFile, ArticleImage, ArticleVideo } from "@/lib/content/types";
 
 /**
  * PURE Draft-Helfer des WYSIWYG-Block-Editors.
@@ -94,15 +94,21 @@ export function unplacedAttachments(
   list: EditorBlock[],
   images: ArticleImage[],
   videos: ArticleVideo[],
-): { images: ArticleImage[]; videos: ArticleVideo[] } {
+  files: ArticleFile[] = [],
+): { images: ArticleImage[]; videos: ArticleVideo[]; files: ArticleFile[] } {
   const imageIds = new Set<string>();
   const videoIds = new Set<string>();
+  const fileIds = new Set<string>();
   for (const w of list) {
     if (w.block.type === "image") imageIds.add(w.block.imageId);
     else if (w.block.type === "video") videoIds.add(w.block.videoId);
+    else if (w.block.type === "file") fileIds.add(w.block.fileId);
   }
   return {
     images: images.filter((i) => !imageIds.has(i.id)),
     videos: videos.filter((v) => !videoIds.has(v.id)),
+    // Hochgeladene, aber nicht platzierte Dateien wären sonst unsichtbarer
+    // Datenmüll in R2 (die Leiste bietet Platzieren oder Löschen an).
+    files: files.filter((f) => !fileIds.has(f.id)),
   };
 }

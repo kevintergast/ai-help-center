@@ -1,0 +1,13 @@
+-- 0028: WIDGET IM EIGENEN HILFEZENTRUM
+--
+-- Schaltet den Widget-Launcher (/widget.js) auf den ÖFFENTLICHEN Seiten der
+-- Instanz selbst frei — also dort, wo Besucher das Hilfezentrum lesen. Nutzen:
+--  * Dogfooding/Demo: Interessenten erleben das Widget genau so, wie es später
+--    auf ihrer eigenen Website aussieht (identischer Loader, identisches iframe).
+--  * Für Kunden: ein zweiter Einstieg neben der Suche, ohne Extra-Einbindung.
+--
+-- DEFAULT 0 (aus): Das Hilfezentrum hat mit Suche und "Frage stellen" schon
+-- eigene KI-Einstiege — ein zusätzlicher Launcher wäre für Bestandsinstanzen
+-- eine ungefragte UI- UND Kosten-Änderung (Widget-Antworten kosten Credits).
+-- Einschalten passiert bewusst in den Einstellungen (admin).
+ALTER TABLE tenants ADD COLUMN widget_on_site INTEGER NOT NULL DEFAULT 0;

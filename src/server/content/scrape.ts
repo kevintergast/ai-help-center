@@ -46,7 +46,7 @@ export interface ScrapedArticle {
 }
 
 const MAX_BLOCKS = 200;
-const MAX_IMAGES = 12;
+const MAX_IMAGES = 40;
 const MAX_VIDEOS = 10;
 
 /** Nur öffentliche http(s)-Ziele (SSRF-Schutz). */
@@ -139,6 +139,37 @@ function tidyText(s: string): string {
 }
 
 /**
+ * Index NACH dem passenden schließenden Tag (zählt Verschachtelung mit) —
+ * nötig für Callout-/Text-Container, die weitere divs enthalten.
+ */
+function endOfElement(html: string, openStart: number, tag: string): number {
+  const openRe = new RegExp(`<${tag}\\b`, "gi");
+  const closeRe = new RegExp(`</${tag}\\s*>`, "gi");
+  let depth = 0;
+  let pos = openStart;
+  for (;;) {
+    openRe.lastIndex = pos;
+    closeRe.lastIndex = pos;
+    const nextOpen = openRe.exec(html);
+    const nextClose = closeRe.exec(html);
+    if (!nextClose) return html.length;
+    if (nextOpen && nextOpen.index < nextClose.index) {
+      depth++;
+      pos = nextOpen.index + 1;
+      continue;
+    }
+    depth--;
+    pos = nextClose.index + nextClose[0].length;
+    if (depth <= 0) return pos;
+  }
+}
+
+/** Klassennamen, die in Doku-Systemen Hinweis-/Textboxen markieren. */
+const CALLOUT_CLASS = /\b(?:alert|callout|note|tip|hint|info|warning|danger|prose)\b/i;
+const WARNING_CLASS = /\b(?:warning|caution)\b/i;
+const ERROR_CLASS = /\b(?:danger|error|critical)\b/i;
+
+/**
  * HTML → Artikel im Block-Modell. `baseUrl` löst relative Bild-/Link-Pfade auf.
  */
 export function extractArticleFromHtml(html: string, baseUrl: URL): ScrapedArticle {
@@ -159,49 +190,130 @@ export function extractArticleFromHtml(html: string, baseUrl: URL): ScrapedArtic
         .split("|")[0]
         .trim();
 
-  const blocks: ArticleBlock[] = [];
+  // Blöcke werden MIT Position gesammelt und am Ende sortiert — so bleibt die
+  // Original-Reihenfolge auch bei geschachtelten Containern erhalten.
+  const found: { pos: number; block: ArticleBlock }[] = [];
   const images: ScrapedImage[] = [];
   const videos: ScrapedVideo[] = [];
   let imageCounter = 0;
   let videoCounter = 0;
 
+  /** Bereiche, die ein Callout-Container schon abgedeckt hat (kein Doppel). */
+  const consumed: [number, number][] = [];
+  const isConsumed = (at: number) => consumed.some(([a, b]) => at >= a && at < b);
+
+  // (A) CALLOUT-/TEXT-CONTAINER (Import-Fund: Hinweisboxen halten ihren Text
+  //     oft in <div> mit <br>-Umbrüchen statt in <p> — der Text ginge sonst
+  //     komplett verloren, s. Zendesk-Artikel).
+  for (const m of container.matchAll(/<div\b([^>]*)>/gi)) {
+    const attrs = m[1] ?? "";
+    const cls = /class="([^"]*)"/i.exec(attrs)?.[1] ?? "";
+    if (!CALLOUT_CLASS.test(cls)) continue;
+    const start = m.index ?? 0;
+    if (isConsumed(start)) continue;
+    const end = endOfElement(container, start, "div");
+    const inner = container.slice(start + m[0].length, end);
+    // Enthält der Container eigene Block-Elemente? Dann macht der Hauptlauf
+    // die Arbeit (sonst würde derselbe Text zweimal importiert).
+    if (/<(?:p|h[1-4]|ul|ol|table|pre|blockquote|img|iframe)\b/i.test(inner)) continue;
+    const text = tidyText(inlineToMarkdown(inner, baseUrl));
+    if (text.length < 20) continue;
+    const variant = ERROR_CLASS.test(cls) ? "error" : WARNING_CLASS.test(cls) ? "warning" : "info";
+    found.push({ pos: start, block: { type: "text", variant, text } });
+    consumed.push([start, end]);
+  }
+
+  // (A2) AUFKLAPPBARE ABSCHNITTE: <details><summary>Titel</summary>…</details>
+  //      ist die verbreitete Form in Hilfezentren (FAQ, optionale Details).
+  //      Titel + Inhalt landen in EINEM accordion-Block; der Bereich wird als
+  //      verbraucht markiert, damit der Hauptlauf den Inhalt nicht doppelt holt.
+  for (const m of container.matchAll(/<details\b[^>]*>/gi)) {
+    const start = m.index ?? 0;
+    if (isConsumed(start)) continue;
+    const end = endOfElement(container, start, "details");
+    const inner = container.slice(start + m[0].length, end);
+    const summary = /<summary\b[^>]*>([\s\S]*?)<\/summary>/i.exec(inner);
+    const title = clean(stripTags(decodeEntities(summary?.[1] ?? "")));
+    const body = tidyText(inlineToMarkdown(inner.replace(summary?.[0] ?? "", ""), baseUrl));
+    if (title.length === 0 && body.length === 0) continue;
+    found.push({
+      pos: start,
+      block: { type: "accordion", title: title.length > 0 ? title : body.slice(0, 80), text: body },
+    });
+    consumed.push([start, end]);
+  }
+
+  // (B) TABELLEN (Import-Fund: Parameter-/Feld-Übersichten gingen verloren).
+  for (const m of container.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)) {
+    const start = m.index ?? 0;
+    if (isConsumed(start)) continue;
+    const inner = m[1];
+    const cell = (raw: string) => clean(inlineToMarkdown(raw, baseUrl));
+    const head = [...(/<thead\b[^>]*>([\s\S]*?)<\/thead>/i.exec(inner)?.[1] ?? "").matchAll(
+      /<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>/gi,
+    )].map((c) => cell(c[1]));
+    const bodyHtml = /<tbody\b[^>]*>([\s\S]*?)<\/tbody>/i.exec(inner)?.[1] ?? inner;
+    const rows = [...bodyHtml.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)]
+      .map((r) => [...r[1].matchAll(/<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>/gi)].map((c) => cell(c[1])))
+      .filter((r) => r.some((c) => c.length > 0));
+    // Kopfzeile ohne <thead>: erste Zeile mit <th> übernehmen.
+    const headFromFirstRow =
+      head.length === 0 && /<th\b/i.test(inner)
+        ? (rows.shift() ?? [])
+        : [];
+    const finalHead = head.length > 0 ? head : headFromFirstRow;
+    if (finalHead.length > 0 || rows.length > 0) {
+      found.push({ pos: start, block: { type: "table", head: finalHead, rows } });
+      consumed.push([start, start + m[0].length]);
+    }
+  }
+
   // Block-Elemente in DOKUMENT-Reihenfolge (die Reihenfolge ist das Ziel).
   const blockRe =
-    /<(h2|h3|h4)\b[^>]*>([\s\S]*?)<\/\1>|<p\b[^>]*>([\s\S]*?)<\/p>|<(ul|ol)\b[^>]*>([\s\S]*?)<\/\4>|<pre\b[^>]*>([\s\S]*?)<\/pre>|<blockquote\b[^>]*>([\s\S]*?)<\/blockquote>|<img\b([^>]*)>|<iframe\b([^>]*)>/gi;
+    /<(h2|h3|h4)\b[^>]*>([\s\S]*?)<\/\1>|<p\b[^>]*>([\s\S]*?)<\/p>|<(ul|ol)\b[^>]*>([\s\S]*?)<\/\4>|<pre\b[^>]*>([\s\S]*?)<\/pre>|<blockquote\b[^>]*>([\s\S]*?)<\/blockquote>|<img\b([^>]*)>|<iframe\b([^>]*)>|<(hr)\b[^>]*\/?>/gi;
 
-  const pushText = (text: string) => {
+  const pushText = (pos: number, text: string) => {
     const t = tidyText(text);
-    if (t.length > 0 && blocks.length < MAX_BLOCKS) {
-      blocks.push({ type: "text", variant: "standard", text: t });
+    if (t.length > 0 && found.length < MAX_BLOCKS) {
+      found.push({ pos, block: { type: "text", variant: "standard", text: t } });
     }
   };
 
   for (const m of container.matchAll(blockRe)) {
-    if (blocks.length >= MAX_BLOCKS) break;
-    const [, hTag, hInner, pInner, listTag, listInner, preInner, quoteInner, imgAttrs, frameAttrs] = m;
+    if (found.length >= MAX_BLOCKS) break;
+    const at = m.index ?? 0;
+    if (isConsumed(at)) continue; // schon von Callout/Tabelle abgedeckt
+    const [, hTag, hInner, pInner, listTag, listInner, preInner, quoteInner, imgAttrs, frameAttrs, hrTag] =
+      m;
+
+    if (hrTag) {
+      // Trennlinie übernehmen (gliedert lange Artikel, kostet nichts).
+      if (found.length < MAX_BLOCKS) found.push({ pos: at, block: { type: "divider" } });
+      continue;
+    }
 
     if (hTag) {
       const level = hTag.toLowerCase() === "h2" ? "## " : "### ";
       const text = clean(inlineToMarkdown(hInner, baseUrl));
-      if (text.length > 0) pushText(`${level}${text}`);
+      if (text.length > 0) pushText(at, `${level}${text}`);
     } else if (pInner !== undefined) {
-      pushText(inlineToMarkdown(pInner, baseUrl));
+      pushText(at, inlineToMarkdown(pInner, baseUrl));
     } else if (listTag) {
       const ordered = listTag.toLowerCase() === "ol";
       const items = [...listInner.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/gi)]
         .map((li) => clean(inlineToMarkdown(li[1], baseUrl)))
         .filter((t) => t.length > 0);
       if (items.length > 0) {
-        pushText(items.map((t, i) => (ordered ? `${i + 1}. ${t}` : `- ${t}`)).join("\n"));
+        pushText(at, items.map((t, i) => (ordered ? `${i + 1}. ${t}` : `- ${t}`)).join("\n"));
       }
     } else if (preInner !== undefined) {
       const code = decodeEntities(stripTags(preInner)).replace(/^\n+|\n+$/g, "");
-      if (code.trim().length > 0 && blocks.length < MAX_BLOCKS) {
-        blocks.push({ type: "text", variant: "code", text: code });
+      if (code.trim().length > 0 && found.length < MAX_BLOCKS) {
+        found.push({ pos: at, block: { type: "text", variant: "code", text: code } });
       }
     } else if (quoteInner !== undefined) {
       const text = clean(inlineToMarkdown(quoteInner, baseUrl));
-      if (text.length > 0) pushText(`> ${text}`);
+      if (text.length > 0) pushText(at, `> ${text}`);
     } else if (imgAttrs !== undefined) {
       const src = /src="([^"]+)"/i.exec(imgAttrs)?.[1];
       if (!src) continue;
@@ -225,7 +337,7 @@ export function extractArticleFromHtml(html: string, baseUrl: URL): ScrapedArtic
         // Beschreibung ist bei uns Pflicht (Alt-Text + KI-Kontext).
         description: alt.length > 0 ? alt : `Bild ${imageCounter} (Beschreibung bitte ergänzen)`,
       });
-      blocks.push({ type: "image", imageId: placeholderId });
+      found.push({ pos: at, block: { type: "image", imageId: placeholderId } });
     } else if (frameAttrs !== undefined) {
       const src = /src="([^"]+)"/i.exec(frameAttrs)?.[1];
       if (!src) continue;
@@ -237,9 +349,11 @@ export function extractArticleFromHtml(html: string, baseUrl: URL): ScrapedArtic
       if (videos.length >= MAX_VIDEOS) continue;
       const id = `scraped-video-${++videoCounter}`;
       videos.push({ id, youtubeId });
-      blocks.push({ type: "video", videoId: id });
+      found.push({ pos: at, block: { type: "video", videoId: id } });
     }
   }
+
+  const blocks = found.sort((a, b) => a.pos - b.pos).map((f) => f.block);
 
   return {
     title: rawTitle.length > 0 ? rawTitle.slice(0, 200) : "",

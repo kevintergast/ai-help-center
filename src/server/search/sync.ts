@@ -37,6 +37,7 @@ export function toIndexable(row: {
   body_json: string;
   images_json?: string;
   videos_json?: string;
+  files_json?: string;
 }): IndexableArticle {
   let body: string[] = [];
   try {
@@ -85,6 +86,24 @@ export function toIndexable(row: {
       /* fehlerhafte Metadaten → Video fällt aus dem Kontext */
     }
   }
+  // Datei-Anhänge (0029): der NAME ist der KI-Kontext („Wo finde ich die
+  // Vorlage?" → Antwort kann die Datei benennen). Inhalte werden NICHT
+  // extrahiert — ein PDF-Parser gehört nicht in den Index-Pfad.
+  if (row.files_json) {
+    try {
+      const files = JSON.parse(row.files_json) as unknown;
+      if (Array.isArray(files)) {
+        for (const entry of files) {
+          const f = entry as { name?: unknown };
+          if (typeof f?.name === "string" && f.name.trim().length > 0) {
+            body.push(`Datei zum Herunterladen: ${f.name.trim()}`);
+          }
+        }
+      }
+    } catch {
+      /* fehlerhafte Metadaten → Datei fällt aus dem Kontext */
+    }
+  }
   return { id: row.id, slug: row.slug, title: row.title, body };
 }
 
@@ -98,7 +117,7 @@ export async function syncArticleIndex(
   articleId: string,
 ): Promise<void> {
   const row = await env.DB.prepare(
-    `SELECT id, slug, title, body_json, images_json, videos_json FROM articles
+    `SELECT id, slug, title, body_json, images_json, videos_json, files_json FROM articles
       WHERE tenant_id = ? AND id = ? AND status = 'published'`,
   )
     .bind(tenantId, articleId)
@@ -120,7 +139,7 @@ export async function rebuildTenantIndex(
   tenantId: string,
 ): Promise<{ articles: number; extras: number; chunks: number; embedded: number }> {
   const rows = await env.DB.prepare(
-    `SELECT id, slug, title, body_json, images_json, videos_json FROM articles
+    `SELECT id, slug, title, body_json, images_json, videos_json, files_json FROM articles
       WHERE tenant_id = ? AND status = 'published'`,
   )
     .bind(tenantId)

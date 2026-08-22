@@ -2,7 +2,9 @@ import type { Context } from "hono";
 import { Hono } from "hono";
 import { requireOwner, requireTeam } from "@/server/auth/guards";
 import { sniffImageType } from "@/server/branding/validate";
+import { MAX_FILE_BYTES, sanitizeFileName, sniffFileType } from "@/server/content/files";
 import {
+  articleFileKey,
   articleImageKey,
   MAX_IMAGES_PER_ARTICLE,
   SlugConflictError,
@@ -416,6 +418,100 @@ export function contentAdminRouter(deps: ApiDeps) {
     return c.json({ ok: true });
   });
 
+  // ——— DATEI-ANHÄNGE (0029): Vorlagen/Formulare zum Herunterladen ————————
+
+  r.post("/:id/files", requireTeam("content"), async (c) => {
+    const articleId = c.req.param("id");
+    if (!articleId) return c.json({ error: "not_found" }, 404);
+
+    const content = await deps.getContentDeps();
+    if (!content) return c.json({ error: "content_unavailable" }, 503);
+    if (!content.media) return c.json({ error: "media_unavailable" }, 503);
+
+    let form: Record<string, unknown>;
+    try {
+      form = await c.req.parseBody();
+    } catch {
+      return c.json({ error: "invalid_form" }, 400);
+    }
+
+    const upload = form.file;
+    if (!(upload instanceof File)) return c.json({ error: "file_required" }, 400);
+    if (upload.size > MAX_FILE_BYTES) return c.json({ error: "file_too_large" }, 413);
+    if (upload.size === 0) return c.json({ error: "file_required" }, 400);
+
+    // Anzeigename: eigener Wert schlägt den Dateinamen; beide bereinigt.
+    const rawName = typeof form.name === "string" && form.name.trim().length > 0 ? form.name : upload.name;
+    const name = sanitizeFileName(rawName);
+
+    const bytes = new Uint8Array(await upload.arrayBuffer());
+    // Typ aus den BYTES (plus Endung nur zur Office-Unterscheidung) —
+    // der vom Client geschickte content-type wird bewusst ignoriert.
+    const mime = sniffFileType(bytes, name);
+    if (!mime) return c.json({ error: "unsupported_file_type" }, 415);
+
+    const file = { id: crypto.randomUUID(), name, size: upload.size, mime };
+    const tenantId = c.get("tenant").id;
+
+    // Wie beim Bild: erst R2, dann Metadaten; scheitert der zweite Schritt,
+    // wird das Objekt direkt wieder entfernt (nie ein Eintrag ohne Datei).
+    await content.media.put(articleFileKey(tenantId, articleId, file.id), bytes, {
+      httpMetadata: { contentType: mime },
+    });
+    const result = await content.store.addFile(tenantId, articleId, file);
+    if (result !== "ok") {
+      await content.media.delete(articleFileKey(tenantId, articleId, file.id));
+      if (result === "limit") return c.json({ error: "too_many_files" }, 409);
+      return c.json({ error: "not_found" }, 404);
+    }
+
+    // Dateiname ist KI-Kontext („Wo finde ich die Vorlage?") → Index nachziehen.
+    await syncIndex(tenantId, articleId);
+    return c.json({ ok: true, file }, 201);
+  });
+
+  /** Download für den EDITOR (auch Drafts) — team-gegated, tenant-scoped. */
+  r.get("/:id/files/:fileId", requireTeam("content"), async (c) => {
+    const content = await deps.getContentDeps();
+    if (!content?.media) return c.json({ error: "media_unavailable" }, 503);
+
+    const articleId = c.req.param("id");
+    const fileId = c.req.param("fileId");
+    if (!articleId || !fileId) return c.json({ error: "not_found" }, 404);
+
+    const tenantId = c.get("tenant").id;
+    const obj = await content.media.get(articleFileKey(tenantId, articleId, fileId));
+    if (!obj) return c.json({ error: "not_found" }, 404);
+    return c.body(obj.body, 200, {
+      "content-type": obj.httpMetadata?.contentType ?? "application/octet-stream",
+      // attachment + nosniff: nie im Browser rendern (auch CSV/TXT nicht).
+      "content-disposition": "attachment",
+      "cache-control": "private, max-age=300",
+      "x-content-type-options": "nosniff",
+    });
+  });
+
+  r.delete("/:id/files/:fileId", requireTeam("content"), async (c) => {
+    const articleId = c.req.param("id");
+    const fileId = c.req.param("fileId");
+    if (!articleId || !fileId) return c.json({ error: "not_found" }, 404);
+
+    const content = await deps.getContentDeps();
+    if (!content) return c.json({ error: "content_unavailable" }, 503);
+
+    const tenantId = c.get("tenant").id;
+    const removed = await content.store.removeFile(tenantId, articleId, fileId);
+    if (!removed) return c.json({ error: "not_found" }, 404);
+
+    try {
+      await content.media?.delete(articleFileKey(tenantId, articleId, fileId));
+    } catch (err) {
+      console.error("[files] R2-Delete fehlgeschlagen:", err);
+    }
+    await syncIndex(tenantId, articleId);
+    return c.json({ ok: true });
+  });
+
   // ——— IMPORT/EXPORT (Content-Werkzeuge; Anti-Lock-in-USP) ———————————————
 
   // Vollständiger Export als JSON-Datei (alle Status, Verweise als Slugs —
@@ -824,9 +920,31 @@ export function contentAdminRouter(deps: ApiDeps) {
     const content = await deps.getContentDeps();
     if (!content) return c.json({ error: "content_unavailable" }, 503);
 
-    const ok = await content.store.remove(c.get("tenant").id, id);
+    const tenantId = c.get("tenant").id;
+    // Anhang-Ids VOR dem Löschen holen — danach ist die Zeile weg und die
+    // R2-Objekte wären nicht mehr auffindbar (verwaiste Bilder/Dateien).
+    const attachments = await content.store.attachmentIds(tenantId, id);
+
+    const ok = await content.store.remove(tenantId, id);
     if (!ok) return c.json({ error: "not_found" }, 404);
-    await syncIndex(c.get("tenant").id, id);
+
+    // Binärdaten best effort hinterher (Metadaten sind die Wahrheit).
+    for (const imageId of attachments.images) {
+      try {
+        await content.media?.delete(articleImageKey(tenantId, id, imageId));
+      } catch (err) {
+        console.error("[articles] R2-Delete (Bild) fehlgeschlagen:", err);
+      }
+    }
+    for (const fileId of attachments.files) {
+      try {
+        await content.media?.delete(articleFileKey(tenantId, id, fileId));
+      } catch (err) {
+        console.error("[articles] R2-Delete (Datei) fehlgeschlagen:", err);
+      }
+    }
+
+    await syncIndex(tenantId, id);
     return c.json({ ok: true });
   });
 
@@ -843,6 +961,44 @@ export function contentAdminRouter(deps: ApiDeps) {
  * hinter einer Id unveränderlich (Löschen+Neu statt Ersetzen) → immutable-
  * Cache ist korrekt.
  */
+/**
+ * ÖFFENTLICHER DATEI-DOWNLOAD — `GET /api/v1/content/files/:articleKey/:fileId`
+ * (0029). Gleiche fail-closed-Regel wie beim Bild-Serving: ausgeliefert wird
+ * nur, was an einem VERÖFFENTLICHTEN Artikel dieses Tenants hängt; der R2-Key
+ * wird serverseitig abgeleitet. Immer `attachment` + `nosniff`, damit eine
+ * hochgeladene CSV/TXT nie als Seite im eigenen Origin rendert.
+ */
+export function contentFilesPublicRouter(deps: ApiDeps) {
+  const r = new Hono<ApiEnv>();
+
+  r.get("/:articleKey/:fileId", async (c) => {
+    const content = await deps.getContentDeps();
+    if (!content?.media) return c.json({ error: "media_unavailable" }, 503);
+
+    const tenantId = c.get("tenant").id;
+    const found = await content.store.getPublishedFile(
+      tenantId,
+      c.req.param("articleKey"),
+      c.req.param("fileId"),
+    );
+    if (!found) return c.json({ error: "not_found" }, 404);
+
+    const obj = await content.media.get(articleFileKey(tenantId, found.articleId, found.file.id));
+    if (!obj) return c.json({ error: "not_found" }, 404);
+
+    return c.body(obj.body, 200, {
+      "content-type": found.file.mime,
+      // Dateiname im Header: sanitizeFileName hat Steuerzeichen und
+      // Anführungszeichen entfernt, der Wert ist damit header-sicher.
+      "content-disposition": `attachment; filename="${found.file.name}"`,
+      "cache-control": "public, max-age=31536000, immutable",
+      "x-content-type-options": "nosniff",
+    });
+  });
+
+  return r;
+}
+
 export function contentImagesPublicRouter(deps: ApiDeps) {
   const r = new Hono<ApiEnv>();
 

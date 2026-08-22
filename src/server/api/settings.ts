@@ -8,6 +8,8 @@ import type { ApiDeps, ApiEnv } from "./context";
  *   PUT /api/v1/admin/settings/seo     { indexable: boolean }      — OWNER
  *   PUT /api/v1/admin/settings/support { email: string | null }    — admin
  *   PUT /api/v1/admin/settings/locale  { locale: "de" | "en" }     — OWNER
+ *   PUT /api/v1/admin/settings/header-name    { show: boolean }   — admin
+ *   PUT /api/v1/admin/settings/widget-on-site { on: boolean }     — admin
  *
  * SEO-Opt-out (Migration 0013): `false` schaltet die Instanz auf noindex
  * (Meta-Tag auf jeder Seite, robots Disallow-all, leere Sitemap, raus aus dem
@@ -83,6 +85,26 @@ export function settingsAdminRouter(deps: ApiDeps) {
 
     await settings.setShowHeaderName(c.get("tenant").id, show);
     return c.json({ ok: true, show });
+  });
+
+  // Widget auf den EIGENEN öffentlichen Seiten (0028): admin-Gate wie
+  // header-name. Kein Owner-Gate, obwohl Antworten Credits kosten — die
+  // Kostenseite ist über Budget/Limits gedeckelt, und der Launcher ist eine
+  // operative Darstellungsentscheidung (zweiter Einstieg neben der Suche).
+  r.put("/widget-on-site", requireTeam("admin"), async (c) => {
+    let on: unknown;
+    try {
+      on = ((await c.req.json()) as { on?: unknown }).on;
+    } catch {
+      return c.json({ error: "invalid_json" }, 400);
+    }
+    if (typeof on !== "boolean") return c.json({ error: "invalid_on" }, 400);
+
+    const settings = await deps.getSettingsDeps?.();
+    if (!settings) return c.json({ error: "settings_unavailable" }, 503);
+
+    await settings.setWidgetOnSite(c.get("tenant").id, on);
+    return c.json({ ok: true, on });
   });
 
   // Standardsprache der Instanz (Endnutzer-UI, Meta, Mails) — OWNER wie SEO:

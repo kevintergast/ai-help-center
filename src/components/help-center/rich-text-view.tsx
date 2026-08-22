@@ -1,5 +1,9 @@
 import type { ReactNode } from "react";
 import { parseBlocks, type InlineNode } from "@/lib/content/rich-text";
+import { uniqueAnchorId } from "@/lib/content/heading-anchor";
+import { inlineText } from "@/lib/content/headings";
+import type { Locale } from "@/lib/tenant/types";
+import { HeadingAnchor } from "./heading-anchor";
 
 /**
  * SICHERER Renderer des Artikel-Rich-Text-Subsets (rich-text.ts): baut
@@ -44,24 +48,52 @@ function renderInline(nodes: InlineNode[], keyPrefix = ""): ReactNode[] {
   });
 }
 
-export function RichTextView({ body }: { body: string[] }) {
+export function RichTextView({
+  body,
+  anchors,
+}: {
+  body: string[];
+  /**
+   * Überschriften bekommen Sprungmarken + Teilen-Button (öffentliche
+   * Artikelseite). Im Editor/in KI-Antworten bewusst AUS — dort wäre ein
+   * „Abschnitt teilen"-Link sinnlos bzw. würde vom Bearbeiten ablenken.
+   * `taken` sammelt die Ids ARTIKELWEIT, damit doppelte Überschriften
+   * eindeutige Anker bekommen (der Aufrufer gibt dasselbe Set durch).
+   */
+  anchors?: { locale: Locale; taken: Set<string> };
+}) {
   const blocks = parseBlocks(body);
   return (
     <>
       {blocks.map((block, i) => {
         switch (block.kind) {
-          case "h2":
+          case "h2": {
+            // Anker-Id aus dem TEXT (stabil gegen Umsortieren, s. heading-anchor.ts).
+            const id = anchors ? uniqueAnchorId(inlineText(block.inline), anchors.taken) : undefined;
             return (
-              <h2 key={i} className="mt-2 text-xl font-semibold tracking-[-0.3px] text-ink">
+              <h2
+                key={i}
+                id={id}
+                className="group/heading mt-2 scroll-mt-24 text-xl font-semibold tracking-[-0.3px] text-ink"
+              >
                 {renderInline(block.inline)}
+                {id && anchors ? <HeadingAnchor id={id} locale={anchors.locale} /> : null}
               </h2>
             );
-          case "h3":
+          }
+          case "h3": {
+            const id = anchors ? uniqueAnchorId(inlineText(block.inline), anchors.taken) : undefined;
             return (
-              <h3 key={i} className="mt-1 text-base font-semibold text-ink">
+              <h3
+                key={i}
+                id={id}
+                className="group/heading mt-1 scroll-mt-24 text-base font-semibold text-ink"
+              >
                 {renderInline(block.inline)}
+                {id && anchors ? <HeadingAnchor id={id} locale={anchors.locale} /> : null}
               </h3>
             );
+          }
           case "ul":
             return (
               <ul key={i} className="list-disc space-y-1.5 pl-5">

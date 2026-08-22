@@ -29,6 +29,12 @@ export interface RateLimiters {
   events?: RateLimiterBinding;
   /** Mail-Sender + Tenant-Erstellung (5/min/IP). */
   sensitive?: RateLimiterBinding;
+  /**
+   * MCP-Endpoint — gezählt pro SCHLÜSSEL, nicht pro IP: ein Agent arbeitet in
+   * Schleifen (das ist der Normalfall, kein Missbrauch), und mehrere Kunden
+   * teilen sich oft dieselbe Ausgangs-IP. Großzügig (120/min).
+   */
+  mcp?: RateLimiterBinding;
 }
 
 /** Client-IP hinter Cloudflare (deployed immer gesetzt; dev: "local"). */

@@ -16,11 +16,13 @@ interface TenantRow {
   seo_indexable: number;
   support_email: string | null;
   show_header_name: number;
+  widget_on_site: number;
 }
 
 const COLS =
   "id, slug, name, custom_domain, default_locale, logo_url, logo_r2_key, logo_dark_r2_key, " +
-  "branding_updated_at, color_primary, color_accent, color_primary_fg, seo_indexable, support_email, show_header_name";
+  "branding_updated_at, color_primary, color_accent, color_primary_fg, seo_indexable, support_email, show_header_name, " +
+  "widget_on_site";
 
 /**
  * `branding.logoUrl` ist ABGELEITET (Priorität dokumentiert in 0003_branding.sql):
@@ -66,6 +68,7 @@ export function rowToTenant(r: TenantRow): Tenant {
     seoIndexable: r.seo_indexable !== 0,
     supportEmail: r.support_email,
     showHeaderName: r.show_header_name !== 0,
+    widgetOnSite: r.widget_on_site !== 0,
   };
 }
 
@@ -117,6 +120,14 @@ export class D1TenantRepository {
     await this.db
       .prepare(`UPDATE tenants SET show_header_name = ? WHERE id = ?`)
       .bind(show ? 1 : 0, tenantId)
+      .run();
+  }
+
+  /** Widget auf den eigenen öffentlichen Seiten (Settings-API, admin — 0027). */
+  async setWidgetOnSite(tenantId: string, on: boolean): Promise<void> {
+    await this.db
+      .prepare(`UPDATE tenants SET widget_on_site = ? WHERE id = ?`)
+      .bind(on ? 1 : 0, tenantId)
       .run();
   }
 

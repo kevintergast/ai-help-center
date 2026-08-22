@@ -35,6 +35,8 @@ interface CloudflareEnv {
   RL_ASK?: { limit(options: { key: string }): Promise<{ success: boolean }> };
   RL_EVENTS?: { limit(options: { key: string }): Promise<{ success: boolean }> };
   RL_SENSITIVE?: { limit(options: { key: string }): Promise<{ success: boolean }> };
+  // MCP: pro Schlüssel statt pro IP (s. rate-limit.ts, RateLimiters.mcp).
+  RL_MCP?: { limit(options: { key: string }): Promise<{ success: boolean }> };
   // Embedding-Queue (Infra-Plan Schritt 6, Workers Paid): Producer-Binding.
   // Fehlt sie (lokales next dev vor Binding-Neustart), läuft der Index-Sync
   // direkt (waitUntil) — Weiche in runtime-deps.ts.

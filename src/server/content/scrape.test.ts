@@ -174,3 +174,115 @@ describe("slugFromUrl", () => {
     expect(slugFromUrl(new URL("https://help.smao.ai/"))).toBe("help-smao-ai");
   });
 });
+
+describe("Tabellen + Hinweisboxen (Import-Analyse 2026-08-22)", () => {
+  // Verhinderte Fehlerfälle, beide an echten smao-Artikeln gefunden:
+  //  - <table> ging KOMPLETT verloren (Parameter-Übersichten in n8n/API-Docs).
+  //  - Hinweisboxen halten ihren Text in <div> mit <br> statt in <p> — der
+  //    ganze Abschnitt fehlte im Import (Zendesk-Artikel, 5 Absätze).
+  it("Tabelle mit thead → table-Block mit Kopfzeile und Zeilen", () => {
+    const res = extractArticleFromHtml(
+      `<article><h1>T</h1>
+        <table class="ant-table">
+          <thead><tr><th>Feld</th><th>Inhalt</th></tr></thead>
+          <tbody>
+            <tr><td>phone</td><td>Zielrufnummer, z. B. <strong>+49123</strong></td></tr>
+            <tr><td>status</td><td>Startwert pending</td></tr>
+          </tbody>
+        </table></article>`,
+      BASE,
+    );
+    expect(res.blocks).toEqual([
+      {
+        type: "table",
+        head: ["Feld", "Inhalt"],
+        rows: [
+          ["phone", "Zielrufnummer, z. B. **+49123**"],
+          ["status", "Startwert pending"],
+        ],
+      },
+    ]);
+  });
+
+  it("Tabelle OHNE thead: erste th-Zeile wird Kopfzeile", () => {
+    const res = extractArticleFromHtml(
+      `<article><h1>T</h1><table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table></article>`,
+      BASE,
+    );
+    expect(res.blocks[0]).toEqual({ type: "table", head: ["A", "B"], rows: [["1", "2"]] });
+  });
+
+  it("Hinweisbox (div mit <br>-Text) → Callout-Block in der richtigen Variante", () => {
+    const res = extractArticleFromHtml(
+      `<article><h1>T</h1>
+        <p>Vorher.</p>
+        <div class="ant-alert ant-alert-warning"><div class="help-prose">Achtung: Die Reihenfolge zählt.<br /><strong>1. Telefonnummer</strong><br />Wird zuerst geprüft.</div></div>
+        <p>Nachher.</p></article>`,
+      BASE,
+    );
+    expect(res.blocks.map((b) => (b.type === "text" ? b.variant : b.type))).toEqual([
+      "standard",
+      "warning",
+      "standard",
+    ]);
+    const callout = res.blocks[1] as { text: string };
+    expect(callout.text).toContain("Achtung: Die Reihenfolge zählt.");
+    expect(callout.text).toContain("**1. Telefonnummer**");
+    // Reihenfolge bleibt: Box steht ZWISCHEN den Absätzen.
+    expect((res.blocks[2] as { text: string }).text).toBe("Nachher.");
+  });
+
+  it("Box MIT eigenen <p> wird nicht doppelt importiert", () => {
+    const res = extractArticleFromHtml(
+      `<article><h1>T</h1><div class="callout"><p>Nur einmal.</p></div></article>`,
+      BASE,
+    );
+    expect(res.blocks).toEqual([{ type: "text", variant: "standard", text: "Nur einmal." }]);
+  });
+});
+
+describe("Aufklappbare Abschnitte + Trennlinien (Import)", () => {
+  // Verhinderter Fehlerfall: <details> ist in Hilfezentren die verbreitete
+  // FAQ-Form. Ohne eigene Behandlung würde der Titel (summary) als Fließtext
+  // im Absatz verschwinden ODER der Inhalt zweimal auftauchen (einmal als
+  // Accordion, einmal durch den Hauptlauf über die inneren <p>).
+  it("<details> → EIN accordion-Block, Inhalt nicht doppelt", () => {
+    const res = extractArticleFromHtml(
+      `<article><h1>FAQ</h1>
+        <p>Vorher.</p>
+        <details>
+          <summary>Was kostet das?</summary>
+          Ab 29 Euro im Monat.
+        </details>
+        <p>Nachher.</p></article>`,
+      BASE,
+    );
+    expect(res.blocks).toEqual([
+      { type: "text", variant: "standard", text: "Vorher." },
+      { type: "accordion", title: "Was kostet das?", text: "Ab 29 Euro im Monat." },
+      { type: "text", variant: "standard", text: "Nachher." },
+    ]);
+  });
+
+  it("<hr> wird zur Trennlinie — in der richtigen Reihenfolge", () => {
+    const res = extractArticleFromHtml(
+      `<article><h1>T</h1><p>Erster Teil.</p><hr /><p>Zweiter Teil.</p></article>`,
+      BASE,
+    );
+    expect(res.blocks).toEqual([
+      { type: "text", variant: "standard", text: "Erster Teil." },
+      { type: "divider" },
+      { type: "text", variant: "standard", text: "Zweiter Teil." },
+    ]);
+  });
+
+  it("<details> ohne summary fällt auf den Inhaltsanfang als Titel zurück", () => {
+    const res = extractArticleFromHtml(
+      `<article><h1>T</h1><details>Nur Inhalt, kein Titel.</details></article>`,
+      BASE,
+    );
+    expect(res.blocks).toEqual([
+      { type: "accordion", title: "Nur Inhalt, kein Titel.", text: "Nur Inhalt, kein Titel." },
+    ]);
+  });
+});

@@ -77,6 +77,20 @@ export interface ArticleImage {
   pending?: boolean;
 }
 
+/**
+ * DATEI-ANHANG (Vorlagen, Formulare, Checklisten) — Referenz-Hilfezentren
+ * (Intercom/Zendesk) bieten das als eigenen Baustein. Binärdatei liegt in R2,
+ * hier stehen nur Metadaten; `name` ist der Anzeige- UND Download-Name.
+ */
+export interface ArticleFile {
+  id: string;
+  name: string;
+  /** Bytes (Anzeige „1,2 MB"). */
+  size: number;
+  /** Gesniffter Typ aus der Whitelist (server/content/files.ts). */
+  mime: string;
+}
+
 export interface Article extends ArticleSummary {
   readingMinutes: number;
   /** GEORDNETE Blöcke des Artikelkörpers (lib/content/blocks.ts) — Text-
@@ -89,6 +103,8 @@ export interface Article extends ArticleSummary {
   relatedIds: string[];
   /** Bilder (fehlend = keine — Altbestände/Fakes ohne Feld bleiben gültig). */
   images?: ArticleImage[];
+  /** Datei-Anhänge (fehlend = keine). */
+  files?: ArticleFile[];
   /** Sprach-/Set-Infos (Translation-Sets; fehlend bei Sample-/Altdaten). */
   locale?: string;
   articleKey?: string;
