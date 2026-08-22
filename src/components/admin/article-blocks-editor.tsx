@@ -15,6 +15,7 @@ import type { ArticleImage, ArticleVideo } from "@/lib/content/types";
 import type { Locale } from "@/lib/tenant/types";
 import type { MessageKey } from "@/i18n/messages/de";
 import { getT } from "@/i18n/t";
+import { CREDIT_COSTS } from "@/server/billing/pricing";
 import { parseYouTubeId } from "@/server/content/validate";
 import { ArticleBodyEditor } from "@/components/admin/article-body-editor";
 import {
@@ -196,6 +197,59 @@ function VideoBlockForm({
   const [description, setDescription] = useState(existing?.description ?? "");
   const [duration, setDuration] = useState(existing?.durationLabel ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [prep, setPrep] = useState<"idle" | "busy" | "needsTranscript">("idle");
+  const [transcript, setTranscript] = useState("");
+  const [youtubeTitle, setYoutubeTitle] = useState<string | null>(null);
+
+  /**
+   * INHALT AUTOMATISCH ERFASSEN: Titel kommt kostenlos über YouTubes
+   * oEmbed; die Beschreibung braucht ein Transkript (KI, 20 Credits — nur
+   * bei Erfolg verbucht). Liefert der Server `needsTranscript`, erscheint
+   * das Einfüge-Feld (YouTube blockt automatische Transkript-Abrufe).
+   */
+  async function prepare(withTranscript: boolean) {
+    setError(null);
+    if (!parseYouTubeId(url)) return setError(t("editor.videos.errUrl"));
+    setPrep("busy");
+    try {
+      const res = await fetch("/api/v1/admin/videos/prepare", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          youtubeUrl: url,
+          ...(withTranscript && transcript.trim().length > 0 ? { transcript } : {}),
+        }),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        title?: string | null;
+        youtubeTitle?: string | null;
+        description?: string | null;
+        needsTranscript?: boolean;
+        error?: string;
+      } | null;
+      if (!res.ok || !data) {
+        setPrep("idle");
+        setError(
+          data?.error === "plan_frozen"
+            ? t("editor.translations.errFrozen")
+            : t("editor.videos.prepareError"),
+        );
+        return;
+      }
+      // Titel übernehmen, wenn das Feld leer ist (nie Getipptes überschreiben).
+      if (data.title && title.trim().length === 0) setTitle(data.title);
+      setYoutubeTitle(data.youtubeTitle ?? data.title ?? null);
+      if (data.description) {
+        setDescription(data.description);
+        setPrep("idle");
+        return;
+      }
+      setPrep(data.needsTranscript ? "needsTranscript" : "idle");
+    } catch {
+      setPrep("idle");
+      setError(t("editor.videos.prepareError"));
+    }
+  }
 
   function apply() {
     setError(null);
@@ -241,6 +295,56 @@ function VideoBlockForm({
           className="max-w-[140px]"
         />
       </div>
+      {/* Automatische Aufbereitung: Titel gratis, Beschreibung per KI aus
+          dem Transkript (Credits nur bei Erfolg). */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={prep === "busy"}
+          onClick={() => void prepare(false)}
+        >
+          {prep === "busy"
+            ? t("editor.videos.preparing")
+            : t("editor.videos.prepare", { credits: CREDIT_COSTS.ai_video_summary })}
+        </Button>
+        {youtubeTitle && youtubeTitle !== title ? (
+          <button
+            type="button"
+            onClick={() => setTitle(youtubeTitle)}
+            className="text-xs text-brand hover:underline"
+            title={youtubeTitle}
+          >
+            {t("editor.videos.useYoutubeTitle")}
+          </button>
+        ) : null}
+      </div>
+
+      {prep === "needsTranscript" ? (
+        <div className="flex flex-col gap-2 rounded-comfy border border-dashed border-hairline-strong bg-tint p-3">
+          <span className="text-sm font-medium text-ink">{t("editor.videos.transcriptTitle")}</span>
+          <p className="text-xs text-ink-muted">{t("editor.videos.transcriptHint")}</p>
+          <textarea
+            value={transcript}
+            onChange={(e) => setTranscript(e.target.value)}
+            rows={5}
+            aria-label={t("editor.videos.transcriptTitle")}
+            placeholder={t("editor.videos.transcriptPlaceholder")}
+            className="w-full rounded-std border border-hairline bg-surface px-3 py-2 text-[13px] text-ink focus-visible:outline-none focus-visible:shadow-focusglow"
+          />
+          <div>
+            <Button
+              variant="cream"
+              size="sm"
+              disabled={transcript.trim().length === 0}
+              onClick={() => void prepare(true)}
+            >
+              {t("editor.videos.transcriptSubmit", { credits: CREDIT_COSTS.ai_video_summary })}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       <div>
         <Button variant="cream" size="sm" onClick={apply}>
           {t("editor.blocks.videoApply")}
@@ -281,6 +385,8 @@ export function ArticleBlocksEditor({
     videos,
     videoPlayLabel,
     srcFor: (id) => `/api/v1/admin/articles/${articleId}/images/${id}`,
+    // Editor: Cards sind Attrappen — ein Klick würde den Entwurf verlieren.
+    linksActive: false,
   };
 
   const pickAt = (index: number, pick: AddKind) => {

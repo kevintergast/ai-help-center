@@ -41,6 +41,8 @@ export interface AdminShellProps {
   logoUrl: string | null;
   /** Dark-Mode-Logo (0023) — null: Dark Mode zeigt das helle. */
   logoDarkUrl?: string | null;
+  /** Instanzname neben dem Logo (0025) — false nur wirksam MIT Logo. */
+  showName?: boolean;
   /** Operator-Instanz → Logo mit Claim statt Initial+Name (wie HelpShell). */
   isOperator?: boolean;
   /** Angemeldetes Team-Mitglied (Layout-Gate garantiert eine Session). */
@@ -53,6 +55,7 @@ export function AdminShell({
   tenantName,
   logoUrl,
   logoDarkUrl = null,
+  showName = true,
   isOperator = false,
   viewer = null,
   children,
@@ -125,7 +128,9 @@ export function AdminShell({
                     {tenantName.charAt(0)}
                   </span>
                 )}
-                <span className="font-semibold tracking-[-0.3px]">{tenantName}</span>
+                {showName || !logoUrl ? (
+                  <span className="font-semibold tracking-[-0.3px]">{tenantName}</span>
+                ) : null}
               </>
             )}
           </div>

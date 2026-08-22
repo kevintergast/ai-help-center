@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { memoryAdapter } from "better-auth/adapters/memory";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Tenant } from "@/lib/tenant/types";
 import { AUTH_BASE_PATH, buildAuth, tenantAuthOptions } from "@/server/auth/auth";
 import { applyMigrations, d1FromSqlite } from "@/server/auth/sqlite-test-support";
@@ -9,6 +9,7 @@ import { parseArticleBody } from "@/lib/content/blocks";
 import { buildApiApp } from "./app";
 import type { BillingDeps } from "@/server/billing/store";
 import type { TranslateArticleInput, TranslateArticleResult } from "@/server/content/translate";
+import type { VideoSummarizer } from "@/server/content/video-summary";
 import type { ApiDeps } from "./context";
 
 /**
@@ -26,7 +27,7 @@ const HOST_A = "tenant-a.hallofhelp.com";
 const HOST_B = "tenant-b.hallofhelp.com";
 
 const MIGRATIONS = [
-  "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql",
+  "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql",
   "0002_auth.sql",
   "0003_branding.sql",
   "0004_two_factor_plugin_columns.sql",
@@ -53,7 +54,10 @@ type MemoryDb = Record<string, Record<string, unknown>[]>;
 
 function makeApp(
   contentAvailable = true,
-  opts: { translator?: (input: TranslateArticleInput) => Promise<TranslateArticleResult> } = {},
+  opts: {
+    translator?: (input: TranslateArticleInput) => Promise<TranslateArticleResult>;
+    videoSummarizer?: VideoSummarizer;
+  } = {},
 ) {
   const authDb: MemoryDb = {
     auth_user: [],
@@ -103,9 +107,14 @@ function makeApp(
   // getPlanRow/getUsage: aktiver Free-Plan — das Freeze-Gate (POST /admin/*)
   // liest beide bei JEDEM Mutations-Request über readPlanState.
   const translationCharges: { tenantId: string; articleId: string }[] = [];
+  const videoSummaryCharges: { tenantId: string }[] = [];
   const billingRepo = {
     recordAiTranslation: async (input: { tenantId: string; articleId: string }) => {
       translationCharges.push({ tenantId: input.tenantId, articleId: input.articleId });
+      return {} as never;
+    },
+    recordAiVideoSummary: async (input: { tenantId: string }) => {
+      videoSummaryCharges.push({ tenantId: input.tenantId });
       return {} as never;
     },
     getPlanRow: async () => ({ plan: "free" as const, overLimitSince: null }),
@@ -126,6 +135,7 @@ function makeApp(
       rebuildTenant: async () => ({ articles: 0, chunks: 0, embedded: 0 }),
     }),
     ...(opts.translator ? { getTranslator: async () => opts.translator ?? null } : {}),
+    ...(opts.videoSummarizer ? { getVideoSummarizer: async () => opts.videoSummarizer ?? null } : {}),
     getBillingDeps: async () => ({ repo: billingRepo as unknown as BillingDeps["repo"] }),
   };
   return {
@@ -136,6 +146,7 @@ function makeApp(
     indexCalls,
     mediaObjects,
     translationCharges,
+    videoSummaryCharges,
   };
 }
 
@@ -874,5 +885,111 @@ describe("Videos im Entwurfs-Zyklus (YouTube v1)", () => {
     });
     expect(bad.status).toBe(400);
     expect(await bad.json()).toMatchObject({ error: "youtube_url_invalid" });
+  });
+});
+
+describe("POST /api/v1/admin/videos/prepare (Video-Aufbereitung, 0026)", () => {
+  /** oEmbed/Watch-Fetches faken (Tests gehen NIE ins Netz). */
+  function stubYoutube(opts: { title?: string; transcript?: string | null } = {}) {
+    vi.stubGlobal("fetch", async (url: string) => {
+      if (String(url).includes("/oembed")) {
+        return new Response(JSON.stringify({ title: opts.title ?? "Kanal – Video" }));
+      }
+      if (opts.transcript) {
+        if (String(url).includes("/watch")) {
+          return new Response(
+            `"captionTracks":[{"baseUrl":"https://www.youtube.com/api/timedtext?v=1","languageCode":"de"}]`,
+          );
+        }
+        return new Response(`<transcript><text start="0">${opts.transcript}</text></transcript>`);
+      }
+      // Realität (verifiziert): YouTube blockt automatische Abrufe.
+      return new Response("blocked", { status: 403 });
+    });
+  }
+  afterEach(() => vi.unstubAllGlobals());
+
+  const prepare = (app: TestApp, body: unknown, cookie: string) =>
+    postJson(app, "/api/v1/admin/videos/prepare", HOST_A, body, cookie);
+
+  it("ohne Transkript: Titel ja, Beschreibung NEIN, KEINE Credits (keine Halluzination)", async () => {
+    stubYoutube({ title: "Support-Kanal – Konto einrichten" });
+    const f = makeApp(true, { videoSummarizer: async () => ({ title: "X", description: "Y" }) });
+    const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
+
+    const res = await prepare(f.app, { youtubeUrl: "https://youtu.be/dQw4w9WgXcQ" }, cookie);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      youtubeId: "dQw4w9WgXcQ",
+      title: "Support-Kanal – Konto einrichten",
+      description: null,
+      needsTranscript: true,
+    });
+    expect(f.videoSummaryCharges).toEqual([]);
+  });
+
+  it("mit EINGEFÜGTEM Transkript: KI-Titel + Beschreibung, Credits GENAU EINMAL", async () => {
+    stubYoutube({ title: "Kanal – Folge 12" });
+    const seen: string[] = [];
+    const f = makeApp(true, {
+      videoSummarizer: async (input) => {
+        seen.push(input.transcript);
+        return { title: "Konto einrichten", description: "Zeigt Registrierung und Bestätigung." };
+      },
+    });
+    const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
+
+    const res = await prepare(
+      f.app,
+      {
+        youtubeUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        transcript: "0:00\nWir richten das Konto ein\n0:12 und bestätigen die E-Mail",
+      },
+      cookie,
+    );
+    expect(await res.json()).toMatchObject({
+      title: "Konto einrichten",
+      youtubeTitle: "Kanal – Folge 12",
+      description: "Zeigt Registrierung und Bestätigung.",
+      needsTranscript: false,
+      transcriptSource: "pasted",
+    });
+    // Zeitmarken sind raus, bevor das Modell es sieht (normalizePastedTranscript).
+    expect(seen[0]).toBe("Wir richten das Konto ein und bestätigen die E-Mail");
+    expect(f.videoSummaryCharges).toEqual([{ tenantId: "t_a" }]);
+  });
+
+  it("Modellfehler → 502 und NICHTS verbucht; kaputte URL → 400; ohne Session → 401", async () => {
+    stubYoutube({ title: "T" });
+    const f = makeApp(true, {
+      videoSummarizer: async () => {
+        throw new Error("format");
+      },
+    });
+    const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
+
+    const failed = await prepare(
+      f.app,
+      { youtubeUrl: "https://youtu.be/dQw4w9WgXcQ", transcript: "Ein ausreichend langes Transkript zum Testen." },
+      cookie,
+    );
+    expect(failed.status).toBe(502);
+    expect(f.videoSummaryCharges).toEqual([]);
+
+    expect((await prepare(f.app, { youtubeUrl: "https://vimeo.com/1" }, cookie)).status).toBe(400);
+    expect(
+      (await postJson(f.app, "/api/v1/admin/videos/prepare", HOST_A, { youtubeUrl: "x" })).status,
+    ).toBe(401);
+  });
+
+  it("Automatik-Erfolg (Transkript abrufbar): Quelle 'fetched', Credits fallen an", async () => {
+    stubYoutube({ title: "T", transcript: "Dies ist ein automatisch geholtes Transkript des Videos." });
+    const f = makeApp(true, {
+      videoSummarizer: async () => ({ title: "Auto", description: "Automatisch erfasst." }),
+    });
+    const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
+    const res = await prepare(f.app, { youtubeUrl: "https://youtu.be/dQw4w9WgXcQ" }, cookie);
+    expect(await res.json()).toMatchObject({ description: "Automatisch erfasst.", transcriptSource: "fetched" });
+    expect(f.videoSummaryCharges).toHaveLength(1);
   });
 });

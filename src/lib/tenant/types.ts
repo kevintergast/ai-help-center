@@ -41,4 +41,10 @@ export interface Tenant {
    * in der Admin-Inbox).
    */
   supportEmail?: string | null;
+  /**
+   * Instanzname im Header anzeigen (Migration 0025). FEHLEND/true = anzeigen.
+   * Nur relevant, wenn ein Logo gesetzt ist — ohne Logo zeigt die UI den
+   * Namen IMMER (sonst leerer Header).
+   */
+  showHeaderName?: boolean;
 }

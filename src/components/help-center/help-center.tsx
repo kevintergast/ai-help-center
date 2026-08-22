@@ -55,6 +55,8 @@ export interface HelpCenterProps {
   logoUrl: string | null;
   /** Dark-Mode-Logo (0023) — null: Dark Mode zeigt das helle. */
   logoDarkUrl?: string | null;
+  /** Instanzname neben dem Logo (0025) — false nur wirksam MIT Logo. */
+  showName?: boolean;
   /** Serverseitig aufgelöstes Lese-Bundle (D1 oder Sample-Fallback). */
   data: HelpCenterData;
   /** Operator-Instanz (app.*) → CTA „Eigenes Hilfezentrum erstellen". */
@@ -68,6 +70,7 @@ export function HelpCenter({
   tenantName,
   logoUrl,
   logoDarkUrl = null,
+  showName = true,
   data,
   isOperator,
   viewer = null,
@@ -174,6 +177,7 @@ export function HelpCenter({
       tenantName={tenantName}
       logoUrl={logoUrl}
       logoDarkUrl={logoDarkUrl}
+      showName={showName}
       data={data}
       isOperator={isOperator}
       viewer={viewer}

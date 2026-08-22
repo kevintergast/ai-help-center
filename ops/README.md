@@ -1,7 +1,7 @@
 # HallofHelp Ops — internes Betreiber-Dashboard
 
 Eigenständiger Worker (`hallofhelp-ops`) auf `ops.hallofhelp.com` (Staging:
-`ops.dev.hallofhelp.com`). Liest dieselben D1-Datenbanken wie das Produkt;
+`ops-dev.hallofhelp.com`). Liest dieselben D1-Datenbanken wie das Produkt;
 Plan-/Preis-Logik kommt über den `@product/*`-Alias aus `../src` (keine
 Duplikate). Zugriff **ausschließlich** über Cloudflare Access — zusätzlich
 validiert der Worker jedes Access-JWT selbst (`src/access.ts`, fail-closed).
@@ -74,7 +74,7 @@ Rechner vorbefüllt mit den echten Zahlen der letzten 30 Tage.
 1. **Access-Application anlegen** — Zero-Trust-Dashboard (`one.dash.cloudflare.com`):
    - Access → Applications → **Add an application** → *Self-hosted*
    - Application name: `HallofHelp Ops`; Domain: `ops.hallofhelp.com` **und**
-     (zweiter Eintrag/zweite App) `ops.dev.hallofhelp.com`
+     (zweiter Eintrag/zweite App) `ops-dev.hallofhelp.com`
    - Policy: Action **Allow**, Include → **Emails** → deine E-Mail(s). Weitere
      Personen später = einfach E-Mail zur Policy hinzufügen.
    - Session Duration: z. B. 24h. Speichern.

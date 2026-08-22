@@ -40,11 +40,11 @@ function setup() {
     "0009_usage_billing.sql",
     "0011_usage_feedback_types.sql",
     "0016_usage_ai_source_type.sql",
-    "0020_usage_ai_translation_type.sql",
+    "0020_usage_ai_translation_type.sql", "0026_usage_ai_video_summary.sql",
     "0012_enterprise_plan.sql",
     "0022_plan_custom_limits.sql",
     "0013_seo_indexable.sql",
-    "0021_tenant_suspend.sql", "0023_logo_dark.sql",
+    "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql",
     "0010_search_chunks.sql",
   ]);
   sqlite.prepare(`DELETE FROM tenants`).run();

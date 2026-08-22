@@ -111,6 +111,8 @@ const ARTICLES = [
       "Im Verwaltungsbereich baust du Artikel aus BLÖCKEN: Textblöcke (auch als Info-, Warnungs-, Fehler-Hinweis oder Code), Bilder, Videos und »Artikel verlinken«-Karten mit eigenem Titel, Beschreibung und farbigem Tag. Die Reihenfolge der Blöcke ist die Reihenfolge im Artikel — per Pfeiltasten sortierst du um.",
       "Zusätzlich kannst du jedem Artikel ein Flag geben (z. B. »Beta« oder »Wichtig«) — ein farbiges Badge, das neben dem Status angezeigt wird.",
       "Mit »Zurückziehen« wird ein Artikel wieder unsichtbar, ohne gelöscht zu werden. Jede Änderung wird als Version gesichert, sodass der Verlauf nachvollziehbar bleibt.",
+      "Beim Bearbeiten hast du zwei Wege: »Entwurf speichern« sichert deinen Stand, ohne ihn zu veröffentlichen — du kannst später weiterarbeiten und den Artikel erst dann online stellen. »Veröffentlichen« macht ihn sichtbar. Bei einem bereits veröffentlichten Artikel sind gespeicherte Änderungen sofort live; willst du in Ruhe umbauen, ziehe ihn vorher mit »Zurückziehen« offline.",
+      "Solltest du die Seite mit ungespeicherten Änderungen verlassen wollen — etwa durch einen Klick auf einen Link — fragt der Editor nach und bietet an, vorher zu speichern. Nichts geht mehr verloren.",
       "Endgültig löschen kannst du einen Artikel im Editor (Bearbeiten-Modus, »Artikel löschen«) — nach einer Bestätigung werden auch seine Bilder und der Such-Index-Eintrag entfernt. Andere Sprachfassungen bleiben bestehen.",
       "Die Reihenfolge der Kategorien im Hilfezentrum ergibt sich aus der Reihenfolge, in der die Artikel angelegt wurden.",
     ],
@@ -138,6 +140,7 @@ const ARTICLES = [
     body: [
       "In den Einstellungen lädst du dein Logo hoch (PNG, JPEG oder WebP, maximal 1 MB) und legst deine Primär- und Akzentfarbe fest — jede Karte speichert direkt beim Klick.",
       "Optional hinterlegst du ein zweites Logo für den dunklen Modus: Besucher mit Dark Mode sehen dann automatisch die passende Variante. Ohne dunkles Logo wird überall das helle gezeigt.",
+      "Steckt dein Schriftzug bereits im Logo, kannst du die Anzeige des Instanznamens im Header abschalten (Schalter in den Branding-Einstellungen). Ohne Logo wird der Name immer angezeigt.",
       "Das Branding wird sofort im gesamten Hilfezentrum angewendet — ohne eine Zeile Code. So erscheint dein Hilfezentrum vollständig in deinem eigenen Look (White-Label).",
       "Ebenfalls in den Einstellungen: die Standardsprache deines Hilfezentrums (Deutsch oder Englisch) — sie kann nur der Besitzer ändern.",
     ],
@@ -224,8 +227,10 @@ const ARTICLES = [
     category: "Inhalte pflegen",
     min: 1,
     body: [
-      "Binde YouTube-Videos in deine Artikel ein: Im Artikel-Editor fügst du unter »Videos« den YouTube-Link, einen Titel und eine Beschreibung hinzu. Die Videos erscheinen neben dem Artikel als Vorschau und werden erst nach einem Klick abgespielt (datensparsamer YouTube-Modus).",
+      "Binde YouTube-Videos direkt im Artikel ein: Füge einen Video-Block hinzu und trage dort den YouTube-Link, Titel und Beschreibung ein. Der Block zeigt das Video sofort so, wie es später im Artikel erscheint — abgespielt wird erst nach einem Klick (datensparsamer YouTube-Modus).",
       "Die Beschreibung ist Pflicht — sie dient als Alternativtext und fließt als Kontext in die KI-Antworten ein: Die KI kann so auch auf Inhalte verweisen, die im Video erklärt werden.",
+      "Damit die Beschreibung dafür aussagekräftig genug ist, gibt es »Inhalt automatisch erfassen« (20 Credits): Der Titel wird direkt von YouTube geholt, und aus dem Transkript des Videos erstellt die KI Titel und Beschreibung. YouTube erlaubt keinen automatischen Transkript-Abruf — der Editor zeigt deshalb ein Feld, in das du das Transkript einfügst (auf YouTube unter dem Video: »…« → »Transkript anzeigen« → kopieren). Ohne Transkript wird bewusst KEINE Beschreibung erfunden und nichts berechnet.",
+      "Bei Bildern bleibt die Beschreibung Handarbeit: Dort muss stehen, was hervorgehoben ist oder wohin geklickt wird — das steht in keinem Transkript.",
       "Änderst du Videos, greifen sie wie Textänderungen erst mit dem Veröffentlichen des Artikels.",
     ],
     related: ["artikel-veroeffentlichen", "ki-antworten"],

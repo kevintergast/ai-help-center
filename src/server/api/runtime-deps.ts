@@ -29,6 +29,7 @@ import {
 import { answerQuestion, type AskPipelineDeps } from "@/server/rag/ask";
 import type { ChatMessage } from "@/server/rag/generate";
 import { translateArticle } from "@/server/content/translate";
+import { makeVideoSummarizer, type VideoSummarizer } from "@/server/content/video-summary";
 import { changelogDoc, parseDocId, roadmapDoc } from "@/server/search/aux-docs";
 import type { SourceKind } from "@/server/search/indexer";
 import { rebuildTenantIndex, syncArticleIndex, toIndexable } from "@/server/search/sync";
@@ -366,6 +367,13 @@ function makeGatewayChat(ai: Ai, opts: { maxTokens?: number } = {}) {
   };
 }
 
+/** KI-Video-Aufbereiter (0026): gleicher Gateway-Chat, knappes Token-Budget. */
+async function getVideoSummarizerRuntime(): Promise<VideoSummarizer | null> {
+  const env = await getEnvSafe();
+  if (!env?.AI) return null;
+  return makeVideoSummarizer(makeGatewayChat(env.AI, { maxTokens: 700 }));
+}
+
 /** KI-Übersetzer (Mehrsprachigkeit): gleicher Gateway-Chat wie die Frage-Pipeline. */
 async function getTranslatorRuntime(): Promise<ArticleTranslator | null> {
   const env = await getEnvSafe();
@@ -497,6 +505,7 @@ async function getSettingsDepsRuntime(): Promise<SettingsDeps | null> {
     setSeoIndexable: (tenantId, indexable) => repo.setSeoIndexable(tenantId, indexable),
     setSupportEmail: (tenantId, email) => repo.setSupportEmail(tenantId, email),
     setDefaultLocale: (tenantId, locale) => repo.setDefaultLocale(tenantId, locale),
+    setShowHeaderName: (tenantId, show) => repo.setShowHeaderName(tenantId, show),
   };
 }
 
@@ -567,6 +576,7 @@ export const runtimeDeps: ApiDeps = {
   getContentIndexer: getContentIndexerRuntime,
   getAskDeps: getAskDepsRuntime,
   getTranslator: getTranslatorRuntime,
+  getVideoSummarizer: getVideoSummarizerRuntime,
   getSettingsDeps: getSettingsDepsRuntime,
   getSupportDeps: getSupportDepsRuntime,
   getAnswersDeps: getAnswersDepsRuntime,

@@ -18,6 +18,7 @@ const row = {
   color_primary_fg: "#ffffff",
   seo_indexable: 1,
   support_email: null,
+  show_header_name: 1,
 };
 
 describe("rowToTenant", () => {
@@ -95,7 +96,7 @@ describe("D1TenantRepository", () => {
       "0002_auth.sql",
       "0003_branding.sql",
       "0004_two_factor_plugin_columns.sql",
-      "0013_seo_indexable.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql",
+      "0013_seo_indexable.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql",
       "0014_support_email.sql",
     ]);
     db.prepare(
@@ -133,7 +134,7 @@ describe("Instanz-Sperre (0021, Ops)", () => {
       "0002_auth.sql",
       "0003_branding.sql",
       "0004_two_factor_plugin_columns.sql",
-      "0013_seo_indexable.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql",
+      "0013_seo_indexable.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql",
       "0014_support_email.sql",
     ]);
     // Migration 0001 seedet 'demo'; Custom-Domain verified dazu:
