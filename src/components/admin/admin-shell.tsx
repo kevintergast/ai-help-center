@@ -23,6 +23,7 @@ import {
   MenuIcon,
   CloseIcon,
   KeyIcon,
+  MegaphoneIcon,
 } from "@/components/ui/icons";
 
 type IconType = typeof GridIcon;
@@ -40,6 +41,7 @@ const NAV: {
   { href: "/admin/articles", key: "admin.nav.articles", icon: DocIcon },
   { href: "/admin/stats", key: "admin.nav.stats", icon: ChartBarIcon },
   { href: "/admin/plan", key: "admin.nav.plan", icon: CreditCardIcon },
+  { href: "/admin/updates", key: "admin.nav.updates", icon: MegaphoneIcon },
   { href: "/admin/inbox", key: "admin.nav.inbox", icon: InboxIcon, badge: true },
   // Schlüssel vergeben Rechte → wie die Seite selbst admin/owner-exklusiv.
   { href: "/admin/api-keys", key: "admin.nav.apiKeys", icon: KeyIcon, roles: ["admin", "owner"] },
@@ -58,6 +60,12 @@ export interface AdminShellProps {
   isOperator?: boolean;
   /** Angemeldetes Team-Mitglied (Layout-Gate garantiert eine Session). */
   viewer?: HelpViewer | null;
+  /**
+   * Ausgelieferte Version + Commit (docs/versioning.md). Steht klein unter der
+   * Navigation, damit man im Support-Fall nicht raten muss, welchen Stand
+   * jemand vor sich hat. Fehlt sie, wird nichts angezeigt.
+   */
+  build?: { version: string; commit: string } | null;
   children: ReactNode;
 }
 
@@ -69,6 +77,7 @@ export function AdminShell({
   showName = true,
   isOperator = false,
   viewer = null,
+  build = null,
   children,
 }: AdminShellProps) {
   const t = getT(locale);
@@ -108,6 +117,11 @@ export function AdminShell({
           </Link>
         );
       })}
+      {build ? (
+        <span className="mt-3 px-3 py-2 text-xs text-ink-muted">
+          {t("admin.buildInfo", { version: build.version, commit: build.commit })}
+        </span>
+      ) : null}
     </nav>
   );
 

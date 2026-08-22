@@ -16,6 +16,21 @@ import {
 } from "@/lib/content/saved-articles";
 import { cn } from "@/lib/ui/cn";
 import { Badge } from "@/components/ui/badge";
+
+/**
+ * CHANGELOG-STUFEN (0030) für Endnutzer: Die technischen Wörter major/minor/patch
+ * sagen Kunden nichts — angezeigt wird, was das Update FÜR SIE bedeutet.
+ */
+const LEVEL_KEYS: Record<"major" | "minor" | "patch", MessageKey> = {
+  major: "hc.changelogLevel.major",
+  minor: "hc.changelogLevel.minor",
+  patch: "hc.changelogLevel.patch",
+};
+const LEVEL_TONES: Record<"major" | "minor" | "patch", "brand" | "ok" | "neutral"> = {
+  major: "brand",
+  minor: "ok",
+  patch: "neutral",
+};
 import { IconButton } from "@/components/ui/icon-button";
 import { SearchCombobox } from "@/components/ui/search-combobox";
 import { Accordion } from "@/components/ui/accordion";
@@ -417,17 +432,32 @@ function RoadmapView({ t, items }: { t: T; items: HelpCenterData["roadmap"] }) {
 }
 
 function ChangelogView({ t, entries }: { t: T; entries: HelpCenterData["changelog"] }) {
+  const latestVersion = entries.find((c) => (c.version ?? "").length > 0)?.version ?? null;
+
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <h1 className="text-[26px] font-semibold tracking-[-0.5px]">{t("hc.changelogTitle")}</h1>
-        <Badge tone="brand">{t("hc.changelogVersion", { v: "1.0.0" })}</Badge>
+        {/* Aktuelle Version = die des neuesten Eintrags MIT Versionsnummer
+            (0030). Vorher stand hier eine hartkodierte „1.0.0" — eine
+            Attrappe. Pflegt eine Instanz keine Versionen, bleibt es leer. */}
+        {latestVersion ? (
+          <Badge tone="brand">{t("hc.changelogVersion", { v: latestVersion })}</Badge>
+        ) : null}
       </div>
       <ul className="flex flex-col gap-5">
         {entries.map((c) => (
           <li key={c.id} className="border-l-2 border-hairline pl-4">
-            <div className="text-xs text-ink-muted">{c.dateLabel}</div>
-            <div className="font-semibold text-ink">{c.title}</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-ink-muted">{c.dateLabel}</span>
+              {c.version ? (
+                <span className="rounded-full border border-hairline px-2 py-0.5 font-mono text-[11px] text-ink-muted">
+                  {c.version}
+                </span>
+              ) : null}
+              {c.level ? <Badge tone={LEVEL_TONES[c.level]}>{t(LEVEL_KEYS[c.level])}</Badge> : null}
+            </div>
+            <div className="mt-1 font-semibold text-ink">{c.title}</div>
             <div className="mt-0.5 text-sm text-ink-muted">{c.description}</div>
           </li>
         ))}

@@ -1,6 +1,7 @@
 import { READ_TOOLS } from "./read";
 import { INSIGHT_TOOLS } from "./insights";
 import { WRITE_TOOLS } from "./write";
+import { UPDATE_TOOLS } from "./updates";
 import { DESTRUCTIVE_TOOLS } from "./destructive";
 import { hasScope } from "@/server/apikeys/scopes";
 import type { ApiKeyPrincipal } from "@/server/apikeys/keys";
@@ -17,6 +18,7 @@ export const ALL_TOOLS: McpTool[] = [
   ...READ_TOOLS,
   ...INSIGHT_TOOLS,
   ...WRITE_TOOLS,
+  ...UPDATE_TOOLS,
   ...DESTRUCTIVE_TOOLS,
 ];
 

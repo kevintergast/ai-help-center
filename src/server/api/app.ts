@@ -27,6 +27,7 @@ import { domainAdminRouter } from "./domain";
 import { eventsPublicRouter } from "./events";
 import { legalAdminRouter, legalPublicRouter } from "./legal";
 import { settingsAdminRouter } from "./settings";
+import { updatesAdminRouter } from "./updates";
 import { supportAdminRouter, supportPublicRouter } from "./support";
 import { widgetPublicRouter } from "./widget";
 import { operatorRouter } from "./operator";
@@ -35,7 +36,7 @@ import { isMachinePath } from "./machine-routes";
 import { authenticateApiKey } from "@/server/apikeys/authenticate";
 import { apiKeysAdminRouter } from "./api-keys";
 import { mcpRouter } from "@/server/mcp/router";
-import { runtimeDeps } from "./runtime-deps";
+import { getEnvSafe, runtimeDeps } from "./runtime-deps";
 import { invitationsAcceptRouter, invitationsAdminRouter, ownershipRouter } from "./team";
 
 /**
@@ -74,8 +75,31 @@ import { invitationsAcceptRouter, invitationsAdminRouter, ownershipRouter } from
 export function buildApiApp(deps: ApiDeps) {
   const app = new Hono<ApiEnv>().basePath("/api/v1");
 
-  // (0) Liveness — bewusst VOR der Tenant-Middleware (siehe Kopfkommentar).
-  app.get("/health", (c) => c.json({ status: "ok", service: "hallofhelp-api", version: "v1" }));
+  // (0) Liveness + BUILD-AUSKUNFT — bewusst VOR der Tenant-Middleware (siehe
+  // Kopfkommentar). `api` ist die API-Vertragsversion (Pfad /v1), `app` die
+  // ausgelieferte Produktversion samt Commit und Build-Zeit (zur Build-Zeit
+  // eingebacken, next.config.ts). Damit ist „welche Version läuft hier?" ohne
+  // Rätselraten beantwortbar — für Menschen und für `pnpm version:deployed`.
+  // Bewusst öffentlich: nur unsere eigene Release-Kennung, keine Kundendaten.
+  app.get("/health", async (c) => {
+    // APP_ENV steckt in den wrangler-Vars (nicht im Build-Artefakt): dasselbe
+    // Artefakt läuft in Staging UND Prod. `getEnvSafe` ist fehlertolerant —
+    // ohne Cloudflare-Kontext (Unit-Tests, next dev) bleibt es "unknown",
+    // die Liveness-Antwort hängt also weiterhin an keinem Binding.
+    const env = await getEnvSafe();
+    return c.json({
+      status: "ok",
+      service: "hallofhelp-api",
+      api: "v1",
+      version: "v1", // Altfeld: hieß immer die API-Version (Aufrufer nicht brechen)
+      app: {
+        version: process.env.APP_VERSION ?? "unknown",
+        commit: process.env.APP_COMMIT ?? "unknown",
+        builtAt: process.env.APP_BUILT_AT ?? null,
+        env: env?.APP_ENV ?? process.env.APP_ENV ?? "unknown",
+      },
+    });
+  });
 
   // (0b) OAUTH-GATEWAY (Phase E, §c-3): NUR auf dem zentralen, tenant-freien
   // Host `auth.hallofhelp.com`. Läuft VOR der Tenant-Middleware — der Gateway
@@ -234,11 +258,19 @@ export function buildApiApp(deps: ApiDeps) {
   app.use("/admin/videos/*", contentFreeze);
   app.use("/admin/branding", contentFreeze);
   app.use("/admin/branding/*", contentFreeze);
+  // Changelog/Roadmap sind Inhalte → gleiches Freeze-Verhalten wie Artikel.
+  app.use("/admin/changelog", contentFreeze);
+  app.use("/admin/changelog/*", contentFreeze);
+  app.use("/admin/roadmap", contentFreeze);
+  app.use("/admin/roadmap/*", contentFreeze);
 
   // Branding (White-Label pflegbar): Admin-Pflege + öffentliches Logo-Serving.
   // Details/Sicherheitsentscheidungen: ./branding.ts
   app.route("/admin/branding", brandingAdminRouter(deps));
   app.route("/branding", brandingPublicRouter(deps));
+
+  // Produkt-Updates (Changelog + Roadmap) pflegen — Details: ./updates.ts
+  app.route("/admin", updatesAdminRouter(deps));
 
   // Legal-Docs pro Instanz (Design h): owner-exklusive Pflege + admin-Lesen +
   // öffentliches Ausliefern (Impressum/Datenschutz ohne Login). Details/

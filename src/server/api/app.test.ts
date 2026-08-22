@@ -15,6 +15,26 @@ describe("API /api/v1 (Default-Instanz, Dev-Fallback ohne Cloudflare-Kontext)", 
     expect(await res.json()).toMatchObject({ status: "ok", version: "v1" });
   });
 
+  // Verhinderter Fehlerfall: das Feld verschwindet oder heißt anders — dann
+  // beantwortet kein Deployment mehr die Frage „welche Version läuft hier?",
+  // und `pnpm version:deployed` sowie das Ops-Dashboard lesen ins Leere.
+  it("health nennt die ausgelieferte Version, Commit, Build-Zeit und Umgebung", async () => {
+    const res = await app.request("/api/v1/health");
+    const body = (await res.json()) as {
+      api: string;
+      app: { version: string; commit: string; builtAt: string | null; env: string };
+    };
+    expect(body.api).toBe("v1");
+    expect(body.app).toMatchObject({
+      version: expect.any(String),
+      commit: expect.any(String),
+      env: expect.any(String),
+    });
+    // Nie leer: fehlende Build-Info liefert bewusst "unknown", nicht "".
+    expect(body.app.version.length).toBeGreaterThan(0);
+    expect(body.app.commit.length).toBeGreaterThan(0);
+  });
+
   it("health ist Liveness: antwortet auch für unbekannte Hosts (vor der Tenant-Middleware)", async () => {
     const res = await app.request("/api/v1/health", {
       headers: { host: "definitiv-unbekannt.example.com" },

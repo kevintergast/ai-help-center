@@ -68,6 +68,11 @@ export const API_SCOPES = {
     tier: "public",
     summary: "Update support ticket status.",
   },
+  "updates:write": {
+    tier: "public",
+    summary:
+      "Create, edit and delete changelog entries and roadmap items. These have no draft state — changes are immediately visible to end users.",
+  },
   "articles:delete": {
     tier: "destructive",
     summary:

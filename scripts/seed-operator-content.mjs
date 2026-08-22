@@ -12,6 +12,9 @@ const TENANT = "t_operator";
 const LOCALE = "de";
 // Feste Basis-Epoche (deterministisch, damit Re-Runs die Reihenfolge/Anlagezeit nicht verschieben).
 const BASE = 1783000000;
+// Release-Zeitpunkte (fest, damit Re-Runs nichts verschieben — aber mit dem
+// tatsächlichen Datum, sonst lesen Nutzer ein falsches „veröffentlicht am").
+const RELEASE_0_2_0 = 1787492800; // 2026-08-23
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -271,7 +274,26 @@ const ROADMAP = [
 ];
 
 /** Changelog: nur tatsächlich ausgelieferte Meilensteine (neueste zuerst gerendert). */
+// KUNDEN-SICHT der Änderungen (die technische Liste ist CHANGELOG.md).
+// `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
+// bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Changelog & Roadmap selbst pflegen — mit Versionsnummer",
+    description:
+      "Changelog-Einträge und Roadmap-Punkte lassen sich jetzt im Verwaltungsbereich pflegen; jeder Eintrag kann eine eigene Versionsnummer und die Art des Updates tragen. Auch per MCP aus einem KI-Client heraus änderbar.",
+    at: RELEASE_0_2_0 + 60,
+    version: "0.2.0",
+    level: "minor",
+  },
+  {
+    title: "Neue Bausteine: aufklappbare Abschnitte, Buttons, Dateien",
+    description:
+      "Artikel können aufklappbare Abschnitte, Aktions-Buttons, Trennlinien und Datei-Anhänge (PDF, CSV, Office) enthalten. Lange Artikel bekommen automatisch ein Inhaltsverzeichnis, jede Überschrift ist einzeln teilbar.",
+    at: RELEASE_0_2_0,
+    version: "0.2.0",
+    level: "minor",
+  },
   { title: "YouTube-Videos in Artikeln", description: "Videos mit Pflicht-Beschreibung neben dem Artikel — Klick-zum-Abspielen, Inhalte fließen in die KI-Antworten ein.", at: BASE + 990 },
   { title: "Mehrsprachige Artikel & KI-Übersetzung", description: "Artikel als Sprach-Sets mit eigenem Link je Sprache; KI-Übersetzung inklusive Formatierung, Links und Bildern (50 Credits).", at: BASE + 960 },
   { title: "Rich-Text-Editor, Bilder & Import/Export", description: "Editor mit Überschriften, Listen und Links; Bilder mit Pflicht-Beschreibung; Export als JSON, Import aus JSON und Markdown.", at: BASE + 930 },
@@ -317,9 +339,13 @@ ROADMAP.forEach((r, i) => {
 out.push(`DELETE FROM changelog_entries WHERE tenant_id = '${TENANT}';`);
 CHANGELOG.forEach((c, i) => {
   const id = "op_cl_" + (i + 1);
+  // version/level (0030): unsere eigene Instanz führt die Produktversion mit —
+  // Regel: jedes MINOR-Release erscheint hier (docs/versioning.md).
+  const version = c.version ? `'${esc(c.version)}'` : "NULL";
+  const level = c.level ? `'${c.level}'` : "NULL";
   out.push(
-    `INSERT INTO changelog_entries (id,tenant_id,published_at,title,description) VALUES ('${id}','${TENANT}',${c.at},'${esc(c.title)}','${esc(c.description)}')\n` +
-      `ON CONFLICT(tenant_id,id) DO UPDATE SET published_at=excluded.published_at,title=excluded.title,description=excluded.description;`,
+    `INSERT INTO changelog_entries (id,tenant_id,published_at,title,description,version,level) VALUES ('${id}','${TENANT}',${c.at},'${esc(c.title)}','${esc(c.description)}',${version},${level})\n` +
+      `ON CONFLICT(tenant_id,id) DO UPDATE SET published_at=excluded.published_at,title=excluded.title,description=excluded.description,version=excluded.version,level=excluded.level;`,
   );
 });
 

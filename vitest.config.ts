@@ -11,6 +11,13 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "ops/src/**/*.test.ts", "widget-demo/src/**/*.test.ts"],
+    // scripts/: die Release-Logik (Conventional Commits → Changelog/Version) ist
+    // pures JS in .mjs — sie gehört ins gleiche Test-Gate wie der App-Code.
+    include: [
+      "src/**/*.test.ts",
+      "ops/src/**/*.test.ts",
+      "widget-demo/src/**/*.test.ts",
+      "scripts/**/*.test.mjs",
+    ],
   },
 });
