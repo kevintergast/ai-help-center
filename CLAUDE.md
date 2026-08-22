@@ -35,7 +35,8 @@ lesen diese Variablen. Neue Tenants brauchen daher **keinen** Code — nur einen
 ## Konventionen
 - **Commits:** Conventional Commits (`type(scope): subject`, Imperativ, ≤72). Siehe `docs/git-strategy.md`.
 - **Versionierung:** SemVer in `package.json` (Quelle der Wahrheit) + Git-Tag `vX.Y.Z` + `CHANGELOG.md`.
-  Release: `pnpm changelog` (Vorschau) → `pnpm release [patch|minor|major]` → Commit/Tag **von Hand**.
+  Release: `pnpm changelog` (Vorschau) → `pnpm release [patch|minor|major]` → **Commit vom Menschen**,
+  **Tag von der CI** (Job `tag-release` nach erfolgreichem Prod-Deploy; nie von Hand).
   Was läuft: `pnpm version:deployed` bzw. `GET /api/v1/health` (Version/Commit/Build-Zeit/Umgebung),
   Ops-Dashboard „Ausgelieferte Versionen". CI blockt Prod-Deploys ohne CHANGELOG-Abschnitt und prüft
   nach dem Deploy die laufende Version. **Zwei Changelogs:** `CHANGELOG.md` = Entwickler-Sicht,

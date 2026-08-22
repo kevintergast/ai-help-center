@@ -114,18 +114,16 @@ pnpm release minor --reason "MCP-Server als neue Fähigkeit."  # neue Fähigkeit
 
 `pnpm release` hebt `package.json`, schreibt den datierten Abschnitt in
 `CHANGELOG.md` (der `Unreleased`-Inhalt wandert hinein, fehlende Einträge kommen
-aus den Commits) und gibt danach die Git-Befehle aus. **Commit und Tag macht ein
-Mensch** — das Skript pusht nichts:
+aus den Commits) und berührt git nicht. Danach normal arbeiten — erst
+`development` → Staging prüfen, dann Merge nach `main` → Produktion (siehe
+[git-strategy.md](git-strategy.md)).
 
-```bash
-git add package.json CHANGELOG.md
-git commit -m "chore(release): v0.2.0"
-git tag -a v0.2.0 -m "v0.2.0"
-git push --follow-tags
-```
-
-Reihenfolge wie immer (siehe [git-strategy.md](git-strategy.md)): erst
-`development` → Staging prüfen, dann Merge nach `main` → Produktion.
+**Den Tag setzt die CI.** Nach einem erfolgreichen Prod-Deploy legt der Job
+`tag-release` `v<version aus package.json>` an und pusht ihn (idempotent: ist er
+schon da, endet der Job still). Das hat zwei Vorteile: niemand muss Tags tippen,
+und der Tag markiert genau den Stand, der wirklich live gegangen ist — nicht
+einen Commit, von dem man hofft, dass er deployt wurde. Verhindert nebenbei den
+klassischen Fehler „getaggt, aber der Deploy scheiterte".
 
 ## Nach dem Deploy prüfen
 

@@ -190,3 +190,34 @@ jobs:
       # es ist — weicht es von package.json ab, bricht der Job (Teil-Deploy).
       - name: Laufende Version verifizieren (production)
         run: node scripts/verify-deployed-version.mjs https://app.hallofhelp.com
+
+  # ---------- RELEASE-TAG (automatisch, nach erfolgreichem Prod-Deploy) ----------
+  # Der Tag markiert damit GENAU den Stand, der live gegangen ist — nicht einen
+  # Commit, von dem man hofft, dass er deployt wurde. Niemand muss ihn von Hand
+  # setzen (Anforderung Kevin, 2026-08-23); existiert er schon, endet der Job
+  # still. `contents: write` gilt nur für diesen Job, nicht workflow-weit.
+  tag-release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [deploy-production]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Volle Historie: sonst kennt der Klon die bestehenden Tags nicht.
+          fetch-depth: 0
+      - name: Tag aus package.json setzen (idempotent)
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          TAG="v$VERSION"
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "Tag $TAG existiert bereits — nichts zu tun."
+            echo "### Release-Tag: \`$TAG\` war bereits gesetzt" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "$TAG"
+          git push origin "$TAG"
+          echo "### Release-Tag \`$TAG\` gesetzt auf ${GITHUB_SHA::7}" >> "$GITHUB_STEP_SUMMARY"

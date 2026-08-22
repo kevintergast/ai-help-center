@@ -6,9 +6,11 @@
  * Unreleased-Abschnitt in einen datierten Versionsblock in `CHANGELOG.md` und
  * ergänzt fehlende Einträge aus den Commits seit dem letzten Tag.
  *
- * COMMIT UND TAG MACHT DER MENSCH: Das Skript gibt die Befehle nur aus. So
- * bleibt die Release-Entscheidung (und die Signatur) beim Menschen — passend
- * zur Branch-Protection (nie direkt auf main pushen, siehe docs/git-strategy.md).
+ * COMMIT MACHT DER MENSCH, TAGGEN MACHT DIE CI: Das Skript berührt git nicht.
+ * Der Commit bleibt beim Menschen (Branch-Protection, nie direkt auf main —
+ * docs/git-strategy.md); den Tag `vX.Y.Z` setzt die Pipeline nach einem
+ * erfolgreichen Prod-Deploy, damit er genau den live gegangenen Stand markiert
+ * und niemand ihn tippen muss.
  *
  * STUFEN-REGEL (Projektregel, docs/versioning.md): Es wird DEFENSIV gezählt —
  * patch für Bugfixes und kleine Anpassungen, minor nur für substanziell neue
@@ -145,15 +147,13 @@ function main() {
       "",
       "✔ package.json und CHANGELOG.md aktualisiert.",
       "",
-      "Nächste Schritte (bewusst manuell):",
+      "Nächste Schritte:",
       "  1. CHANGELOG.md durchlesen und Formulierungen für Leser glätten",
-      `  2. git add package.json CHANGELOG.md && git commit -m "chore(release): v${version}"`,
-      `  3. git tag -a v${version} -m "v${version}"`,
-      "  4. Merge nach main (Staging zuerst) und `git push --follow-tags`",
-      "  5. Nach dem Deploy prüfen: pnpm version:deployed",
-      "  6. Kundenrelevantes zusätzlich in den PRODUKT-Changelog:",
-      "     scripts/seed-operator-content.mjs (Array CHANGELOG) — das ist die",
-      "     Sicht der Nutzer, nicht diese technische Liste.",
+      `  2. committen (z. B. "chore(release): v${version}") und nach development pushen`,
+      "  3. Staging prüfen, dann nach main mergen und pushen",
+      `  4. Den Tag v${version} setzt die CI nach dem Prod-Deploy selbst —`,
+      "     nichts von Hand zu tun (.github/workflows/ci.yml, Job tag-release).",
+      "  5. Danach prüfen: pnpm version:deployed",
       "",
     ].join("\n"),
   );
