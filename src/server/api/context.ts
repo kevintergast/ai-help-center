@@ -129,6 +129,8 @@ export interface ApiDeps {
   getAnswersDeps?(): Promise<AnswersDeps | null>;
   /** KI-Übersetzer (Mehrsprachigkeit; s. ArticleTranslator). */
   getTranslator?(): Promise<ArticleTranslator | null>;
+  /** KI-Aufbereitung von Video-Transkripten (0026; null ohne AI-Binding). */
+  getVideoSummarizer?(): Promise<import("@/server/content/video-summary").VideoSummarizer | null>;
   /**
    * IP-Rate-Limits (Abuse-Härtung): fehlend ⇒ fail-open (dev/Tests).
    * Deployed aus den wrangler-`ratelimit`-Bindings (runtime-deps).
@@ -160,6 +162,7 @@ export interface SettingsDeps {
   setSeoIndexable(tenantId: string, indexable: boolean): Promise<void>;
   setSupportEmail(tenantId: string, email: string | null): Promise<void>;
   setDefaultLocale(tenantId: string, locale: "de" | "en"): Promise<void>;
+  setShowHeaderName(tenantId: string, show: boolean): Promise<void>;
 }
 
 export interface AskRuntime {
@@ -172,6 +175,7 @@ export interface AskRuntime {
  * verbucht Credits erst NACH Erfolg. Tests injizieren Fakes.
  */
 export type ArticleTranslator = (input: TranslateArticleInput) => Promise<TranslateArticleResult>;
+export type { VideoSummarizer } from "@/server/content/video-summary";
 
 /** Gespeicherte KI-Antworten: Konto-Store + Staleness-Prüfung (answers.ts). */
 export interface AnswersDeps {

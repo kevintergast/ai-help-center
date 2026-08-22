@@ -14,6 +14,7 @@ import type {
 import { getT } from "@/i18n/t";
 import { cn } from "@/lib/ui/cn";
 import { wrapBlocks, type EditorBlock } from "@/lib/admin/block-draft";
+import { shouldGuardNavigation } from "@/lib/admin/nav-guard";
 import { ArticleBlocksEditor, COLOR_KEYS } from "@/components/admin/article-blocks-editor";
 import { ArticleTranslations } from "@/components/admin/article-translations";
 import { ARTICLE_STATUS } from "@/components/admin/status";
@@ -74,12 +75,15 @@ export function ArticleEditor({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  /** Abgefangenes Navigationsziel (Rückfrage statt Datenverlust). */
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   const dirty = JSON.stringify(essence(draft)) !== JSON.stringify(essence(current));
   const dirtyInEdit = editing && dirty;
+  /** Anzeige-Status „draft" = noch nicht öffentlich (s. displayStatus). */
+  const isPublished = current.status !== "draft";
 
-  // DATENVERLUST-SCHUTZ: Tab-Schließen/Navigation mit ungespeichertem Stand
-  // fragt nach (der gemeldete Fall: Übersetzen/Wechsel warf den Entwurf weg).
+  // DATENVERLUST-SCHUTZ 1: echte Browser-Navigation (Reload, Tab schließen).
   useEffect(() => {
     if (!dirtyInEdit) return;
     const warn = (e: BeforeUnloadEvent) => {
@@ -87,6 +91,33 @@ export function ArticleEditor({
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
+  }, [dirtyInEdit]);
+
+  // DATENVERLUST-SCHUTZ 2 (Live-Fund 2026-08-22): Next-`<Link>`/router.push
+  // navigieren CLIENT-seitig — dort feuert `beforeunload` NIE. Ein Klick auf
+  // eine Artikel-Link-Card kostete so den kompletten Entwurf. Wir fangen
+  // Anker-Klicks in der CAPTURE-Phase ab (vor Nexts eigenem Handler) und
+  // fragen nach; Entscheidung in nav-guard.ts (getestet).
+  useEffect(() => {
+    if (!dirtyInEdit) return;
+    const onClick = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement | null)?.closest?.("a");
+      if (!anchor) return;
+      const guard = shouldGuardNavigation({
+        dirty: true,
+        href: anchor.getAttribute("href"),
+        target: anchor.getAttribute("target"),
+        modified: e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0,
+        download: anchor.hasAttribute("download"),
+        origin: window.location.origin,
+      });
+      if (!guard) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setPendingHref(anchor.getAttribute("href"));
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
   }, [dirtyInEdit]);
 
   // ÜBERSETZUNGS-STALENESS: dieser Artikel ist eine Übersetzung und das
@@ -162,6 +193,59 @@ export function ArticleEditor({
     }
   }
 
+  /** Nutzlast des Entwurfs (identisch für Speichern und Veröffentlichen). */
+  function draftPayload() {
+    return JSON.stringify({
+      title: draft.title,
+      category: draft.category,
+      body: draft.blocks.map((w) => w.block),
+      videos: draft.videos,
+      flag: draft.flag,
+    });
+  }
+
+  /**
+   * SPEICHERN OHNE VERÖFFENTLICHEN (PUT allein): Ein Entwurf bleibt Entwurf —
+   * man kann also in Ruhe arbeiten und später online stellen. ACHTUNG bei
+   * BEREITS veröffentlichten Artikeln: es gibt keine getrennte Entwurfs-
+   * Version, gespeicherte Änderungen sind dort sofort live (die UI sagt das).
+   */
+  async function saveDraft() {
+    setSaving(true);
+    try {
+      const put = await fetch(`/api/v1/admin/articles/${article.id}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: draftPayload(),
+      });
+      if (!put.ok) throw new Error("save_failed");
+      setCurrent(draft); // ab hier nicht mehr „dirty" → Guard/Übersetzen frei
+      showToast(isPublished ? t("editor.savedLiveToast") : t("editor.savedDraftToast"));
+      router.refresh();
+    } catch {
+      showToast(t("editor.saveError"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /** Veröffentlichten Artikel zurückziehen (wieder Entwurf, nicht gelöscht). */
+  async function unpublish() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/v1/admin/articles/${article.id}/unpublish`, { method: "POST" });
+      if (!res.ok) throw new Error("unpublish_failed");
+      setCurrent((c) => ({ ...c, status: "draft" }));
+      setDraft((d) => ({ ...d, status: "draft" }));
+      showToast(t("editor.unpublishedToast"));
+      router.refresh();
+    } catch {
+      showToast(t("editor.saveError"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const setBlocks = (blocks: EditorBlock[]) => setDraft((d) => ({ ...d, blocks }));
 
   const view = editing ? draft : current;
@@ -211,10 +295,17 @@ export function ArticleEditor({
               {t("editor.mode")}
             </Badge>
           ) : (
-            <Button variant="primary" size="sm" onClick={enterEdit}>
-              <PencilIcon width={15} height={15} />
-              {t("editor.edit")}
-            </Button>
+            <>
+              {isPublished ? (
+                <Button variant="ghost" size="sm" disabled={saving} onClick={() => void unpublish()}>
+                  {t("editor.unpublish")}
+                </Button>
+              ) : null}
+              <Button variant="primary" size="sm" onClick={enterEdit}>
+                <PencilIcon width={15} height={15} />
+                {t("editor.edit")}
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -355,6 +446,7 @@ export function ArticleEditor({
             articleSlug={article.slug}
             videoPlayLabel={t("hc.videoPlay")}
             imageSrc={(imageId) => `/api/v1/admin/articles/${article.id}/images/${imageId}`}
+            linksActive={false}
           />
         </article>
       )}
@@ -369,14 +461,22 @@ export function ArticleEditor({
                   <span className="h-2 w-2 rounded-full bg-warn" />
                   {t("editor.unsaved")}
                 </span>
-              ) : null}
+              ) : (
+                <span className="text-xs">
+                  {isPublished ? t("editor.publishedLiveHint") : t("editor.draftHint")}
+                </span>
+              )}
             </span>
             <div className="ml-auto flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={discard}>
                 {t("editor.discard")}
               </Button>
+              {/* Speichern OHNE Veröffentlichen: Entwürfe bleiben Entwürfe. */}
+              <Button variant="cream" size="sm" disabled={saving} onClick={() => void saveDraft()}>
+                {isPublished ? t("editor.saveChanges") : t("editor.saveDraft")}
+              </Button>
               <Button variant="primary" size="sm" onClick={() => setConfirmOpen(true)}>
-                {t("editor.publish")}
+                {isPublished ? t("editor.publishAgain") : t("editor.publish")}
               </Button>
             </div>
           </div>
@@ -419,6 +519,48 @@ export function ArticleEditor({
         }
       >
         {t("editor.delete.body")}
+      </Dialog>
+
+      {/* Rückfrage statt Datenverlust (Navigations-Guard). */}
+      <Dialog
+        open={pendingHref !== null}
+        onClose={() => setPendingHref(null)}
+        title={t("editor.leave.title")}
+        closeLabel={t("editor.close")}
+        footer={
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setPendingHref(null)}>
+              {t("editor.leave.stay")}
+            </Button>
+            <Button
+              variant="cream"
+              size="sm"
+              disabled={saving}
+              onClick={async () => {
+                const target = pendingHref;
+                await saveDraft();
+                setPendingHref(null);
+                if (target) router.push(target);
+              }}
+            >
+              {t("editor.leave.saveAndGo")}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                const target = pendingHref;
+                setDraft(current); // Änderungen verwerfen → Guard ist aus
+                setPendingHref(null);
+                if (target) router.push(target);
+              }}
+            >
+              {t("editor.leave.discard")}
+            </Button>
+          </>
+        }
+      >
+        {t("editor.leave.body")}
       </Dialog>
 
       <Toast

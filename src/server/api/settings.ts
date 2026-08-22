@@ -67,6 +67,24 @@ export function settingsAdminRouter(deps: ApiDeps) {
     return c.json({ ok: true, email: value });
   });
 
+  // Header-Name-Schalter (0025): Name neben dem Logo aus-/einblenden —
+  // admin-Gate (reine Darstellung, kein Instanz-Grundsatz).
+  r.put("/header-name", requireTeam("admin"), async (c) => {
+    let show: unknown;
+    try {
+      show = ((await c.req.json()) as { show?: unknown }).show;
+    } catch {
+      return c.json({ error: "invalid_json" }, 400);
+    }
+    if (typeof show !== "boolean") return c.json({ error: "invalid_show" }, 400);
+
+    const settings = await deps.getSettingsDeps?.();
+    if (!settings) return c.json({ error: "settings_unavailable" }, 503);
+
+    await settings.setShowHeaderName(c.get("tenant").id, show);
+    return c.json({ ok: true, show });
+  });
+
   // Standardsprache der Instanz (Endnutzer-UI, Meta, Mails) — OWNER wie SEO:
   // eine Instanz-Grundsatzentscheidung, keine Content-Pflege.
   r.put("/locale", requireOwner, async (c) => {

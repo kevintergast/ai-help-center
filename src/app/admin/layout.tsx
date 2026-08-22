@@ -24,6 +24,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       tenantName={tenant.name}
       logoUrl={tenant.branding.logoUrl}
       logoDarkUrl={tenant.branding.logoDarkUrl ?? null}
+      showName={tenant.showHeaderName ?? true}
       isOperator={tenant.id === "t_operator"}
       viewer={await readPageViewer(tenant)}
     >

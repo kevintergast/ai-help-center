@@ -15,11 +15,12 @@ interface TenantRow {
   color_primary_fg: string;
   seo_indexable: number;
   support_email: string | null;
+  show_header_name: number;
 }
 
 const COLS =
   "id, slug, name, custom_domain, default_locale, logo_url, logo_r2_key, logo_dark_r2_key, " +
-  "branding_updated_at, color_primary, color_accent, color_primary_fg, seo_indexable, support_email";
+  "branding_updated_at, color_primary, color_accent, color_primary_fg, seo_indexable, support_email, show_header_name";
 
 /**
  * `branding.logoUrl` ist ABGELEITET (Priorität dokumentiert in 0003_branding.sql):
@@ -64,6 +65,7 @@ export function rowToTenant(r: TenantRow): Tenant {
     },
     seoIndexable: r.seo_indexable !== 0,
     supportEmail: r.support_email,
+    showHeaderName: r.show_header_name !== 0,
   };
 }
 
@@ -107,6 +109,14 @@ export class D1TenantRepository {
     await this.db
       .prepare(`UPDATE tenants SET support_email = ? WHERE id = ?`)
       .bind(email, tenantId)
+      .run();
+  }
+
+  /** Header-Name-Schalter (Settings-API, admin — api/settings.ts, 0025). */
+  async setShowHeaderName(tenantId: string, show: boolean): Promise<void> {
+    await this.db
+      .prepare(`UPDATE tenants SET show_header_name = ? WHERE id = ?`)
+      .bind(show ? 1 : 0, tenantId)
       .run();
   }
 

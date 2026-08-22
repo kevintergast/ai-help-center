@@ -132,6 +132,12 @@ export interface BillingRepository {
    */
   recordAiTranslation(input: RecordGenerationInput & { articleId: string }): Promise<PlanState>;
   /**
+   * KI-Aufbereitung eines Video-Transkripts (Editor, 0026): 20 Credits, immer
+   * voller Preis (team-exklusiv). Ohne Artikel-Bezug — das Video hängt beim
+   * Aufbereiten noch am unveröffentlichten Entwurf.
+   */
+  recordAiVideoSummary(input: RecordGenerationInput): Promise<PlanState>;
+  /**
    * „War das hilfreich?"-Feedback (0 Credits, kein MAU): Event-only fürs
    * Statistik-Aggregat (Hilfreich-Quote). Dedup: gleiche Richtung, gleicher
    * Besucher, gleiches Ziel innerhalb 24h wird verworfen (Klick-Spam);
@@ -254,6 +260,20 @@ export class D1BillingRepository implements BillingRepository {
       visitorId: input.visitorId,
       userId: input.userId ?? null,
       articleId: input.articleId,
+      nowSec: input.nowSec,
+    });
+  }
+
+  async recordAiVideoSummary(input: RecordGenerationInput): Promise<PlanState> {
+    // Kein articleId: die Aufbereitung läuft im Editor VOR dem Speichern
+    // (das Video hängt noch am Entwurf) — s. Migration 0026.
+    return this.charge({
+      tenantId: input.tenantId,
+      type: "ai_video_summary",
+      actorType: input.actorType,
+      visitorId: input.visitorId,
+      userId: input.userId ?? null,
+      articleId: null,
       nowSec: input.nowSec,
     });
   }

@@ -36,6 +36,12 @@ export interface BlockViewContext {
   videoPlayLabel: string;
   /** Bild-URL-Bau (public Route bzw. team-gegatete Admin-Route im Editor). */
   srcFor: (imageId: string) => string;
+  /**
+   * `false` = Artikel-Link-Cards rendern als NICHT-klickbare Attrappe.
+   * Der Editor setzt das: ein Klick würde client-seitig wegnavigieren und
+   * den ungespeicherten Entwurf verlieren (Live-Fund 2026-08-22).
+   */
+  linksActive?: boolean;
 }
 
 /** Genau EIN Block, exakt wie im veröffentlichten Artikel. `null` = nichts zu zeigen. */
@@ -87,11 +93,10 @@ export function SingleBlockView({ block, ctx }: { block: ArticleBlock; ctx: Bloc
   }
 
   // articleLink — Card mit eigenem Titel/Beschreibung + Tag-Badge.
-  return (
-    <Link
-      href={`/${block.slug}`}
-      className="group flex items-start gap-3 rounded-comfy border border-hairline bg-surface px-4 py-3 transition-colors hover:border-hairline-strong hover:bg-tint"
-    >
+  const cardClass =
+    "group flex items-start gap-3 rounded-comfy border border-hairline bg-surface px-4 py-3 transition-colors hover:border-hairline-strong hover:bg-tint";
+  const cardInner = (
+    <>
       <span className="min-w-0 flex-1">
         <span className="block font-medium text-ink group-hover:text-brand">{block.title}</span>
         {block.description.length > 0 ? (
@@ -103,6 +108,15 @@ export function SingleBlockView({ block, ctx }: { block: ArticleBlock; ctx: Bloc
           {block.tag.text}
         </Badge>
       ) : null}
+    </>
+  );
+  // Im Editor bewusst KEIN Link (s. linksActive) — gleiche Optik, kein Wegklicken.
+  if (ctx.linksActive === false) {
+    return <span className={cardClass}>{cardInner}</span>;
+  }
+  return (
+    <Link href={`/${block.slug}`} className={cardClass}>
+      {cardInner}
     </Link>
   );
 }
@@ -114,6 +128,7 @@ export function ArticleBlocksView({
   articleSlug,
   videoPlayLabel,
   imageSrc,
+  linksActive,
 }: {
   blocks: ArticleBlock[];
   images: ArticleImage[];
@@ -124,12 +139,15 @@ export function ArticleBlocksView({
   /** Bild-URL-Bau — Default: public Route; der Admin-Editor injiziert die
    *  team-gegatete Route (zeigt auch Draft-Bilder). */
   imageSrc?: (imageId: string) => string;
+  /** `false` im Editor: Cards sind nicht klickbar (kein Entwurfs-Verlust). */
+  linksActive?: boolean;
 }) {
   const ctx: BlockViewContext = {
     images,
     videos,
     videoPlayLabel,
     srcFor: imageSrc ?? ((id: string) => `/api/v1/content/images/${articleSlug}/${id}`),
+    linksActive,
   };
   return (
     <div className="flex flex-col gap-4 text-[15px] leading-relaxed text-ink">

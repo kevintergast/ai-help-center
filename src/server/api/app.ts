@@ -16,6 +16,7 @@ import { answersRouter } from "./answers";
 import { askPublicRouter } from "./ask";
 import { brandingAdminRouter, brandingPublicRouter } from "./branding";
 import { contentAdminRouter, contentImagesPublicRouter } from "./content";
+import { videosAdminRouter } from "./videos";
 import type { ApiDeps, ApiEnv, AuthInstance, GuardSessionData } from "./context";
 import { domainAdminRouter } from "./domain";
 import { eventsPublicRouter } from "./events";
@@ -199,6 +200,8 @@ export function buildApiApp(deps: ApiDeps) {
   const contentFreeze = freezeGate(deps);
   app.use("/admin/articles", contentFreeze);
   app.use("/admin/articles/*", contentFreeze);
+  app.use("/admin/videos", contentFreeze);
+  app.use("/admin/videos/*", contentFreeze);
   app.use("/admin/branding", contentFreeze);
   app.use("/admin/branding/*", contentFreeze);
 
@@ -237,6 +240,8 @@ export function buildApiApp(deps: ApiDeps) {
   // Content-Pflege (Punkt 2): Artikel-CRUD + Lifecycle, requireTeam("content").
   // Tenant-scoped; ohne D1-Binding 503. Details/Sicherheit: ./content.ts
   app.route("/admin/articles", contentAdminRouter(deps));
+  // Video-Aufbereitung (YouTube-Titel + KI-Beschreibung aus Transkript).
+  app.route("/admin/videos", videosAdminRouter(deps));
   // Artikel-Bilder public (nur published-Artikel, s. contentImagesPublicRouter).
   app.route("/content/images", contentImagesPublicRouter(deps));
 

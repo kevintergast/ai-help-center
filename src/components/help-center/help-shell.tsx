@@ -44,6 +44,8 @@ export interface HelpShellProps {
   logoUrl: string | null;
   /** Dark-Mode-Logo (0023) — null: Dark Mode zeigt das helle. */
   logoDarkUrl?: string | null;
+  /** Instanzname neben dem Logo (0025) — false nur wirksam MIT Logo. */
+  showName?: boolean;
   data: HelpCenterData;
   /** Slug des aktuell offenen Artikels (Navigation hervorheben). */
   activeSlug?: string;
@@ -75,6 +77,7 @@ export function HelpShell({
   tenantName,
   logoUrl,
   logoDarkUrl = null,
+  showName = true,
   data,
   activeSlug,
   isOperator = false,
@@ -254,7 +257,9 @@ export function HelpShell({
             {tenantName.charAt(0)}
           </span>
         )}
-        <span className="font-semibold tracking-[-0.3px]">{tenantName}</span>
+        {showName || !logoUrl ? (
+          <span className="font-semibold tracking-[-0.3px]">{tenantName}</span>
+        ) : null}
       </>
     );
 

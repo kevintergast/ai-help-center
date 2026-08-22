@@ -7,6 +7,7 @@ import { getT } from "@/i18n/t";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 /**
  * BRANDING-PFLEGE (ersetzt das tote Scaffold „UploadPlaceholder + Dummy-
@@ -151,6 +152,7 @@ export function BrandingManager({
   primaryFg,
   logoUrl,
   logoDarkUrl,
+  initialShowName,
 }: {
   locale: Locale;
   initialPrimary: string;
@@ -159,6 +161,8 @@ export function BrandingManager({
   primaryFg: string;
   logoUrl: string | null;
   logoDarkUrl: string | null;
+  /** Instanzname im Header (0025; false wirkt nur mit gesetztem Logo). */
+  initialShowName: boolean;
 }) {
   const t = getT(locale);
   const router = useRouter();
@@ -167,10 +171,33 @@ export function BrandingManager({
   const [colorState, setColorState] = useState<"idle" | "saving" | "saved" | "invalid" | "error">(
     "idle",
   );
+  const [showName, setShowName] = useState(initialShowName);
+  const [nameState, setNameState] = useState<"idle" | "saved" | "error">("idle");
   const [lang, setLang] = useState<Locale>(locale);
   const [langState, setLangState] = useState<"idle" | "saving" | "saved" | "forbidden" | "error">(
     "idle",
   );
+
+  async function toggleShowName(next: boolean) {
+    setShowName(next); // optimistisch; bei Fehler zurückdrehen
+    try {
+      const res = await fetch("/api/v1/admin/settings/header-name", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ show: next }),
+      });
+      if (res.ok) {
+        setNameState("saved");
+        router.refresh();
+        return;
+      }
+      setShowName(!next);
+      setNameState("error");
+    } catch {
+      setShowName(!next);
+      setNameState("error");
+    }
+  }
 
   async function saveColors(e: FormEvent) {
     e.preventDefault();
@@ -272,6 +299,24 @@ export function BrandingManager({
           currentUrl={logoDarkUrl}
           onChanged={() => router.refresh()}
         />
+      </div>
+
+      {/* Name neben dem Logo (0025): aus, wenn der Schriftzug im Logo steckt.
+          Ohne Logo zeigt der Header den Namen IMMER (sonst wäre er leer). */}
+      <div className="flex flex-col gap-1.5">
+        <Switch
+          checked={showName}
+          onCheckedChange={(next) => void toggleShowName(next)}
+          label={t("admin.settings.showName.label")}
+        />
+        <p className="text-xs text-ink-muted">{t("admin.settings.showName.hint")}</p>
+        <p aria-live="polite" className="min-h-4 text-xs">
+          {nameState === "saved" ? (
+            <span className="text-ok">{t("admin.settings.colorsSaved")}</span>
+          ) : nameState === "error" ? (
+            <span className="text-crit">{t("admin.settings.seo.error")}</span>
+          ) : null}
+        </p>
       </div>
 
       <form onSubmit={saveColors} className="flex flex-col gap-4" noValidate>

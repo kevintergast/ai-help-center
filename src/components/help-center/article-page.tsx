@@ -33,6 +33,8 @@ export interface ArticlePageProps {
   logoUrl: string | null;
   /** Dark-Mode-Logo (0023) — null: Dark Mode zeigt das helle. */
   logoDarkUrl?: string | null;
+  /** Instanzname neben dem Logo (0025) — false nur wirksam MIT Logo. */
+  showName?: boolean;
   article: Article;
   /** Bereits aufgelöste verwandte Artikel (mit slug für die Verlinkung). */
   related: ArticleSummary[];
@@ -51,6 +53,7 @@ export function ArticlePage({
   tenantName,
   logoUrl,
   logoDarkUrl = null,
+  showName = true,
   article,
   related,
   data,
@@ -71,6 +74,7 @@ export function ArticlePage({
       tenantName={tenantName}
       logoUrl={logoUrl}
       logoDarkUrl={logoDarkUrl}
+      showName={showName}
       data={data}
       isOperator={isOperator}
       viewer={viewer}

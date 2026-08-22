@@ -25,6 +25,10 @@ export const CREDIT_COSTS = {
   // flat statt tokenbasiert — planbar für den Kunden. KEIN internal-Rabatt:
   // Übersetzen ist team-exklusiv, das Feature IST die Leistung.
   ai_translation: 50,
+  // KI-Aufbereitung eines Video-Transkripts → Titel + Beschreibung (Editor).
+  // EIN LLM-Call auf ein langes Transkript; wie die Übersetzung ein
+  // team-exklusives Feature → KEIN internal-Rabatt (s. creditsFor).
+  ai_video_summary: 20,
   search: 0,
   feedback_helpful: 0,
   feedback_unhelpful: 0,
@@ -59,7 +63,7 @@ export function creditsFor(type: UsageEventType, actorType: UsageActorType): num
   // KI-Übersetzung: IMMER Listenpreis — sie ist team-exklusiv und als
   // bezahltes Feature konzipiert (User-Entscheidung 2026-07-17), es gibt
   // keinen "externen" Preis, den man rabattieren könnte.
-  if (type === "ai_translation") return CREDIT_COSTS.ai_translation;
+  if (type === "ai_translation" || type === "ai_video_summary") return CREDIT_COSTS[type];
   return type === "ai_generation" || type === "ai_regeneration"
     ? INTERNAL_AI_GENERATION_CREDITS
     : 0;

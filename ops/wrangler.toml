@@ -11,10 +11,12 @@ main = "src/index.tsx"
 compatibility_date = "2026-07-01"
 
 # ─── STAGING (Default-Env) ─────────────────────────────────────────
-# ops.dev.* ist durch den *.dev-Wildcard-DNS abgedeckt; die SPEZIFISCHERE
+# ops-dev.* liegt EINE Subdomain-Ebene tief → Wildcard-DNS UND Universal-SSL-
+# Zertifikat (*.hallofhelp.com) decken es ab (ops.dev.* wäre Ebene 2 = kein
+# Zertifikat ohne kostenpflichtiges Total TLS; Umbenennung 2026-08-22). Die SPEZIFISCHERE
 # Route gewinnt gegen die Wildcard-Route des Produkt-Workers.
 [[routes]]
-pattern = "ops.dev.hallofhelp.com/*"
+pattern = "ops-dev.hallofhelp.com/*"
 zone_name = "hallofhelp.com"
 
 [[d1_databases]]
@@ -39,7 +41,7 @@ APP_ENV = "development"
 # gesetzt sind, antwortet der Worker 503 (fail-closed; localhost-Dev läuft
 # ohne Access mit Dev-Identität).
 ACCESS_TEAM_DOMAIN = "hallofhelp.cloudflareaccess.com"
-# EINE Access-App mit beiden Hostnames (ops + ops.dev) → gleicher AUD-Tag.
+# EINE Access-App mit beiden Hostnames (ops + ops-dev) → gleicher AUD-Tag.
 ACCESS_AUD = "b8d1c18578d6638e00a0be5df212d248ac8c7d154875ba49fe1ff76caaebe33d"
 
 # RESEND_API_KEY (Einladungs-Mails) als klassisches Worker-Secret:
@@ -72,5 +74,5 @@ index_name = "hallofhelp-articles-prod"
 [env.production.vars]
 APP_ENV = "production"
 ACCESS_TEAM_DOMAIN = "hallofhelp.cloudflareaccess.com"
-# EINE Access-App mit beiden Hostnames (ops + ops.dev) → gleicher AUD-Tag.
+# EINE Access-App mit beiden Hostnames (ops + ops-dev) → gleicher AUD-Tag.
 ACCESS_AUD = "b8d1c18578d6638e00a0be5df212d248ac8c7d154875ba49fe1ff76caaebe33d"

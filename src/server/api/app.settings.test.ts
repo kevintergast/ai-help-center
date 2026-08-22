@@ -33,7 +33,7 @@ type Row = Record<string, unknown>;
 function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
   const { settingsAvailable = true } = opts;
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql"]);
   const repo = new D1TenantRepository(d1FromSqlite(sqlite));
 
   const authDb: Record<string, Row[]> = {
@@ -61,6 +61,7 @@ function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
             setSeoIndexable: (tenantId, indexable) => repo.setSeoIndexable(tenantId, indexable),
             setSupportEmail: (tenantId, email) => repo.setSupportEmail(tenantId, email),
             setDefaultLocale: (tenantId, locale) => repo.setDefaultLocale(tenantId, locale),
+            setShowHeaderName: (tenantId, show) => repo.setShowHeaderName(tenantId, show),
           }
         : null,
   };
@@ -235,5 +236,41 @@ describe("PUT /api/v1/admin/settings/locale (Instanzsprache, Owner-Gate)", () =>
 
     expect((await putLocale(f, { locale: "fr" }, owner)).status).toBe(400);
     expect((await putLocale(f, { locale: 1 }, owner)).status).toBe(400);
+  });
+});
+
+const putHeaderName = (f: Fixture, body: unknown, cookie?: string) =>
+  f.app.request("/api/v1/admin/settings/header-name", {
+    method: "PUT",
+    headers: {
+      host: HOST_DEMO,
+      "content-type": "application/json",
+      ...(cookie ? { cookie } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+describe("PUT /api/v1/admin/settings/header-name (0025)", () => {
+  let f: Fixture;
+  beforeEach(() => {
+    f = makeFixture();
+  });
+
+  // Verhinderte Fehlerfälle: Endnutzer schalten den Header um (Gate-Bruch),
+  // oder der Schalter schreibt, ohne dass rowToTenant ihn liest (wirkungslos).
+  it("admin: persistiert; user → 403; Unsinn → 400; Default ist true", async () => {
+    expect((await f.repo.getBySlug("demo"))?.showHeaderName).toBe(true); // 0025-Default
+
+    const admin = await session(f, "admin-hn@example.com", "admin");
+    const off = await putHeaderName(f, { show: false }, admin);
+    expect(off.status).toBe(200);
+    expect(await off.json()).toEqual({ ok: true, show: false });
+    expect((await f.repo.getBySlug("demo"))?.showHeaderName).toBe(false);
+
+    const user = await session(f, "user-hn@example.com", "user");
+    expect((await putHeaderName(f, { show: true }, user)).status).toBe(403);
+    expect((await f.repo.getBySlug("demo"))?.showHeaderName).toBe(false); // unverändert
+
+    expect((await putHeaderName(f, { show: "ja" }, admin)).status).toBe(400);
   });
 });
