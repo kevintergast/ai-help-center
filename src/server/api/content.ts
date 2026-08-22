@@ -16,7 +16,11 @@ import {
   type RawImportArticle,
 } from "@/server/content/transfer";
 import { applyTranslatedTexts, extractTranslatableTexts } from "@/lib/content/blocks";
+import type { ArticleVideo } from "@/lib/content/types";
 import { parseCreateArticle, parseUpdateArticle } from "@/server/content/validate";
+import { assertImportableUrl, extractArticleFromHtml, slugFromUrl } from "@/server/content/scrape";
+import { fetchVideoTitle } from "@/server/content/video-meta";
+import { allowRequest, clientIp, rateLimited } from "./rate-limit";
 import type { ApiDeps, ApiEnv, GuardSessionData } from "./context";
 
 /**
@@ -45,6 +49,12 @@ import type { ApiDeps, ApiEnv, GuardSessionData } from "./context";
 
 /** Datei-/Beschreibungs-Limits der Artikel-Bilder (Upload-Route). */
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2 MB (Logo: 1 MB; Inhaltsbilder größer)
+/** Import per URL: Deckel + Kennung fürs Fremd-Fetching. */
+const MAX_IMPORT_URLS = 20;
+const MAX_PAGE_CHARS = 2_000_000;
+const FETCH_TIMEOUT_MS = 15_000;
+const DEFAULT_IMPORT_CATEGORY = "Import";
+const IMPORT_USER_AGENT = "HallofHelpImporter/1.0 (+https://hallofhelp.com)";
 const MAX_IMAGE_DESCRIPTION_CHARS = 500;
 
 /** Aktuelle User-ID (für Snapshot-Autor) — best effort, blockiert nie. */
@@ -601,6 +611,208 @@ export function contentAdminRouter(deps: ApiDeps) {
       updated: report.filter((r2) => r2.action === "updated").length,
       failed: report.filter((r2) => r2.action === "failed").length,
       pendingImages: report.reduce((sum, r2) => sum + (r2.pendingImages ?? 0), 0),
+      items: report,
+    });
+  });
+
+
+  /**
+   * IMPORT PER URL: Bestandsartikel von einer öffentlichen Hilfe-Seite
+   * übernehmen — Text, Bilder (werden nach R2 kopiert) und YouTube-Videos in
+   * der ORIGINAL-REIHENFOLGE (scrape.ts). Neue Artikel starten als ENTWURF.
+   *
+   * Grenzen/Härtung: max. MAX_IMPORT_URLS Adressen pro Aufruf, SSRF-Prüfung je
+   * URL, Timeout + Größendeckel je Abruf, IP-Rate-Limit (die Route löst
+   * FREMD-Requests aus — sie darf kein Scraping-Proxy werden). Verantwortung
+   * für die Rechte an den Inhalten liegt beim Team (Hinweis im UI).
+   */
+  r.post("/import-url", requireTeam("content"), async (c) => {
+    const ok = await allowRequest(deps.rateLimiters?.sensitive, `import-url:${c.get("tenant").id}:${clientIp(c)}`);
+    if (!ok) return rateLimited(c);
+
+    const parsed = await readJson(c);
+    if (!parsed.ok) return c.json({ error: "invalid_json" }, 400);
+    const raw = (parsed.body as { urls?: unknown }).urls;
+    const urls = Array.isArray(raw) ? raw.filter((u): u is string => typeof u === "string") : [];
+    if (urls.length === 0) return c.json({ error: "urls_required" }, 400);
+    if (urls.length > MAX_IMPORT_URLS) return c.json({ error: "too_many_urls" }, 400);
+
+    const content = await deps.getContentDeps();
+    if (!content) return c.json({ error: "content_unavailable" }, 503);
+    const tenant = c.get("tenant");
+    const author = await actorId(c);
+
+    const existing = await content.store.listForTransfer(tenant.id);
+    const idBySlug = new Map(existing.map((a) => [a.slug, a.id]));
+
+    const report: {
+      url: string;
+      action: "created" | "updated" | "failed";
+      slug?: string;
+      error?: string;
+      images?: number;
+      videos?: number;
+      warnings?: string[];
+    }[] = [];
+
+    for (const rawUrl of urls) {
+      const check = assertImportableUrl(rawUrl);
+      if (!check.ok) {
+        report.push({ url: rawUrl, action: "failed", error: check.error });
+        continue;
+      }
+      const sourceUrl = check.url;
+
+      // 1) Seite laden (Timeout, HTML-Pflicht, Größendeckel).
+      let html: string;
+      try {
+        const res = await fetch(sourceUrl.toString(), {
+          headers: { accept: "text/html", "user-agent": IMPORT_USER_AGENT },
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
+        if (!res.ok) {
+          report.push({ url: rawUrl, action: "failed", error: `http_${res.status}` });
+          continue;
+        }
+        if (!(res.headers.get("content-type") ?? "").includes("html")) {
+          report.push({ url: rawUrl, action: "failed", error: "not_html" });
+          continue;
+        }
+        const text = await res.text();
+        if (text.length > MAX_PAGE_CHARS) {
+          report.push({ url: rawUrl, action: "failed", error: "page_too_large" });
+          continue;
+        }
+        html = text;
+      } catch {
+        report.push({ url: rawUrl, action: "failed", error: "fetch_failed" });
+        continue;
+      }
+
+      // 2) HTML → Blöcke/Medien.
+      const scraped = extractArticleFromHtml(html, sourceUrl);
+      if (scraped.title.length === 0 || scraped.blocks.length === 0) {
+        report.push({ url: rawUrl, action: "failed", error: "no_content_found" });
+        continue;
+      }
+
+      // 3) Videos: Titel über oEmbed (Beschreibung ist bei uns Pflicht — der
+      //    Titel ist der ehrlichste Startwert; „Inhalt automatisch erfassen"
+      //    im Editor macht daraus später eine echte Beschreibung).
+      const videoIdByPlaceholder = new Map<string, string>();
+      const videos: ArticleVideo[] = [];
+      for (const v of scraped.videos) {
+        const title = (await fetchVideoTitle(v.youtubeId)) ?? `Video ${videos.length + 1}`;
+        const id = crypto.randomUUID();
+        videoIdByPlaceholder.set(v.id, id);
+        videos.push({ id, title, durationLabel: "", description: title, youtubeId: v.youtubeId });
+      }
+      if (videos.length > 0) scraped.warnings.push("video_description_placeholder");
+
+      const slug = slugFromUrl(sourceUrl) || `import-${report.length + 1}`;
+      const valid = parseCreateArticle(
+        {
+          slug,
+          title: scraped.title,
+          category: DEFAULT_IMPORT_CATEGORY,
+          body: scraped.blocks.map((b) =>
+            b.type === "video" ? { ...b, videoId: videoIdByPlaceholder.get(b.videoId) ?? b.videoId } : b,
+          ),
+          videos,
+        },
+        tenant.defaultLocale,
+      );
+      if (!valid.ok) {
+        report.push({ url: rawUrl, action: "failed", error: valid.error });
+        continue;
+      }
+
+      // 4) Artikel anlegen bzw. bestehenden (gleicher Slug) aktualisieren.
+      let articleId: string;
+      const existingId = idBySlug.get(valid.value.slug);
+      try {
+        if (existingId) {
+          articleId = existingId;
+          await content.store.update(
+            tenant.id,
+            articleId,
+            {
+              title: valid.value.title,
+              body: valid.value.body,
+              videos: valid.value.videos,
+              readingMinutes: valid.value.readingMinutes,
+            },
+            author,
+          );
+        } else {
+          articleId = await content.store.create(tenant.id, valid.value);
+          idBySlug.set(valid.value.slug, articleId);
+        }
+      } catch (err) {
+        report.push({
+          url: rawUrl,
+          action: "failed",
+          error: err instanceof SlugConflictError ? "slug_conflict" : "import_failed",
+        });
+        continue;
+      }
+
+      // 5) Bilder herunterladen → R2 + Metadaten; Platzhalter im Body ersetzen.
+      const realImageIds = new Map<string, string>();
+      if (content.media) {
+        for (const img of scraped.images) {
+          try {
+            const res = await fetch(img.url, {
+              headers: { "user-agent": IMPORT_USER_AGENT },
+              signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+            });
+            if (!res.ok) continue;
+            const bytes = new Uint8Array(await res.arrayBuffer());
+            if (bytes.byteLength > MAX_IMAGE_BYTES) continue;
+            const sniffed = sniffImageType(bytes);
+            if (!sniffed) continue; // nur PNG/JPEG/WebP (gleiche Regel wie Upload)
+            const image = { id: crypto.randomUUID(), description: img.description };
+            await content.media.put(articleImageKey(tenant.id, articleId, image.id), bytes, {
+              httpMetadata: { contentType: sniffed },
+            });
+            const added = await content.store.addImage(tenant.id, articleId, image);
+            if (added !== "ok") {
+              await content.media.delete(articleImageKey(tenant.id, articleId, image.id));
+              continue;
+            }
+            realImageIds.set(img.placeholderId, image.id);
+          } catch {
+            /* einzelnes Bild überspringen — der Artikel bleibt gültig */
+          }
+        }
+      }
+
+      // Body mit den ECHTEN Bild-Ids nachziehen; nicht geladene Bild-Blöcke
+      // fallen raus (kein Block, der auf ein fehlendes Bild zeigt).
+      const finalBlocks = valid.value.body
+        .map((b) =>
+          b.type === "image" ? { ...b, imageId: realImageIds.get(b.imageId) ?? "" } : b,
+        )
+        .filter((b) => b.type !== "image" || b.imageId.length > 0);
+      if (JSON.stringify(finalBlocks) !== JSON.stringify(valid.value.body)) {
+        await content.store.update(tenant.id, articleId, { body: finalBlocks }, author);
+      }
+
+      report.push({
+        url: rawUrl,
+        action: existingId ? "updated" : "created",
+        slug: valid.value.slug,
+        images: realImageIds.size,
+        videos: videos.length,
+        warnings: [...new Set(scraped.warnings)],
+      });
+    }
+
+    return c.json({
+      ok: true,
+      created: report.filter((r2) => r2.action === "created").length,
+      updated: report.filter((r2) => r2.action === "updated").length,
+      failed: report.filter((r2) => r2.action === "failed").length,
       items: report,
     });
   });

@@ -993,3 +993,114 @@ describe("POST /api/v1/admin/videos/prepare (Video-Aufbereitung, 0026)", () => {
     expect(f.videoSummaryCharges).toHaveLength(1);
   });
 });
+
+describe("POST /api/v1/admin/articles/import-url (Import per URL)", () => {
+  const FIXTURE = `<html><head><title>Konto anlegen | Fremd-Hilfe</title></head><body>
+    <article>
+      <nav><a href="/help">Hilfeartikel</a></nav>
+      <h1>Konto anlegen</h1>
+      <p>So legst du ein <strong>Konto</strong> an. Details in der <a href="/help/faq">FAQ</a>.</p>
+      <h2>Schritte</h2>
+      <ol><li>Formular öffnen</li><li>E-Mail bestätigen</li></ol>
+      <img alt="Screenshot: Registrierungsformular" src="/img/reg.png">
+      <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>
+    </article></body></html>`;
+  // Kleinstes gültiges PNG (Magic Bytes) — sniffImageType akzeptiert es.
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+
+  function stubWeb(opts: { html?: string; imageOk?: boolean } = {}) {
+    vi.stubGlobal("fetch", async (url: string) => {
+      const u = String(url);
+      if (u.includes("/oembed")) return new Response(JSON.stringify({ title: "Registrierung erklärt" }));
+      if (u.endsWith(".png")) {
+        return opts.imageOk === false
+          ? new Response("nope", { status: 404 })
+          : new Response(PNG.slice() as unknown as BodyInit, { headers: { "content-type": "image/png" } });
+      }
+      return new Response(opts.html ?? FIXTURE, { headers: { "content-type": "text/html; charset=utf-8" } });
+    });
+  }
+  afterEach(() => vi.unstubAllGlobals());
+
+  const importUrls = (app: TestApp, urls: unknown, cookie: string) =>
+    postJson(app, "/api/v1/admin/articles/import-url", HOST_A, { urls }, cookie);
+
+  it("übernimmt Text, Bild UND Video als Entwurf — in Original-Reihenfolge", async () => {
+    stubWeb();
+    const f = makeApp();
+    const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
+
+    const res = await importUrls(f.app, ["https://help.example.com/help/konto-anlegen"], cookie);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ created: 1, failed: 0 });
+
+    const article = (await f.store.listForTransfer("t_a")).find((a) => a.slug === "konto-anlegen")!;
+    expect(article.lifecycle).toBe("draft"); // niemals direkt öffentlich
+    expect(article.title).toBe("Konto anlegen");
+    // Reihenfolge + Typen (Bild-Block trägt die ECHTE, hochgeladene Id):
+    expect(article.body.map((b) => (b.type === "text" ? `text/${b.variant}` : b.type))).toEqual([
+      "text/standard",
+      "text/standard",
+      "text/standard",
+      "image",
+      "video",
+    ]);
+    const img = article.body.find((b) => b.type === "image") as { imageId: string };
+    expect(article.images?.map((i) => i.id)).toContain(img.imageId);
+    expect(article.images?.[0].description).toBe("Screenshot: Registrierungsformular");
+    // Bild-Binärdatei liegt in R2 (Fake), Video mit oEmbed-Titel als Startwert:
+    expect([...f.mediaObjects.keys()].some((k) => k.includes(img.imageId))).toBe(true);
+    expect(article.videos[0]).toMatchObject({ youtubeId: "dQw4w9WgXcQ", title: "Registrierung erklärt" });
+    // Relativer Link wurde absolut gemacht:
+    expect(JSON.stringify(article.body)).toContain("https://help.example.com/help/faq");
+  });
+
+  it("nicht ladbares Bild → Block fällt weg, Artikel bleibt gültig", async () => {
+    stubWeb({ imageOk: false });
+    const f = makeApp();
+    const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
+    await importUrls(f.app, ["https://help.example.com/help/konto-anlegen"], cookie);
+
+    const article = (await f.store.listForTransfer("t_a")).find((a) => a.slug === "konto-anlegen")!;
+    expect(article.body.some((b) => b.type === "image")).toBe(false);
+    expect(article.body.some((b) => b.type === "video")).toBe(true);
+  });
+
+  it("SSRF/Unsinn: interne Ziele werden abgelehnt, ohne zu fetchen", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", async (u: string) => {
+      calls.push(String(u));
+      return new Response("x");
+    });
+    const f = makeApp();
+    const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
+
+    const res = await importUrls(
+      f.app,
+      ["http://127.0.0.1/admin", "http://169.254.169.254/latest/meta-data/", "file:///etc/passwd"],
+      cookie,
+    );
+    expect(await res.json()).toMatchObject({ created: 0, failed: 3 });
+    expect(calls).toEqual([]); // KEIN einziger Fremd-Request
+  });
+
+  it("Deckel + Gating: >20 URLs → 400, leer → 400, ohne Session → 401", async () => {
+    stubWeb();
+    const f = makeApp();
+    const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
+    expect(
+      (await importUrls(f.app, Array.from({ length: 21 }, (_, i) => `https://x.de/a${i}`), cookie)).status,
+    ).toBe(400);
+    expect((await importUrls(f.app, [], cookie)).status).toBe(400);
+    expect((await importUrls(f.app, ["https://x.de/a"], "")).status).toBe(401);
+  });
+
+  it("Seite ohne verwertbaren Inhalt → failed (kein Geister-Artikel)", async () => {
+    stubWeb({ html: "<html><body><div>Nur ein SPA-Gerüst</div></body></html>" });
+    const f = makeApp();
+    const cookie = await sessionAs(f.app, f.authDb, HOST_A, "content");
+    const res = await importUrls(f.app, ["https://help.example.com/leer"], cookie);
+    expect(await res.json()).toMatchObject({ created: 0, failed: 1 });
+    expect(await f.store.listForTransfer("t_a")).toHaveLength(0);
+  });
+});

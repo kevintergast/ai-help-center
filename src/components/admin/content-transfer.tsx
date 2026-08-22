@@ -25,6 +25,7 @@ export function ContentTransfer({ locale }: { locale: Locale }) {
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState<{ tone: "ok" | "crit"; text: string } | null>(null);
+  const [urls, setUrls] = useState("");
 
   function downloadExample(kind: "json" | "md") {
     const content =
@@ -40,6 +41,58 @@ export function ContentTransfer({ locale }: { locale: Locale }) {
     a.download = kind === "json" ? "hallofhelp-import-beispiel.json" : "import-beispiel.md";
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  /**
+   * IMPORT PER URL: Bestandsartikel von einer öffentlichen Hilfe-Seite
+   * übernehmen (Text, Bilder, YouTube-Videos in Original-Reihenfolge).
+   * Eine Adresse pro Zeile; angelegt wird immer als Entwurf.
+   */
+  async function importUrls() {
+    const list = urls
+      .split("\n")
+      .map((u) => u.trim())
+      .filter((u) => u.length > 0);
+    if (list.length === 0) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      const res = await fetch("/api/v1/admin/articles/import-url", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ urls: list }),
+      });
+      const data = (await res.json().catch(() => null)) as {
+        created?: number;
+        updated?: number;
+        failed?: number;
+        items?: { images?: number; videos?: number }[];
+        error?: string;
+      } | null;
+      if (!res.ok || !data) {
+        setNote({ tone: "crit", text: t("admin.transfer.urlError") });
+        return;
+      }
+      const images = (data.items ?? []).reduce((sum, i) => sum + (i.images ?? 0), 0);
+      const videos = (data.items ?? []).reduce((sum, i) => sum + (i.videos ?? 0), 0);
+      setNote({
+        tone: (data.failed ?? 0) > 0 ? "crit" : "ok",
+        text: `${t("admin.transfer.report", {
+          created: data.created ?? 0,
+          updated: data.updated ?? 0,
+          failed: data.failed ?? 0,
+        })} ${t("admin.transfer.urlMedia", { images, videos })}`,
+      });
+      if ((data.created ?? 0) + (data.updated ?? 0) > 0) {
+        setUrls("");
+        setOpen(false);
+        setTimeout(() => window.location.reload(), 2200);
+      }
+    } catch {
+      setNote({ tone: "crit", text: t("admin.transfer.urlError") });
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function importFiles(files: FileList | null) {
@@ -152,6 +205,30 @@ export function ContentTransfer({ locale }: { locale: Locale }) {
             <Button size="sm" disabled={busy} onClick={() => fileRef.current?.click()}>
               {t("admin.transfer.chooseFile")}
             </Button>
+          </div>
+
+          {/* IMPORT PER URL — Bestandsinhalte direkt von der alten Seite holen. */}
+          <div className="mt-4 border-t border-hairline pt-3">
+            <strong className="mb-1 block text-sm font-semibold text-ink">
+              {t("admin.transfer.urlTitle")}
+            </strong>
+            <p className="mb-2 text-xs leading-relaxed text-ink-muted">
+              {t("admin.transfer.urlHint")}
+            </p>
+            <textarea
+              value={urls}
+              onChange={(e) => setUrls(e.target.value)}
+              rows={3}
+              aria-label={t("admin.transfer.urlTitle")}
+              placeholder={"https://help.example.com/help/erste-schritte\nhttps://help.example.com/help/konto"}
+              className="w-full rounded-std border border-hairline bg-surface px-3 py-2 text-[13px] text-ink focus-visible:outline-none focus-visible:shadow-focusglow"
+            />
+            <div className="mt-2 flex items-center gap-2">
+              <Button size="sm" disabled={busy || urls.trim().length === 0} onClick={() => void importUrls()}>
+                {busy ? t("admin.transfer.importing") : t("admin.transfer.urlImport")}
+              </Button>
+              <span className="text-xs text-ink-muted">{t("admin.transfer.urlRights")}</span>
+            </div>
           </div>
         </div>
       ) : null}
