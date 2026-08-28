@@ -81,13 +81,30 @@ export type ArticleBlock =
       type: "file";
       fileId: string;
     }
+  | ({ type: "articleLink" } & ArticleLinkCard)
   | {
-      type: "articleLink";
-      slug: string;
-      title: string;
-      description: string;
-      tag: ArticleTag | null;
+      /**
+       * KARTEN-GITTER aus mehreren Artikel-Verweisen („Weitere Features",
+       * „Passende Integrationen"). Fremde Hilfezentren bauen solche Abschnitte
+       * als Kachel-Navigation; ein einzelner `articleLink` je Zeile wird dem
+       * nicht gerecht, weil die Karten NEBENEINANDER gehören und als eine
+       * Einheit gelesen werden.
+       *
+       * Bewusst ein eigener Typ statt „mehrere articleLink hintereinander":
+       * Nur so weiß der Renderer, dass die Karten ein Gitter bilden, und nur
+       * so kann eine KI die Sammlung als Ganzes anlegen und ersetzen.
+       */
+      type: "articleLinks";
+      items: ArticleLinkCard[];
     };
+
+/** Eine Verweis-Karte: Ziel-Slug + eigener Text (nicht der des Zielartikels). */
+export interface ArticleLinkCard {
+  slug: string;
+  title: string;
+  description: string;
+  tag: ArticleTag | null;
+}
 
 const MAX_TEXT_CHARS = 8_000;
 const MAX_TABLE_COLS = 12;
@@ -98,6 +115,8 @@ const MAX_ACCORDION_TITLE = 160;
 const MAX_BUTTON_LABEL = 80;
 const MAX_HREF_CHARS = 500;
 const MAX_CARD_DESCRIPTION = 300;
+/** Karten je Gitter. Mehr ist keine Navigation mehr, sondern eine Liste. */
+export const MAX_LINK_CARDS = 12;
 export const MAX_TAG_TEXT = 24;
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -177,16 +196,49 @@ export function parseArticleBody(raw: unknown): ArticleBlock[] {
       typeof o.slug === "string" &&
       typeof o.title === "string"
     ) {
-      out.push({
-        type: "articleLink",
-        slug: o.slug,
-        title: o.title,
-        description: typeof o.description === "string" ? o.description : "",
-        tag: parseTagInput(o.tag) ?? null,
-      });
+      out.push({ type: "articleLink", ...cardLenient(o) });
+    } else if (o.type === "articleLinks" && Array.isArray(o.items)) {
+      const items: ArticleLinkCard[] = [];
+      for (const raw of o.items) {
+        if (typeof raw !== "object" || raw === null) continue;
+        const c = raw as Record<string, unknown>;
+        if (typeof c.slug !== "string" || typeof c.title !== "string") continue;
+        items.push(cardLenient(c));
+      }
+      // Ein leeres Gitter ist kein Block — es würde als Nichts rendern.
+      if (items.length > 0) out.push({ type: "articleLinks", items });
     }
   }
   return out;
+}
+
+/** LESE-Pfad: Karte aus bereits als String geprüftem slug/title bauen. */
+function cardLenient(o: Record<string, unknown>): ArticleLinkCard {
+  return {
+    slug: o.slug as string,
+    title: o.title as string,
+    description: typeof o.description === "string" ? o.description : "",
+    tag: parseTagInput(o.tag) ?? null,
+  };
+}
+
+/**
+ * SCHREIB-Pfad: eine Verweis-Karte streng prüfen. Von `articleLink` UND
+ * `articleLinks` benutzt — eine Karte, eine Regel, egal in welchem Block sie
+ * steckt.
+ */
+function validateCard(raw: unknown): { ok: true; value: ArticleLinkCard } | { ok: false; error: string } {
+  if (typeof raw !== "object" || raw === null) return { ok: false, error: "invalid_body" };
+  const o = raw as Record<string, unknown>;
+  const slug = typeof o.slug === "string" ? o.slug.trim() : "";
+  const title = typeof o.title === "string" ? o.title.trim() : "";
+  const description = typeof o.description === "string" ? o.description.trim() : "";
+  if (!SLUG_RE.test(slug) || slug.length > 80) return { ok: false, error: "invalid_card_slug" };
+  if (title.length === 0 || title.length > MAX_CARD_TITLE) return { ok: false, error: "invalid_card_title" };
+  if (description.length > MAX_CARD_DESCRIPTION) return { ok: false, error: "invalid_card_description" };
+  const tag = parseTagInput(o.tag);
+  if (tag === undefined) return { ok: false, error: "invalid_tag" };
+  return { ok: true, value: { slug, title, description, tag } };
 }
 
 /**
@@ -282,19 +334,23 @@ export function validateBodyInput(raw: unknown): { ok: true; value: ArticleBlock
         break;
       }
       case "articleLink": {
-        const slug = typeof o.slug === "string" ? o.slug.trim() : "";
-        const title = typeof o.title === "string" ? o.title.trim() : "";
-        const description = typeof o.description === "string" ? o.description.trim() : "";
-        if (!SLUG_RE.test(slug) || slug.length > 80) return { ok: false, error: "invalid_card_slug" };
-        if (title.length === 0 || title.length > MAX_CARD_TITLE) {
-          return { ok: false, error: "invalid_card_title" };
+        const card = validateCard(o);
+        if (!card.ok) return card;
+        out.push({ type: "articleLink", ...card.value });
+        break;
+      }
+      case "articleLinks": {
+        if (!Array.isArray(o.items) || o.items.length === 0) {
+          return { ok: false, error: "invalid_card_list" };
         }
-        if (description.length > MAX_CARD_DESCRIPTION) {
-          return { ok: false, error: "invalid_card_description" };
+        if (o.items.length > MAX_LINK_CARDS) return { ok: false, error: "too_many_cards" };
+        const items: ArticleLinkCard[] = [];
+        for (const raw of o.items) {
+          const card = validateCard(raw);
+          if (!card.ok) return card;
+          items.push(card.value);
         }
-        const tag = parseTagInput(o.tag);
-        if (tag === undefined) return { ok: false, error: "invalid_tag" };
-        out.push({ type: "articleLink", slug, title, description, tag });
+        out.push({ type: "articleLinks", items });
         break;
       }
       default:
@@ -318,14 +374,23 @@ export function serializeBody(blocks: ArticleBlock[]): unknown[] {
  * Video-Blöcke tragen NICHTS bei — deren Beschreibungen kommen weiterhin aus
  * den Anhängen (images_json/videos_json), sonst gäbe es doppelte Index-Zeilen.
  */
+/** Index-Zeile einer Verweis-Karte (identisch für Einzelkarte und Gitter). */
+function cardText(c: ArticleLinkCard): string {
+  const desc = c.description.trim();
+  return `→ ${c.title}${desc.length > 0 ? `: ${desc}` : ""}`;
+}
+
 export function blockTexts(blocks: ArticleBlock[]): string[] {
   const out: string[] = [];
   for (const b of blocks) {
     if (b.type === "text") {
       if (b.text.trim().length > 0) out.push(b.text);
     } else if (b.type === "articleLink") {
-      const desc = b.description.trim();
-      out.push(`→ ${b.title}${desc.length > 0 ? `: ${desc}` : ""}`);
+      out.push(cardText(b));
+    } else if (b.type === "articleLinks") {
+      // Je Karte eine Zeile — die KI soll einzelne Verweise nennen können,
+      // nicht nur „hier gibt es ein Gitter".
+      for (const c of b.items) out.push(cardText(c));
     } else if (b.type === "accordion") {
       // Titel UND Inhalt in den Index: FAQ-Antworten stecken oft genau hier.
       const text = b.text.trim();

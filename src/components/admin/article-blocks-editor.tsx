@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { ArticleBlock, TagColor, TextVariant } from "@/lib/content/blocks";
+import type { ArticleBlock, ArticleLinkCard, TagColor, TextVariant } from "@/lib/content/blocks";
 import {
   isAllowedButtonHref,
+  MAX_LINK_CARDS,
   pipeToTable,
   tableToPipe,
   TAG_COLORS,
@@ -78,11 +79,83 @@ type AddKind =
   | { kind: "image" }
   | { kind: "video" }
   | { kind: "card" }
+  | { kind: "cardGrid" }
   | { kind: "table" }
   | { kind: "accordion" }
   | { kind: "button" }
   | { kind: "divider" }
   | { kind: "file" };
+
+const blankCard = (): ArticleLinkCard => ({ slug: "", title: "", description: "", tag: null });
+
+/**
+ * Die vier Felder einer Verweis-Karte. EINE Oberfläche für beide Blöcke —
+ * Einzelkarte (`articleLink`) und Gitter (`articleLinks`); sonst driften die
+ * beiden Formulare auseinander und der Nutzer lernt zwei Bedienungen für
+ * dieselbe Sache.
+ */
+function CardFields({
+  card,
+  onChange,
+  locale,
+}: {
+  card: ArticleLinkCard;
+  onChange: (next: ArticleLinkCard) => void;
+  locale: Locale;
+}) {
+  const t = getT(locale);
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Input
+          label={t("editor.blocks.cardSlug")}
+          value={card.slug}
+          onChange={(e) => onChange({ ...card, slug: e.target.value })}
+          placeholder={t("editor.blocks.cardSlugPlaceholder")}
+        />
+        <Input
+          label={t("editor.blocks.cardTitle")}
+          value={card.title}
+          onChange={(e) => onChange({ ...card, title: e.target.value })}
+        />
+      </div>
+      <Input
+        label={t("editor.blocks.cardDescription")}
+        value={card.description}
+        onChange={(e) => onChange({ ...card, description: e.target.value })}
+      />
+      <div className="flex flex-wrap items-end gap-3">
+        <Input
+          label={t("editor.blocks.tagText")}
+          value={card.tag?.text ?? ""}
+          onChange={(e) =>
+            onChange({
+              ...card,
+              tag:
+                e.target.value.trim().length === 0
+                  ? null
+                  : { text: e.target.value, color: card.tag?.color ?? "neutral" },
+            })
+          }
+          placeholder={t("editor.blocks.tagPlaceholder")}
+          className="w-44"
+        />
+        {card.tag ? (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm text-ink-muted">{t("editor.blocks.tagColor")}</span>
+            <Select
+              options={TAG_COLORS.map((c) => ({ value: c, label: t(COLOR_KEYS[c]) }))}
+              value={card.tag.color}
+              onValueChange={(v) => onChange({ ...card, tag: { text: card.tag!.text, color: v as TagColor } })}
+              aria-label={t("editor.blocks.tagColor")}
+              className="w-36"
+            />
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 function blankBlock(pick: AddKind): ArticleBlock {
   switch (pick.kind) {
@@ -94,6 +167,8 @@ function blankBlock(pick: AddKind): ArticleBlock {
       return { type: "video", videoId: "" };
     case "card":
       return { type: "articleLink", slug: "", title: "", description: "", tag: null };
+    case "cardGrid":
+      return { type: "articleLinks", items: [blankCard()] };
     case "table":
       return { type: "table", head: ["Feld", "Bedeutung"], rows: [["", ""]] };
     case "accordion":
@@ -530,6 +605,7 @@ export function ArticleBlocksEditor({
     if (b.type === "button") return t("editor.blocks.type.button");
     if (b.type === "divider") return t("editor.blocks.type.divider");
     if (b.type === "file") return t("editor.blocks.type.file");
+    if (b.type === "articleLinks") return t("editor.blocks.type.cardGrid");
     return t("editor.blocks.type.card");
   };
 
@@ -566,6 +642,9 @@ export function ArticleBlocksEditor({
           </Button>
           <Button variant="cream" size="sm" onClick={() => pickAt(index, { kind: "card" })}>
             {t("editor.blocks.type.card")}
+          </Button>
+          <Button variant="cream" size="sm" onClick={() => pickAt(index, { kind: "cardGrid" })}>
+            {t("editor.blocks.type.cardGrid")}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setMenuAt(null)}>
             {t("editor.cancel")}
@@ -754,58 +833,55 @@ export function ArticleBlocksEditor({
                         setEditingUid(null);
                       }}
                     />
-                  ) : (
+                  ) : b.type === "articleLinks" ? (
                     <div className="flex flex-col gap-3">
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <Input
-                          label={t("editor.blocks.cardSlug")}
-                          value={b.slug}
-                          onChange={(e) => update(i, { ...b, slug: e.target.value })}
-                          placeholder={t("editor.blocks.cardSlugPlaceholder")}
-                        />
-                        <Input
-                          label={t("editor.blocks.cardTitle")}
-                          value={b.title}
-                          onChange={(e) => update(i, { ...b, title: e.target.value })}
-                        />
-                      </div>
-                      <Input
-                        label={t("editor.blocks.cardDescription")}
-                        value={b.description}
-                        onChange={(e) => update(i, { ...b, description: e.target.value })}
-                      />
-                      <div className="flex flex-wrap items-end gap-3">
-                        <Input
-                          label={t("editor.blocks.tagText")}
-                          value={b.tag?.text ?? ""}
-                          onChange={(e) =>
-                            update(i, {
-                              ...b,
-                              tag:
-                                e.target.value.trim().length === 0
-                                  ? null
-                                  : { text: e.target.value, color: b.tag?.color ?? "neutral" },
-                            })
-                          }
-                          placeholder={t("editor.blocks.tagPlaceholder")}
-                          className="w-44"
-                        />
-                        {b.tag ? (
-                          <div className="flex flex-col gap-1.5">
-                            <span className="text-sm text-ink-muted">{t("editor.blocks.tagColor")}</span>
-                            <Select
-                              options={TAG_COLORS.map((c) => ({ value: c, label: t(COLOR_KEYS[c]) }))}
-                              value={b.tag.color}
-                              onValueChange={(v) =>
-                                update(i, { ...b, tag: { text: b.tag!.text, color: v as TagColor } })
-                              }
-                              aria-label={t("editor.blocks.tagColor")}
-                              className="w-36"
-                            />
+                      <p className="text-xs text-ink-muted">{t("editor.blocks.cardGridHint")}</p>
+                      {b.items.map((card, ci) => (
+                        <div
+                          key={ci}
+                          className="flex flex-col gap-2 rounded-comfy border border-hairline bg-tint p-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium text-ink-muted">
+                              {t("editor.blocks.cardGridItem")} {ci + 1}
+                            </span>
+                            {b.items.length > 1 ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  update(i, { ...b, items: b.items.filter((_, x) => x !== ci) })
+                                }
+                              >
+                                {t("editor.blocks.cardGridRemove")}
+                              </Button>
+                            ) : null}
                           </div>
-                        ) : null}
-                      </div>
+                          <CardFields
+                            card={card}
+                            locale={locale}
+                            onChange={(next) =>
+                              update(i, { ...b, items: b.items.map((c, x) => (x === ci ? next : c)) })
+                            }
+                          />
+                        </div>
+                      ))}
+                      {b.items.length < MAX_LINK_CARDS ? (
+                        <Button
+                          variant="cream"
+                          size="sm"
+                          onClick={() => update(i, { ...b, items: [...b.items, blankCard()] })}
+                        >
+                          {t("editor.blocks.cardGridAdd")}
+                        </Button>
+                      ) : null}
                     </div>
+                  ) : (
+                    <CardFields
+                      card={b}
+                      locale={locale}
+                      onChange={(next) => update(i, { type: "articleLink", ...next })}
+                    />
                   )}
                 </div>
               ) : (
@@ -819,6 +895,7 @@ export function ArticleBlocksEditor({
                     (b.type === "video" && !videos.some((v) => v.id === b.videoId)) ||
                     (b.type === "text" && b.text.trim().length === 0) ||
                     (b.type === "articleLink" && b.title.trim().length === 0) ||
+                    (b.type === "articleLinks" && b.items.every((c) => c.title.trim().length === 0)) ||
                     (b.type === "table" && b.rows.every((r) => r.every((c) => c.trim().length === 0))) ||
                     (b.type === "accordion" && b.title.trim().length === 0) ||
                     (b.type === "button" &&

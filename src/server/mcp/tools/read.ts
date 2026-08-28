@@ -5,7 +5,7 @@ import {
   MAX_TITLE_LENGTH,
   RESERVED_SLUGS,
 } from "@/server/content/validate";
-import { TAG_COLORS, TEXT_VARIANTS } from "@/lib/content/blocks";
+import { MAX_LINK_CARDS, TAG_COLORS, TEXT_VARIANTS } from "@/lib/content/blocks";
 import { API_SCOPES, scopeDef } from "@/server/apikeys/scopes";
 import { fail, ok, type McpTool, type ToolContext } from "./types";
 
@@ -252,6 +252,18 @@ export const getContentConventions: McpTool = {
               tag: { text: "Neu", color: "brand" },
             },
             tagColors: [...TAG_COLORS],
+            note: "A single full-width card. For a SET of links use articleLinks instead.",
+          },
+          {
+            type: "articleLinks",
+            shape: {
+              type: "articleLinks",
+              items: [
+                { slug: "first-article", title: "...", description: "...", tag: null },
+                { slug: "second-article", title: "...", description: "...", tag: null },
+              ],
+            },
+            note: `A grid of link cards side by side — use this for sections that are pure navigation ("More features", "Related integrations"), which is how most help centers end an article. 1 to ${MAX_LINK_CARDS} items; every slug must be an article that exists in this help center.`,
           },
         ],
       },

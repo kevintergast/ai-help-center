@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ArticleBlock } from "@/lib/content/blocks";
+import type { ArticleBlock, ArticleLinkCard } from "@/lib/content/blocks";
 import { textToParagraphs } from "@/lib/content/headings";
 import { formatFileSize } from "@/lib/content/file-size";
 import type { ArticleFile, ArticleImage, ArticleVideo } from "@/lib/content/types";
@@ -210,32 +210,45 @@ export function SingleBlockView({ block, ctx }: { block: ArticleBlock; ctx: Bloc
     );
   }
 
-  if (block.type !== "articleLink") return null;
+  if (block.type === "articleLinks") {
+    // Kachel-Navigation: zwei Spalten ab sm, eine auf dem Handy. Die Karten
+    // sind dieselben wie bei articleLink — nur nebeneinander.
+    return (
+      <div className="grid gap-3 sm:grid-cols-2">
+        {block.items.map((card, i) => (
+          <LinkCard key={`${card.slug}-${i}`} card={card} linksActive={ctx.linksActive} />
+        ))}
+      </div>
+    );
+  }
 
-  // articleLink — Card mit eigenem Titel/Beschreibung + Tag-Badge.
+  if (block.type !== "articleLink") return null;
+  return <LinkCard card={block} linksActive={ctx.linksActive} />;
+}
+
+/** Verweis-Karte — identisch für Einzelkarte und Gitter. */
+function LinkCard({ card, linksActive }: { card: ArticleLinkCard; linksActive?: boolean }) {
   const cardClass =
-    "group flex items-start gap-3 rounded-comfy border border-hairline bg-surface px-4 py-3 transition-colors hover:border-hairline-strong hover:bg-tint";
+    "group flex h-full items-start gap-3 rounded-comfy border border-hairline bg-surface px-4 py-3 transition-colors hover:border-hairline-strong hover:bg-tint";
   const cardInner = (
     <>
       <span className="min-w-0 flex-1">
-        <span className="block font-medium text-ink group-hover:text-brand">{block.title}</span>
-        {block.description.length > 0 ? (
-          <span className="mt-0.5 block text-sm text-ink-muted">{block.description}</span>
+        <span className="block font-medium text-ink group-hover:text-brand">{card.title}</span>
+        {card.description.length > 0 ? (
+          <span className="mt-0.5 block text-sm text-ink-muted">{card.description}</span>
         ) : null}
       </span>
-      {block.tag ? (
-        <Badge tone={block.tag.color} className="shrink-0">
-          {block.tag.text}
+      {card.tag ? (
+        <Badge tone={card.tag.color} className="shrink-0">
+          {card.tag.text}
         </Badge>
       ) : null}
     </>
   );
   // Im Editor bewusst KEIN Link (s. linksActive) — gleiche Optik, kein Wegklicken.
-  if (ctx.linksActive === false) {
-    return <span className={cardClass}>{cardInner}</span>;
-  }
+  if (linksActive === false) return <span className={cardClass}>{cardInner}</span>;
   return (
-    <Link href={`/${block.slug}`} className={cardClass}>
+    <Link href={`/${card.slug}`} className={cardClass}>
       {cardInner}
     </Link>
   );

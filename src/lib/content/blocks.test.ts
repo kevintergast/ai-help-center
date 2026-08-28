@@ -211,3 +211,88 @@ describe("neue Block-Typen", () => {
     ).toEqual(["Fließtext", { type: "divider" }]);
   });
 });
+
+/**
+ * VERWEIS-GITTER (`articleLinks`). Verhinderte Fehlerfälle:
+ *  - Eine Karte im Gitter wird laxer geprüft als eine Einzelkarte → über das
+ *    Gitter käme ein Slug wie „../etc" in den Body, den `articleLink` abweist.
+ *  - Karten fehlen im Suchindex → die KI kennt die Kachel-Navigation nicht und
+ *    kann nicht auf die verlinkten Artikel verweisen.
+ *  - Ein leeres Gitter wird gespeichert und rendert als Nichts (unsichtbarer
+ *    Block, den niemand im Editor wiederfindet).
+ */
+describe("articleLinks — Verweis-Gitter", () => {
+  const card = (slug: string, title: string) => ({ slug, title, description: "", tag: null });
+
+  it("prüft jede Karte so streng wie eine Einzelkarte", () => {
+    const bad = validateBodyInput([
+      { type: "articleLinks", items: [card("gut", "Gut"), { slug: "../etc", title: "Böse" }] },
+    ]);
+    expect(bad).toEqual({ ok: false, error: "invalid_card_slug" });
+
+    const noTitle = validateBodyInput([{ type: "articleLinks", items: [{ slug: "gut", title: "  " }] }]);
+    expect(noTitle).toEqual({ ok: false, error: "invalid_card_title" });
+  });
+
+  it("lehnt ein leeres Gitter ab (es würde als Nichts rendern)", () => {
+    expect(validateBodyInput([{ type: "articleLinks", items: [] }])).toEqual({
+      ok: false,
+      error: "invalid_card_list",
+    });
+  });
+
+  it("deckelt die Kartenzahl", () => {
+    const many = Array.from({ length: 13 }, (_, i) => card(`ziel-${i}`, `Ziel ${i}`));
+    expect(validateBodyInput([{ type: "articleLinks", items: many }])).toEqual({
+      ok: false,
+      error: "too_many_cards",
+    });
+  });
+
+  it("nimmt ein gültiges Gitter an und trimmt die Felder", () => {
+    const res = validateBodyInput([
+      {
+        type: "articleLinks",
+        items: [
+          { slug: " erste-schritte ", title: " Erste Schritte ", description: " Los geht's ", tag: null },
+          { slug: "widgets", title: "Widgets", description: "", tag: { text: "Neu", color: "ok" } },
+        ],
+      },
+    ]);
+    expect(res).toEqual({
+      ok: true,
+      value: [
+        {
+          type: "articleLinks",
+          items: [
+            { slug: "erste-schritte", title: "Erste Schritte", description: "Los geht's", tag: null },
+            { slug: "widgets", title: "Widgets", description: "", tag: { text: "Neu", color: "ok" } },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("jede Karte landet einzeln im Suchindex", () => {
+    const blocks = parseArticleBody([
+      {
+        type: "articleLinks",
+        items: [
+          { slug: "a", title: "Widgets", description: "Chat auf der Website" },
+          { slug: "b", title: "Prompts" },
+        ],
+      },
+    ]);
+    expect(blockTexts(blocks)).toEqual(["→ Widgets: Chat auf der Website", "→ Prompts"]);
+  });
+
+  it("verwirft beim Lesen kaputte Karten, statt die Seite zu reißen", () => {
+    const blocks = parseArticleBody([
+      { type: "articleLinks", items: [{ slug: "a", title: "Gut" }, { nichts: true }, "quatsch"] },
+      { type: "articleLinks", items: [] },
+    ]);
+    expect(blocks).toEqual([
+      { type: "articleLinks", items: [{ slug: "a", title: "Gut", description: "", tag: null }] },
+    ]);
+  });
+});
