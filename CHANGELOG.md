@@ -26,6 +26,22 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.2.1] – 2026-08-28
+
+_Zwei Feinschliff-Features auf bestehenden Fähigkeiten (Medien im MCP-Server, Favicon-Slot im Branding) plus Fehlerbehebungen — keine neue Fähigkeitsklasse, daher defensiv patch._
+
+### Hinzugefügt
+- **branding:** eigenes Favicon je Instanz — quadratisches Emblem, zusätzlich ICO erlaubt; ohne eigenes Favicon dient das helle Logo als Tab-Icon (439c50e)
+- **mcp:** `add_image_from_url` — Bild von einer öffentlichen Adresse nach R2, Beschreibung ist Pflichtfeld (25c7da9)
+- **mcp:** `update_image_description` — Beschreibungen waren nach dem Hochladen bisher nirgends änderbar, auch nicht im Editor (25c7da9)
+
+### Behoben
+- **mcp:** `import_article_from_url` lud Bilder nicht herunter und legte keine Video-Einträge an; die Blöcke zeigten auf nicht existierende Ids und rendern als nichts — stiller Inhaltsverlust beim Übernehmen fremder Seiten (25c7da9)
+- **admin:** Der Scope „Changelog und Roadmap pflegen" hatte keine Beschriftung in der Schlüssel-Verwaltung; ein `as MessageKey`-Cast hatte das i18n-Gate umgangen (25c7da9)
+
+### Datenbank
+- `0031_favicon.sql` — `tenants.favicon_r2_key` (additiv, forward-only). Die CI wendet Migrationen vor dem Deploy an.
+
 ## [0.2.0] – 2026-08-23
 
 _Minor: MCP-Server mit Schreibzugriff, Changelog-/Roadmap-Pflege mit Versionsnummern,
