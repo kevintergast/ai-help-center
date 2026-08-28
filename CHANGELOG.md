@@ -26,6 +26,16 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.2.2] – 2026-08-28
+
+_Ein neuer Baustein auf dem bestehenden Blockmodell — keine neue Fähigkeitsklasse, daher defensiv patch._
+
+### Hinzugefügt
+- **content:** Verweis-Gitter (`articleLinks`) — bis zu zwölf Verweis-Karten nebeneinander, für Abschnitte wie „Weitere Features". Jede Karte wird einzeln indexiert; `get_content_conventions` nennt den Block, damit KI-Clients ihn benutzen (adb3d66)
+
+### Behoben
+- **content:** Kachel-Navigationen fremder Hilfeseiten gingen beim Übernehmen verloren — der Importer findet in einem Karten-Gitter keinen Text, es blieb eine leere Überschrift. Mit dem neuen Block lassen sich solche Abschnitte nachbauen (adb3d66)
+
 ## [0.2.1] – 2026-08-28
 
 _Zwei Feinschliff-Features auf bestehenden Fähigkeiten (Medien im MCP-Server, Favicon-Slot im Branding) plus Fehlerbehebungen — keine neue Fähigkeitsklasse, daher defensiv patch._
