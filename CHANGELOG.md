@@ -26,6 +26,25 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.2.3] – 2026-08-28
+
+_Werkzeuge und Korrekturen aus dem ersten echten Migrationslauf — Erweiterungen bestehender Flächen, keine neue Fähigkeitsklasse._
+
+### Hinzugefügt
+- **mcp:** `update_video` — ein einzelnes Video ändern, ohne die Liste zu ersetzen (14b80ef)
+- **mcp:** `prepare_video` — Transkript → KI-Titel und -Beschreibung; ohne Transkript wird nichts erfunden und nichts berechnet (14b80ef)
+- **mcp:** `update_image_descriptions` — bis zu 40 Beschreibungen je Aufruf statt eines Roundtrips pro Bild (14b80ef)
+- **mcp:** `import_article_from_url` kennt `on_conflict: "update"` und wird damit wiederholbar (14b80ef)
+- **content:** Roadmap-Status „Angefragt" für Kundenwünsche ohne Zusage (14b80ef)
+
+### Behoben
+- **mcp:** `get_roadmap` lieferte `sort` nicht zurück — sortieren ging, nachlesen nicht (14b80ef)
+- **mcp:** Der Import meldete „2 Bilder fehlgeschlagen" ohne Grund und verschwieg Überschriften, deren Inhalt beim Übernehmen verloren ging (14b80ef)
+- **help-center:** Roadmap-Beschriftungen liefen über einen `as MessageKey`-Cast am i18n-Gate vorbei (14b80ef)
+
+### Datenbank
+- `0032_roadmap_requested.sql` — Status `requested` (Rebuild, forward-only). Die CI wendet Migrationen vor dem Deploy an.
+
 ## [0.2.2] – 2026-08-28
 
 _Ein neuer Baustein auf dem bestehenden Blockmodell — keine neue Fähigkeitsklasse, daher defensiv patch._
