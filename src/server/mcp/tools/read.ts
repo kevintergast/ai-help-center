@@ -234,10 +234,14 @@ export const getContentConventions: McpTool = {
           },
           {
             type: "image",
-            shape: { type: "image", imageId: "<id from add_image_from_url>" },
-            note: "Images must exist on the article before they can be referenced.",
+            shape: { type: "image", imageId: "<id returned by add_image_from_url>" },
+            note: "An image must exist on the article before a block can reference it. Order: create_article (or update_article) → add_image_from_url with a real description of what the image shows → update_article to place the block. A block pointing at an unknown id renders as nothing.",
           },
-          { type: "video", shape: { type: "video", videoId: "<id of a video on this article>" } },
+          {
+            type: "video",
+            shape: { type: "video", videoId: "<id of a video on this article>" },
+            note: "Videos live in the article's `videos` list (set it with update_article): { id, title, description, youtubeId }. YouTube only. `description` is required and is what the AI search reads.",
+          },
           {
             type: "articleLink",
             shape: {

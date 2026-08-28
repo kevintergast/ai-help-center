@@ -10,6 +10,14 @@ import {
   SlugConflictError,
 } from "@/server/content/store";
 import {
+  applyVideoIds,
+  downloadScrapedImages,
+  resolveScrapedVideos,
+  IMPORT_FETCH_TIMEOUT_MS,
+  IMPORT_USER_AGENT,
+  MAX_IMAGE_BYTES,
+} from "@/server/content/media-import";
+import {
   articleToMarkdown,
   buildExportFile,
   parseImportFile,
@@ -18,10 +26,8 @@ import {
   type RawImportArticle,
 } from "@/server/content/transfer";
 import { applyTranslatedTexts, extractTranslatableTexts } from "@/lib/content/blocks";
-import type { ArticleVideo } from "@/lib/content/types";
 import { parseCreateArticle, parseUpdateArticle } from "@/server/content/validate";
 import { assertImportableUrl, extractArticleFromHtml, slugFromUrl } from "@/server/content/scrape";
-import { fetchVideoTitle } from "@/server/content/video-meta";
 import { allowRequest, clientIp, rateLimited } from "./rate-limit";
 import type { ApiDeps, ApiEnv, GuardSessionData } from "./context";
 
@@ -49,14 +55,10 @@ import type { ApiDeps, ApiEnv, GuardSessionData } from "./context";
  * → 503 fail-closed.
  */
 
-/** Datei-/Beschreibungs-Limits der Artikel-Bilder (Upload-Route). */
-const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2 MB (Logo: 1 MB; Inhaltsbilder größer)
-/** Import per URL: Deckel + Kennung fürs Fremd-Fetching. */
+/** Import per URL: Deckel fürs Fremd-Fetching (Kennung/Timeout: media-import). */
 const MAX_IMPORT_URLS = 20;
 const MAX_PAGE_CHARS = 2_000_000;
-const FETCH_TIMEOUT_MS = 15_000;
 const DEFAULT_IMPORT_CATEGORY = "Import";
-const IMPORT_USER_AGENT = "HallofHelpImporter/1.0 (+https://hallofhelp.com)";
 const MAX_IMAGE_DESCRIPTION_CHARS = 500;
 
 /** Aktuelle User-ID (für Snapshot-Autor) — best effort, blockiert nie. */
@@ -764,7 +766,7 @@ export function contentAdminRouter(deps: ApiDeps) {
       try {
         const res = await fetch(sourceUrl.toString(), {
           headers: { accept: "text/html", "user-agent": IMPORT_USER_AGENT },
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+          signal: AbortSignal.timeout(IMPORT_FETCH_TIMEOUT_MS),
         });
         if (!res.ok) {
           report.push({ url: rawUrl, action: "failed", error: `http_${res.status}` });
@@ -795,14 +797,7 @@ export function contentAdminRouter(deps: ApiDeps) {
       // 3) Videos: Titel über oEmbed (Beschreibung ist bei uns Pflicht — der
       //    Titel ist der ehrlichste Startwert; „Inhalt automatisch erfassen"
       //    im Editor macht daraus später eine echte Beschreibung).
-      const videoIdByPlaceholder = new Map<string, string>();
-      const videos: ArticleVideo[] = [];
-      for (const v of scraped.videos) {
-        const title = (await fetchVideoTitle(v.youtubeId)) ?? `Video ${videos.length + 1}`;
-        const id = crypto.randomUUID();
-        videoIdByPlaceholder.set(v.id, id);
-        videos.push({ id, title, durationLabel: "", description: title, youtubeId: v.youtubeId });
-      }
+      const { videos, idByPlaceholder: videoIdByPlaceholder } = await resolveScrapedVideos(scraped);
       if (videos.length > 0) scraped.warnings.push("video_description_placeholder");
 
       const slug = slugFromUrl(sourceUrl) || `import-${report.length + 1}`;
@@ -811,9 +806,7 @@ export function contentAdminRouter(deps: ApiDeps) {
           slug,
           title: scraped.title,
           category: DEFAULT_IMPORT_CATEGORY,
-          body: scraped.blocks.map((b) =>
-            b.type === "video" ? { ...b, videoId: videoIdByPlaceholder.get(b.videoId) ?? b.videoId } : b,
-          ),
+          body: applyVideoIds(scraped.blocks, videoIdByPlaceholder),
           videos,
         },
         tenant.defaultLocale,
@@ -854,51 +847,24 @@ export function contentAdminRouter(deps: ApiDeps) {
       }
 
       // 5) Bilder herunterladen → R2 + Metadaten; Platzhalter im Body ersetzen.
-      const realImageIds = new Map<string, string>();
-      if (content.media) {
-        for (const img of scraped.images) {
-          try {
-            const res = await fetch(img.url, {
-              headers: { "user-agent": IMPORT_USER_AGENT },
-              signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-            });
-            if (!res.ok) continue;
-            const bytes = new Uint8Array(await res.arrayBuffer());
-            if (bytes.byteLength > MAX_IMAGE_BYTES) continue;
-            const sniffed = sniffImageType(bytes);
-            if (!sniffed) continue; // nur PNG/JPEG/WebP (gleiche Regel wie Upload)
-            const image = { id: crypto.randomUUID(), description: img.description };
-            await content.media.put(articleImageKey(tenant.id, articleId, image.id), bytes, {
-              httpMetadata: { contentType: sniffed },
-            });
-            const added = await content.store.addImage(tenant.id, articleId, image);
-            if (added !== "ok") {
-              await content.media.delete(articleImageKey(tenant.id, articleId, image.id));
-              continue;
-            }
-            realImageIds.set(img.placeholderId, image.id);
-          } catch {
-            /* einzelnes Bild überspringen — der Artikel bleibt gültig */
-          }
-        }
-      }
-
-      // Body mit den ECHTEN Bild-Ids nachziehen; nicht geladene Bild-Blöcke
-      // fallen raus (kein Block, der auf ein fehlendes Bild zeigt).
-      const finalBlocks = valid.value.body
-        .map((b) =>
-          b.type === "image" ? { ...b, imageId: realImageIds.get(b.imageId) ?? "" } : b,
-        )
-        .filter((b) => b.type !== "image" || b.imageId.length > 0);
-      if (JSON.stringify(finalBlocks) !== JSON.stringify(valid.value.body)) {
-        await content.store.update(tenant.id, articleId, { body: finalBlocks }, author);
+      //    Nicht geladene Bild-Blöcke fallen raus (kein Block, der auf ein
+      //    fehlendes Bild zeigt — der würde unsichtbar rendern).
+      const media = await downloadScrapedImages(
+        content,
+        tenant.id,
+        articleId,
+        scraped,
+        valid.value.body,
+      );
+      if (JSON.stringify(media.blocks) !== JSON.stringify(valid.value.body)) {
+        await content.store.update(tenant.id, articleId, { body: media.blocks }, author);
       }
 
       report.push({
         url: rawUrl,
         action: existingId ? "updated" : "created",
         slug: valid.value.slug,
-        images: realImageIds.size,
+        images: media.imported,
         videos: videos.length,
         warnings: [...new Set(scraped.warnings)],
       });

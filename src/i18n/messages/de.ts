@@ -912,6 +912,9 @@ export const de = {
   "admin.apiKeys.scope.articles:delete.label": "Artikel und Bilder löschen",
   "admin.apiKeys.scope.articles:delete.hint":
     "Endgültig, inklusive Versionsgeschichte. Jede Löschung muss in der KI-Sitzung ausdrücklich bestätigt werden.",
+  "admin.apiKeys.scope.updates:write.label": "Changelog und Roadmap pflegen",
+  "admin.apiKeys.scope.updates:write.hint":
+    "Einträge anlegen, ändern und löschen. Es gibt hier keinen Entwurf — Änderungen sind sofort öffentlich sichtbar.",
   "admin.apiKeys.scope.support:delete.label": "Support-Tickets löschen",
   "admin.apiKeys.scope.support:delete.hint": "Endgültig. Ebenfalls nur mit ausdrücklicher Bestätigung.",
 

@@ -32,7 +32,8 @@ export type AuditAction =
   | "mcp.article.updated"
   | "mcp.article.published"
   | "mcp.article.unpublished"
-  | "mcp.article.deleted";
+  | "mcp.article.deleted"
+  | "mcp.article.image_added";
 
 export interface AuditEvent {
   tenantId: string;

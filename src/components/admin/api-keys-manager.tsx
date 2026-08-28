@@ -65,10 +65,27 @@ const RISK_TONE: Record<RiskLevel, "ok" | "brand" | "warn" | "crit"> = {
   critical: "crit",
 };
 
-const scopeLabelKey = (s: ApiScope) => `admin.apiKeys.scope.${s}.label` as MessageKey;
-const scopeHintKey = (s: ApiScope) => `admin.apiKeys.scope.${s}.hint` as MessageKey;
-const tierTitleKey = (tier: ScopeTier) => `admin.apiKeys.tier.${tier}` as MessageKey;
-const riskLabelKey = (risk: RiskLevel) => `admin.apiKeys.risk.${risk}` as MessageKey;
+/**
+ * Schlüssel-Ableitung OHNE `as MessageKey`: Der Rückgabetyp ist annotiert, der
+ * Ausdruck ist ein Template-Literal-Typ über ALLE Scopes/Stufen — TypeScript
+ * prüft damit, dass zu jedem Katalog-Eintrag auch ein Übersetzungstext
+ * existiert. Genau das hatte der frühere Cast unterdrückt: `updates:write` war
+ * im Scope-Katalog, aber ohne Label, und die Checkbox blieb leer.
+ */
+const scopeLabelKey = (s: ApiScope): MessageKey => `admin.apiKeys.scope.${s}.label`;
+const scopeHintKey = (s: ApiScope): MessageKey => `admin.apiKeys.scope.${s}.hint`;
+const tierTitleKey = (tier: ScopeTier): MessageKey => `admin.apiKeys.tier.${tier}`;
+const riskLabelKey = (risk: RiskLevel): MessageKey => `admin.apiKeys.risk.${risk}`;
+
+/**
+ * Bestätigungstexte gibt es NUR für rote Scopes — ein Template über alle
+ * Scopes würde hier Texte verlangen, die es zu Recht nicht gibt. `satisfies`
+ * hält trotzdem beides fest: gültige Scope-Ids und gültige Message-Keys.
+ */
+const ACK_KEYS = {
+  "articles:delete": "admin.apiKeys.ack.articles:delete",
+  "support:delete": "admin.apiKeys.ack.support:delete",
+} as const satisfies Partial<Record<ApiScope, MessageKey>>;
 
 /** Tage bis zum Ablauf — Auswahl bewusst kurz gehalten (Rotation als Hygiene). */
 const EXPIRY_CHOICES = [30, 90, 365] as const;
@@ -248,7 +265,9 @@ export function ApiKeysManager({ locale, mcpUrl }: { locale: Locale; mcpUrl: str
                               )
                             }
                           />
-                          <span>{t(`admin.apiKeys.ack.${scope}` as MessageKey)}</span>
+                          <span>
+                            {scope in ACK_KEYS ? t(ACK_KEYS[scope as keyof typeof ACK_KEYS]) : null}
+                          </span>
                         </label>
                       ) : null}
                     </div>

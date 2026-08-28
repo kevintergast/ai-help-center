@@ -911,6 +911,9 @@ export const en: Record<MessageKey, string> = {
   "admin.apiKeys.scope.articles:delete.label": "Delete articles and images",
   "admin.apiKeys.scope.articles:delete.hint":
     "Permanent, version history included. Every deletion has to be explicitly confirmed in the AI session.",
+  "admin.apiKeys.scope.updates:write.label": "Maintain changelog and roadmap",
+  "admin.apiKeys.scope.updates:write.hint":
+    "Create, edit and delete entries. There is no draft state here — changes are visible to end users immediately.",
   "admin.apiKeys.scope.support:delete.label": "Delete support tickets",
   "admin.apiKeys.scope.support:delete.hint": "Permanent. Also requires explicit confirmation.",
 

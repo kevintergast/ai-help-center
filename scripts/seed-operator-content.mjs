@@ -144,6 +144,7 @@ const ARTICLES = [
       "Bilder reisen nicht als Datei mit. Stattdessen werden Bildverweise (im Markdown ![Beschreibung](bild.png), im JSON images-Einträge) als VORMERKUNG angelegt: Der Artikel-Editor zeigt dir, welche Bilder noch fehlen, übernimmt die Beschreibung und du lädst das Bild dort mit einem Klick nach.",
       "Am schnellsten geht der Umzug von einer bestehenden Hilfe-Seite: Gib im Import-Dialog unter »Von einer Website importieren« die Adressen der Artikel an (eine pro Zeile). Wir holen Titel, Text, Überschriften, Listen, Bilder und YouTube-Videos in der Original-Reihenfolge — Bilder werden mit ihrem Alternativtext als Beschreibung in dein Hilfezentrum kopiert. Voraussetzung: Die Seite liefert ihren Inhalt im HTML (bei rein per JavaScript aufgebauten Seiten bleibt der Datei-Import).",
       "Wichtig: Importiere nur Inhalte, die dir gehören oder für die du die Rechte hast. Video-Beschreibungen setzt du danach im Editor über »Inhalt automatisch erfassen«.",
+      "Für größere Umzüge gibt es einen dritten Weg: Verbinde deinen eigenen KI-Client per MCP und lass ihn die Seiten übernehmen. Der Vorteil gegenüber dem Dialog ist die Nacharbeit — dein KI-Client kann jedes übernommene Bild ansehen und daraus eine echte Beschreibung schreiben, statt nur den Alternativtext der alten Seite zu übernehmen. Wie das geht, steht unter »Eigenen KI-Client verbinden (MCP)«.",
       "Übernommen werden auch Tabellen und Hinweisboxen: Tabellen werden zu Tabellen-Blöcken, farbige Hinweise zu Info-, Warnungs- oder Fehler-Blöcken.",
       "Importierte neue Artikel starten immer als Entwurf — veröffentlicht wird bewusst von Hand. Existiert ein Artikel mit gleichem Slug bereits, wird sein Inhalt aktualisiert; sein Status bleibt unverändert.",
     ],
@@ -252,6 +253,29 @@ const ARTICLES = [
       "Änderst du Videos, greifen sie wie Textänderungen erst mit dem Veröffentlichen des Artikels.",
     ],
     related: ["artikel-veroeffentlichen", "ki-antworten"],
+  },
+  {
+    slug: "ki-client-verbinden",
+    title: "Eigenen KI-Client verbinden (MCP)",
+    category: "Inhalte pflegen",
+    min: 4,
+    body: [
+      "Du kannst dein Hilfezentrum an deinen eigenen KI-Client anbinden — Claude Code, Claude Desktop, Cursor oder einen selbst gebauten Agenten. Danach pflegst du Artikel im Gespräch: »Lies unser Changelog und leg mir daraus Entwürfe an« oder »Übernimm unsere alte Dokumentation von dieser Adresse«. Die Schnittstelle dafür heißt MCP (Model Context Protocol).",
+      "Der entscheidende Punkt: Die KI-Leistung erbringt DEIN Client in deinem eigenen KI-Abo. Bei uns kommen nur fertige, geprüfte Schreibbefehle an — Schreiben über MCP verbraucht deshalb keine Credits.",
+      "So verbindest du: Gehe im Verwaltungsbereich auf »Zugriffs-Schlüssel«. Dort stehen deine MCP-Adresse und ein fertiger Befehl zum Kopieren. Lege einen Schlüssel an, setze ihn in den Befehl ein — fertig. Jedes Hilfezentrum hat seine eigene Adresse; ein Schlüssel gilt immer nur für genau dieses eine.",
+      "Der Schlüssel entscheidet, was die KI darf. Beim Anlegen wählst du die Rechte einzeln aus, jeweils mit Klartext daneben, was sie bedeuten. Voreingestellt ist bewusst zahm: lesen und Entwürfe schreiben. Alles, was nach außen wirkt, musst du aktiv einschalten.",
+      {
+        type: "accordion",
+        title: "Was kann eine KI mit welchem Recht?",
+        text:
+          "Lesen: Artikel, Entwürfe, Kategorien, Übersetzungen, Statistiken, Einstellungen — dazu die Schreib-Konventionen deines Hilfezentrums, damit die KI gültige Bausteine baut statt zu raten.\n\nArtikel schreiben und ändern: Artikel anlegen (immer als ENTWURF), Texte, Tabellen und Hinweisboxen ändern, ganze Seiten von einer Adresse übernehmen, Bilder hinzufügen, ihre Beschreibungen nachbessern und Videos mit Titel und Beschreibung setzen. Nichts davon wird öffentlich.\n\nVeröffentlichen: macht Artikel sofort für alle Besucher sichtbar — standardmäßig AUS.\n\nChangelog und Roadmap pflegen: hier gibt es keinen Entwurf, Änderungen sind sofort öffentlich.\n\nLöschen: nur mit einer ausdrücklichen Bestätigung im KI-Gespräch (siehe unten) — standardmäßig AUS.",
+      },
+      "Der Klartext-Schlüssel wird genau einmal angezeigt, direkt nach dem Anlegen. Danach siehst du in der Liste nur noch, wofür er gilt, wann er zuletzt benutzt wurde und wann er abläuft (standardmäßig nach 90 Tagen). Du kannst ihn jederzeit mit einem Klick widerrufen — er wirkt sofort nicht mehr.",
+      "Löschen ist absichtlich umständlich: Der erste Löschbefehl löscht nichts, sondern liefert eine Zusammenfassung dessen, was verschwinden würde, plus ein kurzlebiges Bestätigungs-Token. Erst ein zweiter Aufruf mit diesem Token löscht wirklich. Eine KI kann also nicht in einem Schritt Inhalte vernichten.",
+      "Nicht per MCP erreichbar sind bewusst: Team und Rollen, Eigentümerschaft, Rechtstexte, eigene Domain, Plan und Bezahlung sowie die Schlüsselverwaltung selbst. Diese Flächen bleiben Mensch, Anmeldung und Zwei-Faktor-Authentifizierung vorbehalten — ein geleakter Schlüssel soll Inhalte gefährden können, niemals dein Konto.",
+      "Tipp: Lege lieber zwei enge Schlüssel an als einen Generalschlüssel — etwa einen reinen Lese-Schlüssel für Recherche und Auswertungen und einen Schreib-Schlüssel ohne Veröffentlichen für die Redaktion.",
+    ],
+    related: ["inhalte-importieren-exportieren", "artikel-veroeffentlichen"],
   },
   {
     slug: "suchmaschinen-sichtbarkeit",

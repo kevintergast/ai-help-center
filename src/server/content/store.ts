@@ -93,6 +93,18 @@ export interface ContentStore {
   // ——— Bilder (Metadaten; Binärdaten in R2, Key aus Ids abgeleitet) ———
   addImage(tenantId: string, articleId: string, image: ArticleImage): Promise<"ok" | "not_found" | "limit">;
   removeImage(tenantId: string, articleId: string, imageId: string): Promise<boolean>;
+  /**
+   * Beschreibung eines bereits hochgeladenen Bildes ändern (Binärdatei bleibt).
+   * Gebraucht nach Übernahmen: Der Alternativtext der Quellseite ist meist ein
+   * Etikett („Screenshot: Glossar"), keine Beschreibung — und die Beschreibung
+   * ist das EINZIGE, was die KI-Suche von einem Bild lesen kann.
+   */
+  updateImageDescription(
+    tenantId: string,
+    articleId: string,
+    imageId: string,
+    description: string,
+  ): Promise<boolean>;
   /** NUR veröffentlichte Artikel (public Serving, fail-closed für Drafts). */
   getPublishedImage(
     tenantId: string,
@@ -649,6 +661,33 @@ export class D1ContentRepository implements ContentStore {
           WHERE tenant_id = ? AND id = ?`,
       )
       .bind(JSON.stringify(remaining), tenantId, articleId)
+      .run();
+    return true;
+  }
+
+  async updateImageDescription(
+    tenantId: string,
+    articleId: string,
+    imageId: string,
+    description: string,
+  ): Promise<boolean> {
+    const row = await this.db
+      .prepare(`SELECT images_json FROM articles WHERE tenant_id = ? AND id = ?`)
+      .bind(tenantId, articleId)
+      .first<{ images_json: string }>();
+    if (!row) return false;
+
+    const images = parseJsonArray<ArticleImage>(row.images_json);
+    const target = images.find((i) => i.id === imageId);
+    if (!target) return false;
+    target.description = description;
+
+    await this.db
+      .prepare(
+        `UPDATE articles SET images_json = ?, updated_at = unixepoch()
+          WHERE tenant_id = ? AND id = ?`,
+      )
+      .bind(JSON.stringify(images), tenantId, articleId)
       .run();
     return true;
   }

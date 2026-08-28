@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { memoryAdapter } from "better-auth/adapters/memory";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Tenant } from "@/lib/tenant/types";
 import { buildAuth, tenantAuthOptions } from "@/server/auth/auth";
 import { applyMigrations, d1FromSqlite } from "@/server/auth/sqlite-test-support";
@@ -70,6 +70,18 @@ function makeApp() {
   const indexCalls: string[] = [];
   const auditEntries: { action: string; targetId?: string | null }[] = [];
 
+  // R2-Fake: hält die Bild-Bytes, damit Tests belegen können, dass ein Bild
+  // WIRKLICH gespeichert wurde — und dass nach einem Fehlschlag KEIN
+  // verwaistes Objekt zurückbleibt.
+  const mediaObjects = new Map<string, Uint8Array>();
+  const media = {
+    put: async (key: string, value: ArrayBuffer | Uint8Array) => {
+      mediaObjects.set(key, value instanceof Uint8Array ? value : new Uint8Array(value));
+    },
+    get: async () => null,
+    delete: async (key: string) => void mediaObjects.delete(key),
+  };
+
   const deps: ApiDeps = {
     resolveTenant: async (host) => TENANTS[(host ?? "").split(":")[0].toLowerCase()] ?? null,
     createAuthForTenant: async () =>
@@ -86,7 +98,7 @@ function makeApp() {
       sendInvitationEmail: async () => false,
     }),
     getLegalDeps: async () => null,
-    getContentDeps: async () => ({ store, media: {} as never }),
+    getContentDeps: async () => ({ store, media }),
     getApiKeyDeps: async () => ({ repo: keys }),
     getConfirmations: async (tenantId) =>
       makeConfirmationCodec({
@@ -100,7 +112,7 @@ function makeApp() {
     }),
   };
 
-  return { app: buildApiApp(deps), db, store, keys, indexCalls, auditEntries };
+  return { app: buildApiApp(deps), db, store, keys, indexCalls, auditEntries, mediaObjects };
 }
 
 type TestApp = ReturnType<typeof makeApp>["app"];
@@ -509,5 +521,249 @@ describe("MCP — Löschen nur mit Bestätigung", () => {
     });
     expect(stale.isError).toBe(true);
     expect(stale.data!.error).toBe("invalid_confirmation");
+  });
+});
+
+/**
+ * MEDIEN PER MCP. Der Anlass dieser Suite ist ein STILLER Datenverlust: Der
+ * URL-Import legte Bild- und Video-Blöcke an, lud die Bilder aber nie und
+ * erzeugte keine Video-Einträge. Solche Blöcke rendern als `null`
+ * (article-blocks-view.tsx) — der Artikel sah nur „kürzer" aus, nichts
+ * schlug fehl. Jeder Test hier hält genau einen solchen Fall fest.
+ */
+describe("MCP — Bilder und Videos", () => {
+  // Kleinstes gültiges PNG (Magic Bytes) — sniffImageType akzeptiert es.
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+
+  const PAGE = `<html><head><title>Glossare | Fremd-Hilfe</title></head><body>
+    <article>
+      <h1>Glossare</h1>
+      <p>Du kannst Glossareinträge für deine Assistenten anlegen.</p>
+      <img alt="Screenshot: Glossareintrag anlegen" src="/img/glossar.png">
+      <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>
+    </article></body></html>`;
+
+  /** Zählt, WAS gefetcht wurde — SSRF-Tests belegen darüber „gar nicht". */
+  function stubWeb(opts: { imageOk?: boolean } = {}) {
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => {
+      const u = String(url);
+      calls.push(u);
+      if (u.includes("/oembed")) return new Response(JSON.stringify({ title: "Glossare erklärt" }));
+      if (u.endsWith(".png")) {
+        return opts.imageOk === false
+          ? new Response("nope", { status: 404 })
+          : new Response(PNG.slice() as unknown as BodyInit, { headers: { "content-type": "image/png" } });
+      }
+      return new Response(PAGE, { headers: { "content-type": "text/html; charset=utf-8" } });
+    });
+    return calls;
+  }
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("add_image_from_url lädt das Bild, hängt es an den Artikel und liefert die Id", async () => {
+    stubWeb();
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const id = await seedArticle(f.app, token, "glossare");
+
+    const added = await callTool(f.app, token, "add_image_from_url", {
+      articleId: id,
+      url: "https://help.example.com/img/glossar.png",
+      description: "Dialog Neuer Glossareintrag mit ausgefülltem Feld Begriff",
+    });
+    expect(added.isError).toBe(false);
+    const imageId = added.data!.imageId as string;
+
+    const article = (await f.store.listForTransfer("t_a")).find((a) => a.id === id)!;
+    expect(article.images?.map((i) => i.id)).toContain(imageId);
+    expect(article.images?.[0].description).toContain("Glossareintrag");
+    // Die Binärdatei liegt wirklich in R2 (nicht nur ein Datensatz):
+    expect([...f.mediaObjects.keys()].some((k) => k.includes(imageId))).toBe(true);
+  });
+
+  it("add_image_from_url ohne Beschreibung wird abgelehnt — Bilder ohne Alt-Text sind für die KI unsichtbar", async () => {
+    const calls = stubWeb();
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const id = await seedArticle(f.app, token, "glossare");
+
+    const added = await callTool(f.app, token, "add_image_from_url", {
+      articleId: id,
+      url: "https://help.example.com/img/glossar.png",
+      description: "   ",
+    });
+    expect(added.isError).toBe(true);
+    expect(added.data!.error).toBe("image_description_required");
+    // Und es wurde gar nicht erst geladen:
+    expect(calls.some((u) => u.endsWith(".png"))).toBe(false);
+    expect(f.mediaObjects.size).toBe(0);
+  });
+
+  it("add_image_from_url fasst interne Adressen nicht an (SSRF)", async () => {
+    const calls = stubWeb();
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const id = await seedArticle(f.app, token, "glossare");
+
+    const added = await callTool(f.app, token, "add_image_from_url", {
+      articleId: id,
+      url: "http://169.254.169.254/latest/meta-data/iam.png",
+      description: "Egal — darf nie geladen werden.",
+    });
+    expect(added.isError).toBe(true);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("add_image_from_url an einen unbekannten Artikel lässt kein verwaistes R2-Objekt zurück", async () => {
+    stubWeb();
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+
+    const added = await callTool(f.app, token, "add_image_from_url", {
+      articleId: "gibt-es-nicht",
+      url: "https://help.example.com/img/glossar.png",
+      description: "Screenshot des Glossars.",
+    });
+    expect(added.isError).toBe(true);
+    expect(added.data!.error).toBe("not_found");
+    // Das Objekt war kurz in R2 — es MUSS wieder weg sein (sonst zahlt der
+    // Kunde für Bytes, die kein Artikel je referenziert).
+    expect(f.mediaObjects.size).toBe(0);
+  });
+
+  it("import_article_from_url übernimmt Bilder UND Videos — keine Verweise ins Leere", async () => {
+    stubWeb();
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+
+    const imported = await callTool(f.app, token, "import_article_from_url", {
+      url: "https://help.example.com/help/glossar",
+      category: "Wissen anlegen",
+    });
+    expect(imported.isError).toBe(false);
+
+    const article = (await f.store.listForTransfer("t_a")).find((a) => a.slug === "glossar")!;
+    expect(article.lifecycle).toBe("draft"); // niemals direkt öffentlich
+    expect(article.category).toBe("Wissen anlegen");
+
+    // JEDER Bild-/Video-Block zeigt auf einen Eintrag, den es wirklich gibt:
+    const imageIds = new Set((article.images ?? []).map((i) => i.id));
+    const videoIds = new Set(article.videos.map((v) => v.id));
+    for (const b of article.body) {
+      if (b.type === "image") expect(imageIds.has(b.imageId)).toBe(true);
+      if (b.type === "video") expect(videoIds.has(b.videoId)).toBe(true);
+    }
+    expect(article.body.some((b) => b.type === "image")).toBe(true);
+    expect(article.body.some((b) => b.type === "video")).toBe(true);
+    expect(article.videos[0]).toMatchObject({ youtubeId: "dQw4w9WgXcQ", title: "Glossare erklärt" });
+    expect(article.videos[0].description.length).toBeGreaterThan(0); // Pflichtfeld
+    expect([...f.mediaObjects.keys()]).toHaveLength(1);
+  });
+
+  it("ein nicht ladbares Bild kippt den Import nicht — sein Block fällt weg", async () => {
+    stubWeb({ imageOk: false });
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+
+    const imported = await callTool(f.app, token, "import_article_from_url", {
+      url: "https://help.example.com/help/glossar",
+    });
+    expect(imported.isError).toBe(false);
+
+    const article = (await f.store.listForTransfer("t_a")).find((a) => a.slug === "glossar")!;
+    expect(article.body.some((b) => b.type === "image")).toBe(false);
+    expect(article.body.some((b) => b.type === "video")).toBe(true);
+  });
+
+  it("add_image_from_url fehlt ohne Schreibrecht — auch im Aufruf, nicht nur in der Liste", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read"]);
+
+    const { json } = await rpc(f.app, token, "tools/list");
+    const tools = (json as Record<string, { tools: { name: string }[] }>).result.tools;
+    expect(tools.map((t) => t.name)).not.toContain("add_image_from_url");
+
+    const { res } = await rpc(f.app, token, "tools/call", {
+      name: "add_image_from_url",
+      arguments: { articleId: "x", url: "https://example.com/a.png", description: "x" },
+    });
+    expect(res.status).toBe(403);
+  });
+});
+
+/**
+ * Beschreibungen NACHBESSERN. Beim Übernehmen fremder Seiten wird der
+ * Alternativtext zur Bildbeschreibung — der ist meist ein Etikett
+ * („Screenshot: Glossar"), keine Beschreibung. Ohne dieses Werkzeug bliebe
+ * nur „Bild löschen und neu hochladen", denn die Beschreibung war bisher
+ * nach dem Hochladen nirgends mehr änderbar.
+ */
+describe("MCP — Bildbeschreibungen nachbessern", () => {
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  async function seedWithImage(f: ReturnType<typeof makeApp>, token: string) {
+    vi.stubGlobal("fetch", async () =>
+      new Response(PNG.slice() as unknown as BodyInit, { headers: { "content-type": "image/png" } }),
+    );
+    const id = await seedArticle(f.app, token, "glossare");
+    const added = await callTool(f.app, token, "add_image_from_url", {
+      articleId: id,
+      url: "https://help.example.com/img/glossar.png",
+      description: "Screenshot: Glossar",
+    });
+    return { id, imageId: added.data!.imageId as string };
+  }
+
+  it("ersetzt die Beschreibung, ohne das Bild anzufassen", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const { id, imageId } = await seedWithImage(f, token);
+    const keysBefore = [...f.mediaObjects.keys()];
+
+    const res = await callTool(f.app, token, "update_image_description", {
+      articleId: id,
+      imageId,
+      description: "Liste der Glossareinträge; die Spalte Status zeigt zwei aktive Einträge.",
+    });
+    expect(res.isError).toBe(false);
+
+    const article = (await f.store.listForTransfer("t_a")).find((a) => a.id === id)!;
+    expect(article.images?.[0].description).toContain("Spalte Status");
+    // Die Binärdatei bleibt dieselbe — es wird nichts neu hochgeladen.
+    expect([...f.mediaObjects.keys()]).toEqual(keysBefore);
+  });
+
+  it("leere Beschreibung wird abgelehnt — die alte bleibt stehen", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const { id, imageId } = await seedWithImage(f, token);
+
+    const res = await callTool(f.app, token, "update_image_description", {
+      articleId: id,
+      imageId,
+      description: "  ",
+    });
+    expect(res.isError).toBe(true);
+    expect(res.data!.error).toBe("image_description_required");
+
+    const article = (await f.store.listForTransfer("t_a")).find((a) => a.id === id)!;
+    expect(article.images?.[0].description).toBe("Screenshot: Glossar");
+  });
+
+  it("unbekannte Bild-Id → not_found (kein stilles Nichtstun)", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const { id } = await seedWithImage(f, token);
+
+    const res = await callTool(f.app, token, "update_image_description", {
+      articleId: id,
+      imageId: "gibt-es-nicht",
+      description: "Egal.",
+    });
+    expect(res.isError).toBe(true);
+    expect(res.data!.error).toBe("not_found");
   });
 });
