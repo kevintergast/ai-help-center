@@ -119,6 +119,7 @@ export const de = {
   "hc.changelogTitle": "Neuerungen",
   "hc.close": "Schließen",
   "hc.roadmap.planned": "Geplant",
+  "hc.roadmap.requested": "Angefragt",
   "hc.roadmap.in_progress": "In Arbeit",
   "hc.roadmap.shipped": "Live",
 
@@ -147,6 +148,7 @@ export const de = {
   "admin.updates.itemTitle": "Roadmap-Punkt",
   "admin.updates.status": "Status",
   "admin.updates.status.planned": "Geplant",
+  "admin.updates.status.requested": "Angefragt",
   "admin.updates.status.inProgress": "In Arbeit",
   "admin.updates.status.shipped": "Ausgeliefert",
   "admin.updates.publish": "Veröffentlichen",

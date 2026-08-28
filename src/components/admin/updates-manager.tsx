@@ -33,7 +33,7 @@ interface ChangelogEntry {
 interface RoadmapItem {
   id: string;
   title: string;
-  status: "planned" | "in_progress" | "shipped";
+  status: "requested" | "planned" | "in_progress" | "shipped";
   sort: number;
 }
 
@@ -49,6 +49,7 @@ const LEVEL_TONES: Record<"major" | "minor" | "patch", "brand" | "ok" | "neutral
 };
 const STATUS_KEYS: Record<RoadmapItem["status"], MessageKey> = {
   planned: "admin.updates.status.planned",
+  requested: "admin.updates.status.requested",
   in_progress: "admin.updates.status.inProgress",
   shipped: "admin.updates.status.shipped",
 };

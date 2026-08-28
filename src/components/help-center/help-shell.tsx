@@ -398,7 +398,11 @@ function LegalFooter({ t }: { t: T }) {
 /* ————— Drill-Down-Ansichten ————— */
 
 function RoadmapView({ t, items }: { t: T; items: HelpCenterData["roadmap"] }) {
-  const order = ["in_progress", "planned", "shipped"] as const;
+  const order = ["in_progress", "planned", "requested", "shipped"] as const;
+  // Kein `as MessageKey`: Der annotierte Rückgabetyp lässt TypeScript prüfen,
+  // dass es zu JEDEM Status einen Übersetzungstext gibt. Ein Cast hätte einen
+  // fehlenden Text still als rohen Schlüssel gerendert.
+  const statusKey = (st: (typeof order)[number]): MessageKey => `hc.roadmap.${st}`;
   const groups = order
     .map((st) => ({ st, entries: items.filter((r) => r.status === st) }))
     .filter((g) => g.entries.length > 0);
@@ -411,7 +415,7 @@ function RoadmapView({ t, items }: { t: T; items: HelpCenterData["roadmap"] }) {
           id: g.st,
           question: (
             <span className="flex items-center gap-2">
-              {t(`hc.roadmap.${g.st}` as MessageKey)}
+              {t(statusKey(g.st))}
               <span className="text-xs font-normal text-ink-muted">{g.entries.length}</span>
             </span>
           ),

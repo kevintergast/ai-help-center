@@ -21,7 +21,7 @@ export const MAX_CHANGELOG_DESCRIPTION = 2_000;
 export const MAX_VERSION_CHARS = 32;
 export const MAX_ROADMAP_TITLE = 160;
 
-export const ROADMAP_STATUS = ["planned", "in_progress", "shipped"] as const;
+export const ROADMAP_STATUS = ["requested", "planned", "in_progress", "shipped"] as const;
 export type RoadmapStatus = (typeof ROADMAP_STATUS)[number];
 
 export interface ChangelogInput {

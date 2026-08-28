@@ -142,7 +142,7 @@ export interface AskAnswer {
 export interface RoadmapItem {
   id: string;
   title: string;
-  status: "planned" | "in_progress" | "shipped";
+  status: "requested" | "planned" | "in_progress" | "shipped";
 }
 
 export interface ChangelogEntry {

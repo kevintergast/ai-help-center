@@ -138,8 +138,15 @@ export async function downloadScrapedImages(
   scraped: ScrapedArticle,
   blocks: ArticleBlock[],
   fetchImpl: FetchLike = fetch,
-): Promise<{ blocks: ArticleBlock[]; imported: number; failed: number }> {
+): Promise<{
+  blocks: ArticleBlock[];
+  imported: number;
+  failed: number;
+  /** Warum ein Bild nicht ankam — sonst steht da nur „2 fehlgeschlagen". */
+  failures: { url: string; error: ImageImportError }[];
+}> {
   const realIds = new Map<string, string>();
+  const failures: { url: string; error: ImageImportError }[] = [];
   for (const img of scraped.images) {
     const res = await importImageFromUrl(
       content,
@@ -149,11 +156,12 @@ export async function downloadScrapedImages(
       fetchImpl,
     );
     if (res.ok) realIds.set(img.placeholderId, res.imageId);
+    else failures.push({ url: img.url, error: res.error });
   }
 
   const out = blocks
     .map((b) => (b.type === "image" ? { ...b, imageId: realIds.get(b.imageId) ?? "" } : b))
     .filter((b) => b.type !== "image" || b.imageId.length > 0);
 
-  return { blocks: out, imported: realIds.size, failed: scraped.images.length - realIds.size };
+  return { blocks: out, imported: realIds.size, failed: failures.length, failures };
 }

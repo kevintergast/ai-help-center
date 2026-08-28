@@ -211,7 +211,7 @@ export const upsertRoadmapItem: McpTool = {
   name: "upsert_roadmap_item",
   title: "Roadmap-Punkt anlegen oder ändern",
   description:
-    "Create a roadmap item or update an existing one (pass `id` to update). Roadmap items are publicly visible. Status is one of planned / in_progress / shipped; `sort` controls the order (lower first, new items go to the end).",
+    "Create a roadmap item or update an existing one (pass `id` to update). Roadmap items are publicly visible. Status is one of requested / planned / in_progress / shipped — use `requested` for a customer wish you have NOT committed to yet; `sort` controls the order (lower first, new items go to the end).",
   scope: "updates:write",
   annotations: WRITE_HINTS,
   inputSchema: {
@@ -219,7 +219,7 @@ export const upsertRoadmapItem: McpTool = {
     properties: {
       id: { type: "string", description: "Omit to create, pass to update (see get_roadmap)." },
       title: { type: "string" },
-      status: { type: "string", enum: ["planned", "in_progress", "shipped"] },
+      status: { type: "string", enum: ["requested", "planned", "in_progress", "shipped"] },
       sort: { type: "number", description: "Lower values appear first." },
     },
     required: ["title"],

@@ -161,11 +161,18 @@ export const listTranslations: McpTool = {
 export const getRoadmap: McpTool = {
   name: "get_roadmap",
   title: "Roadmap lesen",
-  description: "Read the published roadmap items of this help center.",
+  description:
+    "Read the roadmap items of this help center, including their `sort` value. Pass that value back to upsert_roadmap_item to reorder — lower comes first.",
   scope: "articles:read",
   annotations: READ_ONLY,
   inputSchema: { type: "object", properties: {} },
   async handler(_args, ctx) {
+    // Bewusst die ADMIN-Sicht: der öffentliche Leser lässt `sort` weg, dann
+    // kann ein Client zwar sortieren, das Ergebnis aber nicht nachlesen —
+    // Umsortieren wird zum Raten (Migrations-Fund 2026-08-28).
+    const store = await ctx.deps.getUpdatesStore?.();
+    if (store) return ok({ items: await store.listRoadmap(ctx.tenant.id) });
+
     const content = await contentOr503(ctx);
     if (!content) return fail("content_unavailable", "Content storage is not available.");
     return ok({ items: await content.store.roadmap(ctx.tenant.id) });

@@ -6,6 +6,7 @@ import type {
   ArticleImage,
   ArticleStatus,
   ArticleSummary,
+  ArticleVideo,
   CategoryGroup,
   ChangelogEntry,
   RoadmapItem,
@@ -104,6 +105,18 @@ export interface ContentStore {
     articleId: string,
     imageId: string,
     description: string,
+  ): Promise<boolean>;
+  /**
+   * EIN Video eines Artikels ändern (Titel/Beschreibung/Dauer), ohne die
+   * Liste zu ersetzen. Der Weg über `update({videos})` ist Read-Modify-Write
+   * auf dem GANZEN Array — zwei parallele Änderungen überschreiben sich dabei
+   * gegenseitig, und ein Client, der ein Feld vergisst, löscht es.
+   */
+  updateVideo(
+    tenantId: string,
+    articleId: string,
+    videoId: string,
+    patch: { title?: string; description?: string; durationLabel?: string },
   ): Promise<boolean>;
   /** NUR veröffentlichte Artikel (public Serving, fail-closed für Drafts). */
   getPublishedImage(
@@ -688,6 +701,35 @@ export class D1ContentRepository implements ContentStore {
           WHERE tenant_id = ? AND id = ?`,
       )
       .bind(JSON.stringify(images), tenantId, articleId)
+      .run();
+    return true;
+  }
+
+  async updateVideo(
+    tenantId: string,
+    articleId: string,
+    videoId: string,
+    patch: { title?: string; description?: string; durationLabel?: string },
+  ): Promise<boolean> {
+    const row = await this.db
+      .prepare(`SELECT videos_json FROM articles WHERE tenant_id = ? AND id = ?`)
+      .bind(tenantId, articleId)
+      .first<{ videos_json: string }>();
+    if (!row) return false;
+
+    const videos = parseJsonArray<ArticleVideo>(row.videos_json);
+    const target = videos.find((v) => v.id === videoId);
+    if (!target) return false;
+    if (patch.title !== undefined) target.title = patch.title;
+    if (patch.description !== undefined) target.description = patch.description;
+    if (patch.durationLabel !== undefined) target.durationLabel = patch.durationLabel;
+
+    await this.db
+      .prepare(
+        `UPDATE articles SET videos_json = ?, updated_at = unixepoch()
+          WHERE tenant_id = ? AND id = ?`,
+      )
+      .bind(JSON.stringify(videos), tenantId, articleId)
       .run();
     return true;
   }

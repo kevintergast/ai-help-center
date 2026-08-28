@@ -1,6 +1,17 @@
 import { readPlanState } from "@/server/billing/store";
 import { SlugConflictError } from "@/server/content/store";
-import { estimateReadingMinutes, parseCreateArticle, parseUpdateArticle } from "@/server/content/validate";
+import {
+  estimateReadingMinutes,
+  parseCreateArticle,
+  parseUpdateArticle,
+  parseYouTubeId,
+} from "@/server/content/validate";
+import {
+  fetchVideoTitle,
+  MAX_TRANSCRIPT_CHARS,
+  normalizePastedTranscript,
+  tryFetchTranscript,
+} from "@/server/content/video-meta";
 import { assertImportableUrl, extractArticleFromHtml, slugFromUrl } from "@/server/content/scrape";
 import {
   applyVideoIds,
@@ -208,6 +219,12 @@ export const importArticleFromUrl: McpTool = {
       url: { type: "string", description: "Public https URL of the page to import." },
       category: { type: "string", description: `Target category (default '${IMPORT_CATEGORY}').` },
       slug: { type: "string", description: "Override the slug derived from the URL." },
+      on_conflict: {
+        type: "string",
+        enum: ["fail", "update"],
+        description:
+          "What to do if an article with that slug already exists. 'fail' (default) returns slug_conflict; 'update' overwrites its content and keeps its publication status — that makes a migration repeatable without deleting first.",
+      },
     },
     required: ["url"],
   },
@@ -262,8 +279,35 @@ export const importArticleFromUrl: McpTool = {
     );
     if (!parsed.ok) return fail(parsed.error, `The imported page did not pass validation: ${parsed.error}.`);
 
+    // Wiederholbarkeit: Ein Agent, der seinen Lauf erneut fährt, soll nicht
+    // erst löschen müssen. Mit on_conflict:"update" wird der bestehende
+    // Artikel inhaltlich überschrieben — sein Status bleibt unangetastet.
+    const wantsUpdate = args.on_conflict === "update";
+    let existingId: string | null = null;
+    if (wantsUpdate) {
+      const rows = await content.store.listForTransfer(ctx.tenant.id);
+      existingId = rows.find((a) => a.slug === parsed.value.slug)?.id ?? null;
+    }
+
     try {
-      const id = await content.store.create(ctx.tenant.id, parsed.value);
+      let id: string;
+      if (existingId) {
+        await content.store.update(
+          ctx.tenant.id,
+          existingId,
+          {
+            title: parsed.value.title,
+            category: parsed.value.category,
+            body: parsed.value.body,
+            videos: parsed.value.videos,
+            readingMinutes: parsed.value.readingMinutes,
+          },
+          null,
+        );
+        id = existingId;
+      } else {
+        id = await content.store.create(ctx.tenant.id, parsed.value);
+      }
 
       // Bilder erst NACH dem Anlegen: sie hängen am Artikel, brauchen also
       // dessen Id. Was nicht lädt, verliert seinen Block (nie ein Verweis ins
@@ -273,11 +317,14 @@ export const importArticleFromUrl: McpTool = {
         await content.store.update(ctx.tenant.id, id, { body: media.blocks }, null);
       }
 
-      await audit(ctx, "mcp.article.created", id, { slug: parsed.value.slug, source: check.url.host });
+      await audit(ctx, existingId ? "mcp.article.updated" : "mcp.article.created", id, {
+        slug: parsed.value.slug,
+        source: check.url.host,
+      });
       return ok({
         id,
         slug: parsed.value.slug,
-        status: "draft",
+        status: existingId ? "updated" : "draft",
         title: scraped.title,
         imported: {
           blocks: media.blocks.length,
@@ -285,6 +332,8 @@ export const importArticleFromUrl: McpTool = {
           imagesFailed: media.failed,
           videos: videos.length,
         },
+        imageFailures: media.failures,
+        emptySections: emptySectionTitles(media.blocks),
         warnings: [...new Set(scraped.warnings)],
         untrustedContent: UNTRUSTED_NOTE,
         note:
@@ -415,6 +464,236 @@ export const updateImageDescription: McpTool = {
   },
 };
 
+/** Deckel je Stapel — genug für den größten Artikel, klein genug fürs Zeitbudget. */
+const MAX_DESCRIPTION_BATCH = 40;
+
+/**
+ * Überschriften ohne Inhalt nach einem Import. Fremde Hilfeseiten beenden
+ * Artikel gern mit Kachel-Navigationen; der Importer findet dort keinen Text,
+ * die Überschrift bleibt nackt stehen. Wer das nicht gesagt bekommt, merkt es
+ * erst, wenn ein Leser davorsteht (Migrations-Fund 2026-08-28).
+ */
+function emptySectionTitles(blocks: { type: string; variant?: string; text?: string }[]): string[] {
+  const out: string[] = [];
+  const isHeading = (b?: { type: string; text?: string }) =>
+    b?.type === "text" && typeof b.text === "string" && b.text.trimStart().startsWith("#");
+  blocks.forEach((b, i) => {
+    if (!isHeading(b)) return;
+    const next = blocks[i + 1];
+    if (next === undefined || isHeading(next)) out.push((b.text ?? "").replace(/^#+\s*/, "").trim());
+  });
+  return out;
+}
+
+export const updateImageDescriptions: McpTool = {
+  name: "update_image_descriptions",
+  title: "Bildbeschreibungen im Stapel ändern",
+  description:
+    "Set the descriptions of MANY images on one article in a single call. Use this instead of calling update_image_description in a loop — a migration otherwise costs one round trip per image. Each entry is applied independently: a bad one is reported and the rest still go through.",
+  scope: "articles:write",
+  annotations: { ...WRITE_HINTS, idempotentHint: true },
+  inputSchema: {
+    type: "object",
+    properties: {
+      articleId: { type: "string" },
+      descriptions: {
+        type: "array",
+        description: `Up to ${MAX_DESCRIPTION_BATCH} entries of { imageId, description }.`,
+        items: {
+          type: "object",
+          properties: { imageId: { type: "string" }, description: { type: "string" } },
+          required: ["imageId", "description"],
+        },
+      },
+    },
+    required: ["articleId", "descriptions"],
+  },
+  async handler(args, ctx) {
+    if (typeof args.articleId !== "string") return fail("invalid_params", "`articleId` must be a string.");
+    if (!Array.isArray(args.descriptions) || args.descriptions.length === 0) {
+      return fail("invalid_params", "`descriptions` must be a non-empty array.");
+    }
+    if (args.descriptions.length > MAX_DESCRIPTION_BATCH) {
+      return fail("too_many_items", `At most ${MAX_DESCRIPTION_BATCH} entries per call.`);
+    }
+
+    const content = await ctx.deps.getContentDeps();
+    if (!content) return fail("content_unavailable", "Content storage is not available.");
+    if (await frozen(ctx)) return FROZEN_RESULT();
+
+    const results: { imageId: string; ok: boolean; error?: string }[] = [];
+    for (const raw of args.descriptions) {
+      const e = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
+      const imageId = typeof e.imageId === "string" ? e.imageId : "";
+      const description = typeof e.description === "string" ? e.description.trim() : "";
+      if (imageId.length === 0) {
+        results.push({ imageId: "", ok: false, error: "invalid_params" });
+        continue;
+      }
+      if (description.length === 0) {
+        results.push({ imageId, ok: false, error: "image_description_required" });
+        continue;
+      }
+      const done = await content.store.updateImageDescription(
+        ctx.tenant.id,
+        args.articleId,
+        imageId,
+        description,
+      );
+      results.push(done ? { imageId, ok: true } : { imageId, ok: false, error: "not_found" });
+    }
+
+    const updated = results.filter((r) => r.ok).length;
+    if (updated > 0) {
+      await audit(ctx, "mcp.article.updated", args.articleId, { images: updated });
+    }
+    return ok({
+      articleId: args.articleId,
+      updated,
+      failed: results.filter((r) => !r.ok),
+    });
+  },
+};
+
+export const updateVideo: McpTool = {
+  name: "update_video",
+  title: "Video-Angaben ändern",
+  description:
+    "Change title, description or duration label of ONE video on an article, without touching the others. Prefer this over update_article with a full `videos` array — that replaces the whole list and silently drops fields you forget. The description is what the AI search reads about a video: describe what the video SHOWS, not just what it is called. If you do not know the content, use prepare_video with a transcript instead of inventing one.",
+  scope: "articles:write",
+  annotations: { ...WRITE_HINTS, idempotentHint: true },
+  inputSchema: {
+    type: "object",
+    properties: {
+      articleId: { type: "string" },
+      videoId: { type: "string", description: "Id of a video on that article (see get_article)." },
+      title: { type: "string" },
+      description: { type: "string", description: "What the video shows. Must not be empty if passed." },
+      durationLabel: { type: "string", description: "Display label such as '3:20'. Empty hides it." },
+    },
+    required: ["articleId", "videoId"],
+  },
+  async handler(args, ctx) {
+    if (typeof args.articleId !== "string") return fail("invalid_params", "`articleId` must be a string.");
+    if (typeof args.videoId !== "string") return fail("invalid_params", "`videoId` must be a string.");
+
+    const patch: { title?: string; description?: string; durationLabel?: string } = {};
+    if (args.title !== undefined) {
+      if (typeof args.title !== "string" || args.title.trim().length === 0) {
+        return fail("invalid_params", "`title` must be a non-empty string.");
+      }
+      patch.title = args.title.trim();
+    }
+    if (args.description !== undefined) {
+      if (typeof args.description !== "string" || args.description.trim().length === 0) {
+        return fail(
+          "video_description_required",
+          "`description` must not be empty — a video without a description is invisible to the AI search.",
+        );
+      }
+      patch.description = args.description.trim();
+    }
+    if (args.durationLabel !== undefined) {
+      if (typeof args.durationLabel !== "string") return fail("invalid_params", "`durationLabel` must be a string.");
+      patch.durationLabel = args.durationLabel.trim();
+    }
+    if (Object.keys(patch).length === 0) {
+      return fail("empty_update", "Pass at least one of `title`, `description` or `durationLabel`.");
+    }
+
+    const content = await ctx.deps.getContentDeps();
+    if (!content) return fail("content_unavailable", "Content storage is not available.");
+    if (await frozen(ctx)) return FROZEN_RESULT();
+
+    const done = await content.store.updateVideo(ctx.tenant.id, args.articleId, args.videoId, patch);
+    if (!done) return fail("not_found", `No video '${args.videoId}' on article '${args.articleId}'.`);
+
+    await syncIndex(ctx, args.articleId);
+    await audit(ctx, "mcp.article.updated", args.articleId, { videoId: args.videoId });
+    return ok({ articleId: args.articleId, videoId: args.videoId, updated: Object.keys(patch) });
+  },
+};
+
+export const prepareVideo: McpTool = {
+  name: "prepare_video",
+  title: "Videoinhalt erfassen",
+  description:
+    "Turn a YouTube video into a title and a real description using its TRANSCRIPT. The transcript is the whole point: without it nothing is generated, because an invented description would end up in the AI search index. YouTube blocks automated transcript access from servers, so pass the transcript yourself — open the video, '…' → 'Show transcript', copy it. Costs credits (our AI does the summarising). This tool only RETURNS the result; write it with update_video.",
+  scope: "articles:write",
+  annotations: { ...WRITE_HINTS, openWorldHint: true },
+  inputSchema: {
+    type: "object",
+    properties: {
+      youtubeUrl: { type: "string", description: "YouTube URL or the bare 11-character video id." },
+      transcript: {
+        type: "string",
+        description:
+          "The video transcript. Optional — the server tries to fetch it, but that usually fails; then you get `transcript_required` back.",
+      },
+    },
+    required: ["youtubeUrl"],
+  },
+  async handler(args, ctx) {
+    if (typeof args.youtubeUrl !== "string") return fail("invalid_params", "`youtubeUrl` must be a string.");
+    const youtubeId = parseYouTubeId(args.youtubeUrl);
+    if (!youtubeId) return fail("youtube_url_invalid", "That is not a valid YouTube URL or video id.");
+    if (typeof args.transcript === "string" && args.transcript.length > MAX_TRANSCRIPT_CHARS * 2) {
+      return fail("transcript_too_large", "The transcript is too long.");
+    }
+    if (await frozen(ctx)) return FROZEN_RESULT();
+
+    // Titel zuerst — kostenlos und auch ohne Transkript nützlich.
+    const youtubeTitle = await fetchVideoTitle(youtubeId);
+    const pasted =
+      typeof args.transcript === "string" ? normalizePastedTranscript(args.transcript) : "";
+    const transcript = pasted.length > 0 ? pasted : await tryFetchTranscript(youtubeId);
+
+    if (!transcript || transcript.length < 40) {
+      // EHRLICH: ohne Inhalt keine Beschreibung — und keine Credits.
+      return fail(
+        "transcript_required",
+        "No transcript available, so no description was generated (we do not invent one). Open the video on YouTube, '…' → 'Show transcript', copy it and pass it as `transcript`.",
+        { youtubeId, youtubeTitle },
+      );
+    }
+
+    const summarize = await ctx.deps.getVideoSummarizer?.();
+    if (!summarize) return fail("summarizer_unavailable", "AI video summarising is not available here.");
+
+    let result;
+    try {
+      result = await summarize({ transcript, videoTitle: youtubeTitle, locale: ctx.tenant.defaultLocale });
+    } catch (err) {
+      console.error("[mcp] Video-Aufbereitung fehlgeschlagen:", err);
+      return fail("summary_failed", "The AI could not summarise this transcript. Nothing was charged.");
+    }
+
+    // Credits erst bei Erfolg — Fehlschläge kosten nichts (wie im Editor).
+    try {
+      const billing = await ctx.deps.getBillingDeps?.();
+      await billing?.repo.recordAiVideoSummary({
+        tenantId: ctx.tenant.id,
+        actorType: "internal",
+        visitorId: `k:${ctx.principal.keyId}`,
+        userId: null,
+        nowSec: ctx.nowSec,
+      });
+    } catch (err) {
+      console.error("[mcp] Credit-Verbuchung fehlgeschlagen (ignoriert):", err);
+    }
+
+    return ok({
+      youtubeId,
+      title: result.title,
+      youtubeTitle,
+      description: result.description,
+      transcriptSource: pasted.length > 0 ? "pasted" : "fetched",
+      untrustedContent: UNTRUSTED_NOTE,
+      note: "Nothing was saved yet. Write the result with update_video.",
+    });
+  },
+};
+
 export const publishArticle: McpTool = {
   name: "publish_article",
   title: "Artikel veröffentlichen",
@@ -474,6 +753,9 @@ export const WRITE_TOOLS: McpTool[] = [
   updateArticle,
   addImageFromUrl,
   updateImageDescription,
+  updateImageDescriptions,
+  updateVideo,
+  prepareVideo,
   importArticleFromUrl,
   publishArticle,
   unpublishArticle,

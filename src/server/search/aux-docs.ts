@@ -33,6 +33,7 @@ export interface ChangelogRow {
 /** Menschlich lesbare Status-Wörter (DE+EN — hilft Embedding UND Generierung). */
 const ROADMAP_STATUS_TEXT: Record<string, string> = {
   planned: "geplant / planned",
+  requested: "angefragt / requested",
   in_progress: "in Arbeit / in progress",
   shipped: "veröffentlicht / shipped",
 };

@@ -69,6 +69,9 @@ function makeApp() {
 
   const indexCalls: string[] = [];
   const auditEntries: { action: string; targetId?: string | null }[] = [];
+  // Zähler statt echter KI: belegt, dass ohne Transkript NICHT zusammengefasst
+  // (und damit nichts berechnet) wird.
+  const summarizer = { calls: 0 };
 
   // R2-Fake: hält die Bild-Bytes, damit Tests belegen können, dass ein Bild
   // WIRKLICH gespeichert wurde — und dass nach einem Fehlschlag KEIN
@@ -106,13 +109,20 @@ function makeApp() {
         now: () => Math.floor(Date.now() / 1000),
         store: confirmStore,
       }),
+    getVideoSummarizer: async () => async (input: { transcript: string }) => {
+      summarizer.calls += 1;
+      return { title: "KI-Titel", description: `Zusammenfassung: ${input.transcript.slice(0, 40)}` };
+    },
     getContentIndexer: async () => ({
       onContentChange: async (_t, articleId) => void indexCalls.push(articleId),
       rebuildTenant: async () => ({ articles: 0, chunks: 0, embedded: 0 }),
     }),
   };
 
-  return { app: buildApiApp(deps), db, store, keys, indexCalls, auditEntries, mediaObjects };
+  return {
+    app: buildApiApp(deps), db, store, keys, indexCalls, auditEntries, mediaObjects,
+    get summarizerCalls() { return summarizer.calls; },
+  };
 }
 
 type TestApp = ReturnType<typeof makeApp>["app"];
@@ -765,5 +775,177 @@ describe("MCP — Bildbeschreibungen nachbessern", () => {
     });
     expect(res.isError).toBe(true);
     expect(res.data!.error).toBe("not_found");
+  });
+});
+
+/**
+ * BEFUNDE AUS DER ERSTEN ECHTEN MIGRATION (help.smao.ai, 2026-08-28).
+ * Jeder Test hält genau eine Lücke fest, die dieser Härtetest gezeigt hat.
+ */
+describe("MCP — Video-Werkzeuge", () => {
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+  afterEach(() => vi.unstubAllGlobals());
+
+  async function articleWithVideo(f: ReturnType<typeof makeApp>, token: string) {
+    const id = await seedArticle(f.app, token, "video-artikel");
+    await callTool(f.app, token, "update_article", {
+      id,
+      videos: [
+        { id: "v1", title: "Alter Titel", description: "Alter Titel", youtubeId: "dQw4w9WgXcQ" },
+        { id: "v2", title: "Zweites", description: "Zweites", youtubeId: "fiwcoTOHLyg" },
+      ],
+    });
+    return id;
+  }
+
+  it("ändert EIN Video, ohne die anderen anzufassen", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const id = await articleWithVideo(f, token);
+
+    const res = await callTool(f.app, token, "update_video", {
+      articleId: id,
+      videoId: "v1",
+      description: "Zeigt, wie ein Assistent von Grund auf eingerichtet wird.",
+    });
+    expect(res.isError).toBe(false);
+
+    const a = (await f.store.listForTransfer("t_a")).find((x) => x.id === id)!;
+    expect(a.videos[0]).toMatchObject({
+      id: "v1",
+      title: "Alter Titel", // NICHT verloren gegangen
+      description: "Zeigt, wie ein Assistent von Grund auf eingerichtet wird.",
+      youtubeId: "dQw4w9WgXcQ",
+    });
+    expect(a.videos[1]).toMatchObject({ id: "v2", description: "Zweites" });
+  });
+
+  it("weist eine leere Beschreibung ab — sonst wäre das Video für die KI unsichtbar", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const id = await articleWithVideo(f, token);
+
+    const res = await callTool(f.app, token, "update_video", { articleId: id, videoId: "v1", description: "  " });
+    expect(res.isError).toBe(true);
+    expect(res.data!.error).toBe("video_description_required");
+  });
+
+  it("prepare_video erfindet ohne Transkript nichts und berechnet nichts", async () => {
+    // oEmbed liefert den Titel, der Transkript-Abruf scheitert (wie in echt).
+    vi.stubGlobal("fetch", async (url: string) =>
+      String(url).includes("/oembed")
+        ? new Response(JSON.stringify({ title: "Assistent einrichten" }))
+        : new Response("nope", { status: 403 }),
+    );
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+
+    const res = await callTool(f.app, token, "prepare_video", {
+      youtubeUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    });
+    expect(res.isError).toBe(true);
+    expect(res.data!.error).toBe("transcript_required");
+    expect(res.data!.youtubeTitle).toBe("Assistent einrichten"); // Titel trotzdem geliefert
+    expect(f.summarizerCalls).toBe(0); // keine KI, also keine Credits
+  });
+
+  it("prepare_video verdichtet ein eingefügtes Transkript", async () => {
+    vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ title: "YT-Titel" })));
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+
+    const res = await callTool(f.app, token, "prepare_video", {
+      youtubeUrl: "dQw4w9WgXcQ",
+      transcript: "In diesem Video legen wir einen Assistenten an, vergeben einen Namen und wählen die Stimme aus.",
+    });
+    expect(res.isError).toBe(false);
+    expect(res.data!.description).toContain("Zusammenfassung");
+    expect(res.data!.youtubeTitle).toBe("YT-Titel");
+    expect(f.summarizerCalls).toBe(1);
+    // Ergebnis wird NICHT automatisch gespeichert — Schreiben ist ein eigener Schritt.
+    const a = (await f.store.listForTransfer("t_a")).length;
+    expect(a).toBe(0);
+  });
+});
+
+describe("MCP — Stapel und Wiederholbarkeit", () => {
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+  const PAGE = `<html><head><title>Seite | Quelle</title></head><body><article>
+    <h1>Seite</h1><p>Erster Absatz mit genug Text.</p>
+    <img alt="Screenshot: eins" src="/a.png"><img alt="Logo" src="/b.svg">
+    <h2>Leerer Abschnitt</h2></article></body></html>`;
+
+  function stubWeb() {
+    vi.stubGlobal("fetch", async (url: string) => {
+      const u = String(url);
+      if (u.includes("/oembed")) return new Response(JSON.stringify({ title: "T" }));
+      if (u.endsWith(".png")) return new Response(PNG.slice() as unknown as BodyInit);
+      if (u.endsWith(".svg")) return new Response("<svg/>", { headers: { "content-type": "image/svg+xml" } });
+      return new Response(PAGE, { headers: { "content-type": "text/html" } });
+    });
+  }
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("setzt viele Bildbeschreibungen in EINEM Aufruf und meldet die schlechten einzeln", async () => {
+    stubWeb();
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const id = await seedArticle(f.app, token, "stapel");
+    const a1 = await callTool(f.app, token, "add_image_from_url", {
+      articleId: id, url: "https://q.example.com/a.png", description: "Erst mal irgendwas",
+    });
+
+    const res = await callTool(f.app, token, "update_image_descriptions", {
+      articleId: id,
+      descriptions: [
+        { imageId: a1.data!.imageId, description: "Einstellungsdialog mit aktiviertem Schalter." },
+        { imageId: "gibt-es-nicht", description: "Egal" },
+        { imageId: a1.data!.imageId, description: "   " },
+      ],
+    });
+    expect(res.isError).toBe(false);
+    expect(res.data!.updated).toBe(1);
+    expect(res.data!.failed).toEqual([
+      { imageId: "gibt-es-nicht", ok: false, error: "not_found" },
+      { imageId: a1.data!.imageId, ok: false, error: "image_description_required" },
+    ]);
+    const art = (await f.store.listForTransfer("t_a")).find((x) => x.id === id)!;
+    expect(art.images?.[0].description).toBe("Einstellungsdialog mit aktiviertem Schalter.");
+  });
+
+  it("Import ist mit on_conflict:'update' wiederholbar — ohne vorher zu löschen", async () => {
+    stubWeb();
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const url = "https://q.example.com/help/seite";
+
+    const first = await callTool(f.app, token, "import_article_from_url", { url });
+    expect(first.isError).toBe(false);
+
+    const again = await callTool(f.app, token, "import_article_from_url", { url });
+    expect(again.isError).toBe(true);
+    expect(again.data!.error).toBe("slug_conflict");
+
+    const upsert = await callTool(f.app, token, "import_article_from_url", { url, on_conflict: "update" });
+    expect(upsert.isError).toBe(false);
+    expect(upsert.data!.status).toBe("updated");
+    expect(upsert.data!.id).toBe(first.data!.id); // derselbe Artikel, kein Duplikat
+    expect((await f.store.listForTransfer("t_a")).length).toBe(1);
+  });
+
+  it("nennt beim Import den GRUND je fehlgeschlagenem Bild und leere Abschnitte", async () => {
+    stubWeb();
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+
+    const res = await callTool(f.app, token, "import_article_from_url", {
+      url: "https://q.example.com/help/seite",
+    });
+    expect(res.data!.imported).toMatchObject({ images: 1, imagesFailed: 1 });
+    expect(res.data!.imageFailures).toEqual([
+      { url: "https://q.example.com/b.svg", error: "unsupported_image_type" },
+    ]);
+    // Überschrift ohne Inhalt (bei fremden Seiten war das ein Kachel-Gitter):
+    expect(res.data!.emptySections).toEqual(["Leerer Abschnitt"]);
   });
 });

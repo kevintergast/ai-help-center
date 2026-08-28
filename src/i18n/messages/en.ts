@@ -120,6 +120,7 @@ export const en: Record<MessageKey, string> = {
   "hc.changelogTitle": "What's new",
   "hc.close": "Close",
   "hc.roadmap.planned": "Planned",
+  "hc.roadmap.requested": "Requested",
   "hc.roadmap.in_progress": "In progress",
   "hc.roadmap.shipped": "Shipped",
 
@@ -148,6 +149,7 @@ export const en: Record<MessageKey, string> = {
   "admin.updates.itemTitle": "Roadmap item",
   "admin.updates.status": "Status",
   "admin.updates.status.planned": "Planned",
+  "admin.updates.status.requested": "Requested",
   "admin.updates.status.inProgress": "In progress",
   "admin.updates.status.shipped": "Shipped",
   "admin.updates.publish": "Publish",
