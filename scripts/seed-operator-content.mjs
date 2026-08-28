@@ -158,6 +158,7 @@ const ARTICLES = [
     body: [
       "In den Einstellungen lädst du dein Logo hoch (PNG, JPEG oder WebP, maximal 1 MB) und legst deine Primär- und Akzentfarbe fest — jede Karte speichert direkt beim Klick.",
       "Optional hinterlegst du ein zweites Logo für den dunklen Modus: Besucher mit Dark Mode sehen dann automatisch die passende Variante. Ohne dunkles Logo wird überall das helle gezeigt.",
+      "Das Favicon — das kleine Bild im Browser-Tab und in Lesezeichen — übernimmt automatisch dein helles Logo, sobald du eines hochgeladen hast. Du musst dafür nichts tun. Weil ein breites Logo im Tab winzig wird, kannst du zusätzlich ein eigenes Favicon hinterlegen: ein quadratisches Emblem, mindestens 64×64, als PNG, JPEG, WebP oder ICO. Es hat Vorrang vor dem Logo.",
       "Steckt dein Schriftzug bereits im Logo, kannst du die Anzeige des Instanznamens im Header abschalten (Schalter in den Branding-Einstellungen). Ohne Logo wird der Name immer angezeigt.",
       "Das Branding wird sofort im gesamten Hilfezentrum angewendet — ohne eine Zeile Code. So erscheint dein Hilfezentrum vollständig in deinem eigenen Look (White-Label).",
       "Ebenfalls in den Einstellungen: die Standardsprache deines Hilfezentrums (Deutsch oder Englisch) — sie kann nur der Besitzer ändern.",

@@ -10,6 +10,12 @@ export interface TenantBranding {
    * Dev-Registry/ältere Fixtures ohne das Feld gültig bleiben).
    */
   logoDarkUrl?: string | null;
+  /**
+   * EIGENES Favicon/Emblem der Instanz (Migration 0031). FEHLEND/null = kein
+   * eigenes Tab-Icon → `faviconUrlFor` (lib/theme/brand.ts) nimmt das helle
+   * Logo und, wenn auch das fehlt, das Plattform-Icon.
+   */
+  faviconUrl?: string | null;
   /** CSS-Farbe, z. B. "#4f46e5". */
   colorPrimary: string;
   /** CSS-Farbe für Akzente. */

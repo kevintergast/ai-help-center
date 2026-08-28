@@ -67,13 +67,13 @@ class FakeBucket implements LogoBucket {
 class FakeBrandingRepo implements BrandingRepository {
   readonly rows = new Map<
     string,
-    { colors: BrandingColors | null; logoKey: string | null; logoDarkKey: string | null }
+    { colors: BrandingColors | null; keys: Record<LogoVariant, string | null> }
   >();
 
   private row(tenantId: string) {
     let r = this.rows.get(tenantId);
     if (!r) {
-      r = { colors: null, logoKey: null, logoDarkKey: null };
+      r = { colors: null, keys: { light: null, dark: null, favicon: null } };
       this.rows.set(tenantId, r);
     }
     return r;
@@ -83,16 +83,13 @@ class FakeBrandingRepo implements BrandingRepository {
     this.row(tenantId).colors = colors;
   }
   async setLogoKey(tenantId: string, variant: LogoVariant, key: string) {
-    if (variant === "dark") this.row(tenantId).logoDarkKey = key;
-    else this.row(tenantId).logoKey = key;
+    this.row(tenantId).keys[variant] = key;
   }
   async clearLogoKey(tenantId: string, variant: LogoVariant) {
-    if (variant === "dark") this.row(tenantId).logoDarkKey = null;
-    else this.row(tenantId).logoKey = null;
+    this.row(tenantId).keys[variant] = null;
   }
   async getLogoKey(tenantId: string, variant: LogoVariant) {
-    const r = this.rows.get(tenantId);
-    return (variant === "dark" ? r?.logoDarkKey : r?.logoKey) ?? null;
+    return this.rows.get(tenantId)?.keys[variant] ?? null;
   }
 }
 
@@ -190,6 +187,8 @@ const VALID_COLORS = { colorPrimary: "#e11d48", colorAccent: "#f59e0b", colorPri
 // Kleinste sniff-bare Fixtures (Magic Bytes + Padding):
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
 const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5, 6, 7, 8]);
+// ICO-Header: Reserved 0, Typ 1 (Icon), 1 enthaltenes Bild.
+const ICO_BYTES = new Uint8Array([0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 1, 2, 3, 4, 5, 6]);
 
 function uploadLogo(app: TestApp, host: string, cookie: string, bytes: Uint8Array, contentType: string) {
   return app.request("/api/v1/admin/branding/logo", {
@@ -429,6 +428,74 @@ describe("Dark-Variante (?variant=dark, 0023)", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ variant: "light" });
     expect([...bucket.store.keys()]).toEqual(["tenants/t_a/logo"]);
+  });
+});
+
+describe("Favicon-Variante (?variant=favicon, 0031)", () => {
+  // Verhinderter Fehlerfall: das Favicon landet im Logo-Slot (überschreibt das
+  // Header-Logo) oder ICO wird überall akzeptiert statt nur hier.
+  it("eigener Slot: Favicon-Upload lässt helles Logo unberührt", async () => {
+    const { app, db, bucket, repo } = makeApp();
+    const cookie = await adminSession(app, db, HOST_A);
+
+    expect((await uploadLogo(app, HOST_A, cookie, PNG_BYTES, "image/png")).status).toBe(200);
+    const res = await app.request("/api/v1/admin/branding/logo?variant=favicon", {
+      method: "POST",
+      headers: { host: HOST_A, cookie, "content-type": "image/png" },
+      body: PNG_BYTES.slice(),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ ok: true, variant: "favicon" });
+
+    expect([...bucket.store.keys()].sort()).toEqual(["tenants/t_a/favicon", "tenants/t_a/logo"]);
+    expect(await repo.getLogoKey("t_a", "favicon")).toBe("tenants/t_a/favicon");
+    expect(await repo.getLogoKey("t_a", "light")).toBe("tenants/t_a/logo");
+
+    const del = await app.request("/api/v1/admin/branding/logo?variant=favicon", {
+      method: "DELETE",
+      headers: { host: HOST_A, cookie },
+    });
+    expect(del.status).toBe(200);
+    expect(await repo.getLogoKey("t_a", "favicon")).toBeNull();
+    expect(await repo.getLogoKey("t_a", "light")).toBe("tenants/t_a/logo");
+  });
+
+  it("ICO nur im Favicon-Slot — im Logo-Slot 415", async () => {
+    const { app, db, bucket } = makeApp();
+    const cookie = await adminSession(app, db, HOST_A);
+
+    const ok = await app.request("/api/v1/admin/branding/logo?variant=favicon", {
+      method: "POST",
+      // Schreibweise vnd.microsoft.icon: der Server kanonisiert sie auf x-icon,
+      // sonst schlüge der Vergleich gegen die Magic Bytes fehl.
+      headers: { host: HOST_A, cookie, "content-type": "image/vnd.microsoft.icon" },
+      body: ICO_BYTES.slice(),
+    });
+    expect(ok.status).toBe(200);
+    const served = await app.request("/api/v1/branding/logo?variant=favicon", {
+      headers: { host: HOST_A },
+    });
+    expect(served.headers.get("content-type")).toBe("image/x-icon");
+
+    const rejected = await app.request("/api/v1/admin/branding/logo", {
+      method: "POST",
+      headers: { host: HOST_A, cookie, "content-type": "image/x-icon" },
+      body: ICO_BYTES.slice(),
+    });
+    expect(rejected.status).toBe(415);
+    expect([...bucket.store.keys()]).toEqual(["tenants/t_a/favicon"]);
+  });
+
+  it("ICO-Bytes als PNG deklariert → 400 (Magic Bytes entscheiden)", async () => {
+    const { app, db } = makeApp();
+    const cookie = await adminSession(app, db, HOST_A);
+    const res = await app.request("/api/v1/admin/branding/logo?variant=favicon", {
+      method: "POST",
+      headers: { host: HOST_A, cookie, "content-type": "image/png" },
+      body: ICO_BYTES.slice(),
+    });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: "invalid_image" });
   });
 });
 

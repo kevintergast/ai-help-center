@@ -31,7 +31,7 @@ export function LogoWithClaim({ className, alt }: { className?: string; alt: str
 /**
  * HallOfHelp-Bildmarke (Original-SVG des Nutzers). Inline, damit der Verlauf
  * ohne externen Request rendert. Genutzt im Header der Plattform-/Operator-
- * Instanz; identische Grafik als Favicon unter src/app/icon.svg.
+ * Instanz; identische Grafik als Plattform-Favicon unter public/brand/icon.svg.
  */
 export function BrandMark({ className }: { className?: string }) {
   return (

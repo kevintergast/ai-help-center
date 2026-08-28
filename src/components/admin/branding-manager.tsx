@@ -14,8 +14,9 @@ import { Switch } from "@/components/ui/switch";
  * Speichern" — der gemeldete Bug „Logo hochladen/Einstellungen speichern geht
  * nicht"): verdrahtet die seit 0003 existierende Branding-API.
  *
- *  - Logo HELL + DUNKEL (0023): POST/DELETE /api/v1/admin/branding/logo
- *    (?variant=dark), roher Body, Serverregeln PNG/JPEG/WebP ≤ 1 MB werden
+ *  - Logo HELL + DUNKEL (0023) + FAVICON (0031): POST/DELETE
+ *    /api/v1/admin/branding/logo (?variant=dark|favicon), roher Body,
+ *    Serverregeln PNG/JPEG/WebP (Favicon zusätzlich ICO) ≤ 1 MB werden
  *    client-seitig vorgeprüft (freundliche Fehler statt 4xx).
  *  - Farben: PUT /api/v1/admin/branding — strikt Hex; primaryFg wird
  *    unverändert mitgeführt (API verlangt alle drei Felder).
@@ -27,9 +28,22 @@ import { Switch } from "@/components/ui/switch";
  */
 
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"];
+/** Favicons liegen bei vielen Kunden als .ico vor — Server erlaubt das nur
+ *  für diesen Slot (api/branding.ts). */
+const ALLOWED_FAVICON_TYPES = [...ALLOWED_TYPES, "image/x-icon"];
 const MAX_BYTES = 1024 * 1024;
 
+type Slot = "light" | "dark" | "favicon";
 type SlotState = "idle" | "busy" | "done" | "tooLarge" | "badType" | "error";
+
+/** Browser melden ICO uneinheitlich (x-icon/vnd.microsoft.icon) und manche
+ *  Systeme gar nicht — dann entscheidet die Endung. Der Server prüft ohnehin
+ *  die Magic Bytes; das hier ist nur die freundliche Vorabprüfung. */
+function contentTypeOf(file: File): string {
+  const declared = file.type === "image/vnd.microsoft.icon" ? "image/x-icon" : file.type;
+  if (declared) return declared;
+  return file.name.toLowerCase().endsWith(".ico") ? "image/x-icon" : "";
+}
 
 function LogoSlot({
   locale,
@@ -38,22 +52,24 @@ function LogoSlot({
   onChanged,
 }: {
   locale: Locale;
-  variant: "light" | "dark";
+  variant: Slot;
   currentUrl: string | null;
   onChanged: () => void;
 }) {
   const t = getT(locale);
   const fileRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<SlotState>("idle");
+  const accepted = variant === "favicon" ? ALLOWED_FAVICON_TYPES : ALLOWED_TYPES;
 
   async function upload(file: File) {
-    if (!ALLOWED_TYPES.includes(file.type)) return setState("badType");
+    const contentType = contentTypeOf(file);
+    if (!accepted.includes(contentType)) return setState("badType");
     if (file.size > MAX_BYTES) return setState("tooLarge");
     setState("busy");
     try {
       const res = await fetch(`/api/v1/admin/branding/logo?variant=${variant}`, {
         method: "POST",
-        headers: { "content-type": file.type },
+        headers: { "content-type": contentType },
         body: file,
       });
       if (!res.ok) return setState("error");
@@ -78,7 +94,18 @@ function LogoSlot({
     }
   }
 
-  const label = variant === "dark" ? t("admin.settings.logoDark") : t("admin.settings.logoLight");
+  const label =
+    variant === "dark"
+      ? t("admin.settings.logoDark")
+      : variant === "favicon"
+        ? t("admin.settings.favicon")
+        : t("admin.settings.logoLight");
+  const hint =
+    variant === "dark"
+      ? t("admin.settings.logoDarkHint")
+      : variant === "favicon"
+        ? t("admin.settings.faviconHint")
+        : null;
   return (
     <div className="flex flex-col gap-2 rounded-card border border-hairline bg-tint p-4">
       <span className="text-sm font-medium text-ink">{label}</span>
@@ -90,7 +117,15 @@ function LogoSlot({
         >
           {currentUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- R2-Logo mit ?v=-Buster; next/image im Worker nicht verfügbar.
-            <img src={currentUrl} alt={label} className="max-h-10 max-w-12 object-contain" />
+            <img
+              src={currentUrl}
+              alt={label}
+              className={
+                // Favicon so groß zeigen, wie es der Browser rendert — ein
+                // aufgeblasenes Emblem täuscht über die Tab-Lesbarkeit hinweg.
+                variant === "favicon" ? "h-8 w-8 object-contain" : "max-h-10 max-w-12 object-contain"
+              }
+            />
           ) : (
             <span className="text-xs text-ink-muted">{t("admin.settings.logoNone")}</span>
           )}
@@ -99,7 +134,7 @@ function LogoSlot({
           <input
             ref={fileRef}
             type="file"
-            accept={ALLOWED_TYPES.join(",")}
+            accept={variant === "favicon" ? `${accepted.join(",")},.ico` : accepted.join(",")}
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -134,11 +169,15 @@ function LogoSlot({
         ) : state === "tooLarge" ? (
           <span className="text-crit">{t("admin.settings.logoTooLarge")}</span>
         ) : state === "badType" ? (
-          <span className="text-crit">{t("admin.settings.logoBadType")}</span>
+          <span className="text-crit">
+            {variant === "favicon"
+              ? t("admin.settings.faviconBadType")
+              : t("admin.settings.logoBadType")}
+          </span>
         ) : state === "error" ? (
           <span className="text-crit">{t("admin.settings.seo.error")}</span>
-        ) : variant === "dark" ? (
-          <span className="text-ink-muted">{t("admin.settings.logoDarkHint")}</span>
+        ) : hint ? (
+          <span className="text-ink-muted">{hint}</span>
         ) : null}
       </span>
     </div>
@@ -152,6 +191,7 @@ export function BrandingManager({
   primaryFg,
   logoUrl,
   logoDarkUrl,
+  faviconUrl,
   initialShowName,
 }: {
   locale: Locale;
@@ -161,6 +201,9 @@ export function BrandingManager({
   primaryFg: string;
   logoUrl: string | null;
   logoDarkUrl: string | null;
+  /** NUR das eigene Favicon (0031) — nicht die aufgelöste Kette: sonst böte
+   *  der Slot ein „Entfernen" für ein Bild an, das gar nicht ihm gehört. */
+  faviconUrl: string | null;
   /** Instanzname im Header (0025; false wirkt nur mit gesetztem Logo). */
   initialShowName: boolean;
 }) {
@@ -297,6 +340,12 @@ export function BrandingManager({
           locale={locale}
           variant="dark"
           currentUrl={logoDarkUrl}
+          onChanged={() => router.refresh()}
+        />
+        <LogoSlot
+          locale={locale}
+          variant="favicon"
+          currentUrl={faviconUrl}
           onChanged={() => router.refresh()}
         />
       </div>

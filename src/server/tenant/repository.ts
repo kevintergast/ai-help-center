@@ -9,6 +9,7 @@ interface TenantRow {
   logo_url: string | null;
   logo_r2_key: string | null;
   logo_dark_r2_key: string | null;
+  favicon_r2_key: string | null;
   branding_updated_at: number | null;
   color_primary: string;
   color_accent: string;
@@ -21,7 +22,7 @@ interface TenantRow {
 
 const COLS =
   "id, slug, name, custom_domain, default_locale, logo_url, logo_r2_key, logo_dark_r2_key, " +
-  "branding_updated_at, color_primary, color_accent, color_primary_fg, seo_indexable, support_email, show_header_name, " +
+  "favicon_r2_key, branding_updated_at, color_primary, color_accent, color_primary_fg, seo_indexable, support_email, show_header_name, " +
   "widget_on_site";
 
 /**
@@ -50,6 +51,21 @@ export function deriveDarkLogoUrl(
   return null;
 }
 
+/**
+ * Favicon (0031): NUR aus R2 — `null` heißt „kein eigenes Tab-Icon hinterlegt".
+ * Der Fallback (helles Logo → Plattform-Icon) passiert bewusst NICHT hier,
+ * sondern in `faviconUrlFor` (lib/theme/brand.ts): die Admin-UI muss
+ * unterscheiden können, ob ein EIGENES Favicon existiert (Entfernen-Knopf).
+ */
+export function deriveFaviconUrl(
+  r: Pick<TenantRow, "favicon_r2_key" | "branding_updated_at">,
+): string | null {
+  if (r.favicon_r2_key) {
+    return `/api/v1/branding/logo?variant=favicon&v=${r.branding_updated_at ?? 0}`;
+  }
+  return null;
+}
+
 /** Mappt eine D1-Zeile auf das Domänen-Objekt `Tenant`. */
 export function rowToTenant(r: TenantRow): Tenant {
   return {
@@ -61,6 +77,7 @@ export function rowToTenant(r: TenantRow): Tenant {
     branding: {
       logoUrl: deriveLogoUrl(r),
       logoDarkUrl: deriveDarkLogoUrl(r),
+      faviconUrl: deriveFaviconUrl(r),
       colorPrimary: r.color_primary,
       colorAccent: r.color_accent,
       colorPrimaryFg: r.color_primary_fg,

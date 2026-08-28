@@ -8,26 +8,38 @@ import type { BrandingColors } from "./validate";
  * Fakes ein (Repository-/Source-Pattern, keine echten Bindings in Tests).
  */
 
-/** Logo-Variante: hell (Standard, Spalte logo_r2_key) oder dunkel (0023,
- *  logo_dark_r2_key). Dark ist optional — ohne eigenes dunkles Logo zeigt
- *  das UI im Dark Mode das helle. */
-export type LogoVariant = "light" | "dark";
+/** Bild-Slot einer Instanz: helles Logo (Standard, Spalte logo_r2_key),
+ *  dunkles Logo (0023, logo_dark_r2_key) oder Favicon/Emblem (0031,
+ *  favicon_r2_key). Dark und favicon sind optional — ohne dunkles Logo zeigt
+ *  das UI im Dark Mode das helle, ohne Favicon dient das helle Logo als
+ *  Tab-Icon (Kette in src/lib/theme/brand.ts). */
+export type LogoVariant = "light" | "dark" | "favicon";
 
-/** Query-/Body-Wert strikt auf eine Variante mappen (alles außer "dark" = light). */
+/** Query-/Body-Wert strikt auf eine Variante mappen (alles Unbekannte = light).
+ *  Whitelist statt Blacklist: kein User-Input erzeugt je einen neuen Slot. */
 export function parseLogoVariant(raw: string | undefined | null): LogoVariant {
-  return raw === "dark" ? "dark" : "light";
+  if (raw === "dark") return "dark";
+  if (raw === "favicon") return "favicon";
+  return "light";
 }
 
-/** Fester R2-Schlüssel pro Tenant+Variante: EIN Logo je Slot, Upload überschreibt.
+/** Feste R2-Schlüssel pro Tenant+Variante: EIN Bild je Slot, Upload überschreibt.
  *  Kein User-Input im Key — die Tenant-ID kommt IMMER aus der Host-Auflösung. */
+const KEY_SUFFIX: Record<LogoVariant, string> = {
+  light: "logo",
+  dark: "logo-dark",
+  favicon: "favicon",
+};
+
 export function logoKeyFor(tenantId: string, variant: LogoVariant = "light"): string {
-  return variant === "dark" ? `tenants/${tenantId}/logo-dark` : `tenants/${tenantId}/logo`;
+  return `tenants/${tenantId}/${KEY_SUFFIX[variant]}`;
 }
 
 /** Spalte je Variante — zentral, damit kein SQL-String die Wahl dupliziert. */
-const LOGO_COLUMN: Record<LogoVariant, "logo_r2_key" | "logo_dark_r2_key"> = {
+const LOGO_COLUMN: Record<LogoVariant, "logo_r2_key" | "logo_dark_r2_key" | "favicon_r2_key"> = {
   light: "logo_r2_key",
   dark: "logo_dark_r2_key",
+  favicon: "favicon_r2_key",
 };
 
 /** Minimaler R2-Ausschnitt, den das Logo-Handling braucht (strukturkompatibel zu R2Bucket). */

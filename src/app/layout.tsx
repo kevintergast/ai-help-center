@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { getCurrentTenant } from "@/lib/tenant/current";
-import { brandingToStyle } from "@/lib/theme/brand";
+import { PLATFORM_FAVICON_URL, brandingToStyle, faviconUrlFor } from "@/lib/theme/brand";
 import { DEFAULT_LOCALE } from "@/i18n/config";
 import { getT } from "@/i18n/t";
 import { getAppEnv } from "@/lib/env";
@@ -17,6 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
     return {
       title: getT(DEFAULT_LOCALE)("tenantNotFound.title"),
       applicationName: "Hall Of Help",
+      icons: { icon: PLATFORM_FAVICON_URL },
       robots: { index: false },
     };
   }
@@ -30,6 +31,10 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     applicationName: "Hall Of Help",
     description: t("meta.description", { name: tenant.name }),
+    // Favicon pro Instanz (0031): eigenes Emblem, sonst automatisch das Logo,
+    // sonst das Plattform-Icon (faviconUrlFor). Muss über `metadata.icons`
+    // laufen — eine Datei `src/app/icon.svg` würde jeden Tenant überstimmen.
+    icons: { icon: faviconUrlFor(tenant.branding) },
     // SEO-Opt-out (Migration 0013): noindex auf JEDER Seite der Instanz —
     // de-indexiert auch bereits aufgenommene URLs (robots.txt allein täte
     // das nicht). Default (true/undefined) setzt bewusst NICHTS.

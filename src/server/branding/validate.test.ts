@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isHexColor, parseBrandingColors, sniffImageType } from "./validate";
+import {
+  canonicalImageType,
+  isHexColor,
+  parseBrandingColors,
+  sniffIconType,
+  sniffImageType,
+} from "./validate";
 
 describe("isHexColor (strikte Hex-Allowlist)", () => {
   it("akzeptiert #rgb und #rrggbb, case-insensitive", () => {
@@ -80,5 +86,32 @@ describe("sniffImageType (Magic Bytes)", () => {
         new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x41, 0x56, 0x45]),
       ),
     ).toBeNull();
+  });
+});
+
+describe("sniffIconType (Favicon-Slot, 0031)", () => {
+  const ico = new Uint8Array([0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0, 0, 0, 0, 0, 0]);
+
+  it("akzeptiert ICO zusätzlich zu den Logo-Formaten", () => {
+    expect(sniffIconType(ico)).toBe("image/x-icon");
+    expect(sniffIconType(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0]))).toBe("image/png");
+  });
+
+  it("ICO bleibt aus dem allgemeinen Bild-Sniffing heraus (Artikel-Bilder)", () => {
+    // Verhinderter Fehlerfall: Ein Icon-Container rutscht als Artikel-Bild
+    // durch, nur weil das Favicon dieselbe Erkennung mitbenutzt.
+    expect(sniffImageType(ico)).toBeNull();
+  });
+
+  it("null für Cursor-Dateien und leere Icon-Container", () => {
+    // Typ 2 = Mauszeiger (.cur) — gleiche Struktur, kein Bild fürs Favicon:
+    expect(sniffIconType(new Uint8Array([0x00, 0x00, 0x02, 0x00, 0x01, 0x00, 0, 0]))).toBeNull();
+    // 0 enthaltene Bilder:
+    expect(sniffIconType(new Uint8Array([0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0, 0]))).toBeNull();
+  });
+
+  it("kanonisiert die zweite ICO-Schreibweise der Browser", () => {
+    expect(canonicalImageType("image/vnd.microsoft.icon")).toBe("image/x-icon");
+    expect(canonicalImageType("image/png")).toBe("image/png");
   });
 });

@@ -30,7 +30,7 @@ const ARTICLE = {
 
 function makeFixture(over: Partial<AskPipelineDeps> = {}) {
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0009_usage_billing.sql", "0011_usage_feedback_types.sql", "0016_usage_ai_source_type.sql", "0020_usage_ai_translation_type.sql", "0026_usage_ai_video_summary.sql", "0022_plan_custom_limits.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0009_usage_billing.sql", "0011_usage_feedback_types.sql", "0016_usage_ai_source_type.sql", "0020_usage_ai_translation_type.sql", "0026_usage_ai_video_summary.sql", "0022_plan_custom_limits.sql"]);
   const billing = new D1BillingRepository(d1FromSqlite(sqlite));
 
   const calls = { embed: 0, query: 0, generate: 0 };
