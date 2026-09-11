@@ -26,6 +26,20 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.2.4] – 2026-09-11
+
+_Zwei kleine Fähigkeiten auf bestehenden Flächen plus ein Prod-Fehler bei Sitemap und robots.txt — keine neue Fähigkeitsklasse._
+
+### Hinzugefügt
+- **mcp:** `upload_image` — lokale Bilder als Base64 an einen Artikel hängen; für Screenshots, die unter keiner öffentlichen Adresse liegen (6f29958)
+- **settings:** Link auf die eigene API-Dokumentation, oben in der Navigation neben Roadmap und Changelog. Nur https, serverseitig erzwungen (Migration 0033) (6f29958)
+
+### Behoben
+- **seo:** `sitemap.xml` und `robots.txt` wurden zur Bauzeit vorgerendert und lieferten dadurch für JEDEN Mandanten eine leere Sitemap und `Disallow: /` — die dokumentierte Auffindbarkeit war seit dem SEO-Fundament abgeschaltet (6f29958)
+
+### Datenbank
+- `0033_api_docs_url.sql` — `tenants.api_docs_url` (additiv, forward-only). Die CI wendet Migrationen vor dem Deploy an.
+
 ## [0.2.3] – 2026-08-28
 
 _Werkzeuge und Korrekturen aus dem ersten echten Migrationslauf — Erweiterungen bestehender Flächen, keine neue Fähigkeitsklasse._
