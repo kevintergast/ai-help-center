@@ -100,6 +100,7 @@ export default async function ArticleRoute({
         logoUrl={tenant.branding.logoUrl}
         logoDarkUrl={tenant.branding.logoDarkUrl ?? null}
         showName={tenant.showHeaderName ?? true}
+      apiDocsUrl={tenant.apiDocsUrl ?? null}
         article={article}
         related={related}
         data={data}

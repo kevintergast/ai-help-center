@@ -272,7 +272,7 @@ const ARTICLES = [
         type: "accordion",
         title: "Was kann eine KI mit welchem Recht?",
         text:
-          "Lesen: Artikel, Entwürfe, Kategorien, Übersetzungen, Statistiken, Einstellungen — dazu die Schreib-Konventionen deines Hilfezentrums, damit die KI gültige Bausteine baut statt zu raten.\n\nArtikel schreiben und ändern: Artikel anlegen (immer als ENTWURF), Texte, Tabellen und Hinweisboxen ändern, ganze Seiten von einer Adresse übernehmen, Bilder hinzufügen und ihre Beschreibungen nachbessern (auch viele auf einmal), Videos einzeln ändern und aus einem eingefügten Transkript Titel und Beschreibung erzeugen lassen. Nichts davon wird öffentlich.\n\nVeröffentlichen: macht Artikel sofort für alle Besucher sichtbar — standardmäßig AUS.\n\nChangelog und Roadmap pflegen: hier gibt es keinen Entwurf, Änderungen sind sofort öffentlich.\n\nLöschen: nur mit einer ausdrücklichen Bestätigung im KI-Gespräch (siehe unten) — standardmäßig AUS.",
+          "Lesen: Artikel, Entwürfe, Kategorien, Übersetzungen, Statistiken, Einstellungen — dazu die Schreib-Konventionen deines Hilfezentrums, damit die KI gültige Bausteine baut statt zu raten.\n\nArtikel schreiben und ändern: Artikel anlegen (immer als ENTWURF), Texte, Tabellen und Hinweisboxen ändern, ganze Seiten von einer Adresse übernehmen, Bilder hinzufügen — entweder von einer öffentlichen Adresse oder direkt als Datei von deinem Rechner, etwa einen Screenshot, den du gerade gemacht hast — Bildbeschreibungen nachbessern (auch viele auf einmal), Videos einzeln ändern und aus einem eingefügten Transkript Titel und Beschreibung erzeugen lassen. Nichts davon wird öffentlich.\n\nVeröffentlichen: macht Artikel sofort für alle Besucher sichtbar — standardmäßig AUS.\n\nChangelog und Roadmap pflegen: hier gibt es keinen Entwurf, Änderungen sind sofort öffentlich.\n\nLöschen: nur mit einer ausdrücklichen Bestätigung im KI-Gespräch (siehe unten) — standardmäßig AUS.",
       },
       "Der Klartext-Schlüssel wird genau einmal angezeigt, direkt nach dem Anlegen. Danach siehst du in der Liste nur noch, wofür er gilt, wann er zuletzt benutzt wurde und wann er abläuft (standardmäßig nach 90 Tagen). Du kannst ihn jederzeit mit einem Klick widerrufen — er wirkt sofort nicht mehr.",
       "Löschen ist absichtlich umständlich: Der erste Löschbefehl löscht nichts, sondern liefert eine Zusammenfassung dessen, was verschwinden würde, plus ein kurzlebiges Bestätigungs-Token. Erst ein zweiter Aufruf mit diesem Token löscht wirklich. Eine KI kann also nicht in einem Schritt Inhalte vernichten.",
@@ -280,6 +280,20 @@ const ARTICLES = [
       "Tipp: Lege lieber zwei enge Schlüssel an als einen Generalschlüssel — etwa einen reinen Lese-Schlüssel für Recherche und Auswertungen und einen Schreib-Schlüssel ohne Veröffentlichen für die Redaktion.",
     ],
     related: ["inhalte-importieren-exportieren", "artikel-veroeffentlichen"],
+  },
+  {
+    slug: "api-dokumentation-verlinken",
+    title: "API-Dokumentation verlinken",
+    category: "Sichtbarkeit",
+    min: 2,
+    body: [
+      "Hast du eine eigene API, kannst du deine Entwickler-Dokumentation direkt aus dem Hilfezentrum heraus verlinken. Der Link erscheint oben in der Navigation — gleich bei Roadmap und Changelog — und öffnet in einem neuen Tab.",
+      "Eingerichtet wird er als Administrator unter »Einstellungen« → »API-Dokumentation«: Adresse eintragen, speichern. Ein leeres Feld entfernt den Link wieder, die Zeile verschwindet dann aus der Navigation.",
+      "Erlaubt sind ausschließlich vollständige https-Adressen. Der Grund: Dieser Link steht dauerhaft in der Navigation jedes Besuchers — dort gehört nichts hin, was unverschlüsselt lädt oder Skripte ausführen könnte.",
+      "Warum wir deine API-Referenz nicht bei uns darstellen: Sie wird aus deinem Spec erzeugt und ändert sich mit jedem Release. Eine Kopie in deinem Hilfezentrum wäre nach deinem nächsten Deploy falsch. Deine Doku bleibt deshalb da, wo sie gepflegt wird — das Hilfezentrum führt nur hin.",
+      "Beachte: Ein verlinktes Ziel ist für die KI-Antworten NICHT sichtbar. Sie kennt nur deine Artikel, Roadmap und Changelog. Fragen zu Endpunkten kann sie also noch nicht beantworten — dafür müssten die Inhalte in dein Hilfezentrum kommen.",
+    ],
+    related: ["artikel-veroeffentlichen", "ki-antworten"],
   },
   {
     slug: "suchmaschinen-sichtbarkeit",

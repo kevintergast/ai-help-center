@@ -242,7 +242,7 @@ export const getContentConventions: McpTool = {
           {
             type: "image",
             shape: { type: "image", imageId: "<id returned by add_image_from_url>" },
-            note: "An image must exist on the article before a block can reference it. Order: create_article (or update_article) → add_image_from_url with a real description of what the image shows → update_article to place the block. A block pointing at an unknown id renders as nothing.",
+            note: "An image must exist on the article before a block can reference it. Order: create_article (or update_article) → add the image → update_article to place the block. TWO WAYS to add one: `add_image_from_url` for an image already on the public web, `upload_image` for a LOCAL file (base64) — e.g. a screenshot you just took. Both require a real description of what the image shows. A block pointing at an unknown id renders as nothing.",
           },
           {
             type: "video",

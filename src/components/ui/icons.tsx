@@ -305,6 +305,14 @@ export function DownloadIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function CodeIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="m8 6-6 6 6 6M16 6l6 6-6 6M14 4l-4 16" />
+    </svg>
+  );
+}
+
 export function RoadmapIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>

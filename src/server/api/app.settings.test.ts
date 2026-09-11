@@ -33,7 +33,7 @@ type Row = Record<string, unknown>;
 function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
   const { settingsAvailable = true } = opts;
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql", "0033_api_docs_url.sql"]);
   const repo = new D1TenantRepository(d1FromSqlite(sqlite));
 
   const authDb: Record<string, Row[]> = {
@@ -62,6 +62,7 @@ function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
             setSupportEmail: (tenantId, email) => repo.setSupportEmail(tenantId, email),
             setDefaultLocale: (tenantId, locale) => repo.setDefaultLocale(tenantId, locale),
             setShowHeaderName: (tenantId, show) => repo.setShowHeaderName(tenantId, show),
+            setApiDocsUrl: (tenantId, url) => repo.setApiDocsUrl(tenantId, url),
             setWidgetOnSite: (tenantId, on) => repo.setWidgetOnSite(tenantId, on),
           }
         : null,
@@ -316,5 +317,72 @@ describe("PUT /api/v1/admin/settings/widget-on-site (0028)", () => {
     const noDeps = makeFixture({ settingsAvailable: false });
     const admin = await session(noDeps, "admin-w2@example.com", "admin");
     expect((await putWidgetOnSite(noDeps, { on: true }, admin)).status).toBe(503);
+  });
+});
+
+/**
+ * API-DOKU-LINK (0033). Verhinderte Fehlerfälle:
+ *  - `javascript:`/`http:` landet in der Navigation JEDES Besuchers — der
+ *    Link steht dauerhaft im Header, das wäre eine XSS-/Mixed-Content-Fläche.
+ *    Deshalb bewusst strenger als `isAllowedButtonHref` (das interne Pfade
+ *    und http erlaubt).
+ *  - Leeres Feld entfernt den Link NICHT → die Zeile bliebe für immer stehen.
+ *  - Rollen-Gate fehlt → jeder Redakteur könnte die Navigation umbiegen.
+ */
+describe("PUT /api/v1/admin/settings/api-docs (Header-Link auf die API-Doku)", () => {
+  let f: Fixture;
+  beforeEach(() => {
+    f = makeFixture();
+  });
+
+  const putApiDocs = (body: unknown, cookie?: string) =>
+    f.app.request("/api/v1/admin/settings/api-docs", {
+      method: "PUT",
+      headers: {
+        host: HOST_DEMO,
+        "content-type": "application/json",
+        ...(cookie ? { cookie } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+
+  it("admin: speichert die https-URL am Tenant; Leeren entfernt den Link", async () => {
+    const cookie = await session(f, "admin@example.com", "admin");
+
+    const set = await putApiDocs({ url: "  https://docs.smao.ai/docs/public  " }, cookie);
+    expect(set.status).toBe(200);
+    expect(await set.json()).toEqual({ ok: true, url: "https://docs.smao.ai/docs/public" });
+    expect((await f.repo.getBySlug("demo"))?.apiDocsUrl).toBe("https://docs.smao.ai/docs/public");
+
+    // Leerer String = entfernen (nicht: leerer String in der Navigation).
+    const clear = await putApiDocs({ url: "   " }, cookie);
+    expect(clear.status).toBe(200);
+    expect(await clear.json()).toEqual({ ok: true, url: null });
+    expect((await f.repo.getBySlug("demo"))?.apiDocsUrl).toBeNull();
+  });
+
+  it("weist alles ab, was nicht https ist — nichts wird gespeichert", async () => {
+    const cookie = await session(f, "admin@example.com", "admin");
+    for (const url of [
+      "javascript:alert(1)",
+      "http://docs.example.com",
+      "/interner-pfad",
+      "docs.example.com",
+      "data:text/html,<script>",
+      42,
+    ]) {
+      const res = await putApiDocs({ url }, cookie);
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: "invalid_url" });
+    }
+    expect((await f.repo.getBySlug("demo"))?.apiDocsUrl).toBeNull();
+  });
+
+  it("anonym → 401, user-Rolle → 403 (admin-Gate)", async () => {
+    expect((await putApiDocs({ url: "https://docs.example.com" })).status).toBe(401);
+
+    const userCookie = await session(f, "user@example.com", "user");
+    expect((await putApiDocs({ url: "https://docs.example.com" }, userCookie)).status).toBe(403);
+    expect((await f.repo.getBySlug("demo"))?.apiDocsUrl).toBeNull();
   });
 });

@@ -15,9 +15,12 @@ import {
 import { assertImportableUrl, extractArticleFromHtml, slugFromUrl } from "@/server/content/scrape";
 import {
   applyVideoIds,
+  decodeBase64Image,
   downloadScrapedImages,
   importImageFromUrl,
   resolveScrapedVideos,
+  storeImageBytes,
+  MAX_IMAGE_BYTES,
   IMPORT_USER_AGENT,
   IMPORT_FETCH_TIMEOUT_MS,
   type ImageImportError,
@@ -417,6 +420,68 @@ export const addImageFromUrl: McpTool = {
   },
 };
 
+export const uploadImage: McpTool = {
+  name: "upload_image",
+  title: "Bild hochladen",
+  description:
+    "Attach a LOCAL image to an article by sending its bytes as base64. Use this for screenshots you just took on your own machine — add_image_from_url only works for images that are already reachable on the public web. PNG, JPEG or WebP, at most 2 MB before encoding. Returns an imageId; reference it from the body with a block { \"type\": \"image\", \"imageId\": \"…\" } via update_article, otherwise the image is stored but never shown. The description is REQUIRED: it is the alt text AND the only part of an image the AI search can read, so describe what the image SHOWS.",
+  scope: "articles:write",
+  annotations: WRITE_HINTS,
+  inputSchema: {
+    type: "object",
+    properties: {
+      articleId: { type: "string", description: "Id of the article this image belongs to." },
+      data: {
+        type: "string",
+        description:
+          "The image bytes as base64. A `data:image/png;base64,…` URI is accepted too — the prefix is stripped. The content type is determined from the BYTES, so you do not need to declare it.",
+      },
+      description: {
+        type: "string",
+        description: "What the image shows, in the help center's language. Required, must not be empty.",
+      },
+    },
+    required: ["articleId", "data", "description"],
+  },
+  async handler(args, ctx) {
+    if (typeof args.articleId !== "string") return fail("invalid_params", "`articleId` must be a string.");
+    if (typeof args.data !== "string") return fail("invalid_params", "`data` must be a base64 string.");
+    const description = typeof args.description === "string" ? args.description.trim() : "";
+    if (description.length === 0) {
+      return fail(
+        "image_description_required",
+        "`description` is required and must not be empty — it is the alt text and the only thing the AI search can read about an image.",
+      );
+    }
+
+    const bytes = decodeBase64Image(args.data);
+    if (!bytes) {
+      return fail(
+        "invalid_image_data",
+        `\`data\` is not valid base64, or the image exceeds ${Math.round(MAX_IMAGE_BYTES / 1024 / 1024)} MB.`,
+      );
+    }
+
+    const content = await ctx.deps.getContentDeps();
+    if (!content) return fail("content_unavailable", "Content storage is not available.");
+    if (await frozen(ctx)) return FROZEN_RESULT();
+
+    const res = await storeImageBytes(content, ctx.tenant.id, args.articleId, bytes, description);
+    if (!res.ok) return fail(res.error, IMAGE_ERROR_MESSAGES[res.error]);
+
+    await audit(ctx, "mcp.article.image_added", args.articleId, { imageId: res.imageId, source: "upload" });
+    return ok({
+      imageId: res.imageId,
+      articleId: args.articleId,
+      bytes: bytes.byteLength,
+      note:
+        "Stored. The image is only visible once you reference it from the article body: add { \"type\": \"image\", \"imageId\": \"" +
+        res.imageId +
+        "\" } with update_article.",
+    });
+  },
+};
+
 export const updateImageDescription: McpTool = {
   name: "update_image_description",
   title: "Bildbeschreibung ändern",
@@ -752,6 +817,7 @@ export const WRITE_TOOLS: McpTool[] = [
   createArticle,
   updateArticle,
   addImageFromUrl,
+  uploadImage,
   updateImageDescription,
   updateImageDescriptions,
   updateVideo,

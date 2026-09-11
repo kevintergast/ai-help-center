@@ -197,6 +197,7 @@ export interface SettingsDeps {
   setSupportEmail(tenantId: string, email: string | null): Promise<void>;
   setDefaultLocale(tenantId: string, locale: "de" | "en"): Promise<void>;
   setShowHeaderName(tenantId: string, show: boolean): Promise<void>;
+  setApiDocsUrl(tenantId: string, url: string | null): Promise<void>;
   setWidgetOnSite(tenantId: string, on: boolean): Promise<void>;
 }
 

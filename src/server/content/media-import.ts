@@ -77,20 +77,63 @@ export async function importImageFromUrl(
     return { ok: false, error: "fetch_failed" };
   }
 
+  return storeImageBytes(content, tenantId, articleId, bytes, input.description);
+}
+
+/**
+ * Geprüfte Bytes am Artikel ablegen — die gemeinsame Endstrecke von
+ * `importImageFromUrl` (Bild von einer Adresse) und `upload_image` (Bytes vom
+ * KI-Client). Hier und nur hier entscheiden die BYTES über den Inhaltstyp;
+ * eine Angabe des Aufrufers wird nie geglaubt.
+ */
+export async function storeImageBytes(
+  content: ContentDeps,
+  tenantId: string,
+  articleId: string,
+  bytes: Uint8Array,
+  description: string,
+): Promise<ImageImportResult> {
+  if (!content.media) return { ok: false, error: "media_unavailable" };
   if (bytes.byteLength > MAX_IMAGE_BYTES) return { ok: false, error: "image_too_large" };
   const sniffed = sniffImageType(bytes);
   if (!sniffed) return { ok: false, error: "unsupported_image_type" };
 
-  const image = { id: crypto.randomUUID(), description: input.description };
+  const image = { id: crypto.randomUUID(), description };
   const key = articleImageKey(tenantId, articleId, image.id);
   await content.media.put(key, bytes, { httpMetadata: { contentType: sniffed } });
 
   const added = await content.store.addImage(tenantId, articleId, image);
   if (added !== "ok") {
+    // Kein verwaistes R2-Objekt zurücklassen (Artikel weg / Limit erreicht).
     await content.media.delete(key);
     return { ok: false, error: added === "limit" ? "too_many_images" : "not_found" };
   }
   return { ok: true, imageId: image.id };
+}
+
+/**
+ * Base64 (optional als `data:`-URI) → Bytes. `null` = kein gültiges Base64.
+ *
+ * Die LÄNGE wird VOR dem Dekodieren geprüft: Base64 bläht um ein Drittel auf,
+ * und ein 50-MB-String soll nicht erst im Speicher landen, um dann am Deckel
+ * zu scheitern.
+ */
+export function decodeBase64Image(raw: string): Uint8Array | null {
+  const comma = raw.indexOf(",");
+  const payload = raw.startsWith("data:") && comma > 0 ? raw.slice(comma + 1) : raw;
+  const cleaned = payload.replace(/\s/g, "");
+  if (cleaned.length === 0) return null;
+  // 4 Base64-Zeichen = 3 Bytes; grob abschätzen, bevor wir dekodieren.
+  if ((cleaned.length * 3) / 4 > MAX_IMAGE_BYTES + 1024) return null;
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(cleaned)) return null;
+  try {
+    const bin = atob(cleaned);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);
+    return out;
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -19,6 +19,16 @@ import { getEnvSafe } from "@/server/api/runtime-deps";
  * (alle Kunden-Sitemaps, /sitemap-index.xml) — Cross-Submission, damit Google
  * frisch provisionierte Kunden-Subdomains ohne Kunden-Zutun entdeckt.
  */
+/**
+ * ZWINGEND PRO REQUEST. Ohne dieses Flag rendert Next die Route zur BAUZEIT
+ * vor — dort gibt es weder `APP_ENV` (Worker-Variable) noch einen Host, also
+ * greift die Nicht-Produktions-Bremse und das Ergebnis wird EINGEBACKEN.
+ * Live ausgeliefert wurde dadurch für JEDEN Mandanten dasselbe: eine leere
+ * Sitemap und ein `Disallow: /` — die dokumentierte Auffindbarkeit war damit
+ * abgeschaltet. (Prod-Fund 2026-08-29.)
+ */
+export const dynamic = "force-dynamic";
+
 export default async function robots(): Promise<MetadataRoute.Robots> {
   const blockAll: MetadataRoute.Robots = { rules: [{ userAgent: "*", disallow: "/" }] };
 

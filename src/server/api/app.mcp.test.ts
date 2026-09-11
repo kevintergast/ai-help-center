@@ -949,3 +949,106 @@ describe("MCP — Stapel und Wiederholbarkeit", () => {
     expect(res.data!.emptySections).toEqual(["Leerer Abschnitt"]);
   });
 });
+
+/**
+ * LOKALE BILDER PER MCP (`upload_image`). Anlass: Screenshots, die gerade auf
+ * dem Rechner entstehen, sind unter KEINER öffentlichen Adresse erreichbar —
+ * `add_image_from_url` kann sie also nie holen. Verhinderte Fehlerfälle:
+ *  - Ein Aufrufer behauptet einen Inhaltstyp, der nicht zu den Bytes passt
+ *    (z. B. „image/png" auf eine HTML-Datei) → wir glauben nur den BYTES.
+ *  - Ein 50-MB-Base64-String landet erst im Speicher und scheitert dann am
+ *    Deckel → die Länge wird VOR dem Dekodieren geprüft.
+ *  - Beschreibung fehlt → Bild wäre für Screenreader und KI-Suche unsichtbar.
+ */
+describe("MCP — upload_image (lokale Bilder)", () => {
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4]);
+  const b64 = (b: Uint8Array) => Buffer.from(b).toString("base64");
+
+  it("nimmt Base64 an, speichert die Bytes und liefert die Bild-Id", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const id = await seedArticle(f.app, token, "screenshots");
+
+    const res = await callTool(f.app, token, "upload_image", {
+      articleId: id,
+      data: b64(PNG),
+      description: "Einstellungen-Dialog mit aktiviertem Schalter „Automatisch antworten“.",
+    });
+    expect(res.isError).toBe(false);
+    expect(res.data!.bytes).toBe(PNG.byteLength);
+
+    const imageId = res.data!.imageId as string;
+    const a = (await f.store.listForTransfer("t_a")).find((x) => x.id === id)!;
+    expect(a.images?.map((i) => i.id)).toContain(imageId);
+    expect(a.images?.[0].description).toContain("Automatisch antworten");
+    // Die Binärdatei liegt wirklich in R2 (nicht nur ein Datensatz):
+    expect([...f.mediaObjects.keys()].some((k) => k.includes(imageId))).toBe(true);
+  });
+
+  it("akzeptiert auch eine data:-URI (Präfix wird abgeschnitten)", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const id = await seedArticle(f.app, token, "screenshots");
+
+    const res = await callTool(f.app, token, "upload_image", {
+      articleId: id,
+      data: `data:image/png;base64,${b64(PNG)}`,
+      description: "Derselbe Dialog, als data-URI übergeben.",
+    });
+    expect(res.isError).toBe(false);
+    expect(f.mediaObjects.size).toBe(1);
+  });
+
+  it("entscheidet nach den BYTES, nicht nach der Behauptung des Aufrufers", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const id = await seedArticle(f.app, token, "screenshots");
+
+    // Als PNG deklariert, ist aber HTML → muss abgelehnt werden.
+    const res = await callTool(f.app, token, "upload_image", {
+      articleId: id,
+      data: `data:image/png;base64,${Buffer.from("<html>nope</html>").toString("base64")}`,
+      description: "Angeblich ein PNG.",
+    });
+    expect(res.isError).toBe(true);
+    expect(res.data!.error).toBe("unsupported_image_type");
+    expect(f.mediaObjects.size).toBe(0);
+  });
+
+  it("weist zu große und kaputte Daten ab, ohne sie zu dekodieren", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const id = await seedArticle(f.app, token, "screenshots");
+
+    for (const data of ["A".repeat(4_000_000), "kein-base64-!!!", ""]) {
+      const res = await callTool(f.app, token, "upload_image", {
+        articleId: id,
+        data,
+        description: "Egal.",
+      });
+      expect(res.isError).toBe(true);
+      expect(res.data!.error).toBe("invalid_image_data");
+    }
+    expect(f.mediaObjects.size).toBe(0);
+  });
+
+  it("ohne Beschreibung abgelehnt — und ohne Schreibrecht gar nicht sichtbar", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const id = await seedArticle(f.app, token, "screenshots");
+
+    const leer = await callTool(f.app, token, "upload_image", {
+      articleId: id,
+      data: b64(PNG),
+      description: "   ",
+    });
+    expect(leer.isError).toBe(true);
+    expect(leer.data!.error).toBe("image_description_required");
+    expect(f.mediaObjects.size).toBe(0);
+
+    const nurLesen = await issueKey(f.keys, "t_a", ["articles:read"]);
+    const { json } = await rpc(f.app, nurLesen, "tools/list");
+    const tools = (json as Record<string, { tools: { name: string }[] }>).result.tools;
+    expect(tools.map((t) => t.name)).not.toContain("upload_image");
+  });
+});

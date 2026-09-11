@@ -42,6 +42,13 @@ export interface Tenant {
    */
   seoIndexable?: boolean;
   /**
+   * Link auf die EIGENE API-Dokumentation der Instanz (Migration 0033).
+   * FEHLEND/null = kein Link; die Header-Zeile erscheint dann nicht. Zeigt
+   * bewusst nach AUSSEN — fremde API-Referenzen werden hier nicht gerendert
+   * (Spec-generiert, ändern sich je Release; eine Kopie verrottet).
+   */
+  apiDocsUrl?: string | null;
+  /**
    * Support-E-Mail der Instanz (Migration 0014): Ziel der Ticket-Mails aus
    * dem Support-Flow. FEHLEND/null = nicht konfiguriert (Tickets landen nur
    * in der Admin-Inbox).

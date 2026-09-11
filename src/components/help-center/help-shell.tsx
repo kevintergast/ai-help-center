@@ -41,7 +41,9 @@ import {
   ArrowLeftIcon,
   BookmarkIcon,
   CloseIcon,
+  CodeIcon,
   DocIcon,
+  ExternalLinkIcon,
   MegaphoneIcon,
   MenuIcon,
   PlusIcon,
@@ -61,6 +63,12 @@ export interface HelpShellProps {
   logoDarkUrl?: string | null;
   /** Instanzname neben dem Logo (0025) — false nur wirksam MIT Logo. */
   showName?: boolean;
+  /**
+   * Link auf die eigene API-Dokumentation (0033). `null`/fehlend = die Zeile
+   * erscheint nicht. Führt bewusst nach AUSSEN (neuer Tab) — wir rendern
+   * fremde API-Referenzen nicht.
+   */
+  apiDocsUrl?: string | null;
   data: HelpCenterData;
   /** Slug des aktuell offenen Artikels (Navigation hervorheben). */
   activeSlug?: string;
@@ -93,6 +101,7 @@ export function HelpShell({
   logoUrl,
   logoDarkUrl = null,
   showName = true,
+  apiDocsUrl = null,
   data,
   activeSlug,
   isOperator = false,
@@ -175,6 +184,22 @@ export function HelpShell({
               <span className="truncate">{t("hc.changelog")}</span>
             </button>
           </li>
+          {/* API-Doku (0033): echter Auswärts-Link, deshalb <a> statt <button>
+              und mit Außen-Symbol — der Klick verlässt das Hilfezentrum. */}
+          {apiDocsUrl ? (
+            <li>
+              <a
+                href={apiDocsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={NAV_ROW}
+              >
+                <CodeIcon width={15} height={15} className="shrink-0 opacity-70" />
+                <span className="truncate">{t("hc.apiDocs")}</span>
+                <ExternalLinkIcon width={12} height={12} className="shrink-0 opacity-50" aria-hidden />
+              </a>
+            </li>
+          ) : null}
         </ul>
 
         {/* Eigener Abschnitt „Meine Artikel" (gespeicherte KI-Antworten) + Anmelden/Avatar. */}

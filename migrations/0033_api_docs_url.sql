@@ -1,0 +1,17 @@
+-- 0033 — Link auf die EIGENE API-Dokumentation der Instanz.
+--
+-- WARUM EIN HEADER-LINK und kein Artikel-Button: Entwickler suchen die
+-- Referenz nicht über die Artikelsuche, sie erwarten sie in der Navigation.
+-- Der Link steht deshalb oben bei Roadmap/Changelog — aber als ECHTER
+-- Auswärts-Link: Wir rendern fremde API-Dokus nicht (sie werden aus einem
+-- Spec generiert und ändern sich mit jedem Release; eine Kopie bei uns
+-- verrottet sofort).
+--
+-- NULL/leer = kein Link, die Zeile erscheint dann gar nicht.
+--
+-- Bewusst NUR die URL, kein eigenes Label: Ein fester, übersetzter Text
+-- („API-Dokumentation") hält die Navigation über alle Instanzen erkennbar.
+-- Ein freies Label wäre eine additive Spalte, falls es je gebraucht wird.
+--
+-- Forward-only, additiv.
+ALTER TABLE tenants ADD COLUMN api_docs_url TEXT;

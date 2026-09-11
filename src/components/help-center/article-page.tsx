@@ -37,6 +37,8 @@ export interface ArticlePageProps {
   logoDarkUrl?: string | null;
   /** Instanzname neben dem Logo (0025) — false nur wirksam MIT Logo. */
   showName?: boolean;
+  /** Link auf die eigene API-Dokumentation (0033) — durchgereicht an HelpShell. */
+  apiDocsUrl?: string | null;
   article: Article;
   /** Bereits aufgelöste verwandte Artikel (mit slug für die Verlinkung). */
   related: ArticleSummary[];
@@ -56,6 +58,7 @@ export function ArticlePage({
   logoUrl,
   logoDarkUrl = null,
   showName = true,
+  apiDocsUrl = null,
   article,
   related,
   data,
@@ -80,6 +83,7 @@ export function ArticlePage({
       logoUrl={logoUrl}
       logoDarkUrl={logoDarkUrl}
       showName={showName}
+      apiDocsUrl={apiDocsUrl}
       data={data}
       isOperator={isOperator}
       viewer={viewer}
