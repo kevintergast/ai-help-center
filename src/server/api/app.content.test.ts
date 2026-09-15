@@ -1448,3 +1448,54 @@ describe("Einstiegs-Karten (/admin/entry-cards)", () => {
     expect((await still.json()) as { cards: unknown[] }).toMatchObject({ cards: [{ id }] });
   });
 });
+
+/**
+ * Verhinderter Fehlerfall: Der Satz wird über Einzel-Requests ersetzt (erst
+ * löschen, dann anlegen) — dazwischen sieht JEDER Besucher eine leere
+ * Startseite. Und: eine ungültige Karte im Stapel hinterlässt einen halb
+ * ersetzten Satz.
+ */
+describe("Einstiegs-Karten ersetzen (PUT /admin/entry-cards)", () => {
+  it("ersetzt den ganzen Satz in einem Aufruf", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    await postJson(app, "/api/v1/admin/entry-cards", HOST_A, { kind: "roadmap", title: "Alt" }, cookie);
+
+    const res = await app.request("/api/v1/admin/entry-cards", {
+      method: "PUT",
+      headers: { host: HOST_A, "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        cards: [
+          { kind: "changelog", title: "Neu 1" },
+          { kind: "url", title: "Neu 2", target: "https://status.test" },
+        ],
+      }),
+    });
+    expect(res.status).toBe(200);
+
+    const cards = await store.listEntryCards("t_a");
+    expect(cards.map((c) => c.title)).toEqual(["Neu 1", "Neu 2"]);
+  });
+
+  it("eine ungültige Karte im Stapel ändert GAR NICHTS", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    await postJson(app, "/api/v1/admin/entry-cards", HOST_A, { kind: "roadmap", title: "Bestand" }, cookie);
+
+    const res = await app.request("/api/v1/admin/entry-cards", {
+      method: "PUT",
+      headers: { host: HOST_A, "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        cards: [
+          { kind: "changelog", title: "Gut" },
+          { kind: "url", title: "Böse", target: "javascript:alert(1)" },
+        ],
+      }),
+    });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: "invalid_url", index: 1 });
+
+    const cards = await store.listEntryCards("t_a");
+    expect(cards.map((c) => c.title)).toEqual(["Bestand"]);
+  });
+});

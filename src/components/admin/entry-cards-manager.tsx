@@ -23,7 +23,8 @@ import { CloseIcon, PlusIcon } from "@/components/ui/icons";
  * SOFORT ÖFFENTLICH — wie Changelog und Roadmap gibt es keinen Entwurf. Der
  * Hinweis steht deshalb über der Liste und nicht im Kleingedruckten.
  *
- * GESPEICHERT WIRD DER GANZE SATZ (löschen + neu anlegen in einem Batch). Bei
+ * GESPEICHERT WIRD DER GANZE SATZ in EINEM Aufruf (PUT, serverseitig ein
+ * Batch aus Löschen + Anlegen — die Startseite steht nie leer). Bei
  * höchstens sechs Karten ist das einfacher und vorhersehbarer als vier
  * Einzeloperationen mit Id-Abgleich — und es ist genau das, was das
  * MCP-Werkzeug `set_entry_cards` tut, also EIN Verhalten für beide Türen.
@@ -117,24 +118,15 @@ export function EntryCardsManager({
     setState("saving");
     setErrorKey(null);
     try {
-      // Ganzen Satz ersetzen: erst leeren, dann in Reihenfolge anlegen.
-      const current = (await (await fetch("/api/v1/admin/entry-cards")).json()) as {
-        cards: EntryCard[];
-      };
-      for (const c of current.cards) {
-        await fetch(`/api/v1/admin/entry-cards/${c.id}`, { method: "DELETE" });
-      }
-      for (const card of cards) {
-        const res = await fetch("/api/v1/admin/entry-cards", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(card),
-        });
-        if (!res.ok) throw new Error("save");
-      }
-      const fresh = (await (await fetch("/api/v1/admin/entry-cards")).json()) as {
-        cards: EntryCard[];
-      };
+      // EIN Aufruf für den ganzen Satz — sonst stünde die Startseite zwischen
+      // „alle gelöscht" und „neu angelegt" für jeden Besucher leer da.
+      const res = await fetch("/api/v1/admin/entry-cards", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ cards }),
+      });
+      if (!res.ok) throw new Error("save");
+      const fresh = (await res.json()) as { cards: EntryCard[] };
       setDrafts(fresh.cards.map((c) => ({ ...c, key: nextKey() })));
       setState("done");
     } catch {

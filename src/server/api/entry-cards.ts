@@ -8,6 +8,7 @@ import type { ApiDeps, ApiEnv } from "./context";
  *
  *   GET             /api/v1/admin/entry-cards        — Liste (in Anzeigereihenfolge)
  *   POST            /api/v1/admin/entry-cards        — anlegen (ans Ende)
+ *   PUT             /api/v1/admin/entry-cards        — GANZEN Satz ersetzen
  *   PUT             /api/v1/admin/entry-cards/order  — Reihenfolge setzen
  *   PUT/DELETE      /api/v1/admin/entry-cards/:id    — ändern / löschen
  *
@@ -44,6 +45,38 @@ export function entryCardsAdminRouter(deps: ApiDeps) {
     const id = await content.store.createEntryCard(c.get("tenant").id, card.card);
     if (id === "limit") return c.json({ error: "too_many_cards", max: MAX_ENTRY_CARDS }, 409);
     return c.json({ ok: true, id }, 201);
+  });
+
+  /**
+   * GANZEN Satz ersetzen. Der Weg „alle löschen, dann neu anlegen" über
+   * Einzel-Requests hätte die Startseite dazwischen LEER stehen lassen —
+   * sichtbar für jeden, der in diesem Moment lädt. Ein Aufruf, ein Batch.
+   *
+   * Auch VOR `/:id` registrieren (Hono probiert in Registrierungsreihenfolge).
+   */
+  r.put("/", requireTeam("content"), async (c) => {
+    const parsed = await readJson(c);
+    if (!parsed.ok) return c.json({ error: "invalid_json" }, 400);
+
+    const body = parsed.body as { cards?: unknown };
+    if (!Array.isArray(body.cards)) return c.json({ error: "cards_required" }, 400);
+    if (body.cards.length > MAX_ENTRY_CARDS) {
+      return c.json({ error: "too_many_cards", max: MAX_ENTRY_CARDS }, 409);
+    }
+
+    // ALLE prüfen, bevor irgendetwas geschrieben wird.
+    const cards = [];
+    for (let i = 0; i < body.cards.length; i += 1) {
+      const card = parseEntryCardInput(body.cards[i]);
+      if (!card.ok) return c.json({ error: card.error, index: i }, 400);
+      cards.push(card.card);
+    }
+
+    const content = await deps.getContentDeps();
+    if (!content) return c.json({ error: "content_unavailable" }, 503);
+
+    await content.store.replaceEntryCards(c.get("tenant").id, cards);
+    return c.json({ cards: await content.store.listEntryCards(c.get("tenant").id) });
   });
 
   // VOR `/:id` registrieren — sonst liest Hono „order" als Karten-Id.
