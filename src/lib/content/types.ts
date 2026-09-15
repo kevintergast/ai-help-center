@@ -1,4 +1,5 @@
 import type { ArticleBlock, ArticleFlag } from "./blocks";
+import type { EntryCard } from "./entry-cards";
 
 /**
  * Domänen-Typen der Inhalts-/RAG-Schicht (transport-agnostisch).
@@ -48,6 +49,12 @@ export interface ArticleSummary {
   status: ArticleStatus;
   /** Vorformatiert, z. B. "vor 3 Tagen" — Formatierung ist später Server-/i18n-Sache. */
   updatedLabel: string;
+  /**
+   * Badge („Beta", „Wichtig") — hier UND auf `Article`, weil die Navigation
+   * nur Kurzfassungen kennt. Ohne dieses Feld müsste die Leiste jeden Artikel
+   * vollständig laden, um ein Wort anzuzeigen. Fehlend/null = kein Badge.
+   */
+  flag?: ArticleFlag | null;
 }
 
 /**
@@ -97,8 +104,6 @@ export interface Article extends ArticleSummary {
    *  Varianten, Inline-Bilder/-Videos, Artikel-Link-Cards. Bestands-Strings
    *  werden beim Lesen zu Standard-Textblöcken normalisiert. */
   body: ArticleBlock[];
-  /** Optionales Badge (z. B. „Beta") mit Paletten-Farbe; fehlend/null = keins. */
-  flag?: ArticleFlag | null;
   videos: ArticleVideo[];
   relatedIds: string[];
   /** Bilder (fehlend = keine — Altbestände/Fakes ohne Feld bleiben gültig). */
@@ -178,6 +183,8 @@ export interface HelpCenterRepository {
   roadmap(): Promise<RoadmapItem[]>;
   changelog(): Promise<ChangelogEntry[]>;
   promptSuggestions(): Promise<string[]>;
+  /** Einstiegs-Karten unter der KI-Eingabe (Startansicht). */
+  entryCards(): Promise<EntryCard[]>;
 }
 
 /**
@@ -194,4 +201,5 @@ export interface HelpCenterData {
   roadmap: RoadmapItem[];
   changelog: ChangelogEntry[];
   suggestions: string[];
+  entryCards: EntryCard[];
 }

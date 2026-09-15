@@ -11,6 +11,7 @@ import type {
   ChangelogEntry,
   RoadmapItem,
 } from "@/lib/content/types";
+import { MAX_ENTRY_CARDS, type EntryCard, type EntryCardKind } from "@/lib/content/entry-cards";
 import { groupByCategory } from "@/lib/content/fake-repo";
 import type { ArticleInput, ArticleUpdateInput } from "./validate";
 
@@ -124,6 +125,41 @@ export interface ContentStore {
     articleKey: string,
     imageId: string,
   ): Promise<{ articleId: string; image: ArticleImage } | null>;
+
+  // ——— Navigations-Reihenfolge (0034) ———
+  /**
+   * Artikel einer Sprache in AKTUELLER Reihenfolge — inklusive Entwürfe.
+   * Entwürfe müssen mitsortierbar sein, sonst springt ein Artikel beim
+   * Veröffentlichen an eine zufällige Stelle in der Leiste.
+   */
+  listOrderable(tenantId: string, locale: string): Promise<ArticleSummary[]>;
+  /**
+   * Reihenfolge setzen. `orderedIds` muss NICHT vollständig sein: genannte
+   * Artikel kommen in der genannten Reihenfolge nach vorn, alle übrigen folgen
+   * in ihrer bisherigen Ordnung. Unbekannte Ids werden ignoriert.
+   *
+   * WARUM SO: Beide Türen schicken hier Unterschiedliches — die Oberfläche
+   * immer die volle Liste, ein KI-Client gern nur die drei Artikel, die ihm
+   * gerade wichtig sind. Würden die Nichtgenannten auf `sort = 0` fallen,
+   * hätte ein Teil-Aufruf die restliche Navigation stillschweigend zerwürfelt.
+   *
+   * Liefert die Zahl der geschriebenen Positionen.
+   */
+  reorderArticles(tenantId: string, locale: string, orderedIds: string[]): Promise<number>;
+
+  // ——— Einstiegs-Karten (0035) ———
+  listEntryCards(tenantId: string): Promise<EntryCard[]>;
+  createEntryCard(tenantId: string, card: Omit<EntryCard, "id">): Promise<string | "limit">;
+  updateEntryCard(tenantId: string, id: string, card: Omit<EntryCard, "id">): Promise<boolean>;
+  deleteEntryCard(tenantId: string, id: string): Promise<boolean>;
+  reorderEntryCards(tenantId: string, orderedIds: string[]): Promise<number>;
+  /**
+   * GANZEN Kartensatz ersetzen (in der übergebenen Reihenfolge). Für den
+   * MCP-Weg: Ein Modell, das vier Werkzeuge (anlegen/ändern/löschen/sortieren)
+   * mit Ids jonglieren muss, baut bei sechs Karten garantiert einen Zustand,
+   * den niemand gewollt hat. Ein Satz, ein Aufruf, ein Ergebnis.
+   */
+  replaceEntryCards(tenantId: string, cards: Omit<EntryCard, "id">[]): Promise<number>;
 }
 
 /** Max. Bilder je Artikel (Speicher-/UI-Deckel). */
@@ -218,6 +254,7 @@ interface ArticleRow {
   images_json: string;
   files_json: string;
   flag_json: string | null;
+  sort: number;
   reading_minutes: number;
   is_ai_generated: number;
   updated_at: number;
@@ -281,11 +318,13 @@ function rowToSummary(row: ArticleRow, locale: string): ArticleSummary {
     category: row.category,
     status: displayStatus(row.status, row.is_ai_generated),
     updatedLabel: relativeTimeLabel(row.updated_at, locale),
+    // Die Navigation zeigt das Badge — sie sieht NUR Kurzfassungen.
+    flag: parseFlagJson(row.flag_json),
   };
 }
 
 const ARTICLE_COLS =
-  "id, slug, title, category, status, locale, article_key, body_json, videos_json, related_ids_json, images_json, files_json, flag_json, reading_minutes, is_ai_generated, updated_at";
+  "id, slug, title, category, status, locale, article_key, body_json, videos_json, related_ids_json, images_json, files_json, flag_json, sort, reading_minutes, is_ai_generated, updated_at";
 
 function newId(prefix: string): string {
   return `${prefix}_${crypto.randomUUID()}`;
@@ -328,7 +367,7 @@ export class D1ContentRepository implements ContentStore {
       .prepare(
         `SELECT ${ARTICLE_COLS} FROM articles
           WHERE tenant_id = ? AND status = 'published' AND locale = ?
-          ORDER BY created_at ASC`,
+          ORDER BY sort ASC, created_at ASC`,
       )
       .bind(tenantId, locale)
       .all<ArticleRow>();
@@ -344,7 +383,7 @@ export class D1ContentRepository implements ContentStore {
       .prepare(
         `SELECT ${ARTICLE_COLS} FROM articles
           WHERE tenant_id = ? AND status = 'published' AND locale = ?
-          ORDER BY created_at ASC`,
+          ORDER BY sort ASC, created_at ASC`,
       )
       .bind(tenantId, locale)
       .all<ArticleRow>();
@@ -430,6 +469,7 @@ export class D1ContentRepository implements ContentStore {
       locale: r.locale,
       articleKey: r.article_key ?? r.id,
       updatedAt: r.updated_at,
+      flag: parseFlagJson(r.flag_json),
     }));
   }
 
@@ -816,6 +856,171 @@ export class D1ContentRepository implements ContentStore {
     if (!row) return null;
     const image = parseJsonArray<ArticleImage>(row.images_json).find((i) => i.id === imageId);
     return image ? { articleId: row.id, image } : null;
+  }
+
+  // ——— Navigations-Reihenfolge (0034) ———
+
+  async listOrderable(tenantId: string, locale: string): Promise<ArticleSummary[]> {
+    const { results } = await this.db
+      .prepare(
+        `SELECT ${ARTICLE_COLS} FROM articles
+          WHERE tenant_id = ? AND locale = ?
+          ORDER BY sort ASC, created_at ASC`,
+      )
+      .bind(tenantId, locale)
+      .all<ArticleRow>();
+    return results.map((r) => rowToSummary(r, locale));
+  }
+
+  async reorderArticles(tenantId: string, locale: string, orderedIds: string[]): Promise<number> {
+    if (orderedIds.length === 0) return 0;
+
+    const { results } = await this.db
+      .prepare(
+        `SELECT id FROM articles WHERE tenant_id = ? AND locale = ?
+          ORDER BY sort ASC, created_at ASC`,
+      )
+      .bind(tenantId, locale)
+      .all<{ id: string }>();
+    const existing = results.map((r) => r.id);
+    const known = new Set(existing);
+
+    // Genannte zuerst (ohne Dubletten, ohne Fremdes), dann der unveränderte Rest.
+    const wanted: string[] = [];
+    const seen = new Set<string>();
+    for (const id of orderedIds) {
+      if (known.has(id) && !seen.has(id)) {
+        seen.add(id);
+        wanted.push(id);
+      }
+    }
+    const final = [...wanted, ...existing.filter((id) => !seen.has(id))];
+    if (final.length === 0) return 0;
+
+    // EIN Batch statt N Einzel-Requests: D1 führt ihn als Transaktion aus —
+    // eine halb gesetzte Reihenfolge wäre schlimmer als gar keine.
+    const stmts = final.map((id, index) =>
+      this.db
+        .prepare(`UPDATE articles SET sort = ? WHERE tenant_id = ? AND locale = ? AND id = ?`)
+        .bind(index, tenantId, locale, id),
+    );
+    const res = await this.db.batch<unknown>(stmts);
+    return res.reduce((n, r) => n + (r.meta?.changes ?? 0), 0);
+  }
+
+  // ——— Einstiegs-Karten (0035) ———
+
+  async listEntryCards(tenantId: string): Promise<EntryCard[]> {
+    const { results } = await this.db
+      .prepare(
+        `SELECT id, kind, title, description, target FROM entry_cards
+          WHERE tenant_id = ? ORDER BY sort ASC, created_at ASC`,
+      )
+      .bind(tenantId)
+      .all<{
+        id: string;
+        kind: string;
+        title: string;
+        description: string | null;
+        target: string | null;
+      }>();
+    return results.map((r) => ({
+      id: r.id,
+      kind: r.kind as EntryCardKind,
+      title: r.title,
+      description: r.description ?? "",
+      target: r.target ?? "",
+    }));
+  }
+
+  async createEntryCard(tenantId: string, card: Omit<EntryCard, "id">): Promise<string | "limit"> {
+    const row = await this.db
+      .prepare(`SELECT COUNT(*) AS n, COALESCE(MAX(sort), -1) AS maxSort FROM entry_cards WHERE tenant_id = ?`)
+      .bind(tenantId)
+      .first<{ n: number; maxSort: number }>();
+    if ((row?.n ?? 0) >= MAX_ENTRY_CARDS) return "limit";
+
+    const id = newId("ec");
+    await this.db
+      .prepare(
+        `INSERT INTO entry_cards (id, tenant_id, kind, title, description, target, sort)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        id,
+        tenantId,
+        card.kind,
+        card.title,
+        card.description,
+        card.target.length > 0 ? card.target : null,
+        (row?.maxSort ?? -1) + 1,
+      )
+      .run();
+    return id;
+  }
+
+  async updateEntryCard(tenantId: string, id: string, card: Omit<EntryCard, "id">): Promise<boolean> {
+    const res = await this.db
+      .prepare(
+        `UPDATE entry_cards SET kind = ?, title = ?, description = ?, target = ?
+          WHERE tenant_id = ? AND id = ?`,
+      )
+      .bind(
+        card.kind,
+        card.title,
+        card.description,
+        card.target.length > 0 ? card.target : null,
+        tenantId,
+        id,
+      )
+      .run();
+    return (res.meta?.changes ?? 0) > 0;
+  }
+
+  async deleteEntryCard(tenantId: string, id: string): Promise<boolean> {
+    const res = await this.db
+      .prepare(`DELETE FROM entry_cards WHERE tenant_id = ? AND id = ?`)
+      .bind(tenantId, id)
+      .run();
+    return (res.meta?.changes ?? 0) > 0;
+  }
+
+  async reorderEntryCards(tenantId: string, orderedIds: string[]): Promise<number> {
+    if (orderedIds.length === 0) return 0;
+    const stmts = orderedIds.map((id, index) =>
+      this.db
+        .prepare(`UPDATE entry_cards SET sort = ? WHERE tenant_id = ? AND id = ?`)
+        .bind(index, tenantId, id),
+    );
+    const res = await this.db.batch<unknown>(stmts);
+    return res.reduce((n, r) => n + (r.meta?.changes ?? 0), 0);
+  }
+
+  async replaceEntryCards(tenantId: string, cards: Omit<EntryCard, "id">[]): Promise<number> {
+    const capped = cards.slice(0, MAX_ENTRY_CARDS);
+    // Löschen und Neuanlegen in EINEM Batch — dazwischen darf die Startansicht
+    // nie leer stehen.
+    const stmts = [
+      this.db.prepare(`DELETE FROM entry_cards WHERE tenant_id = ?`).bind(tenantId),
+      ...capped.map((card, index) =>
+        this.db
+          .prepare(
+            `INSERT INTO entry_cards (id, tenant_id, kind, title, description, target, sort)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .bind(
+            newId("ec"),
+            tenantId,
+            card.kind,
+            card.title,
+            card.description,
+            card.target.length > 0 ? card.target : null,
+            index,
+          ),
+      ),
+    ];
+    await this.db.batch<unknown>(stmts);
+    return capped.length;
   }
 
   /** Aktuellen Artikelstand als JSON-Snapshot einfrieren (Audit/Rollback-Basis). */

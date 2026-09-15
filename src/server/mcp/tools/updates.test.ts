@@ -72,19 +72,21 @@ const structured = (result: { structuredContent?: unknown }) =>
   result.structuredContent as Record<string, unknown>;
 
 describe("Registrierung & Scope", () => {
-  it("die fünf Pflege-Werkzeuge hängen an updates:write", () => {
+  it("die sofort-öffentlichen Pflege-Werkzeuge hängen an updates:write", () => {
     for (const name of [
       "create_changelog_entry",
       "update_changelog_entry",
       "delete_changelog_entry",
       "upsert_roadmap_item",
       "delete_roadmap_item",
+      // Einstiegs-Karten (0035) leben wie Changelog/Roadmap ohne Entwurf.
+      "set_entry_cards",
     ]) {
       const tool = findTool(name);
       expect(tool, name).toBeDefined();
       expect(tool!.scope).toBe("updates:write");
     }
-    expect(ALL_TOOLS.filter((t) => t.scope === "updates:write")).toHaveLength(5);
+    expect(ALL_TOOLS.filter((t) => t.scope === "updates:write")).toHaveLength(6);
   });
 
   it("ein Schlüssel mit articles:write sieht sie NICHT (kein Veröffentlichen durch die Hintertür)", () => {

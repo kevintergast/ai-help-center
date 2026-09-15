@@ -16,6 +16,7 @@ import {
 } from "@/lib/content/saved-articles";
 import { cn } from "@/lib/ui/cn";
 import { Badge } from "@/components/ui/badge";
+import { HelpDrillContext } from "./entry-cards";
 
 /**
  * CHANGELOG-STUFEN (0030) für Endnutzer: Die technischen Wörter major/minor/patch
@@ -252,6 +253,16 @@ export function HelpShell({
                     >
                       <DocIcon width={15} height={15} className="shrink-0 opacity-70" />
                       <span className="truncate">{a.title}</span>
+                      {/* Artikel-Flag (0024) — hier sichtbar, damit „Beta" schon
+                          VOR dem Klick erkennbar ist, nicht erst im Artikel. */}
+                      {a.flag ? (
+                        <Badge
+                          tone={a.flag.color}
+                          className="ml-auto shrink-0 px-1.5 py-0.5 text-[10px] uppercase tracking-wide"
+                        >
+                          {a.flag.text}
+                        </Badge>
+                      ) : null}
                     </Link>
                   </li>
                 );
@@ -387,7 +398,10 @@ export function HelpShell({
                 <ChangelogView t={t} entries={data.changelog} />
               </div>
             ) : (
-              children
+              // Die Einstiegs-Karten der Startansicht müssen die Roadmap-/
+              // Changelog-Ebene öffnen können — die lebt hier in der Hülle,
+              // nicht in einer Route.
+              <HelpDrillContext.Provider value={openDrill}>{children}</HelpDrillContext.Provider>
             )}
           </div>
           {!drill && footer ? (

@@ -15,6 +15,7 @@ const BASE = 1783000000;
 // Release-Zeitpunkte (fest, damit Re-Runs nichts verschieben — aber mit dem
 // tatsächlichen Datum, sonst lesen Nutzer ein falsches „veröffentlicht am").
 const RELEASE_0_2_0 = 1787492800; // 2026-08-23
+const RELEASE_0_3_0 = 1789394400; // 2026-09-15
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -130,9 +131,39 @@ const ARTICLES = [
       "Endgültig löschen kannst du einen Artikel im Editor (Bearbeiten-Modus, »Artikel löschen«) — nach einer Bestätigung werden auch seine Bilder und der Such-Index-Eintrag entfernt. Andere Sprachfassungen bleiben bestehen.",
       "Jede Überschrift in einem veröffentlichten Artikel ist einzeln verlinkbar: Beim Überfahren erscheint ein kleines Link-Symbol — ein Klick kopiert die Adresse direkt zu diesem Abschnitt, ideal um Kunden auf genau eine Stelle zu verweisen.",
       "Ab drei Überschriften zeigt der Artikel zusätzlich ein Inhaltsverzeichnis — auf großen Bildschirmen rechts neben dem Text, auf dem Handy über dem Artikel. Es entsteht automatisch aus deinen Überschriften; du musst nichts pflegen.",
-      "Die Reihenfolge der Kategorien im Hilfezentrum ergibt sich aus der Reihenfolge, in der die Artikel angelegt wurden.",
+      "Die Reihenfolge von Artikeln und Kategorien in der linken Leiste bestimmst du selbst — unter »Navigation« im Verwaltungsbereich. Siehe »Navigation & Einstieg ordnen«.",
     ],
     related: ["was-ist-hallofhelp"],
+  },
+  {
+    slug: "navigation-und-einstieg",
+    title: "Navigation & Einstieg ordnen",
+    category: "Inhalte pflegen",
+    min: 3,
+    body: [
+      "Ein Hilfezentrum liest man in einer Reihenfolge — »Erste Schritte« gehört nach oben, Spezialfälle nach unten. Unter »Navigation« im Verwaltungsbereich legst du diese Reihenfolge fest und bestimmst, was Besucher auf der Startseite als Einstieg angeboten bekommen.",
+      "## Reihenfolge der Artikel",
+      "Zieh Artikel mit der Maus an ihren Platz, oder setze den Fokus mit der Tabulatortaste auf einen Eintrag und verschiebe ihn mit Pfeil hoch und Pfeil runter. Beides funktioniert gleichwertig — die Tastaturbedienung ist kein Notbehelf.",
+      "Kategorien verschiebst du als Ganzes: Der Kategoriename ist selbst ein Griff, ihn zu ziehen nimmt alle seine Artikel mit. Eine Kategorie hat keine eigene Position — sie steht dort, wo ihr erster Artikel steht. Deshalb genügt eine einzige Liste für beide Ebenen.",
+      "Artikel bleiben beim Sortieren in ihrer Kategorie. Willst du einen Artikel in eine andere Kategorie verschieben, ändere die Kategorie im Artikel selbst — das ist eine inhaltliche Entscheidung und gehört in den Editor, nicht in die Sortierung.",
+      "Entwürfe stehen mit in der Liste, erscheinen im Hilfezentrum aber erst nach dem Veröffentlichen. Das ist Absicht: So bestimmst du den Platz eines Artikels schon vorher, statt ihn nach dem Veröffentlichen an zufälliger Stelle wiederzufinden.",
+      "## Einstiegs-Karten auf der Startseite",
+      "Unter der KI-Eingabe kannst du bis zu sechs Karten anzeigen — der gesetzte erste Schritt für alle, die noch nicht wissen, wonach sie fragen sollen. Jede Karte hat einen Titel, wahlweise eine kurze Beschreibung und ein Ziel.",
+      "Vier Ziele stehen zur Wahl: ein veröffentlichter Artikel, die Roadmap, der Changelog oder eine externe https-Adresse (etwa deine Statusseite oder Community). Externe Karten öffnen in einem neuen Tab und sind mit einem Symbol gekennzeichnet.",
+      "Als Artikel-Ziel stehen nur VERÖFFENTLICHTE Artikel zur Auswahl. Eine Karte, die auf einen Entwurf zeigt, wäre für jeden Besucher ein toter Link.",
+      {
+        type: "accordion",
+        title: "Warum sind Einstiegs-Karten sofort öffentlich?",
+        text:
+          "Wie Changelog und Roadmap haben die Karten keinen Entwurfszustand: Was du speicherst, steht sofort auf der Startseite.\n\nDer Grund ist ihr Zweck — sie sind Navigation, kein Inhalt. Eine halb fertige Karte hilft niemandem, und ein Entwurfszustand für ein Element, das nur aus Titel und Ziel besteht, wäre mehr Verwaltung als Nutzen.",
+      },
+      "## Beta-Kennzeichnung in der Leiste",
+      "Beschreibt ein Artikel eine Funktion, die noch in der Beta ist, gib ihm im Editor ein Flag mit dem Text »Beta«. Das Badge erscheint dann NEBEN dem Artikel in der linken Leiste — nicht erst im Artikel selbst.",
+      "Damit sieht ein Leser schon vor dem Klick, worauf er sich einlässt. Für die Farbe stehen fünf Töne zur Wahl; »Warnung« (gelb) ist für Beta-Hinweise der übliche Griff.",
+      "## Alles davon per KI",
+      "Reihenfolge, Karten und Flags lassen sich auch über einen angebundenen KI-Client setzen. Siehe »Eigenen KI-Client verbinden (MCP)«.",
+    ],
+    related: ["artikel-veroeffentlichen", "ki-client-verbinden"],
   },
   {
     slug: "inhalte-importieren-exportieren",
@@ -272,14 +303,15 @@ const ARTICLES = [
         type: "accordion",
         title: "Was kann eine KI mit welchem Recht?",
         text:
-          "Lesen: Artikel, Entwürfe, Kategorien, Übersetzungen, Statistiken, Einstellungen — dazu die Schreib-Konventionen deines Hilfezentrums, damit die KI gültige Bausteine baut statt zu raten.\n\nArtikel schreiben und ändern: Artikel anlegen (immer als ENTWURF), Texte, Tabellen und Hinweisboxen ändern, ganze Seiten von einer Adresse übernehmen, Bilder hinzufügen — entweder von einer öffentlichen Adresse oder direkt als Datei von deinem Rechner, etwa einen Screenshot, den du gerade gemacht hast — Bildbeschreibungen nachbessern (auch viele auf einmal), Videos einzeln ändern und aus einem eingefügten Transkript Titel und Beschreibung erzeugen lassen. Nichts davon wird öffentlich.\n\nVeröffentlichen: macht Artikel sofort für alle Besucher sichtbar — standardmäßig AUS.\n\nChangelog und Roadmap pflegen: hier gibt es keinen Entwurf, Änderungen sind sofort öffentlich.\n\nLöschen: nur mit einer ausdrücklichen Bestätigung im KI-Gespräch (siehe unten) — standardmäßig AUS.",
+          "Lesen: Artikel, Entwürfe, Kategorien, Übersetzungen, Statistiken, Einstellungen — dazu die Schreib-Konventionen deines Hilfezentrums, damit die KI gültige Bausteine baut statt zu raten.\n\nArtikel schreiben und ändern: Artikel anlegen (immer als ENTWURF), Texte, Tabellen und Hinweisboxen ändern, ganze Seiten von einer Adresse übernehmen, Bilder hinzufügen — entweder von einer öffentlichen Adresse oder direkt als Datei von deinem Rechner, etwa einen Screenshot, den du gerade gemacht hast — Bildbeschreibungen nachbessern (auch viele auf einmal), Videos einzeln ändern und aus einem eingefügten Transkript Titel und Beschreibung erzeugen lassen. Nichts davon wird öffentlich.\n\nVeröffentlichen: macht Artikel sofort für alle Besucher sichtbar und erlaubt zusätzlich, die Reihenfolge der Navigation zu setzen — standardmäßig AUS.\n\nChangelog, Roadmap und Einstiegs-Karten pflegen: hier gibt es keinen Entwurf, Änderungen sind sofort öffentlich.\n\nLöschen: nur mit einer ausdrücklichen Bestätigung im KI-Gespräch (siehe unten) — standardmäßig AUS.",
       },
       "Der Klartext-Schlüssel wird genau einmal angezeigt, direkt nach dem Anlegen. Danach siehst du in der Liste nur noch, wofür er gilt, wann er zuletzt benutzt wurde und wann er abläuft (standardmäßig nach 90 Tagen). Du kannst ihn jederzeit mit einem Klick widerrufen — er wirkt sofort nicht mehr.",
       "Löschen ist absichtlich umständlich: Der erste Löschbefehl löscht nichts, sondern liefert eine Zusammenfassung dessen, was verschwinden würde, plus ein kurzlebiges Bestätigungs-Token. Erst ein zweiter Aufruf mit diesem Token löscht wirklich. Eine KI kann also nicht in einem Schritt Inhalte vernichten.",
       "Nicht per MCP erreichbar sind bewusst: Team und Rollen, Eigentümerschaft, Rechtstexte, eigene Domain, Plan und Bezahlung sowie die Schlüsselverwaltung selbst. Diese Flächen bleiben Mensch, Anmeldung und Zwei-Faktor-Authentifizierung vorbehalten — ein geleakter Schlüssel soll Inhalte gefährden können, niemals dein Konto.",
+      "Die KI kann außerdem die Navigation ordnen und die Einstiegs-Karten der Startseite setzen — beides wirkt sofort öffentlich und hängt deshalb an den entsprechenden Rechten, nicht am reinen Schreibrecht. Beim Ordnen genügt eine Teil-Liste: Genannte Artikel rücken nach vorn, alle übrigen behalten ihre bisherige Reihenfolge dahinter.",
       "Tipp: Lege lieber zwei enge Schlüssel an als einen Generalschlüssel — etwa einen reinen Lese-Schlüssel für Recherche und Auswertungen und einen Schreib-Schlüssel ohne Veröffentlichen für die Redaktion.",
     ],
-    related: ["inhalte-importieren-exportieren", "artikel-veroeffentlichen"],
+    related: ["inhalte-importieren-exportieren", "artikel-veroeffentlichen", "navigation-und-einstieg"],
   },
   {
     slug: "api-dokumentation-verlinken",
@@ -309,6 +341,24 @@ const ARTICLES = [
   },
 ];
 
+/** Einstiegs-Karten unter der KI-Eingabe (höchstens sechs). */
+const ENTRY_CARDS = [
+  {
+    kind: "article",
+    title: "In zehn Minuten startklar",
+    description: "Konto anlegen, Hilfezentrum erstellen, ersten Artikel veröffentlichen.",
+    target: "hilfezentrum-erstellen",
+  },
+  {
+    kind: "article",
+    title: "Eigenen KI-Client verbinden",
+    description: "Artikel per Claude, Cursor oder eigenem Agenten pflegen (MCP).",
+    target: "ki-client-verbinden",
+  },
+  { kind: "roadmap", title: "Was als Nächstes kommt", description: "Woran wir gerade arbeiten." },
+  { kind: "changelog", title: "Neu in dieser Version", description: "Alle ausgelieferten Änderungen." },
+];
+
 /** Roadmap: die nächsten Bausteine (nur real Geplantes, kein Wunschkonzert). */
 const ROADMAP = [
   { title: "Bezahlpläne & Upgrade (Self-Service)", status: "planned", sort: 1 },
@@ -320,6 +370,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Navigation ordnen, Einstiegs-Karten und Beta-Kennzeichnung",
+    description:
+      "Die Reihenfolge von Artikeln und Kategorien in der linken Leiste legst du jetzt selbst fest — per Maus oder Tastatur unter »Navigation«. Auf der Startseite lassen sich bis zu sechs Einstiegs-Karten unter der KI-Eingabe zeigen (Artikel, Roadmap, Changelog oder externer Link). Und ein Artikel-Flag wie »Beta« erscheint ab sofort schon in der Navigation, nicht erst im Artikel. Alles drei auch per KI-Client über MCP.",
+    at: RELEASE_0_3_0,
+    version: "0.3.0",
+    level: "minor",
+  },
   {
     title: "Changelog & Roadmap selbst pflegen — mit Versionsnummer",
     description:
@@ -360,10 +418,25 @@ ARTICLES.forEach((a, i) => {
   const t = BASE + i * 10;
   const body = esc(JSON.stringify(a.body));
   const related = esc(JSON.stringify((a.related || []).map((s) => "op_" + s)));
+  // `sort` = Position im ARTICLES-Array: die Reihenfolge hier IST die Reihenfolge
+  // in der linken Leiste (0034). Kategorien erben sie über ihren ersten Artikel.
+  const flag = a.flag ? `'${esc(JSON.stringify(a.flag))}'` : "NULL";
   out.push(
-    `INSERT INTO articles (id,tenant_id,locale,slug,title,category,status,body_json,videos_json,related_ids_json,reading_minutes,is_ai_generated,created_at,updated_at,published_at)\n` +
-      `VALUES ('${id}','${TENANT}','${LOCALE}','${esc(a.slug)}','${esc(a.title)}','${esc(a.category)}','published','${body}','[]','${related}',${a.min || 1},0,${t},${t},${t})\n` +
-      `ON CONFLICT(tenant_id,id) DO UPDATE SET locale=excluded.locale,slug=excluded.slug,title=excluded.title,category=excluded.category,status='published',body_json=excluded.body_json,related_ids_json=excluded.related_ids_json,reading_minutes=excluded.reading_minutes,updated_at=excluded.updated_at,published_at=COALESCE(articles.published_at,excluded.published_at);`,
+    `INSERT INTO articles (id,tenant_id,locale,slug,title,category,status,body_json,videos_json,related_ids_json,flag_json,sort,reading_minutes,is_ai_generated,created_at,updated_at,published_at)\n` +
+      `VALUES ('${id}','${TENANT}','${LOCALE}','${esc(a.slug)}','${esc(a.title)}','${esc(a.category)}','published','${body}','[]','${related}',${flag},${i},${a.min || 1},0,${t},${t},${t})\n` +
+      `ON CONFLICT(tenant_id,id) DO UPDATE SET locale=excluded.locale,slug=excluded.slug,title=excluded.title,category=excluded.category,status='published',body_json=excluded.body_json,related_ids_json=excluded.related_ids_json,flag_json=excluded.flag_json,sort=excluded.sort,reading_minutes=excluded.reading_minutes,updated_at=excluded.updated_at,published_at=COALESCE(articles.published_at,excluded.published_at);`,
+  );
+});
+
+// Einstiegs-Karten (0035) — unsere eigene Startseite zeigt, wofür sie da sind.
+// Seed-autoritativ wie Roadmap/Changelog → alte Zeilen ersetzen.
+out.push(`DELETE FROM entry_cards WHERE tenant_id = '${TENANT}';`);
+ENTRY_CARDS.forEach((c, i) => {
+  const id = "op_ec_" + (i + 1);
+  const target = c.target ? `'${esc(c.target)}'` : "NULL";
+  out.push(
+    `INSERT INTO entry_cards (id,tenant_id,kind,title,description,target,sort) VALUES ('${id}','${TENANT}','${c.kind}','${esc(c.title)}','${esc(c.description)}',${target},${i})\n` +
+      `ON CONFLICT(tenant_id,id) DO UPDATE SET kind=excluded.kind,title=excluded.title,description=excluded.description,target=excluded.target,sort=excluded.sort;`,
   );
 });
 

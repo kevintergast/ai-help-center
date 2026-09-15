@@ -35,7 +35,8 @@ export interface ScopeDef {
 export const API_SCOPES = {
   "articles:read": {
     tier: "read",
-    summary: "Read help articles, drafts, categories, translations and conventions.",
+    summary:
+      "Read help articles, drafts, categories, translations, conventions and the start page's entry cards.",
   },
   "analytics:read": {
     tier: "read",
@@ -52,7 +53,8 @@ export const API_SCOPES = {
   },
   "articles:publish": {
     tier: "public",
-    summary: "Publish and unpublish articles. Published changes are immediately visible to end users.",
+    summary:
+      "Publish and unpublish articles, and set the order of the help center navigation. Published changes are immediately visible to end users.",
   },
   "settings:write": {
     tier: "public",
@@ -71,7 +73,7 @@ export const API_SCOPES = {
   "updates:write": {
     tier: "public",
     summary:
-      "Create, edit and delete changelog entries and roadmap items. These have no draft state — changes are immediately visible to end users.",
+      "Create, edit and delete changelog entries, roadmap items and the start page's entry cards. These have no draft state — changes are immediately visible to end users.",
   },
   "articles:delete": {
     tier: "destructive",

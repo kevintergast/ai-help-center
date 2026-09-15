@@ -39,6 +39,7 @@ const NAV: {
 }[] = [
   { href: "/admin", key: "admin.nav.overview", icon: GridIcon },
   { href: "/admin/articles", key: "admin.nav.articles", icon: DocIcon },
+  { href: "/admin/navigation", key: "admin.nav.navigation", icon: MenuIcon },
   { href: "/admin/stats", key: "admin.nav.stats", icon: ChartBarIcon },
   { href: "/admin/plan", key: "admin.nav.plan", icon: CreditCardIcon },
   { href: "/admin/updates", key: "admin.nav.updates", icon: MegaphoneIcon },

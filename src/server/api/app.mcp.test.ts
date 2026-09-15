@@ -30,7 +30,7 @@ const MCP = "/api/v1/mcp";
 const MIGRATIONS = [
   "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql",
   "0002_auth.sql", "0004_two_factor_plugin_columns.sql",
-  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql",
+  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql",
   "0027_api_keys.sql",
 ] as const;
 
@@ -1050,5 +1050,146 @@ describe("MCP — upload_image (lokale Bilder)", () => {
     const { json } = await rpc(f.app, nurLesen, "tools/list");
     const tools = (json as Record<string, { tools: { name: string }[] }>).result.tools;
     expect(tools.map((t) => t.name)).not.toContain("upload_image");
+  });
+});
+
+/* ————— Navigation & Einstiegs-Karten (0034/0035) ————— */
+
+/**
+ * Verhinderte Fehlerfälle:
+ *  - Ein Schlüssel, der laut eigener Zusage „nur Entwürfe" schreibt
+ *    (articles:write), ändert die öffentliche Navigation.
+ *  - Die KI ordnet drei Artikel und zerwürfelt dabei den Rest.
+ *  - Eine Einstiegs-Karte zeigt auf einen Entwurf oder einen Tippfehler-Slug
+ *    → für jeden Endnutzer ein toter Link auf der Startseite.
+ *  - Eine ungültige Karte im Stapel hinterlässt einen halb ersetzten Satz.
+ */
+describe("MCP — Navigation", () => {
+  async function seedPublished(f: ReturnType<typeof makeApp>, token: string, slug: string) {
+    const id = await seedArticle(f.app, token, slug, slug);
+    const pub = await callTool(f.app, token, "publish_article", { id });
+    expect(pub.isError).toBe(false);
+    return id;
+  }
+
+  it("reorder_articles hängt an articles:publish, NICHT an articles:write", async () => {
+    const f = makeApp();
+    const nurSchreiben = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const { json } = await rpc(f.app, nurSchreiben, "tools/list");
+    const tools = (json as Record<string, { tools: { name: string }[] }>).result.tools;
+    expect(tools.map((t) => t.name)).not.toContain("reorder_articles");
+
+    // Unsichtbar UND gesperrt: `tools/call` lehnt mit JSON-RPC-Fehler ab,
+    // nicht erst im Werkzeug (registry.ts leitet beides aus `tool.scope` ab).
+    const { res, json: err } = await rpc(f.app, nurSchreiben, "tools/call", {
+      name: "reorder_articles",
+      arguments: { order: ["x"] },
+    });
+    expect(res.status).toBe(403);
+    const rpcErr = (err as Record<string, Record<string, unknown>>).error;
+    expect(rpcErr.code).toBe(-32602);
+    expect(String(rpcErr.message)).toContain("articles:publish");
+  });
+
+  it("ordnet nach Slugs und lässt Nichtgenannte in ihrer Ordnung dahinter", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", [
+      "articles:read",
+      "articles:write",
+      "articles:publish",
+    ]);
+    await seedPublished(f, token, "eins");
+    await seedPublished(f, token, "zwei");
+    await seedPublished(f, token, "drei");
+
+    const res = await callTool(f.app, token, "reorder_articles", { order: ["drei"] });
+    expect(res.isError).toBe(false);
+    expect(res.data!.ordered).toBe(1);
+    expect((res.data!.order as { slug: string }[]).map((a) => a.slug)).toEqual([
+      "drei",
+      "eins",
+      "zwei",
+    ]);
+
+    const slugs = (await f.store.listPublishedArticles("t_a", "de")).map((a) => a.slug);
+    expect(slugs).toEqual(["drei", "eins", "zwei"]);
+  });
+
+  it("nennt unbekannte Einträge beim Namen, statt sie still zu schlucken", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", [
+      "articles:read",
+      "articles:write",
+      "articles:publish",
+    ]);
+    await seedPublished(f, token, "eins");
+
+    const res = await callTool(f.app, token, "reorder_articles", { order: ["eins", "gibt-es-nicht"] });
+    expect(res.isError).toBe(false);
+    expect(res.data!.ignored).toEqual(["gibt-es-nicht"]);
+
+    const keiner = await callTool(f.app, token, "reorder_articles", { order: ["nur-quatsch"] });
+    expect(keiner.isError).toBe(true);
+    expect(keiner.data!.error).toBe("not_found");
+  });
+
+  it("set_entry_cards ersetzt den ganzen Satz und prüft Artikel-Ziele", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", [
+      "articles:read",
+      "articles:write",
+      "articles:publish",
+      "updates:write",
+    ]);
+    await seedPublished(f, token, "erste-schritte");
+    // Bewusst NICHT veröffentlicht — eine Karte darauf wäre ein toter Link.
+    await seedArticle(f.app, token, "geheimer-entwurf", "Entwurf");
+
+    const ok = await callTool(f.app, token, "set_entry_cards", {
+      cards: [
+        { kind: "article", title: "Los geht's", target: "erste-schritte" },
+        { kind: "roadmap", title: "Was kommt" },
+      ],
+    });
+    expect(ok.isError).toBe(false);
+    expect(ok.data!.cards).toBe(2);
+    expect(await f.store.listEntryCards("t_a")).toHaveLength(2);
+
+    const entwurf = await callTool(f.app, token, "set_entry_cards", {
+      cards: [{ kind: "article", title: "X", target: "geheimer-entwurf" }],
+    });
+    expect(entwurf.isError).toBe(true);
+    expect(entwurf.data!.error).toBe("article_not_found");
+    // Nichts angefasst: der gültige Satz von vorhin steht noch.
+    expect(await f.store.listEntryCards("t_a")).toHaveLength(2);
+  });
+
+  it("eine ungültige Karte im Stapel ändert GAR NICHTS", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "updates:write"]);
+    await f.store.replaceEntryCards("t_a", [
+      { kind: "roadmap", title: "Bestand", description: "", target: "" },
+    ]);
+
+    const res = await callTool(f.app, token, "set_entry_cards", {
+      cards: [
+        { kind: "roadmap", title: "Gut" },
+        { kind: "url", title: "Böse", target: "javascript:alert(1)" },
+      ],
+    });
+    expect(res.isError).toBe(true);
+    expect(res.data!.error).toBe("invalid_url");
+
+    const cards = await f.store.listEntryCards("t_a");
+    expect(cards).toHaveLength(1);
+    expect(cards[0].title).toBe("Bestand");
+  });
+
+  it("list_entry_cards genügt ein Lese-Schlüssel", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read"]);
+    const res = await callTool(f.app, token, "list_entry_cards");
+    expect(res.isError).toBe(false);
+    expect(res.data!.cards).toEqual([]);
   });
 });
