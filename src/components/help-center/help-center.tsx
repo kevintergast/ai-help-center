@@ -7,6 +7,8 @@ import type { HelpViewer } from "@/lib/auth/viewer";
 import type { Locale } from "@/lib/tenant/types";
 import { getT } from "@/i18n/t";
 import type { Article, ArticleSummary, AskAnswer, HelpCenterData } from "@/lib/content/types";
+import type { EntryCard } from "@/lib/content/entry-cards";
+import { EntryCards } from "./entry-cards";
 import { PENDING_ASK_KEY, OPEN_ANSWER_KEY } from "@/lib/content/handoff";
 import {
   deleteSavedFromAccount,
@@ -203,6 +205,8 @@ export function HelpCenter({
       {view.kind === "welcome" ? (
         <WelcomeView
           t={t}
+          locale={locale}
+          entryCards={data.entryCards}
           suggestions={data.suggestions}
           modes={promptModes}
           labels={promptLabels}
@@ -259,12 +263,16 @@ export function HelpCenter({
 
 function WelcomeView({
   t,
+  locale,
+  entryCards,
   suggestions,
   modes,
   labels,
   onAsk,
 }: {
   t: T;
+  locale: Locale;
+  entryCards: EntryCard[];
   suggestions: string[];
   modes: { id: string; label: string }[];
   labels: { send: string; mic: string };
@@ -285,6 +293,9 @@ function WelcomeView({
           labels={labels}
           onSubmit={(text) => onAsk(text)}
         />
+        {/* Einstiegs-Karten (0035): der gesetzte erste Schritt für alle, die
+            noch nicht wissen, wonach sie fragen sollen. */}
+        <EntryCards cards={entryCards} locale={locale} />
       </div>
     </div>
   );

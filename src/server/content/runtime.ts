@@ -38,6 +38,7 @@ function d1HelpCenterRepo(db: D1Database, tenant: Tenant): HelpCenterRepository 
     changelog: () => store.changelog(tid, locale),
     // Prompt-Vorschläge sind (noch) nicht in D1 modelliert → statisches Sample.
     promptSuggestions: () => sampleHelpCenterRepo.promptSuggestions(),
+    entryCards: () => store.listEntryCards(tid),
   };
 }
 
@@ -50,15 +51,17 @@ export async function getHelpCenterRepo(tenant: Tenant): Promise<HelpCenterRepos
 /** Vorab aufgelöstes Lese-Bundle fürs (Client-)Hilfezentrum. */
 export async function getHelpCenterData(tenant: Tenant): Promise<HelpCenterData> {
   const repo = await getHelpCenterRepo(tenant);
-  const [groups, searchItems, articles, roadmap, changelog, suggestions] = await Promise.all([
-    repo.listByCategory(),
-    repo.searchItems(),
-    repo.listArticles(),
-    repo.roadmap(),
-    repo.changelog(),
-    repo.promptSuggestions(),
-  ]);
-  return { groups, searchItems, articles, roadmap, changelog, suggestions };
+  const [groups, searchItems, articles, roadmap, changelog, suggestions, entryCards] =
+    await Promise.all([
+      repo.listByCategory(),
+      repo.searchItems(),
+      repo.listArticles(),
+      repo.roadmap(),
+      repo.changelog(),
+      repo.promptSuggestions(),
+      repo.entryCards(),
+    ]);
+  return { groups, searchItems, articles, roadmap, changelog, suggestions, entryCards };
 }
 
 /**

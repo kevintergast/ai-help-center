@@ -1,3 +1,4 @@
+import type { ArticleFlag } from "@/lib/content/blocks";
 import type { ArticleStatus } from "@/lib/content/types";
 
 /**
@@ -22,4 +23,6 @@ export interface AdminArticleRow {
   articleKey: string;
   /** unixepoch — Basis der Übersetzungs-Staleness (Original neuer = veraltet). */
   updatedAt: number;
+  /** Badge („Beta" o. ä.) — sichtbar in der Navigation des Hilfezentrums. */
+  flag?: ArticleFlag | null;
 }

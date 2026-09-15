@@ -1,4 +1,5 @@
 import { parseArticleBody } from "./blocks";
+import type { EntryCard } from "./entry-cards";
 import type {
   Article,
   ArticleSummary,
@@ -184,6 +185,34 @@ export const SAMPLE_CHANGELOG: ChangelogEntry[] = [
   },
 ];
 
+/**
+ * Beispiel-Einstiegskarten für den Dev-Fallback. Zeigen alle vier Arten, damit
+ * das Raster ohne D1 nicht nur theoretisch existiert.
+ */
+export const SAMPLE_ENTRY_CARDS: EntryCard[] = [
+  {
+    id: "ec_sample_1",
+    kind: "article",
+    title: "Erste Schritte",
+    description: "In zehn Minuten vom Konto zum ersten Artikel.",
+    target: "erste-schritte",
+  },
+  {
+    id: "ec_sample_2",
+    kind: "roadmap",
+    title: "Was als Nächstes kommt",
+    description: "Woran wir gerade arbeiten.",
+    target: "",
+  },
+  {
+    id: "ec_sample_3",
+    kind: "changelog",
+    title: "Neu in dieser Version",
+    description: "Alle Änderungen der letzten Wochen.",
+    target: "",
+  },
+];
+
 export const SAMPLE_SUGGESTIONS = [
   "Wie binde ich das Widget ein?",
   "Was passiert, wenn mein Credit-Limit erreicht ist?",
@@ -197,6 +226,7 @@ const toSummary = (a: Article): ArticleSummary => ({
   category: a.category,
   status: a.status,
   updatedLabel: a.updatedLabel,
+  flag: a.flag ?? null,
 });
 
 export function groupByCategory(articles: Article[]): CategoryGroup[] {
@@ -227,4 +257,5 @@ export const sampleHelpCenterRepo: HelpCenterRepository = {
   roadmap: async () => SAMPLE_ROADMAP,
   changelog: async () => SAMPLE_CHANGELOG,
   promptSuggestions: async () => SAMPLE_SUGGESTIONS,
+  entryCards: async () => SAMPLE_ENTRY_CARDS,
 };

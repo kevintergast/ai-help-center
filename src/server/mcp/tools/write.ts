@@ -119,6 +119,16 @@ export const createArticle: McpTool = {
         description: "Array of typed blocks (see get_content_conventions). Strings are treated as text blocks.",
         items: {},
       },
+      flag: {
+        type: "object",
+        description:
+          "Small badge next to the article — in the left navigation AND on the article itself. Use it to mark that the article describes a feature that is still in beta, e.g. { text: \"Beta\", color: \"warn\" }. Pass null to remove it.",
+        properties: {
+          text: { type: "string", description: "Max 24 characters, e.g. \"Beta\"." },
+          color: { type: "string", enum: ["neutral", "brand", "ok", "warn", "crit"] },
+        },
+        required: ["text", "color"],
+      },
       locale: { type: "string", description: "Defaults to the help center's default locale." },
       aiGenerated: {
         type: "boolean",
@@ -178,6 +188,16 @@ export const updateArticle: McpTool = {
         description:
           "REPLACES the article's video list. Each entry: { id, title, description, youtubeId, durationLabel? }. `description` is REQUIRED and is what the AI search reads — write what the video actually shows, not just its title. Keep existing ids (from get_article) to edit rather than replace.",
         items: {},
+      },
+      flag: {
+        type: "object",
+        description:
+          "Small badge next to the article — in the left navigation AND on the article itself. Use it to mark that the article describes a feature that is still in beta, e.g. { text: \"Beta\", color: \"warn\" }. Pass null to remove it.",
+        properties: {
+          text: { type: "string", description: "Max 24 characters, e.g. \"Beta\"." },
+          color: { type: "string", enum: ["neutral", "brand", "ok", "warn", "crit"] },
+        },
+        required: ["text", "color"],
       },
       aiGenerated: { type: "boolean" },
     },

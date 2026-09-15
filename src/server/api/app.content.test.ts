@@ -31,7 +31,7 @@ const MIGRATIONS = [
   "0002_auth.sql",
   "0003_branding.sql",
   "0004_two_factor_plugin_columns.sql",
-  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql",
+  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql",
 ] as const;
 
 function makeTenant(id: string, slug: string): Tenant {
@@ -1242,5 +1242,260 @@ describe("POST /api/v1/admin/articles/import-url (Import per URL)", () => {
     const res = await importUrls(f.app, ["https://help.example.com/leer"], cookie);
     expect(await res.json()).toMatchObject({ created: 0, failed: 1 });
     expect(await f.store.listForTransfer("t_a")).toHaveLength(0);
+  });
+});
+
+/* ————— Navigations-Reihenfolge (0034) ————— */
+
+/**
+ * Verhinderte Fehlerfälle:
+ *  - Die Leiste ordnet weiter nach Anlagedatum, obwohl eine Reihenfolge
+ *    gespeichert wurde (Feature wirkungslos, aber „gespeichert").
+ *  - Ein Teil-Aufruf (KI nennt drei von dreißig Artikeln) wirft alle übrigen
+ *    auf Position 0 und zerwürfelt die Navigation still.
+ *  - Fremde Ids aus einem anderen Mandanten verschieben dort etwas.
+ */
+describe("Artikel-Reihenfolge (/admin/articles/order)", () => {
+  async function seedThree(app: TestApp, cookie: string) {
+    const ids: string[] = [];
+    for (const [slug, category] of [
+      ["eins", "A"],
+      ["zwei", "A"],
+      ["drei", "B"],
+    ] as const) {
+      const res = await postJson(
+        app,
+        "/api/v1/admin/articles",
+        HOST_A,
+        { slug, title: slug, category, body: ["x"] },
+        cookie,
+      );
+      const { id } = (await res.json()) as { id: string };
+      ids.push(id);
+      await app.request(`/api/v1/admin/articles/${id}/publish`, {
+        method: "POST",
+        headers: { host: HOST_A, cookie },
+      });
+    }
+    return ids;
+  }
+
+  const putOrder = (app: TestApp, ids: string[], cookie: string) =>
+    app.request("/api/v1/admin/articles/order", {
+      method: "PUT",
+      headers: { host: HOST_A, "content-type": "application/json", cookie },
+      body: JSON.stringify({ ids }),
+    });
+
+  it("gated wie die übrige Inhaltspflege (user → 403, content → 200)", async () => {
+    const { app, authDb } = makeApp();
+    const userCookie = await sessionAs(app, authDb, HOST_A, "user");
+    expect(
+      (await app.request("/api/v1/admin/articles/order", { headers: { host: HOST_A, cookie: userCookie } }))
+        .status,
+    ).toBe(403);
+
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    const res = await app.request("/api/v1/admin/articles/order", { headers: { host: HOST_A, cookie } });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ articles: [] });
+  });
+
+  it("setzt die Reihenfolge — und die Kategorien folgen ihrem ersten Artikel", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    const [eins, zwei, drei] = await seedThree(app, cookie);
+
+    // Ausgangslage: Anlagereihenfolge → A vor B.
+    expect((await store.listByCategory("t_a", "de")).map((g) => g.category)).toEqual(["A", "B"]);
+
+    expect((await putOrder(app, [drei, zwei, eins], cookie)).status).toBe(200);
+
+    const groups = await store.listByCategory("t_a", "de");
+    expect(groups.map((g) => g.category)).toEqual(["B", "A"]);
+    expect(groups[1].articles.map((a) => a.slug)).toEqual(["zwei", "eins"]);
+  });
+
+  it("TEIL-Liste: Genannte nach vorn, alle übrigen behalten ihre Ordnung", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    const [eins, , drei] = await seedThree(app, cookie);
+
+    // Nur EINEN Artikel nennen — „zwei" und „eins" dürfen nicht kollabieren.
+    expect((await putOrder(app, [drei], cookie)).status).toBe(200);
+
+    const slugs = (await store.listPublishedArticles("t_a", "de")).map((a) => a.slug);
+    expect(slugs).toEqual(["drei", "eins", "zwei"]);
+    expect(eins).toBeTruthy();
+  });
+
+  it("Fremde Ids wirken nicht über die Mandantengrenze", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookieA = await sessionAs(app, authDb, HOST_A, "content");
+    const cookieB = await sessionAs(app, authDb, HOST_B, "content");
+
+    const [einsA] = await seedThree(app, cookieA);
+    const resB = await postJson(
+      app,
+      "/api/v1/admin/articles",
+      HOST_B,
+      { slug: "b-artikel", title: "B", category: "B", body: ["x"] },
+      cookieB,
+    );
+    const { id: idB } = (await resB.json()) as { id: string };
+
+    // A sortiert und nennt dabei eine Id aus B → darf B nicht berühren.
+    await putOrder(app, [idB, einsA], cookieA);
+
+    const rowB = await store.getForEdit("t_b", idB, "de");
+    expect(rowB).not.toBeNull();
+    const slugsA = (await store.listPublishedArticles("t_a", "de")).map((a) => a.slug);
+    expect(slugsA[0]).toBe("eins");
+  });
+
+  it("kaputte Eingabe → 400 statt 500", async () => {
+    const { app, authDb } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    const res = await app.request("/api/v1/admin/articles/order", {
+      method: "PUT",
+      headers: { host: HOST_A, "content-type": "application/json", cookie },
+      body: JSON.stringify({ ids: ["ok", 42] }),
+    });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: "ids_required" });
+  });
+});
+
+/* ————— Einstiegs-Karten (0035) ————— */
+
+/**
+ * Verhinderte Fehlerfälle:
+ *  - Ein `javascript:`-Ziel landet auf der Startseite.
+ *  - Der Deckel greift nicht und die Startseite füllt sich mit Karten.
+ *  - Eine Karte eines fremden Mandanten ist über die eigene Instanz änderbar.
+ */
+describe("Einstiegs-Karten (/admin/entry-cards)", () => {
+  const ARTICLE_CARD = { kind: "article", title: "Erste Schritte", target: "erste-schritte" };
+
+  const postCard = (app: TestApp, body: unknown, cookie: string, host = HOST_A) =>
+    postJson(app, "/api/v1/admin/entry-cards", host, body, cookie);
+
+  it("gated wie Inhaltspflege; legt an und liefert in Reihenfolge zurück", async () => {
+    const { app, authDb } = makeApp();
+    const userCookie = await sessionAs(app, authDb, HOST_A, "user");
+    expect((await postCard(app, ARTICLE_CARD, userCookie)).status).toBe(403);
+
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    expect((await postCard(app, ARTICLE_CARD, cookie)).status).toBe(201);
+    expect((await postCard(app, { kind: "roadmap", title: "Was kommt" }, cookie)).status).toBe(201);
+
+    const list = await app.request("/api/v1/admin/entry-cards", { headers: { host: HOST_A, cookie } });
+    const { cards } = (await list.json()) as { cards: { kind: string; title: string }[] };
+    expect(cards.map((c) => c.kind)).toEqual(["article", "roadmap"]);
+    expect(cards[1].title).toBe("Was kommt");
+  });
+
+  it("lehnt nicht-https-Ziele und titellose Karten ab", async () => {
+    const { app, authDb } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+
+    for (const target of ["javascript:alert(1)", "http://x.test"]) {
+      const res = await postCard(app, { kind: "url", title: "X", target }, cookie);
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ error: "invalid_url" });
+    }
+
+    const noTitle = await postCard(app, { kind: "roadmap", title: "  " }, cookie);
+    expect(noTitle.status).toBe(400);
+    expect(await noTitle.json()).toMatchObject({ error: "title_required" });
+  });
+
+  it("Deckel: die siebte Karte wird abgelehnt", async () => {
+    const { app, authDb } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    for (let i = 0; i < 6; i += 1) {
+      expect((await postCard(app, { kind: "roadmap", title: `K${i}` }, cookie)).status).toBe(201);
+    }
+    const res = await postCard(app, { kind: "roadmap", title: "zu viel" }, cookie);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: "too_many_cards" });
+  });
+
+  it("Karte aus t_a ist über t_b weder änderbar noch löschbar (404)", async () => {
+    const { app, authDb } = makeApp();
+    const cookieA = await sessionAs(app, authDb, HOST_A, "content");
+    const cookieB = await sessionAs(app, authDb, HOST_B, "content");
+
+    const created = await postCard(app, ARTICLE_CARD, cookieA);
+    const { id } = (await created.json()) as { id: string };
+
+    const put = await app.request(`/api/v1/admin/entry-cards/${id}`, {
+      method: "PUT",
+      headers: { host: HOST_B, "content-type": "application/json", cookie: cookieB },
+      body: JSON.stringify({ kind: "roadmap", title: "gekapert" }),
+    });
+    expect(put.status).toBe(404);
+
+    const del = await app.request(`/api/v1/admin/entry-cards/${id}`, {
+      method: "DELETE",
+      headers: { host: HOST_B, cookie: cookieB },
+    });
+    expect(del.status).toBe(404);
+
+    const still = await app.request("/api/v1/admin/entry-cards", {
+      headers: { host: HOST_A, cookie: cookieA },
+    });
+    expect((await still.json()) as { cards: unknown[] }).toMatchObject({ cards: [{ id }] });
+  });
+});
+
+/**
+ * Verhinderter Fehlerfall: Der Satz wird über Einzel-Requests ersetzt (erst
+ * löschen, dann anlegen) — dazwischen sieht JEDER Besucher eine leere
+ * Startseite. Und: eine ungültige Karte im Stapel hinterlässt einen halb
+ * ersetzten Satz.
+ */
+describe("Einstiegs-Karten ersetzen (PUT /admin/entry-cards)", () => {
+  it("ersetzt den ganzen Satz in einem Aufruf", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    await postJson(app, "/api/v1/admin/entry-cards", HOST_A, { kind: "roadmap", title: "Alt" }, cookie);
+
+    const res = await app.request("/api/v1/admin/entry-cards", {
+      method: "PUT",
+      headers: { host: HOST_A, "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        cards: [
+          { kind: "changelog", title: "Neu 1" },
+          { kind: "url", title: "Neu 2", target: "https://status.test" },
+        ],
+      }),
+    });
+    expect(res.status).toBe(200);
+
+    const cards = await store.listEntryCards("t_a");
+    expect(cards.map((c) => c.title)).toEqual(["Neu 1", "Neu 2"]);
+  });
+
+  it("eine ungültige Karte im Stapel ändert GAR NICHTS", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    await postJson(app, "/api/v1/admin/entry-cards", HOST_A, { kind: "roadmap", title: "Bestand" }, cookie);
+
+    const res = await app.request("/api/v1/admin/entry-cards", {
+      method: "PUT",
+      headers: { host: HOST_A, "content-type": "application/json", cookie },
+      body: JSON.stringify({
+        cards: [
+          { kind: "changelog", title: "Gut" },
+          { kind: "url", title: "Böse", target: "javascript:alert(1)" },
+        ],
+      }),
+    });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: "invalid_url", index: 1 });
+
+    const cards = await store.listEntryCards("t_a");
+    expect(cards.map((c) => c.title)).toEqual(["Bestand"]);
   });
 });

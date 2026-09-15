@@ -5,7 +5,8 @@ import {
   MAX_TITLE_LENGTH,
   RESERVED_SLUGS,
 } from "@/server/content/validate";
-import { MAX_LINK_CARDS, TAG_COLORS, TEXT_VARIANTS } from "@/lib/content/blocks";
+import { MAX_LINK_CARDS, MAX_TAG_TEXT, TAG_COLORS, TEXT_VARIANTS } from "@/lib/content/blocks";
+import { ENTRY_CARD_KINDS, MAX_ENTRY_CARDS } from "@/lib/content/entry-cards";
 import { API_SCOPES, scopeDef } from "@/server/apikeys/scopes";
 import { fail, ok, type McpTool, type ToolContext } from "./types";
 
@@ -273,6 +274,20 @@ export const getContentConventions: McpTool = {
             note: `A grid of link cards side by side — use this for sections that are pure navigation ("More features", "Related integrations"), which is how most help centers end an article. 1 to ${MAX_LINK_CARDS} items; every slug must be an article that exists in this help center.`,
           },
         ],
+      },
+      flag: {
+        shape: { text: "Beta", color: "warn" },
+        colors: [...TAG_COLORS],
+        maxTextChars: MAX_TAG_TEXT,
+        note: "Optional badge on the article. It shows BOTH next to the article in the left navigation and on the article page — use it to mark that an article describes a feature that is still in beta. Set it with create_article / update_article; pass null to remove it.",
+      },
+      navigation: {
+        note: "The left navigation is ordered by an explicit position, not by creation date. Use reorder_articles to set it; categories inherit their position from their first article, so ordering the articles orders the categories too.",
+      },
+      entryCards: {
+        maxCards: MAX_ENTRY_CARDS,
+        kinds: [...ENTRY_CARD_KINDS],
+        note: "Cards under the AI input on the start page — the deliberate first step for someone who does not know what to ask. Read with list_entry_cards, set with set_entry_cards (which replaces the whole set). kind 'article' points at a PUBLISHED article's slug, 'url' at an https address, 'roadmap' and 'changelog' open those views.",
       },
       lifecycle: {
         note: "Articles created through this server always start as drafts. Publishing is a separate tool and a separate permission.",

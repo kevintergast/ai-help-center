@@ -57,6 +57,8 @@ import type { ApiDeps, ApiEnv, GuardSessionData } from "./context";
 
 /** Import per URL: Deckel fürs Fremd-Fetching (Kennung/Timeout: media-import). */
 const MAX_IMPORT_URLS = 20;
+/** Deckel für eine Sortier-Anfrage — mehr Artikel hat keine Instanz in der Leiste. */
+const MAX_ORDER_IDS = 2_000;
 const MAX_PAGE_CHARS = 2_000_000;
 const DEFAULT_IMPORT_CATEGORY = "Import";
 const MAX_IMAGE_DESCRIPTION_CHARS = 500;
@@ -116,6 +118,41 @@ export function contentAdminRouter(deps: ApiDeps) {
       if (err instanceof SlugConflictError) return c.json({ error: "slug_conflict" }, 409);
       throw err;
     }
+  });
+
+  /**
+   * NAVIGATIONS-REIHENFOLGE (0034) — Lesen und Setzen.
+   *
+   * MUSS VOR `/:id` stehen: Hono probiert die Routen in Registrierungs-
+   * reihenfolge, sonst schluckt `/:id` das Wort „order" als Artikel-Id.
+   *
+   * Gelesen werden ALLE Status (auch Entwürfe): Wer einen Entwurf nicht
+   * mitsortieren kann, bekommt beim Veröffentlichen einen Artikel an
+   * zufälliger Stelle in die Leiste.
+   */
+  r.get("/order", requireTeam("content"), async (c) => {
+    const content = await deps.getContentDeps();
+    if (!content) return c.json({ error: "content_unavailable" }, 503);
+    const tenant = c.get("tenant");
+    const articles = await content.store.listOrderable(tenant.id, tenant.defaultLocale);
+    return c.json({ articles });
+  });
+
+  r.put("/order", requireTeam("content"), async (c) => {
+    const parsed = await readJson(c);
+    if (!parsed.ok) return c.json({ error: "invalid_json" }, 400);
+
+    const body = parsed.body as { ids?: unknown };
+    if (!Array.isArray(body.ids)) return c.json({ error: "ids_required" }, 400);
+    if (body.ids.length > MAX_ORDER_IDS) return c.json({ error: "too_many_ids" }, 400);
+    const ids = body.ids.filter((v): v is string => typeof v === "string");
+    if (ids.length !== body.ids.length) return c.json({ error: "ids_required" }, 400);
+
+    const content = await deps.getContentDeps();
+    if (!content) return c.json({ error: "content_unavailable" }, 503);
+    const tenant = c.get("tenant");
+    const updated = await content.store.reorderArticles(tenant.id, tenant.defaultLocale, ids);
+    return c.json({ ok: true, updated });
   });
 
   // Aktualisieren (Teil-Update; erzeugt einen Version-Snapshot).

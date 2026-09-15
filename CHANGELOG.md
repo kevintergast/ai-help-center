@@ -26,6 +26,28 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.3.0] – 2026-09-15
+
+_Navigations-Reihenfolge, Einstiegs-Karten und Beta-Kennzeichnung — je manuell und per MCP_
+
+### Hinzugefügt
+- **content:** Reihenfolge der Navigation ist pflegbar — Artikel und Kategorien
+  per Ziehen oder Pfeiltasten sortierbar (`/admin/navigation`), Kategorien erben
+  ihre Position vom ersten Artikel (Migration 0034) (dd8029d)
+- **content:** Einstiegs-Karten unter der KI-Eingabe der Startseite — bis zu
+  sechs, mit Ziel Artikel/Roadmap/Changelog/externe https-Adresse
+  (Migration 0035) (dd8029d)
+- **content:** Das Artikel-Flag (z. B. „Beta") erscheint jetzt auch neben dem
+  Artikel in der linken Leiste, nicht erst im Artikel (dd8029d)
+- **mcp:** `reorder_articles` (articles:publish), `list_entry_cards`
+  (articles:read) und `set_entry_cards` (updates:write); `flag` ist über
+  `create_article`/`update_article` setzbar (dd8029d)
+
+### Geändert
+- **api:** Scope-Zusagen von `articles:read`, `articles:publish` und
+  `updates:write` nennen die neuen Fähigkeiten — sie gehen als Klartext an den
+  KI-Client des Kunden (dd8029d)
+
 ## [0.2.4] – 2026-09-11
 
 _Zwei kleine Fähigkeiten auf bestehenden Flächen plus ein Prod-Fehler bei Sitemap und robots.txt — keine neue Fähigkeitsklasse._
