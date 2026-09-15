@@ -26,12 +26,12 @@ const ARTICLES = [
     min: 2,
     body: [
       "HallofHelp ist ein White-Label-Hilfezentrum: Du richtest unter deiner eigenen Subdomain ein Hilfezentrum ein, versiehst es mit deinem Logo und deinen Farben und füllst es mit Artikeln.",
-      "Deine Nutzer öffnen das Hilfezentrum, stöbern nach Kategorien und durchsuchen die Artikel. Zusätzlich kannst du eine Roadmap und einen Changelog pflegen, um Geplantes und Neuerungen transparent zu machen.",
+      "Deine Nutzer öffnen das Hilfezentrum, stöbern nach Kategorien und durchsuchen die Artikel. Auf der Startseite empfängt sie ein KI-Eingabefeld — darunter kannst du Einstiegs-Karten zeigen, die auf deine wichtigsten Artikel führen. Die Reihenfolge der Leiste links bestimmst du selbst. Zusätzlich kannst du eine Roadmap und einen Changelog pflegen, um Geplantes und Neuerungen transparent zu machen.",
       "Die Roadmap kennt vier Zustände: »Angefragt« für Kundenwünsche, die du gesammelt, aber noch nicht zugesagt hast, dann »Geplant«, »In Arbeit« und »Geliefert«. Der Unterschied zwischen angefragt und geplant ist wichtig — er entscheidet, ob ein Eintrag eine Sammlung oder ein Versprechen ist.",
       "Jedes Hilfezentrum ist strikt getrennt: eigene Subdomain, eigene Inhalte, eigenes Team und eigene Zugriffsrechte. Kein Kunde sieht die Daten eines anderen.",
       "Dieses Hilfezentrum, das du gerade liest, ist selbst mit HallofHelp gebaut — es ist unser lebendes Beispiel dafür, wie das Produkt genutzt wird.",
     ],
-    related: ["hilfezentrum-erstellen", "artikel-veroeffentlichen"],
+    related: ["hilfezentrum-erstellen", "artikel-veroeffentlichen", "navigation-und-einstieg"],
   },
   {
     slug: "hilfezentrum-erstellen",
