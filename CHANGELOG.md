@@ -26,6 +26,37 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.4.0] – 2026-09-16
+
+_Redesign der Flächen, wählbare Artikel-Symbole und Kontaktseite_
+
+### Hinzugefügt
+- **ui:** Neue Flächen-Hierarchie — `--page` (App-Grund) getrennt von `--surface`
+  (Inhalt/Karten); Palette kühl-neutral, White-Label unberührt. Seitenleiste
+  und Inhalt sind jetzt über die FLÄCHE getrennt, nicht nur über eine Linie
+  (f0421a3)
+- **content:** Symbol je Artikel für die Navigation — fester Katalog aus 24
+  Zeichen, Standard ist KEINS; ohne vergebene Symbole entfällt die Spalte ganz
+  (Migration 0036). Auch über MCP setzbar (f0421a3)
+- **content:** Kontaktseite `/contact` mit je einer Karte pro Weg (E-Mail,
+  Telefon, Formular), verlinkt unten in der Navigation. Erscheint genau dann,
+  wenn mindestens ein Weg gepflegt ist (Migration 0037) (f0421a3)
+
+### Geändert
+- **ui:** Der Link auf die eigene API-Dokumentation steht jetzt im Kopf neben
+  dem Theme-Umschalter statt in der linken Leiste — er führt nach außen und las
+  sich zwischen den Artikeln wie ein weiterer Artikel (f0421a3)
+- **ui:** Das Ticket-Formular kann offen und rahmenlos gerendert werden; auf der
+  Kontaktseite entfällt damit der Zwischenklick „Etwas stimmt nicht?" (f0421a3)
+
+### Behoben
+- **ci:** Deploy-Verifikation wartet lang genug auf den globalen Rollout (6740675)
+- **api:** Einstiegs-Karten in EINEM Aufruf ersetzen statt in Einzelschritten (f5a2010)
+
+### Wartung
+- **content:** Symbole, Kontaktseite und Header-Link im eigenen Hilfezentrum dokumentieren (86aae14)
+- **content:** Startseiten-Karten und Navigations-Reihenfolge im Einstiegsartikel nennen (44997de)
+
 ## [0.3.0] – 2026-09-15
 
 _Navigations-Reihenfolge, Einstiegs-Karten und Beta-Kennzeichnung — je manuell und per MCP_
