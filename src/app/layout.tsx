@@ -57,7 +57,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     const t = getT(DEFAULT_LOCALE);
     return (
       <html lang={DEFAULT_LOCALE} suppressHydrationWarning>
-        <body className="min-h-screen bg-surface font-sans text-ink antialiased">
+        <body className="min-h-screen bg-page font-sans text-ink antialiased">
           <EnvMarker env={appEnv} />
           <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-2 px-6 text-center">
             <h1 className="text-xl font-bold">{t("tenantNotFound.title")}</h1>
@@ -77,7 +77,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body
-        className="min-h-screen bg-surface font-sans text-ink antialiased"
+        className="min-h-screen bg-page font-sans text-ink antialiased"
         data-tenant={tenant.slug}
       >
         <EnvMarker env={appEnv} />

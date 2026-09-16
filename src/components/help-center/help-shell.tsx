@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/ui/cn";
 import { Badge } from "@/components/ui/badge";
 import { HelpDrillContext } from "./entry-cards";
+import { ArticleIconGlyph } from "@/components/ui/article-icon";
 
 /**
  * CHANGELOG-STUFEN (0030) für Endnutzer: Die technischen Wörter major/minor/patch
@@ -43,8 +44,8 @@ import {
   BookmarkIcon,
   CloseIcon,
   CodeIcon,
-  DocIcon,
   ExternalLinkIcon,
+  InboxIcon,
   MegaphoneIcon,
   MenuIcon,
   PlusIcon,
@@ -54,7 +55,7 @@ import {
 type T = ReturnType<typeof getT>;
 
 const NAV_ROW =
-  "flex w-full items-center gap-2 rounded-comfy px-2 py-1.5 text-left text-sm text-ink-muted transition-colors hover:bg-tint hover:text-ink";
+  "flex w-full items-center gap-2 rounded-comfy px-2 py-1.5 text-left text-sm text-ink-muted transition-colors hover:bg-surface hover:text-ink";
 
 export interface HelpShellProps {
   locale: Locale;
@@ -73,6 +74,8 @@ export interface HelpShellProps {
   data: HelpCenterData;
   /** Slug des aktuell offenen Artikels (Navigation hervorheben). */
   activeSlug?: string;
+  /** Die Kontaktseite ist offen → ihren Eintrag unten hervorheben. */
+  activeContact?: boolean;
   /** Operator-Instanz (app.*) → CTA „Eigenes Hilfezentrum erstellen" im Header. */
   isOperator?: boolean;
   /**
@@ -105,6 +108,7 @@ export function HelpShell({
   apiDocsUrl = null,
   data,
   activeSlug,
+  activeContact = false,
   isOperator = false,
   viewer = null,
   onHome,
@@ -161,6 +165,11 @@ export function HelpShell({
     router.push("/");
   }
 
+  // Einmal für die ganze Leiste: Hat überhaupt ein Artikel ein Symbol? Wenn
+  // nicht (der Standard), fällt die Symbol-Spalte komplett weg — 15px, die
+  // sonst auf jeder Zeile leer stünden.
+  const anyIcon = data.groups.some((g) => g.articles.some((a) => a.icon));
+
   const normalSidebar = (
     <div className="flex h-full flex-col gap-5 p-4">
       <SearchCombobox
@@ -170,7 +179,7 @@ export function HelpShell({
         aria-label={t("hc.searchAria")}
         onSelect={(it) => openSlug(slugById.get(it.id) ?? it.id)}
       />
-      <nav aria-label={t("hc.articlesHeading")} className="flex flex-col gap-5 overflow-y-auto">
+      <nav aria-label={t("hc.articlesHeading")} className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
         {/* Ganz oben: Roadmap + Changelog (öffnen eine Ebene tiefer). */}
         <ul className="flex flex-col gap-0.5">
           <li>
@@ -185,22 +194,6 @@ export function HelpShell({
               <span className="truncate">{t("hc.changelog")}</span>
             </button>
           </li>
-          {/* API-Doku (0033): echter Auswärts-Link, deshalb <a> statt <button>
-              und mit Außen-Symbol — der Klick verlässt das Hilfezentrum. */}
-          {apiDocsUrl ? (
-            <li>
-              <a
-                href={apiDocsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={NAV_ROW}
-              >
-                <CodeIcon width={15} height={15} className="shrink-0 opacity-70" />
-                <span className="truncate">{t("hc.apiDocs")}</span>
-                <ExternalLinkIcon width={12} height={12} className="shrink-0 opacity-50" aria-hidden />
-              </a>
-            </li>
-          ) : null}
         </ul>
 
         {/* Eigener Abschnitt „Meine Artikel" (gespeicherte KI-Antworten) + Anmelden/Avatar. */}
@@ -246,12 +239,22 @@ export function HelpShell({
                       onClick={() => setSidebarOpen(false)}
                       className={cn(
                         "flex w-full items-center gap-2 rounded-comfy px-2 py-1.5 text-left text-sm transition-colors",
+                        // Aktiv/Hover = WEISSE Pille auf grauer Leiste. Auf der
+                        // alten Einheitsfläche musste das ein Grauton sein und
+                        // war entsprechend schwer zu sehen.
                         active
-                          ? "bg-tint font-medium text-ink"
-                          : "text-ink-muted hover:bg-tint hover:text-ink",
+                          ? "bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.06)]"
+                          : "text-ink-muted hover:bg-surface hover:text-ink",
                       )}
                     >
-                      <DocIcon width={15} height={15} className="shrink-0 opacity-70" />
+                      {/* Symbol (0036): nur wenn eines gewählt ist. Die Spalte
+                          wird aber freigehalten, SOBALD irgendein Artikel eines
+                          hat — sonst stünden die Titel einer Liste versetzt. */}
+                      {anyIcon ? (
+                        <span className="flex w-[15px] shrink-0 justify-center opacity-70">
+                          <ArticleIconGlyph name={a.icon} />
+                        </span>
+                      ) : null}
                       <span className="truncate">{a.title}</span>
                       {/* Artikel-Flag (0024) — hier sichtbar, damit „Beta" schon
                           VOR dem Klick erkennbar ist, nicht erst im Artikel. */}
@@ -270,6 +273,28 @@ export function HelpShell({
             </ul>
           </div>
         ))}
+
+        {/* KONTAKT (0037) ganz unten: der letzte Ausweg gehört ans Ende des
+            Weges, nicht neben die Artikel. Erscheint NUR, wenn mindestens ein
+            Weg gepflegt ist — ohne Wege gibt es die Seite gar nicht. */}
+        {data.contactMethods.length > 0 ? (
+          <div className="mt-auto border-t border-hairline pt-4">
+            <Link
+              href="/contact"
+              aria-current={activeContact ? "page" : undefined}
+              onClick={() => setSidebarOpen(false)}
+              className={cn(
+                "flex w-full items-center gap-2 rounded-comfy px-2 py-1.5 text-left text-sm transition-colors",
+                activeContact
+                  ? "bg-surface font-medium text-ink shadow-[0_1px_2px_rgba(16,24,40,0.06)]"
+                  : "text-ink-muted hover:bg-surface hover:text-ink",
+              )}
+            >
+              <InboxIcon width={15} height={15} className="shrink-0 opacity-70" aria-hidden />
+              <span className="truncate">{t("hc.contact.navLabel")}</span>
+            </Link>
+          </div>
+        ) : null}
       </nav>
     </div>
   );
@@ -279,7 +304,7 @@ export function HelpShell({
     <div className="p-4">
       <button
         onClick={() => setDrill(null)}
-        className="flex w-full items-center gap-2 rounded-comfy px-2 py-1.5 text-left text-sm font-medium text-ink transition-colors hover:bg-tint"
+        className="flex w-full items-center gap-2 rounded-comfy px-2 py-1.5 text-left text-sm font-medium text-ink transition-colors hover:bg-surface"
       >
         <ArrowLeftIcon width={16} height={16} className="shrink-0" />
         <span className="truncate">{drill === "roadmap" ? t("hc.roadmap") : t("hc.changelog")}</span>
@@ -315,7 +340,7 @@ export function HelpShell({
     );
 
   return (
-    <div className="flex h-screen flex-col bg-surface text-ink">
+    <div className="flex h-screen flex-col bg-page text-ink">
       {/* Top bar (immer sichtbar) */}
       <header className="z-30 flex w-full items-center gap-3 border-b border-hairline bg-surface px-4 py-3">
         <IconButton
@@ -355,6 +380,24 @@ export function HelpShell({
               <span className="hidden sm:inline">{t("hc.createHelpCenter")}</span>
             </Link>
           ) : null}
+          {/* API-DOKU (0033) im Kopf, direkt neben dem Theme-Umschalter.
+              Sie stand vorher in der linken Leiste zwischen den Artikeln und
+              las sich dort wie ein weiterer Artikel — sie ist aber ein
+              AUSWÄRTS-Ziel. Deshalb <a> mit Außen-Symbol, neuem Tab und
+              rel=noopener; auf schmalen Schirmen bleibt nur das Symbol. */}
+          {apiDocsUrl ? (
+            <a
+              href={apiDocsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={t("hc.apiDocs")}
+              className="inline-flex items-center gap-1.5 rounded-std px-2 py-1.5 text-sm text-ink-muted transition-colors hover:bg-tint hover:text-ink focus-visible:outline-none focus-visible:shadow-focusglow"
+            >
+              <CodeIcon width={16} height={16} className="shrink-0" />
+              <span className="hidden sm:inline">{t("hc.apiDocs")}</span>
+              <ExternalLinkIcon width={11} height={11} className="shrink-0 opacity-60" aria-hidden />
+            </a>
+          ) : null}
           <ThemeToggle label={t("hc.themeToggle")} />
           {/* Konto — gemeinsames Menü mit dem Admin-Header (account-menu.tsx). */}
           <AccountMenu locale={locale} viewer={viewer} isOperator={isOperator} />
@@ -363,7 +406,9 @@ export function HelpShell({
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar (immer sichtbar) */}
-        <aside className="hidden w-72 shrink-0 overflow-y-auto border-r border-hairline md:block">
+        {/* Leiste bleibt auf dem App-Grund (grau); der Inhalt daneben ist weiß —
+            die FLÄCHE trennt beide, nicht nur die Linie. */}
+        <aside className="hidden w-72 shrink-0 overflow-y-auto border-r border-hairline bg-page md:block">
           {sidebar}
         </aside>
 
@@ -371,7 +416,7 @@ export function HelpShell({
         {sidebarOpen ? (
           <div className="fixed inset-0 z-40 md:hidden">
             <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} aria-hidden />
-            <div className="absolute inset-y-0 left-0 w-80 max-w-[85%] overflow-y-auto border-r border-hairline bg-surface">
+            <div className="absolute inset-y-0 left-0 w-80 max-w-[85%] overflow-y-auto border-r border-hairline bg-page">
               <div className="flex justify-end p-2">
                 <IconButton
                   aria-label={t("hc.closeMenu")}
@@ -387,7 +432,7 @@ export function HelpShell({
         ) : null}
 
         {/* Main — volle Breite; nur der Inhalt scrollt */}
-        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-surface">
           <div className="flex-1 overflow-y-auto">
             {drill === "roadmap" ? (
               <div className="px-5 py-8 md:px-10">

@@ -7,6 +7,7 @@ import {
 } from "@/server/content/validate";
 import { MAX_LINK_CARDS, MAX_TAG_TEXT, TAG_COLORS, TEXT_VARIANTS } from "@/lib/content/blocks";
 import { ENTRY_CARD_KINDS, MAX_ENTRY_CARDS } from "@/lib/content/entry-cards";
+import { ARTICLE_ICONS } from "@/lib/content/article-icons";
 import { API_SCOPES, scopeDef } from "@/server/apikeys/scopes";
 import { fail, ok, type McpTool, type ToolContext } from "./types";
 
@@ -280,6 +281,10 @@ export const getContentConventions: McpTool = {
         colors: [...TAG_COLORS],
         maxTextChars: MAX_TAG_TEXT,
         note: "Optional badge on the article. It shows BOTH next to the article in the left navigation and on the article page — use it to mark that an article describes a feature that is still in beta. Set it with create_article / update_article; pass null to remove it.",
+      },
+      icon: {
+        values: [...ARTICLE_ICONS],
+        note: "Optional icon next to the article in the left navigation. DEFAULT IS NONE and that is usually right — a symbol that repeats on every row carries no information. Set one only where it helps someone scan. Set via create_article / update_article; pass null to remove it.",
       },
       navigation: {
         note: "The left navigation is ordered by an explicit position, not by creation date. Use reorder_articles to set it; categories inherit their position from their first article, so ordering the articles orders the categories too.",

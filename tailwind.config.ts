@@ -12,6 +12,8 @@ export default {
           accent: "var(--brand-accent)",
           fg: "var(--brand-primary-fg)",
         },
+        /* App-Grund (Body, Seitenleiste) — die Ebene UNTER den Inhaltsflächen. */
+        page: "var(--page)",
         surface: {
           DEFAULT: "var(--surface)",
           raised: "var(--surface-2)",

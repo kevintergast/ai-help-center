@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Locale } from "@/lib/tenant/types";
 import { TAG_COLORS, type ArticleFlag, type TagColor } from "@/lib/content/blocks";
+import { ARTICLE_ICONS, type ArticleIcon } from "@/lib/content/article-icons";
+import { ArticleIconGlyph } from "@/components/ui/article-icon";
 import type {
   Article,
   ArticleStatus,
@@ -25,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Dialog } from "@/components/ui/dialog";
 import { Toast } from "@/components/ui/toast";
-import { ArrowLeftIcon, PencilIcon } from "@/components/ui/icons";
+import { ArrowLeftIcon, CloseIcon, PencilIcon } from "@/components/ui/icons";
 
 interface Draft {
   title: string;
@@ -34,6 +36,7 @@ interface Draft {
   blocks: EditorBlock[];
   videos: ArticleVideo[];
   flag: ArticleFlag | null;
+  icon: ArticleIcon | null;
 }
 
 const toDraft = (a: Article): Draft => ({
@@ -43,6 +46,7 @@ const toDraft = (a: Article): Draft => ({
   blocks: wrapBlocks(a.body),
   videos: [...a.videos],
   flag: a.flag ?? null,
+  icon: a.icon ?? null,
 });
 
 /** Vergleichsbasis OHNE Client-uids (die sind flüchtig, nie „dirty"). */
@@ -177,6 +181,7 @@ export function ArticleEditor({
           body: draft.blocks.map((w) => w.block),
           videos: draft.videos,
           flag: draft.flag,
+          icon: draft.icon,
         }),
       });
       if (!put.ok) throw new Error("save_failed");
@@ -204,6 +209,7 @@ export function ArticleEditor({
       body: draft.blocks.map((w) => w.block),
       videos: draft.videos,
       flag: draft.flag,
+      icon: draft.icon,
     });
   }
 
@@ -388,6 +394,33 @@ export function ArticleEditor({
                 />
               </div>
             ) : null}
+          </div>
+
+          {/* SYMBOL (0036) für die Navigation. Standard ist KEINS — deshalb
+              steht „Kein Symbol" als erste, vorausgewählte Kachel und nicht
+              als versteckte Abwahl irgendwo am Rand. */}
+          <div>
+            <span className="mb-2 block text-sm text-ink-muted">{t("editor.icon.label")}</span>
+            <div role="radiogroup" aria-label={t("editor.icon.label")} className="flex flex-wrap gap-1.5">
+              <IconChoice
+                selected={draft.icon === null}
+                label={t("editor.icon.none")}
+                onSelect={() => setDraft((d) => ({ ...d, icon: null }))}
+              >
+                <CloseIcon width={15} height={15} />
+              </IconChoice>
+              {ARTICLE_ICONS.map((name) => (
+                <IconChoice
+                  key={name}
+                  selected={draft.icon === name}
+                  label={name}
+                  onSelect={() => setDraft((d) => ({ ...d, icon: name }))}
+                >
+                  <ArticleIconGlyph name={name} />
+                </IconChoice>
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-ink-muted">{t("editor.icon.hint")}</p>
           </div>
 
           <div>
@@ -579,5 +612,41 @@ export function ArticleEditor({
         closeLabel={t("editor.close")}
       />
     </div>
+  );
+}
+
+/**
+ * Eine Kachel der Symbol-Auswahl. `radio` statt `button`, damit Vorlesehilfen
+ * die Gruppe als EINE Auswahl ansagen und nicht als 25 einzelne Schalter.
+ */
+function IconChoice({
+  selected,
+  label,
+  onSelect,
+  children,
+}: {
+  selected: boolean;
+  label: string;
+  onSelect: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      aria-label={label}
+      title={label}
+      onClick={onSelect}
+      className={cn(
+        "grid h-9 w-9 place-items-center rounded-std border transition-colors",
+        "focus-visible:outline-none focus-visible:shadow-focusglow",
+        selected
+          ? "border-brand bg-brand/10 text-ink"
+          : "border-hairline bg-surface text-ink-muted hover:border-hairline-strong hover:text-ink",
+      )}
+    >
+      {children}
+    </button>
   );
 }

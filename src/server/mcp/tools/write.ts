@@ -1,4 +1,5 @@
 import { readPlanState } from "@/server/billing/store";
+import { ARTICLE_ICONS } from "@/lib/content/article-icons";
 import { SlugConflictError } from "@/server/content/store";
 import {
   estimateReadingMinutes,
@@ -119,6 +120,12 @@ export const createArticle: McpTool = {
         description: "Array of typed blocks (see get_content_conventions). Strings are treated as text blocks.",
         items: {},
       },
+      icon: {
+        type: "string",
+        enum: [...ARTICLE_ICONS],
+        description:
+          "Optional icon shown next to the article in the left navigation. Omit it (or pass null) for NO icon — that is the default and right for most articles. Only set one when it genuinely helps someone scan the list.",
+      },
       flag: {
         type: "object",
         description:
@@ -188,6 +195,12 @@ export const updateArticle: McpTool = {
         description:
           "REPLACES the article's video list. Each entry: { id, title, description, youtubeId, durationLabel? }. `description` is REQUIRED and is what the AI search reads — write what the video actually shows, not just its title. Keep existing ids (from get_article) to edit rather than replace.",
         items: {},
+      },
+      icon: {
+        type: "string",
+        enum: [...ARTICLE_ICONS],
+        description:
+          "Optional icon shown next to the article in the left navigation. Omit it (or pass null) for NO icon — that is the default and right for most articles. Only set one when it genuinely helps someone scan the list.",
       },
       flag: {
         type: "object",
