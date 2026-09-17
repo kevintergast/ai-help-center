@@ -79,14 +79,16 @@ describe("Registrierung & Scope", () => {
       "delete_changelog_entry",
       "upsert_roadmap_item",
       "delete_roadmap_item",
-      // Einstiegs-Karten (0035) leben wie Changelog/Roadmap ohne Entwurf.
+      // Einstiegs-Karten (0035) und Kontaktwege (0037) leben wie
+      // Changelog/Roadmap ohne Entwurfszustand.
       "set_entry_cards",
+      "set_contact_methods",
     ]) {
       const tool = findTool(name);
       expect(tool, name).toBeDefined();
       expect(tool!.scope).toBe("updates:write");
     }
-    expect(ALL_TOOLS.filter((t) => t.scope === "updates:write")).toHaveLength(6);
+    expect(ALL_TOOLS.filter((t) => t.scope === "updates:write")).toHaveLength(7);
   });
 
   it("ein Schlüssel mit articles:write sieht sie NICHT (kein Veröffentlichen durch die Hintertür)", () => {

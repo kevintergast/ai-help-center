@@ -4,11 +4,17 @@ import {
   parseEntryCardInput,
   type EntryCard,
 } from "@/lib/content/entry-cards";
+import {
+  CONTACT_KINDS,
+  MAX_CONTACT_METHODS,
+  parseContactMethodInput,
+  type ContactMethod,
+} from "@/lib/content/contact-methods";
 import { fail, ok, type McpTool, type ToolContext } from "./types";
 
 /**
- * NAVIGATIONS-WERKZEUGE — Reihenfolge der Leiste (0034) und Einstiegs-Karten
- * der Startansicht (0035).
+ * NAVIGATIONS-WERKZEUGE — Reihenfolge der Leiste (0034), Einstiegs-Karten der
+ * Startansicht (0035) und Kontaktwege der Seite `/contact` (0037).
  *
  * BEIDE WIRKEN SOFORT ÖFFENTLICH. Es gibt hier keinen Entwurfszustand: Wer die
  * Reihenfolge ändert, ändert, was der nächste Besucher sieht. Deshalb liegen
@@ -17,10 +23,10 @@ import { fail, ok, type McpTool, type ToolContext } from "./types";
  * Stufe — `articles:publish` für die Artikel-Reihenfolge, `updates:write` für
  * die Karten (wie Changelog/Roadmap, die ebenfalls ohne Entwurf leben).
  *
- * ERGONOMIE-ENTSCHEIDUNG: `set_entry_cards` ersetzt den GANZEN Satz statt vier
- * Werkzeuge für anlegen/ändern/löschen/sortieren anzubieten. Bei höchstens
- * sechs Karten ist „hier ist der neue Stand" für ein Modell fehlerfrei zu
- * treffen; Id-Jonglage über mehrere Aufrufe ist es nicht.
+ * ERGONOMIE-ENTSCHEIDUNG: `set_entry_cards` und `set_contact_methods` ersetzen
+ * den GANZEN Satz, statt vier Werkzeuge für anlegen/ändern/löschen/sortieren
+ * anzubieten. Bei höchstens sechs Karten ist „hier ist der neue Stand" für ein
+ * Modell fehlerfrei zu treffen; Id-Jonglage über mehrere Aufrufe ist es nicht.
  */
 
 const PUBLIC_HINTS = { readOnlyHint: false, destructiveHint: false, idempotentHint: true } as const;
@@ -208,4 +214,111 @@ export const setEntryCards: McpTool = {
   },
 };
 
-export const NAVIGATION_TOOLS: McpTool[] = [reorderArticles, listEntryCards, setEntryCards];
+export const listContactMethods: McpTool = {
+  name: "list_contact_methods",
+  title: "Kontaktwege lesen",
+  description:
+    "Read the contact options shown on the help center's contact page (/contact). Call this before set_contact_methods so you know what is already there.",
+  scope: "articles:read",
+  annotations: { readOnlyHint: true },
+  inputSchema: { type: "object", properties: {} },
+  async handler(_args, ctx) {
+    const content = await ctx.deps.getContentDeps();
+    if (!content) return fail("content_unavailable", "Content storage is not available.");
+    const methods = await content.store.listContactMethods(ctx.tenant.id);
+    return ok({
+      methods,
+      max: MAX_CONTACT_METHODS,
+      pageVisible: methods.length > 0,
+      note:
+        methods.length > 0
+          ? "The contact page and its entry at the bottom of the navigation are visible."
+          : "No contact option is set up, so /contact returns 404 and the navigation shows no contact entry.",
+    });
+  },
+};
+
+export const setContactMethods: McpTool = {
+  name: "set_contact_methods",
+  title: "Kontaktwege setzen",
+  description:
+    `REPLACES all contact options on the help center's contact page (/contact) with the list you pass, in that order. At most ${MAX_CONTACT_METHODS}. Pass an empty array to remove them all — the page and its navigation entry then disappear entirely. Visible to end users immediately; there is no draft state. IMPORTANT: only enter addresses and numbers the operator actually gave you. A wrong support address on the contact page reaches the people who are already stuck.`,
+  scope: "updates:write",
+  annotations: PUBLIC_HINTS,
+  inputSchema: {
+    type: "object",
+    properties: {
+      methods: {
+        type: "array",
+        maxItems: MAX_CONTACT_METHODS,
+        description: "The complete new set of contact options, first one shown first.",
+        items: {
+          type: "object",
+          properties: {
+            kind: {
+              type: "string",
+              enum: [...CONTACT_KINDS],
+              description:
+                "email = address the reader can write to (value = the address); phone = number they can call (value = the number); form = a contact form right on the card, sending a ticket to the operator's inbox (no value needed).",
+            },
+            title: { type: "string", description: "Card heading, max 80 characters." },
+            description: {
+              type: "string",
+              description:
+                "One short line under the heading, max 200 characters. Good for expectations, e.g. \"Usually answered the same working day\".",
+            },
+            value: {
+              type: "string",
+              description:
+                "Email address for kind=email, phone number for kind=phone (any common notation). Leave empty for kind=form.",
+            },
+          },
+          required: ["kind", "title"],
+        },
+      },
+    },
+    required: ["methods"],
+  },
+  async handler(args, ctx) {
+    if (!Array.isArray(args.methods)) return fail("invalid_params", "`methods` must be an array.");
+    if (args.methods.length > MAX_CONTACT_METHODS) {
+      return fail(
+        "too_many_methods",
+        `At most ${MAX_CONTACT_METHODS} contact options are allowed; ${args.methods.length} were given.`,
+      );
+    }
+
+    const content = await ctx.deps.getContentDeps();
+    if (!content) return fail("content_unavailable", "Content storage is not available.");
+    if (await frozen(ctx)) return FROZEN_RESULT();
+
+    // ALLE prüfen, bevor irgendetwas geschrieben wird: Ein halb ersetzter Satz
+    // stünde sofort auf der Seite, die jemand aufruft, der nicht weiterkommt.
+    const parsed: Omit<ContactMethod, "id">[] = [];
+    for (let i = 0; i < args.methods.length; i += 1) {
+      const res = parseContactMethodInput(args.methods[i]);
+      if (!res.ok) {
+        return fail(res.error, `Contact option ${i + 1} was rejected: ${res.error}. Nothing was changed.`);
+      }
+      parsed.push(res.method);
+    }
+
+    const written = await content.store.replaceContactMethods(ctx.tenant.id, parsed);
+    return ok({
+      methods: written,
+      pageVisible: written > 0,
+      note:
+        written > 0
+          ? "The contact page is live now and the navigation shows a contact entry."
+          : "All contact options removed — /contact now returns 404 and the navigation entry is gone.",
+    });
+  },
+};
+
+export const NAVIGATION_TOOLS: McpTool[] = [
+  reorderArticles,
+  listEntryCards,
+  setEntryCards,
+  listContactMethods,
+  setContactMethods,
+];

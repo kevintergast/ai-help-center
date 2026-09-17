@@ -1,13 +1,19 @@
 # HallofHelp — CI/CD (GitHub Actions) für Next.js (OpenNext) auf Cloudflare Workers/D1.
 # Übersetzt die Strategie aus docs/git-strategy.md:
 #   • Push nach `development` → Staging (automatisch)
-#   • Push nach `main`        → Production (manuelles Gate via Environment-Reviewer)
+#   • Push nach `main`        → Production (automatisch; das Reviewer-Gate am
+#                               Environment `production` wurde am 15.09.2026
+#                               entfernt — es gibt keine Freigabe mehr)
 #   • Pull Requests           → nur Validate/Test/Build-Gate (kein Deploy)
 #
 # Voraussetzungen (Details: docs/ci-cd-setup.md):
 #   • Repo-Secrets:  CLOUDFLARE_API_TOKEN (scoped!), CLOUDFLARE_ACCOUNT_ID
-#   • GitHub-Environment `production`: Required reviewers = das manuelle Prod-Gate,
-#     plus Variable PROD_GATE_CONFIGURED=true (Defense-in-Depth-Guard unten).
+#   • GitHub-Environment `production` mit Variable PROD_GATE_CONFIGURED=true.
+#     ACHTUNG: Diese Variable sichert seit dem Entfernen der Required reviewers
+#     nichts mehr ab — der Preflight prüft nur noch, dass das Environment
+#     überhaupt eingerichtet ist.
+#   • Repo-Einstellung Actions → General → Workflow permissions = "Read and
+#     write", sonst kann tag-release den Release-Tag nicht pushen.
 name: CI/CD
 
 on:
@@ -186,8 +192,30 @@ jobs:
       - name: Deploy Ops-Dashboard (production)
         run: pnpm exec wrangler deploy --config ops/wrangler.toml --env production
 
-      # Ground Truth statt Vertrauen: das laufende Deployment wird gefragt, was
-      # es ist — weicht es von package.json ab, bricht der Job (Teil-Deploy).
+  # ---------- NACHPRÜFUNG (eigener Job, bewusst NICHT im Deploy-Pfad) ----------
+  # Ground Truth statt Vertrauen: das laufende Deployment wird gefragt, was es
+  # ist. Früher war das der letzte SCHRITT von deploy-production — und genau das
+  # war falsch:
+  #
+  # Am 15. und 17.09.2026 hat diese Prüfung zwei erfolgreiche Prod-Deploys rot
+  # gefärbt (einmal war das Zeitfenster zu kurz, einmal antwortete die Domain
+  # ~200 s lang gar nicht). Beide Male lief die neue Version wenige Minuten
+  # später einwandfrei — und beide Male blieb der Release-Tag aus, weil
+  # tag-release am Deploy-Job hing.
+  #
+  # Eine Sonde, die den Deploy nicht ändert, darf ihn auch nicht als gescheitert
+  # ausweisen und erst recht keinen Tag verhindern. Sie läuft deshalb NEBEN dem
+  # Deploy: schlägt sie fehl, ist der Lauf rot und man schaut hin — der Tag ist
+  # aber längst gesetzt. Dieselbe Abwägung wie bei tag-release weiter unten.
+  verify-production:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [deploy-production]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Laufende Version verifizieren (production)
         run: node scripts/verify-deployed-version.mjs https://app.hallofhelp.com
 
@@ -195,11 +223,14 @@ jobs:
   # Der Tag markiert GENAU den Stand, der live gegangen ist. `contents: write`
   # gilt nur für diesen Job, nicht workflow-weit.
   #
+  # Hängt bewusst NUR am Deploy, nicht an verify-production: eine flatternde
+  # Sonde darf einen ausgelieferten Stand nicht ungetaggt lassen.
+  #
   # WICHTIG: Fehlen dem GITHUB_TOKEN die Schreibrechte (Repo-Einstellung
-  # "Workflow permissions" = read-only, für uns derzeit nicht umstellbar), dann
-  # SCHEITERT der Push — und der Job bleibt trotzdem GRÜN und schreibt einen
-  # Hinweis in die Zusammenfassung. Ein erfolgreicher Deploy soll nicht wegen
-  # eines fehlenden Tags rot aussehen; nachgezogen wird er dann mit `pnpm tag`.
+  # "Workflow permissions" = read-only), dann SCHEITERT der Push — der Job
+  # bleibt trotzdem GRÜN und schreibt einen Hinweis in die Zusammenfassung.
+  # Ein erfolgreicher Deploy soll nicht wegen eines fehlenden Tags rot
+  # aussehen; nachgezogen wird er dann mit `pnpm tag`.
   tag-release:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [deploy-production]

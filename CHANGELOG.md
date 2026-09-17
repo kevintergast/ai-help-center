@@ -26,6 +26,29 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.4.1] – 2026-09-17
+
+_Kontaktwege über MCP pflegbar_
+
+### Hinzugefügt
+- **mcp:** `list_contact_methods` (articles:read) und `set_contact_methods`
+  (updates:write) — die Kontaktseite ist jetzt auch maschinell pflegbar; ein
+  Aufruf ersetzt den ganzen Satz, beide melden `pageVisible` mit (5d7b595)
+
+### Behoben
+- **ci:** Die Deploy-Nachprüfung läuft als eigener Job `verify-production`
+  neben dem Deploy statt als dessen letzter Schritt. Sie hatte zweimal einen
+  erfolgreichen Prod-Deploy rot gefärbt und dabei den Release-Tag verhindert,
+  weil `tag-release` am Deploy-Job hängt (96ac9f0)
+- **ci:** Das Skript unterscheidet „Antwort mit falscher Version" (Hinweis auf
+  einen Teil-Deploy) von „gar keine Antwort" (belegt für sich nichts) und nennt
+  den letzten Fehlschlag (96ac9f0)
+- **ci:** Kopfkommentar behauptete weiterhin ein manuelles Reviewer-Gate für
+  Production — das ist seit dem 15.09.2026 entfernt (96ac9f0)
+
+### Behoben
+- **ci:** Nachprüfung vom Deploy entkoppeln — sie darf keinen Tag kosten (96ac9f0)
+
 ## [0.4.0] – 2026-09-16
 
 _Redesign der Flächen, wählbare Artikel-Symbole und Kontaktseite_
