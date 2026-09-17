@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 /**
- * Deploy-Nachprüfung (CI, nach `wrangler deploy`): fragt das Deployment, WAS es
- * ist, und vergleicht mit `package.json`. Läuft die erwartete Version nicht,
- * bricht der Job — ein halb ausgerollter Stand soll nicht als Erfolg gelten.
+ * Deploy-Nachprüfung: fragt das Deployment, WAS es ist, und vergleicht mit
+ * `package.json`.
+ *
+ * Läuft in CI als EIGENER Job neben dem Deploy (ci.yml `verify-production`) —
+ * nicht als dessen letzter Schritt. Eine Sonde, die nichts ändert, darf einen
+ * ausgelieferten Stand nicht als gescheitert ausweisen und schon gar nicht
+ * seinen Release-Tag verhindern. Sie macht den Lauf rot, damit jemand hinsieht;
+ * mehr kann sie ehrlicherweise nicht leisten.
  *
  * Aufruf: node scripts/verify-deployed-version.mjs https://app.hallofhelp.com
  *
@@ -50,6 +55,12 @@ function summary(lines) {
 }
 
 let last = null;
+/**
+ * Warum der letzte Versuch scheiterte — „keine Antwort" allein sagte nicht, ob
+ * die Domain 502 lieferte oder die Verbindung gar nicht zustande kam. Nach
+ * einem Fehlschlag ist genau das die erste Frage.
+ */
+let lastFailure = null;
 const startedAt = Date.now();
 for (let attempt = 1; attempt <= TRIES; attempt++) {
   try {
@@ -58,7 +69,8 @@ for (let attempt = 1; attempt <= TRIES; attempt++) {
       signal: AbortSignal.timeout(8000),
     });
     const body = res.ok ? await res.json() : null;
-    last = body?.app ?? null;
+    if (!res.ok) lastFailure = `HTTP ${res.status}`;
+    last = body?.app ?? last;
     if (last?.version === expected) {
       const secs = Math.round((Date.now() - startedAt) / 1000);
       const line = `**${target}** läuft **${last.version}** (\`${last.commit}\`, ${last.env}, gebaut ${last.builtAt}) — nach ${secs} s`;
@@ -70,20 +82,36 @@ for (let attempt = 1; attempt <= TRIES; attempt++) {
       `… Versuch ${attempt}/${TRIES}: erwartet ${expected}, gefunden ${last?.version ?? `HTTP ${res.status}`}`,
     );
   } catch (err) {
-    console.log(`… Versuch ${attempt}/${TRIES}: ${err.message ?? err}`);
+    lastFailure = String(err?.name === "TimeoutError" ? "Zeitüberschreitung (8 s)" : (err?.message ?? err));
+    console.log(`… Versuch ${attempt}/${TRIES}: ${lastFailure}`);
   }
   if (attempt < TRIES) await sleep(delayFor(attempt));
 }
 
-const found = last?.version ?? "keine Antwort";
 const waited = Math.round((Date.now() - startedAt) / 1000);
-console.error(`✖ ${target} liefert ${found}, erwartet war ${expected} (${waited} s gewartet).`);
+const found = last?.version ?? "keine Antwort";
+// Zwei sehr verschiedene Befunde, die man nicht verwechseln darf:
+//  - ANTWORT mit falscher Version  → belastbarer Hinweis auf einen Teil-Deploy.
+//  - GAR KEINE Antwort             → belegt für sich genommen nichts; es kann
+//    ebenso der Läufer, DNS oder eine noch nicht fertige Route sein.
+const kind = last ? "falsche Version" : "keine Antwort";
+console.error(
+  `✖ ${target}: ${kind} (${found}), erwartet war ${expected} — ${waited} s gewartet.` +
+    (lastFailure ? ` Letzter Fehlschlag: ${lastFailure}.` : ""),
+);
 summary([
-  "### Deployte Version — ABWEICHUNG",
+  `### Deployte Version — ${last ? "ABWEICHUNG" : "KEINE ANTWORT"}`,
   "",
-  `Erwartet \`${expected}\`, gefunden \`${found}\` auf ${target} — nach ${waited} s.`,
+  last
+    ? `${target} meldet \`${found}\`, erwartet war \`${expected}\` — nach ${waited} s.`
+    : `${target} hat ${waited} s lang nicht geantwortet (erwartet war \`${expected}\`).`,
+  ...(lastFailure ? ["", `Letzter Fehlschlag: \`${lastFailure}\``] : []),
   "",
-  "Läuft die erwartete Version inzwischen doch, war nur das Zeitfenster zu kurz:",
-  "`pnpm version:deployed` prüft es nach, `pnpm tag` zieht den Release-Tag nach.",
+  last
+    ? "Eine Antwort mit der FALSCHEN Version deutet auf einen halb ausgerollten Stand hin — hier lohnt der Blick."
+    : "Keine Antwort belegt für sich noch keinen kaputten Deploy: Es kann auch der Läufer, DNS oder eine noch nicht fertige Route sein. Erst prüfen, ob die Seite inzwischen antwortet.",
+  "",
+  "Nachprüfen: `pnpm version:deployed`",
+  "Der Release-Tag hängt NICHT an diesem Job — er wird vom Deploy aus gesetzt.",
 ]);
 process.exit(1);

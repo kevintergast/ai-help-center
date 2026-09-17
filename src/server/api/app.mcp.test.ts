@@ -1193,3 +1193,81 @@ describe("MCP — Navigation", () => {
     expect(res.data!.cards).toEqual([]);
   });
 });
+
+/**
+ * KONTAKTWEGE über MCP (0037). Verhinderte Fehlerfälle:
+ *  - Ein Schlüssel mit reinem Schreibrecht ändert die öffentliche
+ *    Kontaktseite (articles:write sagt zu: „bleibt ein Entwurf").
+ *  - Eine ungültige Nummer im Stapel hinterlässt einen halb ersetzten Satz
+ *    auf genau der Seite, die jemand aufruft, der nicht weiterkommt.
+ *  - Das Modell erfährt nicht, dass ein leerer Satz die Seite VERSCHWINDEN
+ *    lässt — und löscht sie versehentlich weg.
+ */
+describe("MCP — Kontaktwege", () => {
+  it("set_contact_methods hängt an updates:write, nicht an articles:write", async () => {
+    const f = makeApp();
+    const nurSchreiben = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const { json } = await rpc(f.app, nurSchreiben, "tools/list");
+    const tools = (json as Record<string, { tools: { name: string }[] }>).result.tools;
+    expect(tools.map((t) => t.name)).not.toContain("set_contact_methods");
+    // Lesen darf er.
+    expect(tools.map((t) => t.name)).toContain("list_contact_methods");
+  });
+
+  it("setzt den ganzen Satz und meldet, ob die Seite dadurch sichtbar ist", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "updates:write"]);
+
+    const leer = await callTool(f.app, token, "list_contact_methods");
+    expect(leer.data!.pageVisible).toBe(false);
+
+    const res = await callTool(f.app, token, "set_contact_methods", {
+      methods: [
+        { kind: "email", title: "Support", description: "Antwort am selben Werktag.", value: "hilfe@example.com" },
+        { kind: "phone", title: "Hotline", value: "+49 30 123456" },
+        { kind: "form", title: "Anliegen schildern" },
+      ],
+    });
+    expect(res.isError).toBe(false);
+    expect(res.data!.methods).toBe(3);
+    expect(res.data!.pageVisible).toBe(true);
+
+    const gespeichert = await f.store.listContactMethods("t_a");
+    expect(gespeichert.map((m) => m.kind)).toEqual(["email", "phone", "form"]);
+    expect(gespeichert[2].value).toBe("");
+  });
+
+  it("ein ungültiger Eintrag im Stapel ändert GAR NICHTS", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "updates:write"]);
+    await f.store.replaceContactMethods("t_a", [
+      { kind: "email", title: "Bestand", description: "", value: "alt@example.com" },
+    ]);
+
+    const res = await callTool(f.app, token, "set_contact_methods", {
+      methods: [
+        { kind: "email", title: "Gut", value: "gut@example.com" },
+        { kind: "phone", title: "Böse", value: "javascript:alert(1)" },
+      ],
+    });
+    expect(res.isError).toBe(true);
+    expect(res.data!.error).toBe("invalid_phone");
+
+    const unverändert = await f.store.listContactMethods("t_a");
+    expect(unverändert.map((m) => m.title)).toEqual(["Bestand"]);
+  });
+
+  it("leerer Satz entfernt die Seite — und sagt das auch", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "updates:write"]);
+    await f.store.replaceContactMethods("t_a", [
+      { kind: "form", title: "Schreib uns", description: "", value: "" },
+    ]);
+
+    const res = await callTool(f.app, token, "set_contact_methods", { methods: [] });
+    expect(res.isError).toBe(false);
+    expect(res.data!.pageVisible).toBe(false);
+    expect(String(res.data!.note)).toContain("404");
+    expect(await f.store.listContactMethods("t_a")).toHaveLength(0);
+  });
+});
