@@ -62,6 +62,7 @@ const VARIANT_KEYS: Record<TextVariant, MessageKey> = {
 
 export const COLOR_KEYS: Record<TagColor, MessageKey> = {
   neutral: "editor.blocks.color.neutral",
+  info: "editor.blocks.color.info",
   brand: "editor.blocks.color.brand",
   ok: "editor.blocks.color.ok",
   warn: "editor.blocks.color.warn",

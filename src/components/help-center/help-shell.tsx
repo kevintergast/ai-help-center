@@ -171,13 +171,16 @@ export function HelpShell({
   const anyIcon = data.groups.some((g) => g.articles.some((a) => a.icon));
 
   const normalSidebar = (
-    <div className="flex h-full flex-col gap-5 p-4">
+    <div className="flex h-full flex-col gap-5 overflow-visible p-4">
+      {/* Sucht über Titel UND Inhalt — die Treffer tragen ihren eigenen Slug,
+          ein Nachschlagen über die Id entfällt. */}
       <SearchCombobox
-        items={searchItems}
+        articles={data.articles}
         placeholder={t("hc.searchPlaceholder")}
         emptyLabel={t("hc.searchEmpty")}
         aria-label={t("hc.searchAria")}
-        onSelect={(it) => openSlug(slugById.get(it.id) ?? it.id)}
+        clearLabel={t("hc.searchClear")}
+        onSelect={(hit) => openSlug(hit.slug)}
       />
       <nav aria-label={t("hc.articlesHeading")} className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
         {/* Ganz oben: Roadmap + Changelog (öffnen eine Ebene tiefer). */}
@@ -194,6 +197,18 @@ export function HelpShell({
               <span className="truncate">{t("hc.changelog")}</span>
             </button>
           </li>
+          {/* API-DOKU (0033) steht bewusst an ZWEI Stellen: im Kopf, weil sie
+              dauerhaft erreichbar sein soll, und hier, weil sie beim Stöbern
+              in der Leiste gesucht wird. Beide Male ein echtes <a> nach außen. */}
+          {apiDocsUrl ? (
+            <li>
+              <a href={apiDocsUrl} target="_blank" rel="noopener noreferrer" className={NAV_ROW}>
+                <CodeIcon width={15} height={15} className="shrink-0 opacity-70" />
+                <span className="truncate">{t("hc.apiDocs")}</span>
+                <ExternalLinkIcon width={12} height={12} className="shrink-0 opacity-50" aria-hidden />
+              </a>
+            </li>
+          ) : null}
         </ul>
 
         {/* Eigener Abschnitt „Meine Artikel" (gespeicherte KI-Antworten) + Anmelden/Avatar. */}
@@ -408,7 +423,11 @@ export function HelpShell({
         {/* Sidebar (immer sichtbar) */}
         {/* Leiste bleibt auf dem App-Grund (grau); der Inhalt daneben ist weiß —
             die FLÄCHE trennt beide, nicht nur die Linie. */}
-        <aside className="hidden w-72 shrink-0 overflow-y-auto border-r border-hairline bg-page md:block">
+        {/* KEIN overflow hier: Die Trefferliste der Suche ist breiter als die
+            Leiste und würde sonst abgeschnitten. Gescrollt wird innen von der
+            <nav> (min-h-0 flex-1 overflow-y-auto) — die Leiste selbst braucht
+            es nicht. */}
+        <aside className="hidden w-72 shrink-0 border-r border-hairline bg-page md:block">
           {sidebar}
         </aside>
 
@@ -452,18 +471,53 @@ export function HelpShell({
           {!drill && footer ? (
             <div className="border-t border-hairline bg-surface px-4 py-3">{footer}</div>
           ) : null}
-          <LegalFooter t={t} />
+          <LegalFooter
+            t={t}
+            logoUrl={logoUrl}
+            logoDarkUrl={logoDarkUrl}
+            tenantName={tenantName}
+            isOperator={isOperator === true}
+          />
         </main>
       </div>
     </div>
   );
 }
 
-/** Schmale Legal-Zeile am unteren Rand (links): Emblem (schwarz/weiß je Theme) + Rechtslinks. */
-function LegalFooter({ t }: { t: T }) {
+/**
+ * Schmale Legal-Zeile am unteren Rand. Das Zeichen links war fest unser
+ * Emblem — auf einer Kundeninstanz stand damit UNSER Logo im Fuß, obwohl das
+ * ganze Produkt White-Label ist. Jetzt zeigt es das Logo des Mandanten;
+ * ohne eigenes Logo bleibt die Zeile schlicht ohne Zeichen (eine
+ * Initial-Kachel wäre hier unten nur Dekoration).
+ *
+ * NUR die Operator-Instanz zeigt weiterhin unser Emblem — dort IST es das
+ * Logo des Mandanten.
+ */
+function LegalFooter({
+  t,
+  logoUrl,
+  logoDarkUrl,
+  tenantName,
+  isOperator,
+}: {
+  t: T;
+  logoUrl: string | null;
+  logoDarkUrl?: string | null;
+  tenantName: string;
+  isOperator: boolean;
+}) {
   return (
     <div className="flex items-center gap-3 border-t border-hairline bg-surface px-5 py-2 md:px-10">
-      <Emblem className="h-4 w-4 shrink-0 text-ink" />
+      {logoUrl ? (
+        <picture>
+          {logoDarkUrl ? <source srcSet={logoDarkUrl} media="(prefers-color-scheme: dark)" /> : null}
+          { }
+          <img src={logoUrl} alt={tenantName} className="h-4 w-auto shrink-0" />
+        </picture>
+      ) : isOperator ? (
+        <Emblem className="h-4 w-4 shrink-0 text-ink" />
+      ) : null}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
         <Link href="/legal/impressum" className="transition-colors hover:text-ink">
           {t("hc.legal.imprint")}

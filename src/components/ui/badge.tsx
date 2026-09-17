@@ -1,10 +1,14 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/ui/cn";
 
-type Tone = "neutral" | "ok" | "warn" | "crit" | "brand";
+type Tone = "neutral" | "info" | "ok" | "warn" | "crit" | "brand";
 
 const TONES: Record<Tone, string> = {
   neutral: "bg-surface text-ink border-hairline",
+  // „Beta" u. Ä.: blau und BEWUSST leise — ein Hinweis, keine Warnung. Warn
+  // (gelb) schrie an einer Stelle, an der nur „hier ist noch Bewegung drin"
+  // gemeint ist; dafür reicht ein ruhiger Ton ohne Rahmen.
+  info: "bg-info-bg text-info border-transparent",
   ok: "bg-ok-bg text-ok border-ok-bd",
   warn: "bg-warn-bg text-warn border-warn-bd",
   crit: "bg-crit-bg text-crit border-crit-bd",

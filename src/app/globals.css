@@ -47,6 +47,8 @@
   --shadow-focus: rgba(16, 24, 40, 0.1) 0 4px 12px;
 
   /* Semantik (getrennt vom Marken-Akzent) */
+  --sem-info: #175cd3;
+  --sem-info-bg: #eff6ff;
   --sem-ok: #067647;
   --sem-ok-bg: #ecfdf3;
   --sem-ok-bd: #abefc6;
@@ -81,7 +83,11 @@
     --shadow-inset: rgba(255, 255, 255, 0.06) 0 0.5px 0 0 inset,
       rgba(0, 0, 0, 0.5) 0 0 0 0.5px inset, rgba(0, 0, 0, 0.3) 0 1px 2px 0;
     --shadow-focus: rgba(0, 0, 0, 0.5) 0 4px 14px;
-    --sem-ok: #75e0a7;
+    --sem-info: #84caff;
+    --sem-info-bg: #101f36;
+    --sem-info: #84caff;
+  --sem-info-bg: #101f36;
+  --sem-ok: #75e0a7;
     --sem-ok-bg: #0d2a1d;
     --sem-ok-bd: #1a4733;
     --sem-warn: #fdb022;
@@ -132,6 +138,8 @@
   --shadow-inset: rgba(255, 255, 255, 0.06) 0 0.5px 0 0 inset,
     rgba(0, 0, 0, 0.5) 0 0 0 0.5px inset, rgba(0, 0, 0, 0.3) 0 1px 2px 0;
   --shadow-focus: rgba(0, 0, 0, 0.5) 0 4px 14px;
+  --sem-info: #84caff;
+  --sem-info-bg: #101f36;
   --sem-ok: #75e0a7;
   --sem-ok-bg: #0d2a1d;
   --sem-ok-bd: #1a4733;
