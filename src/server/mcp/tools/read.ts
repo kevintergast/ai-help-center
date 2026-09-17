@@ -7,6 +7,7 @@ import {
 } from "@/server/content/validate";
 import { MAX_LINK_CARDS, MAX_TAG_TEXT, TAG_COLORS, TEXT_VARIANTS } from "@/lib/content/blocks";
 import { ENTRY_CARD_KINDS, MAX_ENTRY_CARDS } from "@/lib/content/entry-cards";
+import { CONTACT_KINDS, MAX_CONTACT_METHODS } from "@/lib/content/contact-methods";
 import { ARTICLE_ICONS } from "@/lib/content/article-icons";
 import { API_SCOPES, scopeDef } from "@/server/apikeys/scopes";
 import { fail, ok, type McpTool, type ToolContext } from "./types";
@@ -293,6 +294,11 @@ export const getContentConventions: McpTool = {
         maxCards: MAX_ENTRY_CARDS,
         kinds: [...ENTRY_CARD_KINDS],
         note: "Cards under the AI input on the start page — the deliberate first step for someone who does not know what to ask. Read with list_entry_cards, set with set_entry_cards (which replaces the whole set). kind 'article' points at a PUBLISHED article's slug, 'url' at an https address, 'roadmap' and 'changelog' open those views.",
+      },
+      contactPage: {
+        maxMethods: MAX_CONTACT_METHODS,
+        kinds: [...CONTACT_KINDS],
+        note: "Cards on /contact — the way out when neither the articles nor an AI answer helped. Read with list_contact_methods, set with set_contact_methods (which replaces the whole set). kind 'email' and 'phone' need a real address/number; 'form' needs none and renders a form that sends a ticket to the operator's inbox. The page AND its entry at the bottom of the navigation exist exactly while at least one option is set up — there is no separate on/off switch. Never invent an address or number: only enter what the operator gave you.",
       },
       lifecycle: {
         note: "Articles created through this server always start as drafts. Publishing is a separate tool and a separate permission.",

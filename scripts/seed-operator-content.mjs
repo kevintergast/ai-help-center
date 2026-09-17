@@ -17,6 +17,7 @@ const BASE = 1783000000;
 const RELEASE_0_2_0 = 1787492800; // 2026-08-23
 const RELEASE_0_3_0 = 1789394400; // 2026-09-15
 const RELEASE_0_4_0 = 1789480800; // 2026-09-16
+const RELEASE_0_4_1 = 1789567200; // 2026-09-17
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -278,6 +279,9 @@ const ARTICLES = [
           "Seite und Navigations-Eintrag erscheinen genau dann, wenn mindestens ein Kontaktweg gepflegt ist. Pflegst du keinen, gibt es beides nicht.\n\nEin zusätzlicher Schalter wäre eine zweite Wahrheit neben der Liste: »eingeschaltet, aber leer« ergäbe eine Kontaktseite, die keinen Kontakt anbietet — und die ruft jemand auf, der ohnehin schon nicht weiterkommt.",
       },
       "Änderungen sind sofort öffentlich; einen Entwurfszustand gibt es hier nicht.",
+      "## Per KI-Client pflegen",
+      "Die Kontaktwege lassen sich auch über einen angebundenen KI-Client setzen — lesen mit dem Werkzeug »list_contact_methods«, setzen mit »set_contact_methods«. Gesetzt wird immer der GANZE Satz: Was du übergibst, ersetzt den bisherigen Stand, und eine leere Liste entfernt Seite und Navigations-Eintrag wieder.",
+      "Weil die Wege sofort öffentlich sind, hängt das Schreiben am Recht »Changelog und Roadmap pflegen«, nicht am reinen Schreibrecht für Artikel. Siehe »Eigenen KI-Client verbinden (MCP)«.",
     ],
     related: ["navigation-und-einstieg", "support-tickets"],
   },
@@ -337,12 +341,13 @@ const ARTICLES = [
         type: "accordion",
         title: "Was kann eine KI mit welchem Recht?",
         text:
-          "Lesen: Artikel, Entwürfe, Kategorien, Übersetzungen, Statistiken, Einstellungen — dazu die Schreib-Konventionen deines Hilfezentrums, damit die KI gültige Bausteine baut statt zu raten.\n\nArtikel schreiben und ändern: Artikel anlegen (immer als ENTWURF), Texte, Tabellen und Hinweisboxen ändern, ganze Seiten von einer Adresse übernehmen, Bilder hinzufügen — entweder von einer öffentlichen Adresse oder direkt als Datei von deinem Rechner, etwa einen Screenshot, den du gerade gemacht hast — Bildbeschreibungen nachbessern (auch viele auf einmal), Videos einzeln ändern und aus einem eingefügten Transkript Titel und Beschreibung erzeugen lassen. Nichts davon wird öffentlich.\n\nVeröffentlichen: macht Artikel sofort für alle Besucher sichtbar und erlaubt zusätzlich, die Reihenfolge der Navigation zu setzen — standardmäßig AUS.\n\nChangelog, Roadmap und Einstiegs-Karten pflegen: hier gibt es keinen Entwurf, Änderungen sind sofort öffentlich.\n\nLöschen: nur mit einer ausdrücklichen Bestätigung im KI-Gespräch (siehe unten) — standardmäßig AUS.",
+          "Lesen: Artikel, Entwürfe, Kategorien, Übersetzungen, Statistiken, Einstellungen — dazu die Schreib-Konventionen deines Hilfezentrums, damit die KI gültige Bausteine baut statt zu raten.\n\nArtikel schreiben und ändern: Artikel anlegen (immer als ENTWURF), Texte, Tabellen und Hinweisboxen ändern, ganze Seiten von einer Adresse übernehmen, Bilder hinzufügen — entweder von einer öffentlichen Adresse oder direkt als Datei von deinem Rechner, etwa einen Screenshot, den du gerade gemacht hast — Bildbeschreibungen nachbessern (auch viele auf einmal), Videos einzeln ändern und aus einem eingefügten Transkript Titel und Beschreibung erzeugen lassen. Nichts davon wird öffentlich.\n\nVeröffentlichen: macht Artikel sofort für alle Besucher sichtbar und erlaubt zusätzlich, die Reihenfolge der Navigation zu setzen — standardmäßig AUS.\n\nChangelog, Roadmap, Einstiegs-Karten und Kontaktwege pflegen: hier gibt es keinen Entwurf, Änderungen sind sofort öffentlich.\n\nLöschen: nur mit einer ausdrücklichen Bestätigung im KI-Gespräch (siehe unten) — standardmäßig AUS.",
       },
       "Der Klartext-Schlüssel wird genau einmal angezeigt, direkt nach dem Anlegen. Danach siehst du in der Liste nur noch, wofür er gilt, wann er zuletzt benutzt wurde und wann er abläuft (standardmäßig nach 90 Tagen). Du kannst ihn jederzeit mit einem Klick widerrufen — er wirkt sofort nicht mehr.",
       "Löschen ist absichtlich umständlich: Der erste Löschbefehl löscht nichts, sondern liefert eine Zusammenfassung dessen, was verschwinden würde, plus ein kurzlebiges Bestätigungs-Token. Erst ein zweiter Aufruf mit diesem Token löscht wirklich. Eine KI kann also nicht in einem Schritt Inhalte vernichten.",
       "Nicht per MCP erreichbar sind bewusst: Team und Rollen, Eigentümerschaft, Rechtstexte, eigene Domain, Plan und Bezahlung sowie die Schlüsselverwaltung selbst. Diese Flächen bleiben Mensch, Anmeldung und Zwei-Faktor-Authentifizierung vorbehalten — ein geleakter Schlüssel soll Inhalte gefährden können, niemals dein Konto.",
-      "Die KI kann außerdem die Navigation ordnen und die Einstiegs-Karten der Startseite setzen — beides wirkt sofort öffentlich und hängt deshalb an den entsprechenden Rechten, nicht am reinen Schreibrecht. Beim Ordnen genügt eine Teil-Liste: Genannte Artikel rücken nach vorn, alle übrigen behalten ihre bisherige Reihenfolge dahinter.",
+      "Die KI kann außerdem die Navigation ordnen, die Einstiegs-Karten der Startseite setzen und die Kontaktwege pflegen — alles drei wirkt sofort öffentlich und hängt deshalb an den entsprechenden Rechten, nicht am reinen Schreibrecht. Beim Ordnen genügt eine Teil-Liste: Genannte Artikel rücken nach vorn, alle übrigen behalten ihre bisherige Reihenfolge dahinter.",
+      "Bei Kontaktwegen gilt eine Regel, die keine Technik erzwingen kann: Trage nur Adressen und Rufnummern ein, die du der KI wirklich genannt hast. Eine falsche Support-Adresse steht ausgerechnet dort, wo jemand landet, der schon nicht weiterkommt.",
       "Tipp: Lege lieber zwei enge Schlüssel an als einen Generalschlüssel — etwa einen reinen Lese-Schlüssel für Recherche und Auswertungen und einen Schreib-Schlüssel ohne Veröffentlichen für die Redaktion.",
     ],
     related: ["inhalte-importieren-exportieren", "artikel-veroeffentlichen", "navigation-und-einstieg"],
@@ -404,6 +409,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Kontaktwege per KI-Client pflegen",
+    description:
+      "Die Kontaktwege deiner Kontaktseite lassen sich jetzt auch über einen angebundenen KI-Client lesen und setzen — mit denselben Prüfungen wie im Verwaltungsbereich.",
+    at: RELEASE_0_4_1,
+    version: "0.4.1",
+    level: "patch",
+  },
   {
     title: "Neues Erscheinungsbild, Symbole je Artikel und eine Kontaktseite",
     description:
