@@ -280,7 +280,7 @@ const ARTICLES = [
       },
       "Änderungen sind sofort öffentlich; einen Entwurfszustand gibt es hier nicht.",
       "## Per KI-Client pflegen",
-      "Die Kontaktwege lassen sich auch über einen angebundenen KI-Client setzen — lesen mit dem Werkzeug »list_contact_methods«, setzen mit »set_contact_methods«. Gesetzt wird immer der GANZE Satz: Was du übergibst, ersetzt den bisherigen Stand, und eine leere Liste entfernt Seite und Navigations-Eintrag wieder.",
+      "Die Kontaktwege lassen sich auch über einen angebundenen KI-Client pflegen — lesen und setzen. Gesetzt wird dabei immer der GANZE Satz: Was die KI übergibt, ersetzt den bisherigen Stand, und eine leere Liste entfernt Seite und Navigations-Eintrag wieder. Welche Werkzeuge es dafür gibt, liest dein Client selbst aus dem Hilfezentrum aus; du musst ihm nichts davon nennen.",
       "Weil die Wege sofort öffentlich sind, hängt das Schreiben am Recht »Changelog und Roadmap pflegen«, nicht am reinen Schreibrecht für Artikel. Siehe »Eigenen KI-Client verbinden (MCP)«.",
     ],
     related: ["navigation-und-einstieg", "support-tickets"],
@@ -377,6 +377,35 @@ const ARTICLES = [
       "Soll dein Hilfezentrum nicht öffentlich auffindbar sein — etwa für interne Dokumentation — schaltest du die Indexierung ab: entweder direkt beim Erstellen oder später als Owner in den Einstellungen unter »Suchmaschinen«. Bereits gelistete Seiten verschwinden dann nach dem nächsten Crawl.",
     ],
     related: ["hilfezentrum-erstellen", "artikel-veroeffentlichen"],
+  },
+];
+
+/**
+ * Kontaktwege der Seite `/contact`. ECHTE Daten des Betreibers — hier gehört
+ * nichts Erfundenes hin, das ist die Seite, auf der jemand landet, der schon
+ * nicht weiterkommt. Beschreibungen bleiben bewusst knapp: Aussagen über
+ * Reaktionszeiten oder Sprechzeiten wären ein Versprechen, das niemand
+ * gegeben hat.
+ */
+const CONTACT_METHODS = [
+  {
+    kind: "email",
+    title: "Schreib uns",
+    // Keine Beschreibung: Die Karte zeigt die Adresse ohnehin darunter.
+    description: "",
+    value: "info@hallofhelp.com",
+  },
+  {
+    kind: "phone",
+    title: "Ruf uns an",
+    description: "",
+    value: "+49 163 1539033",
+  },
+  {
+    kind: "form",
+    title: "Anliegen schildern",
+    description: "Deine Nachricht landet direkt in unserem Postfach.",
+    value: null,
   },
 ];
 
@@ -482,6 +511,17 @@ ARTICLES.forEach((a, i) => {
     `INSERT INTO articles (id,tenant_id,locale,slug,title,category,status,body_json,videos_json,related_ids_json,flag_json,icon,sort,reading_minutes,is_ai_generated,created_at,updated_at,published_at)\n` +
       `VALUES ('${id}','${TENANT}','${LOCALE}','${esc(a.slug)}','${esc(a.title)}','${esc(a.category)}','published','${body}','[]','${related}',${flag},${icon},${i},${a.min || 1},0,${t},${t},${t})\n` +
       `ON CONFLICT(tenant_id,id) DO UPDATE SET locale=excluded.locale,slug=excluded.slug,title=excluded.title,category=excluded.category,status='published',body_json=excluded.body_json,related_ids_json=excluded.related_ids_json,flag_json=excluded.flag_json,icon=excluded.icon,sort=excluded.sort,reading_minutes=excluded.reading_minutes,updated_at=excluded.updated_at,published_at=COALESCE(articles.published_at,excluded.published_at);`,
+  );
+});
+
+// Kontaktwege (0037) — seed-autoritativ wie Roadmap/Changelog.
+out.push(`DELETE FROM contact_methods WHERE tenant_id = '${TENANT}';`);
+CONTACT_METHODS.forEach((m, i) => {
+  const id = "op_cm_" + (i + 1);
+  const value = m.value ? `'${esc(m.value)}'` : "NULL";
+  out.push(
+    `INSERT INTO contact_methods (id,tenant_id,kind,title,description,value,sort) VALUES ('${id}','${TENANT}','${m.kind}','${esc(m.title)}','${esc(m.description)}',${value},${i})\n` +
+      `ON CONFLICT(tenant_id,id) DO UPDATE SET kind=excluded.kind,title=excluded.title,description=excluded.description,value=excluded.value,sort=excluded.sort;`,
   );
 });
 
