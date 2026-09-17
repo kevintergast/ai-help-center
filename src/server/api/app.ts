@@ -28,7 +28,7 @@ import { eventsPublicRouter } from "./events";
 import { legalAdminRouter, legalPublicRouter } from "./legal";
 import { settingsAdminRouter } from "./settings";
 import { updatesAdminRouter } from "./updates";
-import { entryCardsAdminRouter } from "./entry-cards";
+import { contactMethodsAdminRouter, entryCardsAdminRouter } from "./entry-cards";
 import { supportAdminRouter, supportPublicRouter } from "./support";
 import { widgetPublicRouter } from "./widget";
 import { operatorRouter } from "./operator";
@@ -267,6 +267,8 @@ export function buildApiApp(deps: ApiDeps) {
   // Einstiegs-Karten (0035) sind Inhalte der Startansicht → ebenfalls frieren.
   app.use("/admin/entry-cards", contentFreeze);
   app.use("/admin/entry-cards/*", contentFreeze);
+  app.use("/admin/contact-methods", contentFreeze);
+  app.use("/admin/contact-methods/*", contentFreeze);
 
   // Branding (White-Label pflegbar): Admin-Pflege + öffentliches Logo-Serving.
   // Details/Sicherheitsentscheidungen: ./branding.ts
@@ -276,6 +278,7 @@ export function buildApiApp(deps: ApiDeps) {
   // Produkt-Updates (Changelog + Roadmap) pflegen — Details: ./updates.ts
   app.route("/admin", updatesAdminRouter(deps));
   app.route("/admin/entry-cards", entryCardsAdminRouter(deps));
+  app.route("/admin/contact-methods", contactMethodsAdminRouter(deps));
 
   // Legal-Docs pro Instanz (Design h): owner-exklusive Pflege + admin-Lesen +
   // öffentliches Ausliefern (Impressum/Datenschutz ohne Login). Details/

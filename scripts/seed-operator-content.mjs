@@ -16,11 +16,13 @@ const BASE = 1783000000;
 // tatsächlichen Datum, sonst lesen Nutzer ein falsches „veröffentlicht am").
 const RELEASE_0_2_0 = 1787492800; // 2026-08-23
 const RELEASE_0_3_0 = 1789394400; // 2026-09-15
+const RELEASE_0_4_0 = 1789480800; // 2026-09-16
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
   {
     slug: "was-ist-hallofhelp",
+    icon: "sparkle",
     title: "Was ist HallofHelp?",
     category: "Erste Schritte",
     min: 2,
@@ -60,6 +62,7 @@ const ARTICLES = [
   },
   {
     slug: "passwort-zuruecksetzen",
+    icon: "key",
     title: "Passwort zurücksetzen",
     category: "Konto & Anmeldung",
     min: 1,
@@ -72,6 +75,7 @@ const ARTICLES = [
   },
   {
     slug: "zwei-faktor-authentifizierung",
+    icon: "lock",
     title: "Zwei-Faktor-Authentifizierung (2FA)",
     category: "Konto & Anmeldung",
     min: 2,
@@ -157,6 +161,10 @@ const ARTICLES = [
         text:
           "Wie Changelog und Roadmap haben die Karten keinen Entwurfszustand: Was du speicherst, steht sofort auf der Startseite.\n\nDer Grund ist ihr Zweck — sie sind Navigation, kein Inhalt. Eine halb fertige Karte hilft niemandem, und ein Entwurfszustand für ein Element, das nur aus Titel und Ziel besteht, wäre mehr Verwaltung als Nutzen.",
       },
+      "## Symbol je Artikel",
+      "Vor jedem Artikel kann ein Symbol stehen — oder keins, und keins ist der Standard. Das ist Absicht: Ein Zeichen, das vor jeder Zeile gleich aussieht, trägt keine Information und kostet nur Platz.",
+      "Im Editor wählst du unter »Symbol in der Navigation« aus einem festen Satz. Alle Symbole stammen aus derselben Familie, damit die Leiste ruhig bleibt. Setze eines nur dort, wo es beim Überfliegen wirklich hilft — etwa ein Schlüssel bei »Passwort zurücksetzen«.",
+      "Hat kein Artikel ein Symbol, fällt die Spalte ganz weg und die Titel stehen bündig links. Sobald ein Artikel eines hat, wird die Spalte für alle freigehalten, damit die Titel nicht versetzt stehen.",
       "## Beta-Kennzeichnung in der Leiste",
       "Beschreibt ein Artikel eine Funktion, die noch in der Beta ist, gib ihm im Editor ein Flag mit dem Text »Beta«. Das Badge erscheint dann NEBEN dem Artikel in der linken Leiste — nicht erst im Artikel selbst.",
       "Damit sieht ein Leser schon vor dem Klick, worauf er sich einlässt. Für die Farbe stehen fünf Töne zur Wahl; »Warnung« (gelb) ist für Beta-Hinweise der übliche Griff.",
@@ -225,6 +233,7 @@ const ARTICLES = [
   },
   {
     slug: "credits-und-limits",
+    icon: "card",
     title: "Credits & Limits",
     category: "Plan & Credits",
     min: 2,
@@ -247,6 +256,30 @@ const ARTICLES = [
       "Mit dem Schalter »Widget auch im eigenen Hilfezentrum anzeigen« (gleiche Einstellungs-Karte) erscheint der Hilfe-Button zusätzlich auf den öffentlichen Seiten deines Hilfezentrums. Praktisch als zweiter Einstieg neben der Suche — und um selbst zu sehen, wie das Widget für deine Besucher aussieht. In diesem Hilfezentrum ist der Schalter aktiv: Der Button unten rechts ist genau das Widget, das du einbauen kannst.",
     ],
     related: ["ki-antworten", "credits-und-limits", "branding-anpassen"],
+  },
+  {
+    slug: "kontaktseite-einrichten",
+    icon: "inbox",
+    title: "Kontaktseite einrichten",
+    category: "Support",
+    min: 2,
+    body: [
+      "Wenn weder die Artikel noch die KI-Antwort weiterhelfen, brauchen deine Nutzer einen Ausweg. Dafür gibt es eine Kontaktseite mit den Wegen, die DU anbietest — und einen Eintrag »Kontakt« ganz unten in der Navigation.",
+      "Eingerichtet wird sie unter »Navigation« im Verwaltungsbereich, Abschnitt »Kontaktwege«. Jeder Weg ist eine Karte; bis zu sechs sind möglich.",
+      "## Die drei Arten",
+      "**E-Mail:** Adresse eintragen. Die Karte wird zum Klickziel, das beim Nutzer das Mailprogramm öffnet.",
+      "**Telefon:** Rufnummer eintragen. Auf dem Handy wählt ein Tippen direkt. Schreibweise ist frei — »+49 30 123456« und »(030) 123-456« sind beide in Ordnung.",
+      "**Kontaktformular:** Die Karte enthält ein offenes Formular. Abgeschickte Nachrichten landen als Ticket in deinem Postfach — derselbe Weg wie der Meldelink unter den KI-Antworten.",
+      "Zu jeder Karte gehört eine Überschrift und wahlweise eine kurze Beschreibung. Nutze sie für Erwartungen: »Antwort meist am selben Werktag« beugt Nachfragen vor.",
+      {
+        type: "accordion",
+        title: "Warum gibt es keinen Schalter »Kontaktseite anzeigen«?",
+        text:
+          "Seite und Navigations-Eintrag erscheinen genau dann, wenn mindestens ein Kontaktweg gepflegt ist. Pflegst du keinen, gibt es beides nicht.\n\nEin zusätzlicher Schalter wäre eine zweite Wahrheit neben der Liste: »eingeschaltet, aber leer« ergäbe eine Kontaktseite, die keinen Kontakt anbietet — und die ruft jemand auf, der ohnehin schon nicht weiterkommt.",
+      },
+      "Änderungen sind sofort öffentlich; einen Entwurfszustand gibt es hier nicht.",
+    ],
+    related: ["navigation-und-einstieg", "support-tickets"],
   },
   {
     slug: "support-tickets",
@@ -291,6 +324,7 @@ const ARTICLES = [
   },
   {
     slug: "ki-client-verbinden",
+    icon: "code",
     title: "Eigenen KI-Client verbinden (MCP)",
     category: "Inhalte pflegen",
     min: 4,
@@ -319,7 +353,7 @@ const ARTICLES = [
     category: "Sichtbarkeit",
     min: 2,
     body: [
-      "Hast du eine eigene API, kannst du deine Entwickler-Dokumentation direkt aus dem Hilfezentrum heraus verlinken. Der Link erscheint oben in der Navigation — gleich bei Roadmap und Changelog — und öffnet in einem neuen Tab.",
+      "Hast du eine eigene API, kannst du deine Entwickler-Dokumentation direkt aus dem Hilfezentrum heraus verlinken. Der Link erscheint oben rechts im Kopf, direkt neben dem Hell-/Dunkel-Umschalter, und öffnet in einem neuen Tab. Auf schmalen Bildschirmen bleibt nur das Symbol stehen.",
       "Eingerichtet wird er als Administrator unter »Einstellungen« → »API-Dokumentation«: Adresse eintragen, speichern. Ein leeres Feld entfernt den Link wieder, die Zeile verschwindet dann aus der Navigation.",
       "Erlaubt sind ausschließlich vollständige https-Adressen. Der Grund: Dieser Link steht dauerhaft in der Navigation jedes Besuchers — dort gehört nichts hin, was unverschlüsselt lädt oder Skripte ausführen könnte.",
       "Warum wir deine API-Referenz nicht bei uns darstellen: Sie wird aus deinem Spec erzeugt und ändert sich mit jedem Release. Eine Kopie in deinem Hilfezentrum wäre nach deinem nächsten Deploy falsch. Deine Doku bleibt deshalb da, wo sie gepflegt wird — das Hilfezentrum führt nur hin.",
@@ -371,6 +405,14 @@ const ROADMAP = [
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
   {
+    title: "Neues Erscheinungsbild, Symbole je Artikel und eine Kontaktseite",
+    description:
+      "Das Hilfezentrum hat ein ruhigeres, klareres Erscheinungsbild: Seitenleiste und Inhalt liegen jetzt auf unterschiedlichen Flächen, statt nur durch eine Linie getrennt zu sein — Kategorien sind dadurch beim Überfliegen zu erkennen. Artikel können ein eigenes Symbol in der Navigation tragen (Standard bleibt: keins). Neu ist außerdem eine Kontaktseite mit E-Mail, Telefon und Formular, verlinkt unten in der Navigation. Der Link auf eine eigene API-Dokumentation steht jetzt oben im Kopf.",
+    at: RELEASE_0_4_0,
+    version: "0.4.0",
+    level: "minor",
+  },
+  {
     title: "Navigation ordnen, Einstiegs-Karten und Beta-Kennzeichnung",
     description:
       "Die Reihenfolge von Artikeln und Kategorien in der linken Leiste legst du jetzt selbst fest — per Maus oder Tastatur unter »Navigation«. Auf der Startseite lassen sich bis zu sechs Einstiegs-Karten unter der KI-Eingabe zeigen (Artikel, Roadmap, Changelog oder externer Link). Und ein Artikel-Flag wie »Beta« erscheint ab sofort schon in der Navigation, nicht erst im Artikel. Alles drei auch per KI-Client über MCP.",
@@ -421,10 +463,12 @@ ARTICLES.forEach((a, i) => {
   // `sort` = Position im ARTICLES-Array: die Reihenfolge hier IST die Reihenfolge
   // in der linken Leiste (0034). Kategorien erben sie über ihren ersten Artikel.
   const flag = a.flag ? `'${esc(JSON.stringify(a.flag))}'` : "NULL";
+  // Symbol (0036): Name aus dem Katalog; fehlt = keins (der Normalfall).
+  const icon = a.icon ? `'${esc(a.icon)}'` : "NULL";
   out.push(
-    `INSERT INTO articles (id,tenant_id,locale,slug,title,category,status,body_json,videos_json,related_ids_json,flag_json,sort,reading_minutes,is_ai_generated,created_at,updated_at,published_at)\n` +
-      `VALUES ('${id}','${TENANT}','${LOCALE}','${esc(a.slug)}','${esc(a.title)}','${esc(a.category)}','published','${body}','[]','${related}',${flag},${i},${a.min || 1},0,${t},${t},${t})\n` +
-      `ON CONFLICT(tenant_id,id) DO UPDATE SET locale=excluded.locale,slug=excluded.slug,title=excluded.title,category=excluded.category,status='published',body_json=excluded.body_json,related_ids_json=excluded.related_ids_json,flag_json=excluded.flag_json,sort=excluded.sort,reading_minutes=excluded.reading_minutes,updated_at=excluded.updated_at,published_at=COALESCE(articles.published_at,excluded.published_at);`,
+    `INSERT INTO articles (id,tenant_id,locale,slug,title,category,status,body_json,videos_json,related_ids_json,flag_json,icon,sort,reading_minutes,is_ai_generated,created_at,updated_at,published_at)\n` +
+      `VALUES ('${id}','${TENANT}','${LOCALE}','${esc(a.slug)}','${esc(a.title)}','${esc(a.category)}','published','${body}','[]','${related}',${flag},${icon},${i},${a.min || 1},0,${t},${t},${t})\n` +
+      `ON CONFLICT(tenant_id,id) DO UPDATE SET locale=excluded.locale,slug=excluded.slug,title=excluded.title,category=excluded.category,status='published',body_json=excluded.body_json,related_ids_json=excluded.related_ids_json,flag_json=excluded.flag_json,icon=excluded.icon,sort=excluded.sort,reading_minutes=excluded.reading_minutes,updated_at=excluded.updated_at,published_at=COALESCE(articles.published_at,excluded.published_at);`,
   );
 });
 

@@ -31,7 +31,7 @@ const MIGRATIONS = [
   "0002_auth.sql",
   "0003_branding.sql",
   "0004_two_factor_plugin_columns.sql",
-  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql",
+  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql",
 ] as const;
 
 function makeTenant(id: string, slug: string): Tenant {
@@ -1497,5 +1497,160 @@ describe("Einstiegs-Karten ersetzen (PUT /admin/entry-cards)", () => {
 
     const cards = await store.listEntryCards("t_a");
     expect(cards.map((c) => c.title)).toEqual(["Bestand"]);
+  });
+});
+
+/* ————— Symbol je Artikel (0036) ————— */
+
+/**
+ * Verhinderte Fehlerfälle:
+ *  - Ein Tippfehler im Symbolnamen wird still zu „kein Symbol" — die Redaktion
+ *    setzt ein Symbol, sieht keins und weiß nicht warum.
+ *  - Das Symbol erreicht die Navigation nicht, weil es nur am Volltext hängt
+ *    und nicht an der Kurzfassung, aus der die Leiste gebaut wird.
+ */
+describe("Artikel-Symbol (0036)", () => {
+  it("nimmt einen Katalog-Namen an und liefert ihn in der Kurzfassung mit", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+
+    const created = await postJson(
+      app,
+      "/api/v1/admin/articles",
+      HOST_A,
+      { ...VALID_ARTICLE, icon: "key" },
+      cookie,
+    );
+    expect(created.status).toBe(201);
+    const { id } = (await created.json()) as { id: string };
+    await app.request(`/api/v1/admin/articles/${id}/publish`, {
+      method: "POST",
+      headers: { host: HOST_A, cookie },
+    });
+
+    const groups = await store.listByCategory("t_a", "de");
+    expect(groups[0].articles[0].icon).toBe("key");
+  });
+
+  it("lehnt einen unbekannten Namen ab statt ihn zu verschlucken", async () => {
+    const { app, authDb } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    const res = await postJson(
+      app,
+      "/api/v1/admin/articles",
+      HOST_A,
+      { ...VALID_ARTICLE, icon: "rakete" },
+      cookie,
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: "invalid_icon" });
+  });
+
+  it("ohne Angabe bleibt es bei KEINEM Symbol, und null entfernt es wieder", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+
+    const created = await postJson(app, "/api/v1/admin/articles", HOST_A, VALID_ARTICLE, cookie);
+    const { id } = (await created.json()) as { id: string };
+    expect((await store.getForEdit("t_a", id, "de"))?.icon).toBeNull();
+
+    const put = (icon: unknown) =>
+      app.request(`/api/v1/admin/articles/${id}`, {
+        method: "PUT",
+        headers: { host: HOST_A, "content-type": "application/json", cookie },
+        body: JSON.stringify({ icon }),
+      });
+
+    expect((await put("chart")).status).toBe(200);
+    expect((await store.getForEdit("t_a", id, "de"))?.icon).toBe("chart");
+    expect((await put(null)).status).toBe(200);
+    expect((await store.getForEdit("t_a", id, "de"))?.icon).toBeNull();
+  });
+});
+
+/* ————— Kontaktwege (0037) ————— */
+
+/**
+ * Verhinderte Fehlerfälle:
+ *  - Ein `javascript:`-Wert landet als Klickziel auf der Kontaktseite.
+ *  - Eine gültige deutsche Rufnummer wird abgelehnt (Kunde kann seinen echten
+ *    Weg nicht pflegen).
+ *  - Ein ungültiger Eintrag im Stapel hinterlässt einen halb ersetzten Satz —
+ *    sichtbar auf einer Seite, die man aufruft, wenn man nicht weiterkommt.
+ *  - Wege eines fremden Mandanten sind über die eigene Instanz änderbar.
+ */
+describe("Kontaktwege (/admin/contact-methods)", () => {
+  const putMethods = (app: TestApp, methods: unknown[], cookie: string, host = HOST_A) =>
+    app.request("/api/v1/admin/contact-methods", {
+      method: "PUT",
+      headers: { host, "content-type": "application/json", cookie },
+      body: JSON.stringify({ methods }),
+    });
+
+  it("gated wie Inhaltspflege; ersetzt den ganzen Satz in Reihenfolge", async () => {
+    const { app, authDb, store } = makeApp();
+    const userCookie = await sessionAs(app, authDb, HOST_A, "user");
+    expect((await putMethods(app, [], userCookie)).status).toBe(403);
+
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    const res = await putMethods(
+      app,
+      [
+        { kind: "email", title: "Support", value: "hilfe@example.com" },
+        { kind: "phone", title: "Hotline", value: "+49 30 123456" },
+        { kind: "form", title: "Anliegen schildern" },
+      ],
+      cookie,
+    );
+    expect(res.status).toBe(200);
+
+    const methods = await store.listContactMethods("t_a");
+    expect(methods.map((m) => m.kind)).toEqual(["email", "phone", "form"]);
+    expect(methods[2].value).toBe("");
+
+    // Erneutes Setzen ERSETZT, es hängt nicht an.
+    await putMethods(app, [{ kind: "email", title: "Nur noch Mail", value: "a@b.de" }], cookie);
+    expect(await store.listContactMethods("t_a")).toHaveLength(1);
+  });
+
+  it("ein ungültiger Eintrag im Stapel ändert GAR NICHTS", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    await putMethods(app, [{ kind: "email", title: "Bestand", value: "a@b.de" }], cookie);
+
+    const res = await putMethods(
+      app,
+      [
+        { kind: "email", title: "Gut", value: "gut@example.com" },
+        { kind: "phone", title: "Böse", value: "javascript:alert(1)" },
+      ],
+      cookie,
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: "invalid_phone", index: 1 });
+
+    const methods = await store.listContactMethods("t_a");
+    expect(methods.map((m) => m.title)).toEqual(["Bestand"]);
+  });
+
+  it("Deckel greift bei sieben Wegen", async () => {
+    const { app, authDb } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    const many = Array.from({ length: 7 }, (_, i) => ({ kind: "form", title: `W${i}` }));
+    const res = await putMethods(app, many, cookie);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: "too_many_methods" });
+  });
+
+  it("Mandanten sehen einander nicht", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookieA = await sessionAs(app, authDb, HOST_A, "content");
+    const cookieB = await sessionAs(app, authDb, HOST_B, "content");
+
+    await putMethods(app, [{ kind: "email", title: "A", value: "a@a.de" }], cookieA);
+    await putMethods(app, [{ kind: "email", title: "B", value: "b@b.de" }], cookieB, HOST_B);
+
+    expect((await store.listContactMethods("t_a")).map((m) => m.title)).toEqual(["A"]);
+    expect((await store.listContactMethods("t_b")).map((m) => m.title)).toEqual(["B"]);
   });
 });

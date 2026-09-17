@@ -17,13 +17,23 @@ export function SupportTicketForm({
   locale,
   question,
   className,
+  alwaysOpen = false,
+  bare = false,
 }: {
   locale: Locale;
   question: string | null;
   className?: string;
+  /**
+   * Formular sofort offen, ohne Aufklapper. Auf der KONTAKTSEITE ist es der
+   * Grund, warum jemand da ist — ein Zwischenklick mit der Frage „Etwas stimmt
+   * nicht?" wäre dort die falsche Frage und ein Schritt zu viel.
+   */
+  alwaysOpen?: boolean;
+  /** Ohne eigenen Rahmen und Überschrift — es steckt schon in einer Karte. */
+  bare?: boolean;
 }) {
   const t = getT(locale);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(alwaysOpen);
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "done" | "invalid" | "limited" | "error">(
@@ -38,7 +48,7 @@ export function SupportTicketForm({
     );
   }
 
-  if (!open) {
+  if (!open && !alwaysOpen) {
     return (
       <button
         type="button"
@@ -80,9 +90,13 @@ export function SupportTicketForm({
   return (
     <form
       onSubmit={submit}
-      className={cn("flex flex-col gap-3 rounded-comfy border border-hairline bg-surface p-4", className)}
+      className={cn(
+        "flex flex-col gap-3",
+        bare ? null : "rounded-comfy border border-hairline bg-surface p-4",
+        className,
+      )}
     >
-      <p className="text-sm font-medium text-ink">{t("hc.support.title")}</p>
+      {bare ? null : <p className="text-sm font-medium text-ink">{t("hc.support.title")}</p>}
       <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
         {t("hc.support.messageLabel")}
         <textarea
@@ -111,9 +125,13 @@ export function SupportTicketForm({
         <Button type="submit" disabled={state === "sending"}>
           {state === "sending" ? t("hc.support.submitting") : t("hc.support.submit")}
         </Button>
-        <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
-          {t("hc.support.cancel")}
-        </Button>
+        {/* Ohne Aufklapper gibt es nichts zuzuklappen — „Abbrechen" führte
+            dann ins Leere. */}
+        {alwaysOpen ? null : (
+          <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+            {t("hc.support.cancel")}
+          </Button>
+        )}
         <span aria-live="polite" className="text-xs">
           {state === "invalid" ? (
             <span className="text-crit">{t("hc.support.tooShort")}</span>

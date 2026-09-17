@@ -1,5 +1,6 @@
 import { parseArticleBody } from "./blocks";
 import type { EntryCard } from "./entry-cards";
+import type { ContactMethod } from "./contact-methods";
 import type {
   Article,
   ArticleSummary,
@@ -213,6 +214,13 @@ export const SAMPLE_ENTRY_CARDS: EntryCard[] = [
   },
 ];
 
+/** Beispiel-Kontaktwege für den Dev-Fallback — alle drei Arten. */
+export const SAMPLE_CONTACT_METHODS: ContactMethod[] = [
+  { id: "cm_s1", kind: "email", title: "Support schreiben", description: "Antwort meist am selben Werktag.", value: "hilfe@example.com" },
+  { id: "cm_s2", kind: "phone", title: "Hotline", description: "Mo–Fr, 9–17 Uhr.", value: "+49 30 1234567" },
+  { id: "cm_s3", kind: "form", title: "Anliegen schildern", description: "Wir melden uns per E-Mail zurück.", value: "" },
+];
+
 export const SAMPLE_SUGGESTIONS = [
   "Wie binde ich das Widget ein?",
   "Was passiert, wenn mein Credit-Limit erreicht ist?",
@@ -227,6 +235,7 @@ const toSummary = (a: Article): ArticleSummary => ({
   status: a.status,
   updatedLabel: a.updatedLabel,
   flag: a.flag ?? null,
+  icon: a.icon ?? null,
 });
 
 export function groupByCategory(articles: Article[]): CategoryGroup[] {
@@ -258,4 +267,5 @@ export const sampleHelpCenterRepo: HelpCenterRepository = {
   changelog: async () => SAMPLE_CHANGELOG,
   promptSuggestions: async () => SAMPLE_SUGGESTIONS,
   entryCards: async () => SAMPLE_ENTRY_CARDS,
+  contactMethods: async () => SAMPLE_CONTACT_METHODS,
 };

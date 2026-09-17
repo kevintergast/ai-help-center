@@ -3,43 +3,59 @@
 @tailwind utilities;
 
 /*
-  HallofHelp Design-Tokens (standardisiert, Lovable-inspiriert — siehe DESIGN.md).
-  Farben sind bewusst neutral gehalten und dürfen angepasst werden.
-  Theming: Light ist Basis (:root). Dark greift über prefers-color-scheme
-  ODER erzwungen via <html data-theme="dark|light"> (Toggle + No-Flash-Script).
-  White-Label: --brand-* wird pro Tenant auf <html> überschrieben.
+  HallofHelp Design-Tokens. Theming: Light ist Basis (:root). Dark greift über
+  prefers-color-scheme ODER erzwungen via <html data-theme="dark|light">
+  (Toggle + No-Flash-Script). White-Label: --brand-* wird pro Tenant auf <html>
+  überschrieben und bleibt vom Redesign unberührt.
+
+  FLÄCHEN-HIERARCHIE (Redesign 2026-09-16) — drei Ebenen statt einer:
+
+    --page       App-Grund: Body und Seitenleiste.  Grau.
+    --surface    Inhalt: Artikelfläche, Karten, Kopfzeile.  Weiß.
+    --surface-2  Angehoben: Dropdowns, Eingabefelder, Popover.
+    --tint       Hover/aktiv auf hellem Grund.
+
+  WARUM DREI: Vorher lagen Seitenleiste, Inhalt und Karten alle auf derselben
+  Farbe — getrennt nur durch eine 1px-Linie. Bei 21 Artikeln in 10 Kategorien
+  verschwimmt das zu einer Fläche, und genau daran scheitert die Orientierung.
+  Jetzt trägt die FLÄCHE die Gliederung, die Linie ist nur noch Feinschliff.
+
+  Die Palette ist bewusst kühl-neutral: Das einzige Bunt auf der Seite soll die
+  Marken-Farbe des Kunden sein. Ein eigener Farbstich im Grundgerüst würde mit
+  jedem zweiten Kunden-Branding streiten.
 */
 
 :root {
-  /* Flächen & Text (warm) */
-  --surface: #f7f4ed;
-  --surface-2: #fcfbf8;
-  --ink: #1c1c1c;
-  --muted: #5f5f5d;
-  --border: #eceae4;
-  --border-strong: #c9c5ba;
-  --tint: #f0ece2;
+  /* Flächen & Text (kühl-neutral) */
+  --page: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #fafbfc;
+  --ink: #16181d;
+  --muted: #667085;
+  --border: #e4e7eb;
+  --border-strong: #cdd2da;
+  --tint: #eef0f4;
 
   /* Hochkontrast-Button (invertiert je Theme) */
-  --btn-primary-bg: #1c1c1c;
-  --btn-primary-fg: #fcfbf8;
+  --btn-primary-bg: #16181d;
+  --btn-primary-fg: #ffffff;
 
   /* Fokus & Tiefe */
   --ring: rgba(59, 130, 246, 0.55);
   --shadow-inset: rgba(255, 255, 255, 0.2) 0 0.5px 0 0 inset,
-    rgba(0, 0, 0, 0.2) 0 0 0 0.5px inset, rgba(0, 0, 0, 0.05) 0 1px 2px 0;
-  --shadow-focus: rgba(0, 0, 0, 0.1) 0 4px 12px;
+    rgba(16, 24, 40, 0.14) 0 0 0 0.5px inset, rgba(16, 24, 40, 0.05) 0 1px 2px 0;
+  --shadow-focus: rgba(16, 24, 40, 0.1) 0 4px 12px;
 
   /* Semantik (getrennt vom Marken-Akzent) */
-  --sem-ok: #2f7d55;
-  --sem-ok-bg: #eaf2ec;
-  --sem-ok-bd: #cfe3d6;
-  --sem-warn: #9a6011;
-  --sem-warn-bg: #f6efe1;
-  --sem-warn-bd: #e7d8bf;
-  --sem-crit: #a23a2e;
-  --sem-crit-bg: #f6e9e6;
-  --sem-crit-bd: #e6cfc9;
+  --sem-ok: #067647;
+  --sem-ok-bg: #ecfdf3;
+  --sem-ok-bd: #abefc6;
+  --sem-warn: #b54708;
+  --sem-warn-bg: #fffaeb;
+  --sem-warn-bd: #fedf89;
+  --sem-crit: #b42318;
+  --sem-crit-bg: #fef3f2;
+  --sem-crit-bd: #fecdca;
 
   /* White-Label-Marke (Default; pro Tenant überschrieben) */
   --brand-primary: #4f46e5;
@@ -51,28 +67,29 @@
    (media-query & erzwungen), da CSS keine Block-Wiederverwendung kennt. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --surface: #1b1915;
-    --surface-2: #232019;
-    --ink: #f3efe6;
-    --muted: #a49e8f;
-    --border: #34302a;
-    --border-strong: #4c473d;
-    --tint: #262218;
-    --btn-primary-bg: #f3efe6;
-    --btn-primary-fg: #1b1915;
+    --page: #0b0d11;
+    --surface: #14171d;
+    --surface-2: #1b1f27;
+    --ink: #e8eaed;
+    --muted: #98a2b3;
+    --border: #272c36;
+    --border-strong: #3b4250;
+    --tint: #232832;
+    --btn-primary-bg: #e8eaed;
+    --btn-primary-fg: #14171d;
     --ring: rgba(96, 165, 250, 0.6);
     --shadow-inset: rgba(255, 255, 255, 0.06) 0 0.5px 0 0 inset,
       rgba(0, 0, 0, 0.5) 0 0 0 0.5px inset, rgba(0, 0, 0, 0.3) 0 1px 2px 0;
     --shadow-focus: rgba(0, 0, 0, 0.5) 0 4px 14px;
-    --sem-ok: #6cc08b;
-    --sem-ok-bg: #1c2a21;
-    --sem-ok-bd: #2f4636;
-    --sem-warn: #d6a24e;
-    --sem-warn-bg: #2a2417;
-    --sem-warn-bd: #463c25;
-    --sem-crit: #e08375;
-    --sem-crit-bg: #2a1e1b;
-    --sem-crit-bd: #46302b;
+    --sem-ok: #75e0a7;
+    --sem-ok-bg: #0d2a1d;
+    --sem-ok-bd: #1a4733;
+    --sem-warn: #fdb022;
+    --sem-warn-bg: #2b1f06;
+    --sem-warn-bd: #4e3a12;
+    --sem-crit: #fda29b;
+    --sem-crit-bg: #2b1513;
+    --sem-crit-bd: #4e2420;
     --brand-primary: #8b83ff;
     --brand-accent: #22d3ee;
     --brand-primary-fg: #16130d;
@@ -101,28 +118,29 @@
 }
 
 :root[data-theme="dark"] {
-  --surface: #1b1915;
-  --surface-2: #232019;
-  --ink: #f3efe6;
-  --muted: #a49e8f;
-  --border: #34302a;
-  --border-strong: #4c473d;
-  --tint: #262218;
-  --btn-primary-bg: #f3efe6;
-  --btn-primary-fg: #1b1915;
+  --page: #0b0d11;
+  --surface: #14171d;
+  --surface-2: #1b1f27;
+  --ink: #e8eaed;
+  --muted: #98a2b3;
+  --border: #272c36;
+  --border-strong: #3b4250;
+  --tint: #232832;
+  --btn-primary-bg: #e8eaed;
+  --btn-primary-fg: #14171d;
   --ring: rgba(96, 165, 250, 0.6);
   --shadow-inset: rgba(255, 255, 255, 0.06) 0 0.5px 0 0 inset,
     rgba(0, 0, 0, 0.5) 0 0 0 0.5px inset, rgba(0, 0, 0, 0.3) 0 1px 2px 0;
   --shadow-focus: rgba(0, 0, 0, 0.5) 0 4px 14px;
-  --sem-ok: #6cc08b;
-  --sem-ok-bg: #1c2a21;
-  --sem-ok-bd: #2f4636;
-  --sem-warn: #d6a24e;
-  --sem-warn-bg: #2a2417;
-  --sem-warn-bd: #463c25;
-  --sem-crit: #e08375;
-  --sem-crit-bg: #2a1e1b;
-  --sem-crit-bd: #46302b;
+  --sem-ok: #75e0a7;
+  --sem-ok-bg: #0d2a1d;
+  --sem-ok-bd: #1a4733;
+  --sem-warn: #fdb022;
+  --sem-warn-bg: #2b1f06;
+  --sem-warn-bd: #4e3a12;
+  --sem-crit: #fda29b;
+  --sem-crit-bg: #2b1513;
+  --sem-crit-bd: #4e2420;
   --brand-primary: #8b83ff;
   --brand-accent: #22d3ee;
   --brand-primary-fg: #16130d;

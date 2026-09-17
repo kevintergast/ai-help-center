@@ -1,5 +1,7 @@
 import type { ArticleBlock, ArticleFlag } from "./blocks";
 import type { EntryCard } from "./entry-cards";
+import type { ContactMethod } from "./contact-methods";
+import type { ArticleIcon } from "./article-icons";
 
 /**
  * Domänen-Typen der Inhalts-/RAG-Schicht (transport-agnostisch).
@@ -55,6 +57,12 @@ export interface ArticleSummary {
    * vollständig laden, um ein Wort anzuzeigen. Fehlend/null = kein Badge.
    */
   flag?: ArticleFlag | null;
+  /**
+   * Symbol in der Navigation (0036) — Name aus `article-icons.ts`.
+   * Fehlend/null = KEINS, und das ist der Standard: ein Zeichen, das überall
+   * gleich ist, trägt keine Information.
+   */
+  icon?: ArticleIcon | null;
 }
 
 /**
@@ -185,6 +193,8 @@ export interface HelpCenterRepository {
   promptSuggestions(): Promise<string[]>;
   /** Einstiegs-Karten unter der KI-Eingabe (Startansicht). */
   entryCards(): Promise<EntryCard[]>;
+  /** Kontaktwege (`/contact`); leer = die Seite und ihr Link entfallen. */
+  contactMethods(): Promise<ContactMethod[]>;
 }
 
 /**
@@ -202,4 +212,5 @@ export interface HelpCenterData {
   changelog: ChangelogEntry[];
   suggestions: string[];
   entryCards: EntryCard[];
+  contactMethods: ContactMethod[];
 }

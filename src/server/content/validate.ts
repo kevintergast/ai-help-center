@@ -1,3 +1,4 @@
+import { isArticleIcon, type ArticleIcon } from "@/lib/content/article-icons";
 import { blockTexts, parseTagInput, validateBodyInput, type ArticleBlock, type ArticleFlag } from "@/lib/content/blocks";
 import type { ArticleVideo } from "@/lib/content/types";
 
@@ -34,6 +35,8 @@ export const RESERVED_SLUGS = new Set([
   "api",
   // Widget-Embed-Fläche (Bauphase Widget): /widget = iframe-Seite.
   "widget",
+  // Kontaktseite (0037) — eigene Route, darf kein Artikel-Slug sein.
+  "contact",
 ]);
 
 export const MAX_TITLE_LENGTH = 300;
@@ -51,6 +54,7 @@ export interface ArticleInput {
   locale: string;
   body: ArticleBlock[];
   flag?: ArticleFlag | null;
+  icon?: ArticleIcon | null;
   videos: ArticleVideo[];
   relatedIds: string[];
   readingMinutes: number;
@@ -64,6 +68,7 @@ export interface ArticleUpdateInput {
   body?: ArticleBlock[];
   /** undefined = unberührt; null = Flag entfernen. */
   flag?: ArticleFlag | null;
+  icon?: ArticleIcon | null;
   videos?: ArticleVideo[];
   relatedIds?: string[];
   readingMinutes?: number;
@@ -198,6 +203,11 @@ export function parseCreateArticle(body: unknown, defaultLocale: string): ParseR
   const flag = parseTagInput(b.flag);
   if (flag === undefined) return fail("invalid_flag");
 
+  // Symbol (0036): STRENG beim Schreiben. Der Lesepfad ist tolerant (unbekannt
+  // → keins), hier soll ein Tippfehler nicht still zu „kein Symbol" werden.
+  const iconRes = parseIcon(b.icon);
+  if (!iconRes.ok) return iconRes;
+
   const locale = typeof b.locale === "string" && b.locale.length > 0 ? b.locale : defaultLocale;
   const readingMinutes =
     typeof b.readingMinutes === "number" && b.readingMinutes > 0
@@ -213,12 +223,20 @@ export function parseCreateArticle(body: unknown, defaultLocale: string): ParseR
       locale,
       body: bodyRes.value,
       flag,
+      icon: iconRes.value,
       videos: videosRes.value,
       relatedIds: relatedRes.value,
       readingMinutes,
       isAiGenerated: b.isAiGenerated === true,
     },
   };
+}
+
+/** `null`/leer = kein Symbol (Standard); unbekannter Name = Fehler. */
+function parseIcon(raw: unknown): ParseResult<ArticleIcon | null> {
+  if (raw === undefined || raw === null || raw === "") return { ok: true, value: null };
+  if (!isArticleIcon(raw)) return fail("invalid_icon");
+  return { ok: true, value: raw };
 }
 
 /** Teilaktualisierung: leerer Body ⇒ Fehler (nichts zu ändern). */
@@ -245,6 +263,11 @@ export function parseUpdateArticle(body: unknown): ParseResult<ArticleUpdateInpu
     const flag = parseTagInput(b.flag);
     if (flag === undefined) return fail("invalid_flag");
     out.flag = flag;
+  }
+  if (b.icon !== undefined) {
+    const res = parseIcon(b.icon);
+    if (!res.ok) return res;
+    out.icon = res.value;
   }
   if (b.videos !== undefined) {
     const res = parseVideos(b.videos);

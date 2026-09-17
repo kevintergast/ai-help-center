@@ -12,6 +12,8 @@ import type {
   RoadmapItem,
 } from "@/lib/content/types";
 import { MAX_ENTRY_CARDS, type EntryCard, type EntryCardKind } from "@/lib/content/entry-cards";
+import { readArticleIcon } from "@/lib/content/article-icons";
+import { MAX_CONTACT_METHODS, type ContactKind, type ContactMethod } from "@/lib/content/contact-methods";
 import { groupByCategory } from "@/lib/content/fake-repo";
 import type { ArticleInput, ArticleUpdateInput } from "./validate";
 
@@ -160,6 +162,11 @@ export interface ContentStore {
    * den niemand gewollt hat. Ein Satz, ein Aufruf, ein Ergebnis.
    */
   replaceEntryCards(tenantId: string, cards: Omit<EntryCard, "id">[]): Promise<number>;
+
+  // ——— Kontaktwege (0037) ———
+  listContactMethods(tenantId: string): Promise<ContactMethod[]>;
+  /** Ganzen Satz ersetzen (ein Batch) — wie bei den Einstiegs-Karten. */
+  replaceContactMethods(tenantId: string, methods: Omit<ContactMethod, "id">[]): Promise<number>;
 }
 
 /** Max. Bilder je Artikel (Speicher-/UI-Deckel). */
@@ -254,6 +261,7 @@ interface ArticleRow {
   images_json: string;
   files_json: string;
   flag_json: string | null;
+  icon: string | null;
   sort: number;
   reading_minutes: number;
   is_ai_generated: number;
@@ -297,6 +305,7 @@ function rowToArticle(row: ArticleRow, locale: string): Article {
     readingMinutes: row.reading_minutes,
     body: parseArticleBody(parseJsonArray<unknown>(row.body_json)),
     flag: parseFlagJson(row.flag_json),
+    icon: readArticleIcon(row.icon),
     videos: parseJsonArray<Article["videos"][number]>(row.videos_json),
     relatedIds: parseJsonArray<string>(row.related_ids_json),
     images: parseJsonArray<ArticleImage>(row.images_json).filter(
@@ -318,13 +327,14 @@ function rowToSummary(row: ArticleRow, locale: string): ArticleSummary {
     category: row.category,
     status: displayStatus(row.status, row.is_ai_generated),
     updatedLabel: relativeTimeLabel(row.updated_at, locale),
-    // Die Navigation zeigt das Badge — sie sieht NUR Kurzfassungen.
+    // Die Navigation zeigt Badge UND Symbol — sie sieht NUR Kurzfassungen.
     flag: parseFlagJson(row.flag_json),
+    icon: readArticleIcon(row.icon),
   };
 }
 
 const ARTICLE_COLS =
-  "id, slug, title, category, status, locale, article_key, body_json, videos_json, related_ids_json, images_json, files_json, flag_json, sort, reading_minutes, is_ai_generated, updated_at";
+  "id, slug, title, category, status, locale, article_key, body_json, videos_json, related_ids_json, images_json, files_json, flag_json, icon, sort, reading_minutes, is_ai_generated, updated_at";
 
 function newId(prefix: string): string {
   return `${prefix}_${crypto.randomUUID()}`;
@@ -506,8 +516,8 @@ export class D1ContentRepository implements ContentStore {
         .prepare(
           `INSERT INTO articles
            (id, tenant_id, locale, article_key, slug, title, category, status,
-            body_json, videos_json, related_ids_json, flag_json, reading_minutes, is_ai_generated)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?)`,
+            body_json, videos_json, related_ids_json, flag_json, icon, reading_minutes, is_ai_generated)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?)`,
         )
         .bind(
           id,
@@ -522,6 +532,7 @@ export class D1ContentRepository implements ContentStore {
           JSON.stringify(input.videos),
           JSON.stringify(input.relatedIds),
           input.flag ? JSON.stringify(input.flag) : null,
+          input.icon ?? null,
           input.readingMinutes,
           input.isAiGenerated ? 1 : 0,
         )
@@ -550,6 +561,7 @@ export class D1ContentRepository implements ContentStore {
     if (input.category !== undefined) push("category", input.category);
     if (input.body !== undefined) push("body_json", JSON.stringify(serializeBody(input.body)));
     if (input.flag !== undefined) push("flag_json", input.flag ? JSON.stringify(input.flag) : null);
+    if (input.icon !== undefined) push("icon", input.icon);
     if (input.videos !== undefined) push("videos_json", JSON.stringify(input.videos));
     if (input.relatedIds !== undefined) push("related_ids_json", JSON.stringify(input.relatedIds));
     if (input.readingMinutes !== undefined) push("reading_minutes", input.readingMinutes);
@@ -1015,6 +1027,59 @@ export class D1ContentRepository implements ContentStore {
             card.title,
             card.description,
             card.target.length > 0 ? card.target : null,
+            index,
+          ),
+      ),
+    ];
+    await this.db.batch<unknown>(stmts);
+    return capped.length;
+  }
+
+  // ——— Kontaktwege (0037) ———
+
+  async listContactMethods(tenantId: string): Promise<ContactMethod[]> {
+    const { results } = await this.db
+      .prepare(
+        `SELECT id, kind, title, description, value FROM contact_methods
+          WHERE tenant_id = ? ORDER BY sort ASC, created_at ASC`,
+      )
+      .bind(tenantId)
+      .all<{
+        id: string;
+        kind: string;
+        title: string;
+        description: string | null;
+        value: string | null;
+      }>();
+    return results.map((r) => ({
+      id: r.id,
+      kind: r.kind as ContactKind,
+      title: r.title,
+      description: r.description ?? "",
+      value: r.value ?? "",
+    }));
+  }
+
+  async replaceContactMethods(
+    tenantId: string,
+    methods: Omit<ContactMethod, "id">[],
+  ): Promise<number> {
+    const capped = methods.slice(0, MAX_CONTACT_METHODS);
+    const stmts = [
+      this.db.prepare(`DELETE FROM contact_methods WHERE tenant_id = ?`).bind(tenantId),
+      ...capped.map((m, index) =>
+        this.db
+          .prepare(
+            `INSERT INTO contact_methods (id, tenant_id, kind, title, description, value, sort)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .bind(
+            newId("cm"),
+            tenantId,
+            m.kind,
+            m.title,
+            m.description,
+            m.value.length > 0 ? m.value : null,
             index,
           ),
       ),

@@ -34,6 +34,15 @@ export function SparkleIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** Telefonhörer — für Kontaktwege; das Mikrofon meint Spracheingabe, nicht Anruf. */
+export function PhoneIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M6 3h3l2 5-2.5 1.5a11 11 0 0 0 5 5L15 12l5 2v3a2 2 0 0 1-2.2 2A16 16 0 0 1 4 5.2 2 2 0 0 1 6 3Z" />
+    </svg>
+  );
+}
+
 export function MicIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>

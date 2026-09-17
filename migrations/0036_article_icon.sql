@@ -1,0 +1,13 @@
+-- 0036 — SYMBOL JE ARTIKEL (Navigation).
+--
+-- WARUM: Die linke Leiste zeigte vor JEDEM Artikel dasselbe Dokument-Symbol.
+-- Ein Zeichen, das überall gleich ist, trägt keine Information — es kostet nur
+-- Platz und lässt die Liste noch gleichförmiger wirken. Jetzt wählt die
+-- Redaktion je Artikel ein Symbol; NULL (Standard) heißt: gar keins.
+--
+-- TEXT statt Zahl: Gespeichert wird der NAME aus einem festen Katalog
+-- (lib/content/article-icons.ts), nicht ein Index. Ein Index würde beim
+-- Umsortieren des Katalogs stillschweigend alle Symbole vertauschen.
+-- Unbekannte Namen werden beim Lesen zu „kein Symbol" — ein entfernter
+-- Katalog-Eintrag darf keinen Artikel unlesbar machen.
+ALTER TABLE articles ADD COLUMN icon TEXT;
