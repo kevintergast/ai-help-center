@@ -92,45 +92,6 @@ export function settingsAdminRouter(deps: ApiDeps) {
   // header-name. Kein Owner-Gate, obwohl Antworten Credits kosten — die
   // Kostenseite ist über Budget/Limits gedeckelt, und der Launcher ist eine
   // operative Darstellungsentscheidung (zweiter Einstieg neben der Suche).
-  /**
-   * Link auf die eigene API-Dokumentation (0033). `null`/leer entfernt ihn.
-   *
-   * NUR https: Der Link steht dauerhaft in der Navigation JEDES Besuchers —
-   * `javascript:`/`data:` wären eine XSS-Fläche, `http://` eine
-   * Mixed-Content-Warnung, und interne Pfade ("/x") ergeben hier keinen Sinn
-   * (dafür gibt es Artikel). Deshalb bewusst STRENGER als
-   * `isAllowedButtonHref` für Artikel-Buttons.
-   */
-  r.put("/api-docs", requireTeam("admin"), async (c) => {
-    let raw: unknown;
-    try {
-      raw = ((await c.req.json()) as { url?: unknown }).url;
-    } catch {
-      return c.json({ error: "invalid_json" }, 400);
-    }
-    if (raw !== null && typeof raw !== "string") return c.json({ error: "invalid_url" }, 400);
-
-    const trimmed = typeof raw === "string" ? raw.trim() : "";
-    let url: string | null = null;
-    if (trimmed.length > 0) {
-      if (trimmed.length > 500) return c.json({ error: "invalid_url" }, 400);
-      let parsed: URL;
-      try {
-        parsed = new URL(trimmed);
-      } catch {
-        return c.json({ error: "invalid_url" }, 400);
-      }
-      if (parsed.protocol !== "https:") return c.json({ error: "invalid_url" }, 400);
-      url = parsed.toString();
-    }
-
-    const settings = await deps.getSettingsDeps?.();
-    if (!settings) return c.json({ error: "settings_unavailable" }, 503);
-
-    await settings.setApiDocsUrl(c.get("tenant").id, url);
-    return c.json({ ok: true, url });
-  });
-
   r.put("/widget-on-site", requireTeam("admin"), async (c) => {
     let on: unknown;
     try {

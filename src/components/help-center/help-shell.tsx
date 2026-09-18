@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { HelpViewer } from "@/lib/auth/viewer";
 import type { Locale } from "@/lib/tenant/types";
 import type { MessageKey } from "@/i18n/messages/de";
@@ -64,14 +64,10 @@ export interface HelpShellProps {
   logoUrl: string | null;
   /** Dark-Mode-Logo (0023) — null: Dark Mode zeigt das helle. */
   logoDarkUrl?: string | null;
+  /** Favicon (0031) — das quadratische Zeichen im Fuß. */
+  faviconUrl?: string | null;
   /** Instanzname neben dem Logo (0025) — false nur wirksam MIT Logo. */
   showName?: boolean;
-  /**
-   * Link auf die eigene API-Dokumentation (0033). `null`/fehlend = die Zeile
-   * erscheint nicht. Führt bewusst nach AUSSEN (neuer Tab) — wir rendern
-   * fremde API-Referenzen nicht.
-   */
-  apiDocsUrl?: string | null;
   data: HelpCenterData;
   /** Slug des aktuell offenen Artikels (Navigation hervorheben). */
   activeSlug?: string;
@@ -105,8 +101,8 @@ export function HelpShell({
   tenantName,
   logoUrl,
   logoDarkUrl = null,
+  faviconUrl = null,
   showName = true,
-  apiDocsUrl = null,
   data,
   activeSlug,
   activeContact = false,
@@ -119,6 +115,8 @@ export function HelpShell({
 }: HelpShellProps) {
   const t = getT(locale);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const findQuery = searchParams.get("q") ?? "";
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [drill, setDrill] = useState<null | "roadmap" | "changelog">(null);
   const [saved, setSaved] = useState<SavedArticle[]>([]);
@@ -177,11 +175,13 @@ export function HelpShell({
           ein Nachschlagen über die Id entfällt. */}
       <SearchCombobox
         articles={data.articles}
+        initialQuery={findQuery}
         placeholder={t("hc.searchPlaceholder")}
         emptyLabel={t("hc.searchEmpty")}
         aria-label={t("hc.searchAria")}
         clearLabel={t("hc.searchClear")}
-        onSelect={(hit) => openSlug(hit.slug)}
+        // Die Anfrage reist mit: Im Artikel markiert sie die Fundstellen.
+        onSelect={(hit, q) => openSlug(q.trim() ? `${hit.slug}?q=${encodeURIComponent(q.trim())}` : hit.slug)}
       />
       <nav aria-label={t("hc.articlesHeading")} className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
         {/* Ganz oben: Roadmap + Changelog (öffnen eine Ebene tiefer). */}
@@ -198,18 +198,6 @@ export function HelpShell({
               <span className="truncate">{t("hc.changelog")}</span>
             </button>
           </li>
-          {/* API-DOKU (0033) steht bewusst an ZWEI Stellen: im Kopf, weil sie
-              dauerhaft erreichbar sein soll, und hier, weil sie beim Stöbern
-              in der Leiste gesucht wird. Beide Male ein echtes <a> nach außen. */}
-          {apiDocsUrl ? (
-            <li>
-              <a href={apiDocsUrl} target="_blank" rel="noopener noreferrer" className={NAV_ROW}>
-                <CodeIcon width={15} height={15} className="shrink-0 opacity-70" />
-                <span className="truncate">{t("hc.apiDocs")}</span>
-                <ExternalLinkIcon width={12} height={12} className="shrink-0 opacity-50" aria-hidden />
-              </a>
-            </li>
-          ) : null}
         </ul>
 
         {/* Eigener Abschnitt „Meine Artikel" (gespeicherte KI-Antworten) + Anmelden/Avatar. */}
@@ -427,24 +415,6 @@ export function HelpShell({
             );
           })}
 
-          {/* API-DOKU (0033) im Kopf, direkt neben dem Theme-Umschalter.
-              Sie stand vorher in der linken Leiste zwischen den Artikeln und
-              las sich dort wie ein weiterer Artikel — sie ist aber ein
-              AUSWÄRTS-Ziel. Deshalb <a> mit Außen-Symbol, neuem Tab und
-              rel=noopener; auf schmalen Schirmen bleibt nur das Symbol. */}
-          {apiDocsUrl ? (
-            <a
-              href={apiDocsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={t("hc.apiDocs")}
-              className="inline-flex items-center gap-1.5 rounded-std px-2 py-1.5 text-sm text-ink-muted transition-colors hover:bg-tint hover:text-ink focus-visible:outline-none focus-visible:shadow-focusglow"
-            >
-              <CodeIcon width={16} height={16} className="shrink-0" />
-              <span className="hidden sm:inline">{t("hc.apiDocs")}</span>
-              <ExternalLinkIcon width={11} height={11} className="shrink-0 opacity-60" aria-hidden />
-            </a>
-          ) : null}
           <ThemeToggle label={t("hc.themeToggle")} />
           {/* Konto — gemeinsames Menü mit dem Admin-Header (account-menu.tsx). */}
           <AccountMenu locale={locale} viewer={viewer} isOperator={isOperator} />
@@ -505,8 +475,7 @@ export function HelpShell({
           ) : null}
           <LegalFooter
             t={t}
-            logoUrl={logoUrl}
-            logoDarkUrl={logoDarkUrl}
+            faviconUrl={faviconUrl}
             tenantName={tenantName}
             isOperator={isOperator === true}
           />
@@ -519,34 +488,33 @@ export function HelpShell({
 /**
  * Schmale Legal-Zeile am unteren Rand. Das Zeichen links war fest unser
  * Emblem — auf einer Kundeninstanz stand damit UNSER Logo im Fuß, obwohl das
- * ganze Produkt White-Label ist. Jetzt zeigt es das Logo des Mandanten;
- * ohne eigenes Logo bleibt die Zeile schlicht ohne Zeichen (eine
- * Initial-Kachel wäre hier unten nur Dekoration).
+ * ganze Produkt White-Label ist.
  *
- * NUR die Operator-Instanz zeigt weiterhin unser Emblem — dort IST es das
- * Logo des Mandanten.
+ * Gezeigt wird das FAVICON des Mandanten, nicht sein Logo: Der Platz hier ist
+ * ein 16-Punkt-Quadrat. Ein Logo ist breit und geht darin entweder unter oder
+ * wird gequetscht; das Favicon ist genau für diese Größe gezeichnet.
+ *
+ * KEIN Rückfall aufs Logo: Das brächte genau das zurück, was hier stört. Ohne
+ * Favicon bleibt die Zeile schlicht ohne Zeichen — die Rechtslinks tragen sie
+ * auch allein. (Nur die Operator-Instanz zeigt unser Emblem; dort IST es das
+ * Zeichen des Mandanten.)
  */
 function LegalFooter({
   t,
-  logoUrl,
-  logoDarkUrl,
+  faviconUrl,
   tenantName,
   isOperator,
 }: {
   t: T;
-  logoUrl: string | null;
-  logoDarkUrl?: string | null;
+  faviconUrl: string | null;
   tenantName: string;
   isOperator: boolean;
 }) {
   return (
     <div className="flex items-center gap-3 border-t border-hairline bg-surface px-5 py-2 md:px-10">
-      {logoUrl ? (
-        <picture>
-          {logoDarkUrl ? <source srcSet={logoDarkUrl} media="(prefers-color-scheme: dark)" /> : null}
-          { }
-          <img src={logoUrl} alt={tenantName} className="h-4 w-auto shrink-0" />
-        </picture>
+      {faviconUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={faviconUrl} alt={tenantName} className="h-4 w-4 shrink-0 rounded-[3px] object-contain" />
       ) : isOperator ? (
         <Emblem className="h-4 w-4 shrink-0 text-ink" />
       ) : null}

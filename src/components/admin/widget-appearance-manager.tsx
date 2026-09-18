@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { SparkleIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/ui/cn";
+import { useUnsavedGuard } from "@/lib/admin/use-unsaved-guard";
+import { UnsavedGuardDialog } from "@/components/admin/unsaved-guard-dialog";
 
 /**
  * ERSCHEINUNGSBILD DES WIDGETS (0041).
@@ -54,8 +56,10 @@ export function WidgetAppearanceManager({
   const [variant, setVariant] = useState<ActionVariant>(initialVariant);
   const [label, setLabel] = useState(initialLabel ?? "");
   const [state, setState] = useState<"idle" | "saving" | "done" | "error">("idle");
+  const dirty = variant !== initialVariant || label !== (initialLabel ?? "");
+  const guard = useUnsavedGuard(dirty);
 
-  async function save() {
+  async function save(): Promise<boolean> {
     setState("saving");
     try {
       const res = await fetch("/api/v1/admin/settings/widget-appearance", {
@@ -65,8 +69,10 @@ export function WidgetAppearanceManager({
       });
       if (!res.ok) throw new Error("save");
       setState("done");
+      return true;
     } catch {
       setState("error");
+      return false;
     }
   }
 
@@ -147,6 +153,17 @@ export function WidgetAppearanceManager({
           ) : null}
         </span>
       </div>
+
+      <UnsavedGuardDialog
+        locale={locale}
+        href={guard.pendingHref}
+        onCancel={guard.cancel}
+        onSave={save}
+        onDiscard={() => {
+          setVariant(initialVariant);
+          setLabel(initialLabel ?? "");
+        }}
+      />
     </div>
   );
 }
