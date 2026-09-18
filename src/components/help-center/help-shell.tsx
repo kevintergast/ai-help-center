@@ -66,12 +66,6 @@ export interface HelpShellProps {
   logoDarkUrl?: string | null;
   /** Instanzname neben dem Logo (0025) — false nur wirksam MIT Logo. */
   showName?: boolean;
-  /**
-   * Link auf die eigene API-Dokumentation (0033). `null`/fehlend = die Zeile
-   * erscheint nicht. Führt bewusst nach AUSSEN (neuer Tab) — wir rendern
-   * fremde API-Referenzen nicht.
-   */
-  apiDocsUrl?: string | null;
   data: HelpCenterData;
   /** Slug des aktuell offenen Artikels (Navigation hervorheben). */
   activeSlug?: string;
@@ -106,7 +100,6 @@ export function HelpShell({
   logoUrl,
   logoDarkUrl = null,
   showName = true,
-  apiDocsUrl = null,
   data,
   activeSlug,
   activeContact = false,
@@ -198,18 +191,6 @@ export function HelpShell({
               <span className="truncate">{t("hc.changelog")}</span>
             </button>
           </li>
-          {/* API-DOKU (0033) steht bewusst an ZWEI Stellen: im Kopf, weil sie
-              dauerhaft erreichbar sein soll, und hier, weil sie beim Stöbern
-              in der Leiste gesucht wird. Beide Male ein echtes <a> nach außen. */}
-          {apiDocsUrl ? (
-            <li>
-              <a href={apiDocsUrl} target="_blank" rel="noopener noreferrer" className={NAV_ROW}>
-                <CodeIcon width={15} height={15} className="shrink-0 opacity-70" />
-                <span className="truncate">{t("hc.apiDocs")}</span>
-                <ExternalLinkIcon width={12} height={12} className="shrink-0 opacity-50" aria-hidden />
-              </a>
-            </li>
-          ) : null}
         </ul>
 
         {/* Eigener Abschnitt „Meine Artikel" (gespeicherte KI-Antworten) + Anmelden/Avatar. */}
@@ -427,24 +408,6 @@ export function HelpShell({
             );
           })}
 
-          {/* API-DOKU (0033) im Kopf, direkt neben dem Theme-Umschalter.
-              Sie stand vorher in der linken Leiste zwischen den Artikeln und
-              las sich dort wie ein weiterer Artikel — sie ist aber ein
-              AUSWÄRTS-Ziel. Deshalb <a> mit Außen-Symbol, neuem Tab und
-              rel=noopener; auf schmalen Schirmen bleibt nur das Symbol. */}
-          {apiDocsUrl ? (
-            <a
-              href={apiDocsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={t("hc.apiDocs")}
-              className="inline-flex items-center gap-1.5 rounded-std px-2 py-1.5 text-sm text-ink-muted transition-colors hover:bg-tint hover:text-ink focus-visible:outline-none focus-visible:shadow-focusglow"
-            >
-              <CodeIcon width={16} height={16} className="shrink-0" />
-              <span className="hidden sm:inline">{t("hc.apiDocs")}</span>
-              <ExternalLinkIcon width={11} height={11} className="shrink-0 opacity-60" aria-hidden />
-            </a>
-          ) : null}
           <ThemeToggle label={t("hc.themeToggle")} />
           {/* Konto — gemeinsames Menü mit dem Admin-Header (account-menu.tsx). */}
           <AccountMenu locale={locale} viewer={viewer} isOperator={isOperator} />

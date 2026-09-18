@@ -90,6 +90,8 @@ export const en: Record<MessageKey, string> = {
   "hc.support.messageLabel": "Describe your issue",
   "hc.support.messagePlaceholder":
     "What isn't working, or what do you need help with? (at least 10 characters)",
+  "hc.support.emailLabelRequired": "Email for our reply",
+  "hc.support.emailRequired": "Without a valid email address we cannot reply to you.",
   "hc.support.emailLabel": "Email for a reply (optional)",
   "hc.support.emailPlaceholder": "you@example.com",
   "hc.support.submit": "Send",

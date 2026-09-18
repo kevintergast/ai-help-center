@@ -59,8 +59,6 @@ export interface HelpCenterProps {
   logoDarkUrl?: string | null;
   /** Instanzname neben dem Logo (0025) — false nur wirksam MIT Logo. */
   showName?: boolean;
-  /** Link auf die eigene API-Dokumentation (0033) — durchgereicht an HelpShell. */
-  apiDocsUrl?: string | null;
   /** Serverseitig aufgelöstes Lese-Bundle (D1 oder Sample-Fallback). */
   data: HelpCenterData;
   /** Operator-Instanz (app.*) → CTA „Eigenes Hilfezentrum erstellen". */
@@ -75,7 +73,6 @@ export function HelpCenter({
   logoUrl,
   logoDarkUrl = null,
   showName = true,
-  apiDocsUrl = null,
   data,
   isOperator,
   viewer = null,
@@ -183,7 +180,6 @@ export function HelpCenter({
       logoUrl={logoUrl}
       logoDarkUrl={logoDarkUrl}
       showName={showName}
-      apiDocsUrl={apiDocsUrl}
       data={data}
       isOperator={isOperator}
       viewer={viewer}

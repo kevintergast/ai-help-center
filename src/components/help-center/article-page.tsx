@@ -38,8 +38,6 @@ export interface ArticlePageProps {
   logoDarkUrl?: string | null;
   /** Instanzname neben dem Logo (0025) — false nur wirksam MIT Logo. */
   showName?: boolean;
-  /** Link auf die eigene API-Dokumentation (0033) — durchgereicht an HelpShell. */
-  apiDocsUrl?: string | null;
   /** „Ich verstehe etwas nicht" (0039) — aus = Knopf erscheint nicht. */
   comprehensionMode?: boolean;
   article: Article;
@@ -61,7 +59,6 @@ export function ArticlePage({
   logoUrl,
   logoDarkUrl = null,
   showName = true,
-  apiDocsUrl = null,
   comprehensionMode = true,
   article,
   related,
@@ -87,7 +84,6 @@ export function ArticlePage({
       logoUrl={logoUrl}
       logoDarkUrl={logoDarkUrl}
       showName={showName}
-      apiDocsUrl={apiDocsUrl}
       data={data}
       isOperator={isOperator}
       viewer={viewer}
@@ -116,7 +112,17 @@ export function ArticlePage({
                 {t(s.key)}
               </Badge>
               {/* Artikel-Flag (0024): Paletten-Farbe, reiner Text. */}
-              {article.flag ? <Badge tone={article.flag.color}>{article.flag.text}</Badge> : null}
+              {/* Leiser als die übrigen Badges: Das Flag ist ein Hinweis
+                  („Beta"), kein Status. In voller Größe konkurrierte es mit
+                  dem Aktualitäts-Status daneben. */}
+              {article.flag ? (
+                <Badge
+                  tone={article.flag.color}
+                  className="px-2 py-0.5 text-[11px] uppercase tracking-wide"
+                >
+                  {article.flag.text}
+                </Badge>
+              ) : null}
               <span>{t("hc.updated", { when: article.updatedLabel })}</span>
               <span aria-hidden>·</span>
               <span>{t("hc.readingTime", { min: article.readingMinutes })}</span>

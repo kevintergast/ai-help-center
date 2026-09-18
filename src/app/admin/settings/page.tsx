@@ -7,7 +7,6 @@ import { LegalDocsManager } from "@/components/admin/legal-docs-manager";
 import { SearchIndexManager } from "@/components/admin/search-index-manager";
 import { SeoIndexingManager } from "@/components/admin/seo-indexing-manager";
 import { SupportEmailManager } from "@/components/admin/support-email-manager";
-import { ApiDocsManager } from "@/components/admin/api-docs-manager";
 import { ComprehensionToggle } from "@/components/admin/comprehension-toggle";
 import { WidgetAppearanceManager } from "@/components/admin/widget-appearance-manager";
 import { WidgetSiteToggle } from "@/components/admin/widget-site-toggle";
@@ -79,10 +78,6 @@ export default async function AdminSettingsPage() {
           initialOn={tenant.comprehensionMode !== false}
         />
 
-        <ApiDocsManager
-            locale={tenant.defaultLocale}
-            initialUrl={tenant.apiDocsUrl ?? null}
-          />
         </SettingsCard>
 
         <SettingsCard title={t("admin.settings.domain")}>

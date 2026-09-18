@@ -89,6 +89,8 @@ export const de = {
   "hc.support.messageLabel": "Beschreibe dein Anliegen",
   "hc.support.messagePlaceholder":
     "Was funktioniert nicht bzw. wobei brauchst du Hilfe? (mindestens 10 Zeichen)",
+  "hc.support.emailLabelRequired": "E-Mail für die Antwort",
+  "hc.support.emailRequired": "Ohne gültige E-Mail-Adresse können wir dir nicht antworten.",
   "hc.support.emailLabel": "E-Mail für Rückmeldung (optional)",
   "hc.support.emailPlaceholder": "du@beispiel.de",
   "hc.support.submit": "Absenden",

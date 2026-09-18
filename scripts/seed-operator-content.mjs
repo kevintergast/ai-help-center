@@ -399,7 +399,7 @@ const ARTICLES = [
       "Beides geht auch aus einem verbundenen KI-Client heraus: Dein Client kann eine einzelne Videobeschreibung ändern, ohne die anderen Videos anzufassen, und aus einem eingefügten Transkript Titel und Beschreibung erzeugen lassen. Ohne Transkript wird auch dort nichts erfunden. Bildbeschreibungen kann er sich ansehen und gleich stapelweise nachbessern — siehe »Eigenen KI-Client verbinden (MCP)«.",
       "Änderst du Videos, greifen sie wie Textänderungen erst mit dem Veröffentlichen des Artikels.",
     ],
-    related: ["artikel-veroeffentlichen", "ki-antworten"],
+    related: ["kopf-knoepfe-und-widget", "ki-antworten"],
   },
   {
     slug: "ki-client-verbinden",
@@ -433,8 +433,8 @@ const ARTICLES = [
     category: "Sichtbarkeit",
     min: 2,
     body: [
-      "Hast du eine eigene API, kannst du deine Entwickler-Dokumentation direkt aus dem Hilfezentrum heraus verlinken. Der Link erscheint oben rechts im Kopf, direkt neben dem Hell-/Dunkel-Umschalter, und öffnet in einem neuen Tab. Auf schmalen Bildschirmen bleibt nur das Symbol stehen.",
-      "Eingerichtet wird er als Administrator unter »Einstellungen« → »API-Dokumentation«: Adresse eintragen, speichern. Ein leeres Feld entfernt den Link wieder, die Zeile verschwindet dann aus der Navigation.",
+      "Hast du eine eigene API, kannst du deine Entwickler-Dokumentation aus dem Hilfezentrum heraus verlinken — als Aktions-Knopf im Kopf. Es gibt dafür keinen Sonderweg mehr: Du legst ihn unter »Navigation« an wie jeden anderen Knopf, mit Beschriftung, Symbol und Variante deiner Wahl.",
+      "Nimm als Symbol »Code« und als Ziel deine https-Adresse; der Knopf öffnet automatisch in einem neuen Tab, weil das Ziel nach außen führt. Auf schmalen Bildschirmen bleibt nur das Symbol stehen. Entfernen heißt: Knopf löschen.",
       "Erlaubt sind ausschließlich vollständige https-Adressen. Der Grund: Dieser Link steht dauerhaft in der Navigation jedes Besuchers — dort gehört nichts hin, was unverschlüsselt lädt oder Skripte ausführen könnte.",
       "Warum wir deine API-Referenz nicht bei uns darstellen: Sie wird aus deinem Spec erzeugt und ändert sich mit jedem Release. Eine Kopie in deinem Hilfezentrum wäre nach deinem nächsten Deploy falsch. Deine Doku bleibt deshalb da, wo sie gepflegt wird — das Hilfezentrum führt nur hin.",
       "Beachte: Ein verlinktes Ziel ist für die KI-Antworten NICHT sichtbar. Sie kennt nur deine Artikel, Roadmap und Changelog. Fragen zu Endpunkten kann sie also noch nicht beantworten — dafür müssten die Inhalte in dein Hilfezentrum kommen.",

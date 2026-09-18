@@ -524,7 +524,6 @@ async function getSettingsDepsRuntime(): Promise<SettingsDeps | null> {
     setSupportEmail: (tenantId, email) => repo.setSupportEmail(tenantId, email),
     setDefaultLocale: (tenantId, locale) => repo.setDefaultLocale(tenantId, locale),
     setShowHeaderName: (tenantId, show) => repo.setShowHeaderName(tenantId, show),
-    setApiDocsUrl: (tenantId, url) => repo.setApiDocsUrl(tenantId, url),
     setWidgetOnSite: (tenantId, on) => repo.setWidgetOnSite(tenantId, on),
     setComprehensionMode: (tenantId, on) => repo.setComprehensionMode(tenantId, on),
     setWidgetAppearance: (tenantId, variant, label) =>

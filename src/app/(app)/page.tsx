@@ -22,7 +22,6 @@ export default async function Home() {
       logoUrl={tenant.branding.logoUrl}
       logoDarkUrl={tenant.branding.logoDarkUrl ?? null}
       showName={tenant.showHeaderName ?? true}
-      apiDocsUrl={tenant.apiDocsUrl ?? null}
       data={data}
       isOperator={tenant.id === "t_operator"}
       viewer={viewer}

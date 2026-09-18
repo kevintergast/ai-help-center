@@ -19,6 +19,7 @@ export function SupportTicketForm({
   className,
   alwaysOpen = false,
   bare = false,
+  requireEmail = false,
 }: {
   locale: Locale;
   question: string | null;
@@ -31,14 +32,22 @@ export function SupportTicketForm({
   alwaysOpen?: boolean;
   /** Ohne eigenen Rahmen und Überschrift — es steckt schon in einer Karte. */
   bare?: boolean;
+  /**
+   * E-Mail PFLICHT statt freiwillig. Auf der KONTAKTSEITE ist das richtig:
+   * Wer dort schreibt, erwartet eine Antwort — eine Nachricht ohne Adresse
+   * wäre ein Brief ohne Absender, und niemand könnte je zurückschreiben.
+   * Unter einer KI-Antwort bleibt sie freiwillig (dort ist die anonyme
+   * Meldung der Normalfall).
+   */
+  requireEmail?: boolean;
 }) {
   const t = getT(locale);
   const [open, setOpen] = useState(alwaysOpen);
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState("");
-  const [state, setState] = useState<"idle" | "sending" | "done" | "invalid" | "limited" | "error">(
-    "idle",
-  );
+  const [state, setState] = useState<
+    "idle" | "sending" | "done" | "invalid" | "limited" | "error" | "emailRequired"
+  >("idle");
 
   if (state === "done") {
     return (
@@ -60,10 +69,21 @@ export function SupportTicketForm({
     );
   }
 
+  /** Bewusst dieselbe Form wie serverseitig (api/support.ts) — was hier
+   *  durchgeht, darf dort nicht scheitern. */
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailOk = EMAIL_RE.test(email.trim());
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (message.trim().length < 10) {
       setState("invalid");
+      return;
+    }
+    // Auf der Kontaktseite ist die Adresse PFLICHT: Eine Nachricht ohne
+    // Absender kann niemand beantworten.
+    if (requireEmail && !emailOk) {
+      setState("emailRequired");
       return;
     }
     setState("sending");
@@ -112,17 +132,24 @@ export function SupportTicketForm({
         />
       </label>
       <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-        {t("hc.support.emailLabel")}
+        {requireEmail ? t("hc.support.emailLabelRequired") : t("hc.support.emailLabel")}
         <input
           type="email"
+          required={requireEmail}
+          aria-invalid={state === "emailRequired" ? true : undefined}
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            if (state === "emailRequired") setState("idle");
+          }}
           placeholder={t("hc.support.emailPlaceholder")}
           className="w-full max-w-sm rounded-std border border-hairline bg-surface-raised px-3 py-2 text-base text-ink placeholder:text-ink-muted/70"
         />
       </label>
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" disabled={state === "sending"}>
+        {/* Ohne gültige Adresse gar nicht erst absendbar — ein Fehler NACH
+            dem Tippen der ganzen Nachricht wäre die schlechtere Reihenfolge. */}
+        <Button type="submit" disabled={state === "sending" || (requireEmail && !emailOk)}>
           {state === "sending" ? t("hc.support.submitting") : t("hc.support.submit")}
         </Button>
         {/* Ohne Aufklapper gibt es nichts zuzuklappen — „Abbrechen" führte
@@ -135,6 +162,8 @@ export function SupportTicketForm({
         <span aria-live="polite" className="text-xs">
           {state === "invalid" ? (
             <span className="text-crit">{t("hc.support.tooShort")}</span>
+          ) : state === "emailRequired" ? (
+            <span className="text-crit">{t("hc.support.emailRequired")}</span>
           ) : state === "limited" ? (
             <span className="text-warn">{t("security.rateLimited")}</span>
           ) : state === "error" ? (

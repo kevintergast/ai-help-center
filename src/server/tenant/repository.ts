@@ -159,17 +159,6 @@ export class D1TenantRepository {
       .run();
   }
 
-  /**
-   * Link auf die eigene API-Dokumentation (Settings-API, admin — 0033).
-   * `null` entfernt den Link; die Header-Zeile verschwindet dann.
-   */
-  async setApiDocsUrl(tenantId: string, url: string | null): Promise<void> {
-    await this.db
-      .prepare(`UPDATE tenants SET api_docs_url = ? WHERE id = ?`)
-      .bind(url, tenantId)
-      .run();
-  }
-
   /** Widget auf den eigenen öffentlichen Seiten (Settings-API, admin — 0027). */
   async setWidgetOnSite(tenantId: string, on: boolean): Promise<void> {
     await this.db
