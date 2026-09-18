@@ -291,6 +291,13 @@ export const en: Record<MessageKey, string> = {
   "admin.widget.uploading": "Uploading \u2026",
   "admin.widget.save": "Save appearance",
   "admin.widget.saved": "Appearance saved.",
+  "admin.guard.title": "Unsaved changes",
+  "admin.guard.body":
+    "You have changes that are not saved yet. If you leave now, they are lost.",
+  "admin.guard.stay": "Stay here",
+  "admin.guard.saveAndGo": "Save and continue",
+  "admin.guard.saving": "Saving \u2026",
+  "admin.guard.discard": "Discard and continue",
   "admin.nav.settings": "Settings",
   "admin.nav.updates": "Updates",
   "admin.updates.title": "Changelog & roadmap",

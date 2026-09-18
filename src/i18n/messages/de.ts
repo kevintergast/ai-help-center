@@ -292,6 +292,13 @@ export const de = {
   "admin.widget.uploading": "Lädt …",
   "admin.widget.save": "Erscheinungsbild speichern",
   "admin.widget.saved": "Erscheinungsbild gespeichert.",
+  "admin.guard.title": "Ungespeicherte Änderungen",
+  "admin.guard.body":
+    "Du hast Änderungen, die noch nicht gespeichert sind. Verlässt du die Seite jetzt, gehen sie verloren.",
+  "admin.guard.stay": "Hierbleiben",
+  "admin.guard.saveAndGo": "Speichern und weiter",
+  "admin.guard.saving": "Speichert …",
+  "admin.guard.discard": "Verwerfen und weiter",
   "admin.nav.settings": "Einstellungen",
   "admin.nav.updates": "Updates",
   "admin.updates.title": "Changelog & Roadmap",

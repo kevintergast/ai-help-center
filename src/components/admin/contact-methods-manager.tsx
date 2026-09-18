@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { IconButton } from "@/components/ui/icon-button";
+import { useUnsavedGuard } from "@/lib/admin/use-unsaved-guard";
+import { UnsavedGuardDialog } from "@/components/admin/unsaved-guard-dialog";
 import { CloseIcon, PlusIcon } from "@/components/ui/icons";
 
 /**
@@ -56,6 +58,13 @@ export function ContactMethodsManager({ locale }: { locale: Locale }) {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [state, setState] = useState<"loading" | "idle" | "saving" | "done" | "error">("loading");
   const [errorKey, setErrorKey] = useState<MessageKey | null>(null);
+  /**
+   * Zuletzt GESPEICHERTER Stand. Ohne ihn wüsste die Seite nicht, ob etwas
+   * offen ist — und „Verwerfen" hätte nichts, wohin es zurückkehren könnte.
+   */
+  const [pristine, setPristine] = useState<string>("[]");
+  const dirty = JSON.stringify(drafts.map(({ key: _k, ...rest }) => rest)) !== pristine;
+  const guard = useUnsavedGuard(dirty);
 
   useEffect(() => {
     let alive = true;
@@ -65,7 +74,9 @@ export function ContactMethodsManager({ locale }: { locale: Locale }) {
         if (!res.ok) throw new Error("load");
         const data = (await res.json()) as { methods: ContactMethod[] };
         if (!alive) return;
-        setDrafts(data.methods.map((m) => ({ ...m, key: nextKey() })));
+        const loaded = data.methods.map((m) => ({ ...m, key: nextKey() }));
+        setDrafts(loaded);
+        setPristine(JSON.stringify(loaded.map(({ key: _k, ...rest }) => rest)));
         setState("idle");
       } catch {
         if (alive) setState("error");
@@ -82,14 +93,14 @@ export function ContactMethodsManager({ locale }: { locale: Locale }) {
     setErrorKey(null);
   }
 
-  async function save() {
+  async function save(): Promise<boolean> {
     const methods: Omit<ContactMethod, "id">[] = [];
     for (const d of drafts) {
       const res = parseContactMethodInput(d);
       if (!res.ok) {
         setErrorKey(ERROR_KEYS[res.error] ?? "admin.contact.error.generic");
         setState("idle");
-        return;
+        return false;
       }
       methods.push(res.method);
     }
@@ -104,10 +115,14 @@ export function ContactMethodsManager({ locale }: { locale: Locale }) {
       });
       if (!res.ok) throw new Error("save");
       const fresh = (await res.json()) as { methods: ContactMethod[] };
-      setDrafts(fresh.methods.map((m) => ({ ...m, key: nextKey() })));
+      const next = fresh.methods.map((m) => ({ ...m, key: nextKey() }));
+      setDrafts(next);
+      setPristine(JSON.stringify(next.map(({ key: _k, ...rest }) => rest)));
       setState("done");
+      return true;
     } catch {
       setState("error");
+      return false;
     }
   }
 
@@ -223,6 +238,15 @@ export function ContactMethodsManager({ locale }: { locale: Locale }) {
           ) : null}
         </span>
       </div>
+
+      {/* Rückfrage, bevor ungespeicherte Änderungen verloren gehen. */}
+      <UnsavedGuardDialog
+        locale={locale}
+        href={guard.pendingHref}
+        onCancel={guard.cancel}
+        onSave={save}
+        onDiscard={() => setDrafts(JSON.parse(pristine).map((d: object) => ({ ...d, key: nextKey() })))}
+      />
     </div>
   );
 }

@@ -17,6 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DocIcon, GridIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/ui/cn";
+import { useUnsavedGuard } from "@/lib/admin/use-unsaved-guard";
+import { UnsavedGuardDialog } from "@/components/admin/unsaved-guard-dialog";
 
 /**
  * REIHENFOLGE DER NAVIGATION pflegen (Migration 0034).
@@ -61,13 +63,14 @@ export function NavOrderManager({ locale }: { locale: Locale }) {
   }, []);
 
   const dirty = isDirty(saved, list);
+  const guard = useUnsavedGuard(dirty);
 
   function apply(next: ArticleSummary[]) {
     setList(next);
     setState("idle");
   }
 
-  async function save() {
+  async function save(): Promise<boolean> {
     setState("saving");
     try {
       const res = await fetch("/api/v1/admin/articles/order", {
@@ -78,8 +81,10 @@ export function NavOrderManager({ locale }: { locale: Locale }) {
       if (!res.ok) throw new Error("save");
       setSaved(list);
       setState("done");
+      return true;
     } catch {
       setState("error");
+      return false;
     }
   }
 
@@ -186,6 +191,15 @@ export function NavOrderManager({ locale }: { locale: Locale }) {
           ) : null}
         </span>
       </div>
+
+      {/* Rückfrage, bevor eine umsortierte Leiste verloren geht. */}
+      <UnsavedGuardDialog
+        locale={locale}
+        href={guard.pendingHref}
+        onCancel={guard.cancel}
+        onSave={save}
+        onDiscard={() => setList(saved)}
+      />
     </div>
   );
 }
