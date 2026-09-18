@@ -267,6 +267,8 @@ export const en: Record<MessageKey, string> = {
   "admin.settings.comprehension": "\u201cI don\u2019t understand something\u201d",
   "admin.settings.comprehensionHint":
     "Readers can click a spot in an article and write what is unclear. The notes land in the inbox under Issues. On by default.",
+  "admin.inbox.kind.aiReview": "AI note",
+  "admin.inbox.suggestion": "AI suggestion",
   "admin.inbox.kind.support": "AI answer",
   "admin.inbox.kind.comprehension": "Article unclear",
   "admin.widget.appearanceTitle": "Widget appearance",

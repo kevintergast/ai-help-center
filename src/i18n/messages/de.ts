@@ -268,6 +268,8 @@ export const de = {
   "admin.settings.comprehension": "„Ich verstehe etwas nicht“",
   "admin.settings.comprehensionHint":
     "Leser können auf eine Stelle im Artikel klicken und schreiben, was unklar ist. Die Hinweise landen im Postfach unter »Probleme«. Standardmäßig an.",
+  "admin.inbox.kind.aiReview": "KI-Hinweis",
+  "admin.inbox.suggestion": "Vorschlag der KI",
   "admin.inbox.kind.support": "KI-Antwort",
   "admin.inbox.kind.comprehension": "Artikel unklar",
   "admin.widget.appearanceTitle": "Erscheinungsbild des Widgets",

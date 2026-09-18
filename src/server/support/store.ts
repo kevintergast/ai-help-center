@@ -11,10 +11,14 @@ export type TicketStatus = "open" | "done";
  * ART der Meldung (0039):
  *   support       — „Etwas stimmt nicht?" unter einer KI-Antwort.
  *   comprehension — „Ich verstehe etwas nicht" an einer Stelle IM Artikel.
+ *   ai_review     — ein angebundener KI-Client meldet eine unklare Stelle.
+ *                   BEWUSST eigene Art: Eine Maschine kann davon beliebig
+ *                   viele erzeugen; im selben Topf würde das seltene
+ *                   menschliche Signal darin ersaufen.
  * Ein Postfach, zwei Anlässe: Ein zweites Postfach hätte bedeutet, dass ein
  * Team zwei Orte im Blick behalten muss.
  */
-export type TicketKind = "support" | "comprehension";
+export type TicketKind = "support" | "comprehension" | "ai_review";
 
 export interface SupportTicket {
   id: string;
@@ -26,6 +30,8 @@ export interface SupportTicket {
   articleId: string | null;
   anchor: number | null;
   quote: string | null;
+  /** Nur bei `ai_review`: der Verbesserungsvorschlag (dort Pflicht). */
+  suggestion: string | null;
   status: TicketStatus;
   createdAt: number;
 }
@@ -40,6 +46,7 @@ export interface NewTicket {
   articleId?: string | null;
   anchor?: number | null;
   quote?: string | null;
+  suggestion?: string | null;
   actorType: "anon" | "user" | "internal";
   visitorId: string | null;
   nowSec: number;
@@ -54,6 +61,10 @@ export interface SupportRepository {
   /** true = Ticket existierte im Tenant und wurde gelöscht. */
   remove(tenantId: string, id: string): Promise<boolean>;
   countOpen(tenantId: string): Promise<number>;
+  /** KI-Meldungen seit `sinceSec` — Grundlage des Tagesdeckels. */
+  countAiReviewsSince(tenantId: string, sinceSec: number): Promise<number>;
+  /** Gibt es zu dieser Stelle schon eine OFFENE KI-Meldung? */
+  hasOpenAiReview(tenantId: string, articleId: string, anchor: number): Promise<boolean>;
 }
 
 interface TicketRow {
@@ -65,6 +76,7 @@ interface TicketRow {
   article_id: string | null;
   anchor: number | null;
   quote: string | null;
+  suggestion: string | null;
   status: TicketStatus;
   created_at: number;
 }
@@ -73,13 +85,15 @@ function rowToTicket(r: TicketRow): SupportTicket {
   return {
     id: r.id,
     // Altbestand ohne Spaltenwert ist immer 'support'.
-    kind: r.kind === "comprehension" ? "comprehension" : "support",
+    kind:
+      r.kind === "comprehension" || r.kind === "ai_review" ? r.kind : "support",
     message: r.message,
     contactEmail: r.contact_email,
     question: r.question,
     articleId: r.article_id,
     anchor: r.anchor,
     quote: r.quote,
+    suggestion: r.suggestion,
     status: r.status,
     createdAt: r.created_at,
   };
@@ -93,9 +107,9 @@ export class D1SupportRepository implements SupportRepository {
     await this.db
       .prepare(
         `INSERT INTO support_tickets
-           (id, tenant_id, kind, message, contact_email, question, article_id, anchor, quote,
+           (id, tenant_id, kind, message, contact_email, question, article_id, anchor, quote, suggestion,
             status, actor_type, visitor_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`,
       )
       .bind(
         id,
@@ -107,6 +121,7 @@ export class D1SupportRepository implements SupportRepository {
         input.articleId ?? null,
         input.anchor ?? null,
         input.quote ?? null,
+        input.suggestion ?? null,
         input.actorType,
         input.visitorId,
         input.nowSec,
@@ -122,6 +137,7 @@ export class D1SupportRepository implements SupportRepository {
       articleId: input.articleId ?? null,
       anchor: input.anchor ?? null,
       quote: input.quote ?? null,
+      suggestion: input.suggestion ?? null,
       status: "open",
       createdAt: input.nowSec,
     };
@@ -130,7 +146,7 @@ export class D1SupportRepository implements SupportRepository {
   async listByTenant(tenantId: string, limit: number): Promise<SupportTicket[]> {
     const rows = await this.db
       .prepare(
-        `SELECT id, kind, message, contact_email, question, article_id, anchor, quote, status, created_at
+        `SELECT id, kind, message, contact_email, question, article_id, anchor, quote, suggestion, status, created_at
            FROM support_tickets
           WHERE tenant_id = ?
           ORDER BY CASE status WHEN 'open' THEN 0 ELSE 1 END, created_at DESC
@@ -139,6 +155,30 @@ export class D1SupportRepository implements SupportRepository {
       .bind(tenantId, limit)
       .all<TicketRow>();
     return rows.results.map(rowToTicket);
+  }
+
+  async countAiReviewsSince(tenantId: string, sinceSec: number): Promise<number> {
+    const row = await this.db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM support_tickets
+          WHERE tenant_id = ? AND kind = 'ai_review' AND created_at >= ?`,
+      )
+      .bind(tenantId, sinceSec)
+      .first<{ n: number }>();
+    return row?.n ?? 0;
+  }
+
+  async hasOpenAiReview(tenantId: string, articleId: string, anchor: number): Promise<boolean> {
+    const row = await this.db
+      .prepare(
+        `SELECT 1 AS hit FROM support_tickets
+          WHERE tenant_id = ? AND kind = 'ai_review' AND status = 'open'
+            AND article_id = ? AND anchor = ?
+          LIMIT 1`,
+      )
+      .bind(tenantId, articleId, anchor)
+      .first<{ hit: number }>();
+    return row !== null && row !== undefined;
   }
 
   async setStatus(tenantId: string, id: string, status: TicketStatus): Promise<boolean> {
