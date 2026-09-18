@@ -26,8 +26,8 @@ export function ContactPage({
   tenantName,
   logoUrl,
   logoDarkUrl,
+  faviconUrl,
   showName,
-  apiDocsUrl,
   data,
   isOperator,
   viewer,
@@ -36,8 +36,9 @@ export function ContactPage({
   tenantName: string;
   logoUrl: string | null;
   logoDarkUrl?: string | null;
+  /** Favicon (0031) — das quadratische Zeichen im Legal-Fuß. */
+  faviconUrl?: string | null;
   showName?: boolean;
-  apiDocsUrl?: string | null;
   data: HelpCenterData;
   isOperator?: boolean;
   viewer?: HelpViewer | null;
@@ -50,8 +51,8 @@ export function ContactPage({
       tenantName={tenantName}
       logoUrl={logoUrl}
       logoDarkUrl={logoDarkUrl}
+      faviconUrl={faviconUrl}
       showName={showName}
-      apiDocsUrl={apiDocsUrl}
       data={data}
       isOperator={isOperator}
       viewer={viewer}
@@ -107,7 +108,14 @@ function MethodCard({
         {head}
         {/* `question={null}`: Hier gibt es keine vorangegangene KI-Antwort,
             die als Kontext mitreisen könnte — anders als unter einer Antwort. */}
-        <SupportTicketForm locale={locale} question={null} className="mt-2" alwaysOpen bare />
+        <SupportTicketForm
+          locale={locale}
+          question={null}
+          className="mt-2"
+          alwaysOpen
+          bare
+          requireEmail
+        />
       </div>
     );
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Article } from "./types";
-import { fold, highlight, searchArticles, snippetAround, terms } from "./search";
+import { findRanges, fold, foldAligned, highlight, searchArticles, snippetAround, terms } from "./search";
 
 /**
  * VOLLTEXT-SUCHE. Verhinderte Fehlerfälle:
@@ -122,5 +122,39 @@ describe("searchArticles", () => {
       article({ id: `x${i}`, slug: `x${i}`, title: `Sprache ${i}` }),
     );
     expect(searchArticles(many, "sprache")).toHaveLength(12);
+  });
+});
+
+/**
+ * MARKIEREN IM ARTIKEL. Verhinderter Fehlerfall: Die Faltung kürzt den Text
+ * (NFD zerlegt „ü"), dadurch verschieben sich alle Positionen und die
+ * Markierung sitzt daneben — sichtbar als hervorgehobener Unsinn.
+ */
+describe("foldAligned / findRanges", () => {
+  it("hält die Länge exakt, auch bei Umlauten", () => {
+    for (const text of ["Übersetzung", "Größe", "Café", "ÄÖÜäöüß", "abc"]) {
+      expect(foldAligned(text), text).toHaveLength(text.length);
+    }
+    expect(foldAligned("Übersetzung")).toBe("ubersetzung");
+  });
+
+  it("findet Stellen an der RICHTIGEN Position — auch hinter Umlauten", () => {
+    const text = "Größe und Sprache";
+    const ranges = findRanges(text, ["sprache"]);
+    expect(ranges).toHaveLength(1);
+    const [start, end] = ranges[0];
+    expect(text.slice(start, end)).toBe("Sprache");
+  });
+
+  it("findet jede Wiederholung und verschmilzt Überlappungen", () => {
+    expect(findRanges("Sprache Sprache", ["sprache"])).toEqual([
+      [0, 7],
+      [8, 15],
+    ]);
+    expect(findRanges("Sprachkurs", ["sprach", "sprachkurs"])).toEqual([[0, 10]]);
+  });
+
+  it("ohne Treffer leer", () => {
+    expect(findRanges("nichts hier", ["sprache"])).toEqual([]);
   });
 });

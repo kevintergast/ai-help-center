@@ -57,10 +57,10 @@ export interface HelpCenterProps {
   logoUrl: string | null;
   /** Dark-Mode-Logo (0023) — null: Dark Mode zeigt das helle. */
   logoDarkUrl?: string | null;
+  /** Favicon (0031) — das quadratische Zeichen im Legal-Fuß. */
+  faviconUrl?: string | null;
   /** Instanzname neben dem Logo (0025) — false nur wirksam MIT Logo. */
   showName?: boolean;
-  /** Link auf die eigene API-Dokumentation (0033) — durchgereicht an HelpShell. */
-  apiDocsUrl?: string | null;
   /** Serverseitig aufgelöstes Lese-Bundle (D1 oder Sample-Fallback). */
   data: HelpCenterData;
   /** Operator-Instanz (app.*) → CTA „Eigenes Hilfezentrum erstellen". */
@@ -74,8 +74,8 @@ export function HelpCenter({
   tenantName,
   logoUrl,
   logoDarkUrl = null,
+  faviconUrl = null,
   showName = true,
-  apiDocsUrl = null,
   data,
   isOperator,
   viewer = null,
@@ -182,8 +182,8 @@ export function HelpCenter({
       tenantName={tenantName}
       logoUrl={logoUrl}
       logoDarkUrl={logoDarkUrl}
+      faviconUrl={faviconUrl}
       showName={showName}
-      apiDocsUrl={apiDocsUrl}
       data={data}
       isOperator={isOperator}
       viewer={viewer}

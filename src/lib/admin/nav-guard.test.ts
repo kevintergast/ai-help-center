@@ -43,3 +43,38 @@ describe("shouldGuardNavigation", () => {
     expect(shouldGuardNavigation({ ...base, href: "http://" })).toBe(false);
   });
 });
+
+/**
+ * Der Wächter hängt an EINER Entscheidung (oben getestet) und an zwei
+ * Ereignissen. Was hier zählt und ohne Browser prüfbar ist: Die Entscheidung
+ * muss in beiden Richtungen stimmen, sonst ist der Wächter entweder blind
+ * oder unbenutzbar nervig.
+ */
+describe("Reichweite des Wächters", () => {
+  const base = { dirty: true, origin: "https://app.hallofhelp.com" };
+
+  it("greift bei einer echten internen Navigation", () => {
+    expect(shouldGuardNavigation({ ...base, href: "/admin/articles" })).toBe(true);
+    expect(shouldGuardNavigation({ ...base, href: "/admin/settings" })).toBe(true);
+  });
+
+  it("greift NICHT, wenn nichts offen ist", () => {
+    expect(shouldGuardNavigation({ ...base, dirty: false, href: "/admin/articles" })).toBe(false);
+  });
+
+  it("lässt alles durch, was die Seite gar nicht verlässt oder woanders aufgeht", () => {
+    const cases: [string, Record<string, unknown>][] = [
+      ["neuer Tab per target", { href: "/admin/articles", target: "_blank" }],
+      ["neuer Tab per Modifier", { href: "/admin/articles", modified: true }],
+      ["Download", { href: "/export.json", download: true }],
+      ["Anker-Sprung", { href: "#abschnitt" }],
+      ["fremder Host", { href: "https://example.com/x" }],
+      ["mailto", { href: "mailto:hilfe@example.com" }],
+      ["tel", { href: "tel:+49301234" }],
+      ["kein href", { href: null }],
+    ];
+    for (const [name, patch] of cases) {
+      expect(shouldGuardNavigation({ ...base, ...patch } as never), name).toBe(false);
+    }
+  });
+});

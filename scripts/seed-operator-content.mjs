@@ -19,6 +19,7 @@ const RELEASE_0_3_0 = 1789394400; // 2026-09-15
 const RELEASE_0_4_0 = 1789480800; // 2026-09-16
 const RELEASE_0_4_1 = 1789567200; // 2026-09-17
 const RELEASE_0_5_0 = 1789740000; // 2026-09-18
+const RELEASE_0_5_1 = 1789750000; // 2026-09-18
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -151,7 +152,7 @@ const ARTICLES = [
       },
       "Mit »Zurückziehen« wird ein Artikel wieder unsichtbar, ohne gelöscht zu werden. Jede Änderung wird als Version gesichert, sodass der Verlauf nachvollziehbar bleibt.",
       "Beim Bearbeiten hast du zwei Wege: »Entwurf speichern« sichert deinen Stand, ohne ihn zu veröffentlichen — du kannst später weiterarbeiten und den Artikel erst dann online stellen. »Veröffentlichen« macht ihn sichtbar. Bei einem bereits veröffentlichten Artikel sind gespeicherte Änderungen sofort live; willst du in Ruhe umbauen, ziehe ihn vorher mit »Zurückziehen« offline.",
-      "Solltest du die Seite mit ungespeicherten Änderungen verlassen wollen — etwa durch einen Klick auf einen Link — fragt der Editor nach und bietet an, vorher zu speichern. Nichts geht mehr verloren.",
+      "Solltest du eine Seite mit ungespeicherten Änderungen verlassen wollen — etwa durch einen Klick auf einen Link — fragt der Verwaltungsbereich nach: hierbleiben, speichern und weiter, oder verwerfen und weiter. Das gilt überall, wo du etwas pflegst, nicht nur im Artikel-Editor. Beim Schließen des Tabs oder beim Neuladen warnt der Browser mit seinem eigenen Hinweis — dort sind eigene Knöpfe technisch nicht möglich.",
       "Endgültig löschen kannst du einen Artikel im Editor (Bearbeiten-Modus, »Artikel löschen«) — nach einer Bestätigung werden auch seine Bilder und der Such-Index-Eintrag entfernt. Andere Sprachfassungen bleiben bestehen.",
       "Jede Überschrift in einem veröffentlichten Artikel ist einzeln verlinkbar: Beim Überfahren erscheint ein kleines Link-Symbol — ein Klick kopiert die Adresse direkt zu diesem Abschnitt, ideal um Kunden auf genau eine Stelle zu verweisen.",
       "Ab drei Überschriften zeigt der Artikel zusätzlich ein Inhaltsverzeichnis — auf großen Bildschirmen rechts neben dem Text, auf dem Handy über dem Artikel. Es entsteht automatisch aus deinen Überschriften; du musst nichts pflegen.",
@@ -217,6 +218,7 @@ const ARTICLES = [
     category: "Branding",
     min: 1,
     body: [
+      "Das Favicon ist mehr als das Zeichen im Browser-Tab: Es erscheint auch unten in der Zeile mit Impressum, Datenschutz und AGB. Dort ist der Platz ein kleines Quadrat — ein breites Logo würde darin untergehen, deshalb steht da bewusst das Favicon. Ohne eigenes Favicon bleibt die Zeile schlicht ohne Zeichen.",
       "In den Einstellungen lädst du dein Logo hoch (PNG, JPEG oder WebP, maximal 1 MB) und legst deine Primär- und Akzentfarbe fest — jede Karte speichert direkt beim Klick.",
       "Optional hinterlegst du ein zweites Logo für den dunklen Modus: Besucher mit Dark Mode sehen dann automatisch die passende Variante. Ohne dunkles Logo wird überall das helle gezeigt.",
       "Das Favicon — das kleine Bild im Browser-Tab und in Lesezeichen — übernimmt automatisch dein helles Logo, sobald du eines hochgeladen hast. Du musst dafür nichts tun. Weil ein breites Logo im Tab winzig wird, kannst du zusätzlich ein eigenes Favicon hinterlegen: ein quadratisches Emblem, mindestens 64×64, als PNG, JPEG, WebP oder ICO. Es hat Vorrang vor dem Logo.",
@@ -399,7 +401,7 @@ const ARTICLES = [
       "Beides geht auch aus einem verbundenen KI-Client heraus: Dein Client kann eine einzelne Videobeschreibung ändern, ohne die anderen Videos anzufassen, und aus einem eingefügten Transkript Titel und Beschreibung erzeugen lassen. Ohne Transkript wird auch dort nichts erfunden. Bildbeschreibungen kann er sich ansehen und gleich stapelweise nachbessern — siehe »Eigenen KI-Client verbinden (MCP)«.",
       "Änderst du Videos, greifen sie wie Textänderungen erst mit dem Veröffentlichen des Artikels.",
     ],
-    related: ["artikel-veroeffentlichen", "ki-antworten"],
+    related: ["kopf-knoepfe-und-widget", "ki-antworten"],
   },
   {
     slug: "ki-client-verbinden",
@@ -433,8 +435,8 @@ const ARTICLES = [
     category: "Sichtbarkeit",
     min: 2,
     body: [
-      "Hast du eine eigene API, kannst du deine Entwickler-Dokumentation direkt aus dem Hilfezentrum heraus verlinken. Der Link erscheint oben rechts im Kopf, direkt neben dem Hell-/Dunkel-Umschalter, und öffnet in einem neuen Tab. Auf schmalen Bildschirmen bleibt nur das Symbol stehen.",
-      "Eingerichtet wird er als Administrator unter »Einstellungen« → »API-Dokumentation«: Adresse eintragen, speichern. Ein leeres Feld entfernt den Link wieder, die Zeile verschwindet dann aus der Navigation.",
+      "Hast du eine eigene API, kannst du deine Entwickler-Dokumentation aus dem Hilfezentrum heraus verlinken — als Aktions-Knopf im Kopf. Es gibt dafür keinen Sonderweg mehr: Du legst ihn unter »Navigation« an wie jeden anderen Knopf, mit Beschriftung, Symbol und Variante deiner Wahl.",
+      "Nimm als Symbol »Code« und als Ziel deine https-Adresse; der Knopf öffnet automatisch in einem neuen Tab, weil das Ziel nach außen führt. Auf schmalen Bildschirmen bleibt nur das Symbol stehen. Entfernen heißt: Knopf löschen.",
       "Erlaubt sind ausschließlich vollständige https-Adressen. Der Grund: Dieser Link steht dauerhaft in der Navigation jedes Besuchers — dort gehört nichts hin, was unverschlüsselt lädt oder Skripte ausführen könnte.",
       "Warum wir deine API-Referenz nicht bei uns darstellen: Sie wird aus deinem Spec erzeugt und ändert sich mit jedem Release. Eine Kopie in deinem Hilfezentrum wäre nach deinem nächsten Deploy falsch. Deine Doku bleibt deshalb da, wo sie gepflegt wird — das Hilfezentrum führt nur hin.",
       "Beachte: Ein verlinktes Ziel ist für die KI-Antworten NICHT sichtbar. Sie kennt nur deine Artikel, Roadmap und Changelog. Fragen zu Endpunkten kann sie also noch nicht beantworten — dafür müssten die Inhalte in dein Hilfezentrum kommen.",
@@ -513,6 +515,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Fundstellen im Artikel, Schutz vor verlorenen Änderungen und eine Pflicht-Adresse",
+    description:
+      "Wer aus der Suche kommt, findet das gesuchte Wort jetzt im Artikel markiert wieder — eine Leiste unten springt mit Pfeilen von Stelle zu Stelle. Im Verwaltungsbereich warnt eine Rückfrage, bevor ungespeicherte Änderungen verloren gehen: hierbleiben, speichern und weiter, oder verwerfen. Im Kontaktformular ist die E-Mail-Adresse jetzt Pflicht, damit eine Antwort überhaupt möglich ist. Und der Link auf eine eigene API-Dokumentation ist kein Sonderfall mehr, sondern ein ganz normaler Aktions-Knopf im Kopf.",
+    at: RELEASE_0_5_1,
+    version: "0.5.1",
+    level: "patch",
+  },
   {
     title: "Suche im Volltext, Kopf-Knöpfe, Widget-Varianten und Verständnis-Hinweise",
     description:

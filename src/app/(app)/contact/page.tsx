@@ -35,8 +35,8 @@ export default async function ContactRoute() {
       tenantName={tenant.name}
       logoUrl={tenant.branding.logoUrl}
       logoDarkUrl={tenant.branding.logoDarkUrl ?? null}
+      faviconUrl={tenant.branding.faviconUrl ?? null}
       showName={tenant.showHeaderName ?? true}
-      apiDocsUrl={tenant.apiDocsUrl ?? null}
       data={data}
       isOperator={tenant.id === "t_operator"}
       viewer={await readPageViewer(tenant)}

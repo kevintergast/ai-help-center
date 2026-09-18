@@ -12,6 +12,7 @@ import { ViewBeacon } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
 import { ArticleFeedback } from "./article-feedback";
 import { ComprehensionMode } from "./comprehension-mode";
+import { ArticleFindBar } from "./article-find-bar";
 import { ArticleVideos } from "./article-videos";
 import { articleHeadings } from "@/lib/content/headings";
 import { ArrowLeftIcon, DocIcon } from "@/components/ui/icons";
@@ -36,10 +37,10 @@ export interface ArticlePageProps {
   logoUrl: string | null;
   /** Dark-Mode-Logo (0023) — null: Dark Mode zeigt das helle. */
   logoDarkUrl?: string | null;
+  /** Favicon (0031) — das quadratische Zeichen im Legal-Fuß. */
+  faviconUrl?: string | null;
   /** Instanzname neben dem Logo (0025) — false nur wirksam MIT Logo. */
   showName?: boolean;
-  /** Link auf die eigene API-Dokumentation (0033) — durchgereicht an HelpShell. */
-  apiDocsUrl?: string | null;
   /** „Ich verstehe etwas nicht" (0039) — aus = Knopf erscheint nicht. */
   comprehensionMode?: boolean;
   article: Article;
@@ -60,8 +61,8 @@ export function ArticlePage({
   tenantName,
   logoUrl,
   logoDarkUrl = null,
+  faviconUrl = null,
   showName = true,
-  apiDocsUrl = null,
   comprehensionMode = true,
   article,
   related,
@@ -86,8 +87,8 @@ export function ArticlePage({
       tenantName={tenantName}
       logoUrl={logoUrl}
       logoDarkUrl={logoDarkUrl}
+      faviconUrl={faviconUrl}
       showName={showName}
-      apiDocsUrl={apiDocsUrl}
       data={data}
       isOperator={isOperator}
       viewer={viewer}
@@ -116,7 +117,17 @@ export function ArticlePage({
                 {t(s.key)}
               </Badge>
               {/* Artikel-Flag (0024): Paletten-Farbe, reiner Text. */}
-              {article.flag ? <Badge tone={article.flag.color}>{article.flag.text}</Badge> : null}
+              {/* Leiser als die übrigen Badges: Das Flag ist ein Hinweis
+                  („Beta"), kein Status. In voller Größe konkurrierte es mit
+                  dem Aktualitäts-Status daneben. */}
+              {article.flag ? (
+                <Badge
+                  tone={article.flag.color}
+                  className="px-2 py-0.5 text-[11px] uppercase tracking-wide"
+                >
+                  {article.flag.text}
+                </Badge>
+              ) : null}
               <span>{t("hc.updated", { when: article.updatedLabel })}</span>
               <span aria-hidden>·</span>
               <span>{t("hc.readingTime", { min: article.readingMinutes })}</span>
@@ -205,6 +216,9 @@ export function ArticlePage({
                 }}
               />
             </div>
+
+            {/* Fundstellen-Leiste (?q=) — schwebt unten, deshalb hier egal wo. */}
+            <ArticleFindBar locale={locale} />
 
             {related.length > 0 ? (
               <section className="mt-10">

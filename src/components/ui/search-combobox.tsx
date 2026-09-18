@@ -15,7 +15,9 @@ export interface SearchComboboxProps {
   "aria-label": string;
   clearLabel: string;
   className?: string;
-  onSelect?: (hit: SearchHit) => void;
+  /** Anfangswert — damit die Anfrage beim Öffnen eines Treffers stehen bleibt. */
+  initialQuery?: string;
+  onSelect?: (hit: SearchHit, query: string) => void;
 }
 
 /**
@@ -36,10 +38,11 @@ export function SearchCombobox({
   emptyLabel,
   clearLabel,
   className,
+  initialQuery = "",
   onSelect,
   "aria-label": ariaLabel,
 }: SearchComboboxProps) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
@@ -53,9 +56,11 @@ export function SearchCombobox({
   function pick(i: number) {
     const hit = results[i];
     if (!hit) return;
-    setQuery("");
+    // Anfrage BLEIBT stehen: Im geöffneten Artikel markiert sie die
+    // Fundstellen, und wer zurückgeht, muss nicht neu tippen. Nur die Liste
+    // schließt sich.
     setOpen(false);
-    onSelect?.(hit);
+    onSelect?.(hit, query);
   }
 
   function onKey(e: KeyboardEvent<HTMLInputElement>) {
