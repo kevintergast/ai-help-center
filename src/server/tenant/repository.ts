@@ -1,3 +1,4 @@
+import { isActionVariant } from "@/lib/content/action-buttons";
 import type { Locale, Tenant } from "@/lib/tenant/types";
 
 interface TenantRow {
@@ -19,13 +20,18 @@ interface TenantRow {
   show_header_name: number;
   widget_on_site: number;
   comprehension_mode: number;
+  widget_variant: string;
+  widget_label: string | null;
+  widget_icon_r2_key: string | null;
+  widget_icon_open_r2_key: string | null;
   api_docs_url: string | null;
 }
 
 const COLS =
   "id, slug, name, custom_domain, default_locale, logo_url, logo_r2_key, logo_dark_r2_key, " +
   "favicon_r2_key, branding_updated_at, color_primary, color_accent, color_primary_fg, seo_indexable, support_email, show_header_name, " +
-  "widget_on_site, comprehension_mode, api_docs_url";
+  "widget_on_site, comprehension_mode, widget_variant, widget_label, " +
+  "widget_icon_r2_key, widget_icon_open_r2_key, api_docs_url";
 
 /**
  * `branding.logoUrl` ist ABGELEITET (Priorität dokumentiert in 0003_branding.sql):
@@ -90,6 +96,14 @@ export function rowToTenant(r: TenantRow): Tenant {
     widgetOnSite: r.widget_on_site !== 0,
     // Fehlender Wert (Altbestand) = AN, wie der Spalten-Default.
     comprehensionMode: r.comprehension_mode !== 0,
+    // Widget-Erscheinungsbild (0041). Die Symbol-Adressen zeigen auf die
+    // öffentliche Branding-Route — dieselbe wie Logo und Favicon.
+    widget: {
+      variant: isActionVariant(r.widget_variant) ? r.widget_variant : "colored",
+      label: r.widget_label,
+      iconUrl: r.widget_icon_r2_key ? "/api/v1/branding/logo?variant=widget" : null,
+      iconOpenUrl: r.widget_icon_open_r2_key ? "/api/v1/branding/logo?variant=widget-open" : null,
+    },
     apiDocsUrl: r.api_docs_url,
   };
 }
@@ -169,6 +183,14 @@ export class D1TenantRepository {
     await this.db
       .prepare(`UPDATE tenants SET comprehension_mode = ? WHERE id = ?`)
       .bind(on ? 1 : 0, tenantId)
+      .run();
+  }
+
+  /** Erscheinungsbild des Widgets setzen (0041). */
+  async setWidgetAppearance(tenantId: string, variant: string, label: string | null): Promise<void> {
+    await this.db
+      .prepare(`UPDATE tenants SET widget_variant = ?, widget_label = ? WHERE id = ?`)
+      .bind(variant, label, tenantId)
       .run();
   }
 

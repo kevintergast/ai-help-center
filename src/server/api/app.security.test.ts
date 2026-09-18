@@ -400,6 +400,8 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
     // abschaltbar → dann 404).
     // 2026-07-17: + /widget/session (signierte Besucher-ID fürs eingebettete
     // Widget — Begründung in api/widget.ts).
+    // 2026-09-18: + /widget/config (Erscheinungsbild des Widget-Starters —
+    // genau das, was ohnehin jeder auf der Kundenseite sieht; reines Lesen).
     // 2026-07-17: + /answers/check (Staleness-Prüfung LOKAL gespeicherter
     // Antworten anonymer local-first-Nutzer; Hash-Vergleich nur gegen
     // VERÖFFENTLICHTES, kein Draft-Orakel — Begründung public-routes.ts).
@@ -422,6 +424,7 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
           "/api/v1/support/tickets",
           "/api/v1/support/comprehension",
           "/api/v1/widget/session",
+          "/api/v1/widget/config",
           "/api/v1/answers/check",
         ],
         "prefixes": [

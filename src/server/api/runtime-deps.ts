@@ -527,6 +527,8 @@ async function getSettingsDepsRuntime(): Promise<SettingsDeps | null> {
     setApiDocsUrl: (tenantId, url) => repo.setApiDocsUrl(tenantId, url),
     setWidgetOnSite: (tenantId, on) => repo.setWidgetOnSite(tenantId, on),
     setComprehensionMode: (tenantId, on) => repo.setComprehensionMode(tenantId, on),
+    setWidgetAppearance: (tenantId, variant, label) =>
+      repo.setWidgetAppearance(tenantId, variant, label),
   };
 }
 

@@ -47,6 +47,9 @@ export const PUBLIC_ROUTES = {
   // signierte Besucher-ID (Cross-Site-iframe kann Cookies nicht lesen).
   // Reine Identitätsvergabe hinter dem events-Rate-Limit; kein privilegierter
   // Effekt (Begründung api/widget.ts).
+  // /widget/config: BEWUSST public — Erscheinungsbild des Starters (Farbe,
+  // Beschriftung, Symbol-Adressen). Genau das sieht ohnehin jeder, sobald das
+  // Widget auf der Kundenseite steht; kein privilegierter Effekt, nur Lesen.
   // /answers/check: BEWUSST public — Staleness-Prüfung LOKAL gespeicherter
   // KI-Antworten anonymer Nutzer (local-first-Architektur). Reiner Hash-
   // Vergleich gegen VERÖFFENTLICHTE Inhalte (kein Draft-Orakel), hinter dem
@@ -61,6 +64,7 @@ export const PUBLIC_ROUTES = {
     "/api/v1/support/tickets",
     "/api/v1/support/comprehension",
     "/api/v1/widget/session",
+    "/api/v1/widget/config",
     "/api/v1/answers/check",
   ],
   // /api/v1/legal/: BEWUSST public — Besucher müssen Impressum/Datenschutz/AGB

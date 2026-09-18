@@ -1,3 +1,4 @@
+import type { ActionVariant } from "@/lib/content/action-buttons";
 export type Locale = "de" | "en";
 
 /** Pro-Mandant anpassbares Erscheinungsbild (White-Label). */
@@ -67,4 +68,13 @@ export interface Tenant {
   widgetOnSite?: boolean;
   /** „Ich verstehe etwas nicht" (0039); fehlend = AN. */
   comprehensionMode?: boolean;
+  /** Erscheinungsbild des Widgets (0041). */
+  widget?: {
+    variant: ActionVariant;
+    /** Eigene Beschriftung; null = i18n-Standard. */
+    label: string | null;
+    /** Eigene Symbole je Zustand; null = Standard-Zeichen. */
+    iconUrl: string | null;
+    iconOpenUrl: string | null;
+  };
 }
