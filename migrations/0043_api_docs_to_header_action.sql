@@ -29,6 +29,16 @@ WHERE t.api_docs_url IS NOT NULL
     SELECT 1 FROM header_actions h WHERE h.tenant_id = t.id AND h.href = t.api_docs_url
   );
 
--- `tenants.api_docs_url` bleibt vorerst stehen (forward-only, expand/contract):
--- Die Spalte wird nicht mehr gelesen. Entfernt wird sie in einem späteren
--- Schritt, wenn sicher ist, dass kein Deployment sie noch braucht.
+-- `tenants.api_docs_url` BLEIBT hier stehen — bewusst (forward-only,
+-- expand/contract, CLAUDE.md):
+--
+-- Beim Ausrollen laufen alter und neuer Code für einige Sekunden GLEICHZEITIG
+-- gegen dieselbe Datenbank. Nähme diese Migration die Spalte weg, während der
+-- noch laufende alte Worker sie abfragt, stürzte er ab. Deshalb zwei Schritte:
+--   EXPAND (hier):  Knöpfe anlegen, Spalte stehen lassen — beide Stände laufen.
+--   CONTRACT (später): `ALTER TABLE tenants DROP COLUMN api_docs_url;`
+--
+-- Bedingung fürs Aufräumen: Der Code fragt die Spalte nicht mehr ab (ab diesem
+-- Release erfüllt — TenantRow, Spaltenliste und Mapping sind entfernt), UND es
+-- läuft kein Deployment mehr, das sie noch kennt. Nach dem nächsten
+-- Prod-Deploy ist beides der Fall.

@@ -24,14 +24,13 @@ interface TenantRow {
   widget_label: string | null;
   widget_icon_r2_key: string | null;
   widget_icon_open_r2_key: string | null;
-  api_docs_url: string | null;
 }
 
 const COLS =
   "id, slug, name, custom_domain, default_locale, logo_url, logo_r2_key, logo_dark_r2_key, " +
   "favicon_r2_key, branding_updated_at, color_primary, color_accent, color_primary_fg, seo_indexable, support_email, show_header_name, " +
   "widget_on_site, comprehension_mode, widget_variant, widget_label, " +
-  "widget_icon_r2_key, widget_icon_open_r2_key, api_docs_url";
+  "widget_icon_r2_key, widget_icon_open_r2_key";
 
 /**
  * `branding.logoUrl` ist ABGELEITET (Priorität dokumentiert in 0003_branding.sql):
@@ -104,7 +103,6 @@ export function rowToTenant(r: TenantRow): Tenant {
       iconUrl: r.widget_icon_r2_key ? "/api/v1/branding/logo?variant=widget" : null,
       iconOpenUrl: r.widget_icon_open_r2_key ? "/api/v1/branding/logo?variant=widget-open" : null,
     },
-    apiDocsUrl: r.api_docs_url,
   };
 }
 
