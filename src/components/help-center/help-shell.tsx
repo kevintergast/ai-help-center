@@ -64,6 +64,8 @@ export interface HelpShellProps {
   logoUrl: string | null;
   /** Dark-Mode-Logo (0023) — null: Dark Mode zeigt das helle. */
   logoDarkUrl?: string | null;
+  /** Favicon (0031) — das quadratische Zeichen im Fuß. */
+  faviconUrl?: string | null;
   /** Instanzname neben dem Logo (0025) — false nur wirksam MIT Logo. */
   showName?: boolean;
   data: HelpCenterData;
@@ -99,6 +101,7 @@ export function HelpShell({
   tenantName,
   logoUrl,
   logoDarkUrl = null,
+  faviconUrl = null,
   showName = true,
   data,
   activeSlug,
@@ -472,8 +475,7 @@ export function HelpShell({
           ) : null}
           <LegalFooter
             t={t}
-            logoUrl={logoUrl}
-            logoDarkUrl={logoDarkUrl}
+            faviconUrl={faviconUrl}
             tenantName={tenantName}
             isOperator={isOperator === true}
           />
@@ -486,34 +488,33 @@ export function HelpShell({
 /**
  * Schmale Legal-Zeile am unteren Rand. Das Zeichen links war fest unser
  * Emblem — auf einer Kundeninstanz stand damit UNSER Logo im Fuß, obwohl das
- * ganze Produkt White-Label ist. Jetzt zeigt es das Logo des Mandanten;
- * ohne eigenes Logo bleibt die Zeile schlicht ohne Zeichen (eine
- * Initial-Kachel wäre hier unten nur Dekoration).
+ * ganze Produkt White-Label ist.
  *
- * NUR die Operator-Instanz zeigt weiterhin unser Emblem — dort IST es das
- * Logo des Mandanten.
+ * Gezeigt wird das FAVICON des Mandanten, nicht sein Logo: Der Platz hier ist
+ * ein 16-Punkt-Quadrat. Ein Logo ist breit und geht darin entweder unter oder
+ * wird gequetscht; das Favicon ist genau für diese Größe gezeichnet.
+ *
+ * KEIN Rückfall aufs Logo: Das brächte genau das zurück, was hier stört. Ohne
+ * Favicon bleibt die Zeile schlicht ohne Zeichen — die Rechtslinks tragen sie
+ * auch allein. (Nur die Operator-Instanz zeigt unser Emblem; dort IST es das
+ * Zeichen des Mandanten.)
  */
 function LegalFooter({
   t,
-  logoUrl,
-  logoDarkUrl,
+  faviconUrl,
   tenantName,
   isOperator,
 }: {
   t: T;
-  logoUrl: string | null;
-  logoDarkUrl?: string | null;
+  faviconUrl: string | null;
   tenantName: string;
   isOperator: boolean;
 }) {
   return (
     <div className="flex items-center gap-3 border-t border-hairline bg-surface px-5 py-2 md:px-10">
-      {logoUrl ? (
-        <picture>
-          {logoDarkUrl ? <source srcSet={logoDarkUrl} media="(prefers-color-scheme: dark)" /> : null}
-          { }
-          <img src={logoUrl} alt={tenantName} className="h-4 w-auto shrink-0" />
-        </picture>
+      {faviconUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={faviconUrl} alt={tenantName} className="h-4 w-4 shrink-0 rounded-[3px] object-contain" />
       ) : isOperator ? (
         <Emblem className="h-4 w-4 shrink-0 text-ink" />
       ) : null}

@@ -57,6 +57,8 @@ export interface HelpCenterProps {
   logoUrl: string | null;
   /** Dark-Mode-Logo (0023) — null: Dark Mode zeigt das helle. */
   logoDarkUrl?: string | null;
+  /** Favicon (0031) — das quadratische Zeichen im Legal-Fuß. */
+  faviconUrl?: string | null;
   /** Instanzname neben dem Logo (0025) — false nur wirksam MIT Logo. */
   showName?: boolean;
   /** Serverseitig aufgelöstes Lese-Bundle (D1 oder Sample-Fallback). */
@@ -72,6 +74,7 @@ export function HelpCenter({
   tenantName,
   logoUrl,
   logoDarkUrl = null,
+  faviconUrl = null,
   showName = true,
   data,
   isOperator,
@@ -179,6 +182,7 @@ export function HelpCenter({
       tenantName={tenantName}
       logoUrl={logoUrl}
       logoDarkUrl={logoDarkUrl}
+      faviconUrl={faviconUrl}
       showName={showName}
       data={data}
       isOperator={isOperator}

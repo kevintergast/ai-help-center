@@ -37,6 +37,8 @@ export interface ArticlePageProps {
   logoUrl: string | null;
   /** Dark-Mode-Logo (0023) — null: Dark Mode zeigt das helle. */
   logoDarkUrl?: string | null;
+  /** Favicon (0031) — das quadratische Zeichen im Legal-Fuß. */
+  faviconUrl?: string | null;
   /** Instanzname neben dem Logo (0025) — false nur wirksam MIT Logo. */
   showName?: boolean;
   /** „Ich verstehe etwas nicht" (0039) — aus = Knopf erscheint nicht. */
@@ -59,6 +61,7 @@ export function ArticlePage({
   tenantName,
   logoUrl,
   logoDarkUrl = null,
+  faviconUrl = null,
   showName = true,
   comprehensionMode = true,
   article,
@@ -84,6 +87,7 @@ export function ArticlePage({
       tenantName={tenantName}
       logoUrl={logoUrl}
       logoDarkUrl={logoDarkUrl}
+      faviconUrl={faviconUrl}
       showName={showName}
       data={data}
       isOperator={isOperator}

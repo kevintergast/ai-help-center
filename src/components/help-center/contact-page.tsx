@@ -26,6 +26,7 @@ export function ContactPage({
   tenantName,
   logoUrl,
   logoDarkUrl,
+  faviconUrl,
   showName,
   data,
   isOperator,
@@ -35,6 +36,8 @@ export function ContactPage({
   tenantName: string;
   logoUrl: string | null;
   logoDarkUrl?: string | null;
+  /** Favicon (0031) — das quadratische Zeichen im Legal-Fuß. */
+  faviconUrl?: string | null;
   showName?: boolean;
   data: HelpCenterData;
   isOperator?: boolean;
@@ -48,6 +51,7 @@ export function ContactPage({
       tenantName={tenantName}
       logoUrl={logoUrl}
       logoDarkUrl={logoDarkUrl}
+      faviconUrl={faviconUrl}
       showName={showName}
       data={data}
       isOperator={isOperator}
