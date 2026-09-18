@@ -18,13 +18,14 @@ interface TenantRow {
   support_email: string | null;
   show_header_name: number;
   widget_on_site: number;
+  comprehension_mode: number;
   api_docs_url: string | null;
 }
 
 const COLS =
   "id, slug, name, custom_domain, default_locale, logo_url, logo_r2_key, logo_dark_r2_key, " +
   "favicon_r2_key, branding_updated_at, color_primary, color_accent, color_primary_fg, seo_indexable, support_email, show_header_name, " +
-  "widget_on_site, api_docs_url";
+  "widget_on_site, comprehension_mode, api_docs_url";
 
 /**
  * `branding.logoUrl` ist ABGELEITET (Priorität dokumentiert in 0003_branding.sql):
@@ -87,6 +88,8 @@ export function rowToTenant(r: TenantRow): Tenant {
     supportEmail: r.support_email,
     showHeaderName: r.show_header_name !== 0,
     widgetOnSite: r.widget_on_site !== 0,
+    // Fehlender Wert (Altbestand) = AN, wie der Spalten-Default.
+    comprehensionMode: r.comprehension_mode !== 0,
     apiDocsUrl: r.api_docs_url,
   };
 }
@@ -157,6 +160,14 @@ export class D1TenantRepository {
   async setWidgetOnSite(tenantId: string, on: boolean): Promise<void> {
     await this.db
       .prepare(`UPDATE tenants SET widget_on_site = ? WHERE id = ?`)
+      .bind(on ? 1 : 0, tenantId)
+      .run();
+  }
+
+  /** „Ich verstehe etwas nicht" (0040) ein-/ausschalten. */
+  async setComprehensionMode(tenantId: string, on: boolean): Promise<void> {
+    await this.db
+      .prepare(`UPDATE tenants SET comprehension_mode = ? WHERE id = ?`)
       .bind(on ? 1 : 0, tenantId)
       .run();
   }

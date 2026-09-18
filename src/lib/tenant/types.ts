@@ -65,4 +65,6 @@ export interface Tenant {
    * `undefined` = wie `false` behandeln (Registry-Fallback ohne CF-Kontext).
    */
   widgetOnSite?: boolean;
+  /** „Ich verstehe etwas nicht" (0039); fehlend = AN. */
+  comprehensionMode?: boolean;
 }

@@ -16,6 +16,10 @@ import { InboxIcon } from "@/components/ui/icons";
 
 interface Ticket {
   id: string;
+  /** 0039: 'support' (KI-Antwort) oder 'comprehension' (Stelle im Artikel). */
+  kind?: "support" | "comprehension";
+  /** Nur bei 'comprehension': der angeklickte Text. */
+  quote?: string | null;
   message: string;
   contactEmail: string | null;
   question: string | null;
@@ -107,6 +111,14 @@ export function InboxView({ locale }: { locale: Locale }) {
             className="rounded-card border border-hairline bg-surface p-4 sm:p-5"
           >
             <div className="mb-2 flex flex-wrap items-center gap-2">
+              {/* ART der Meldung (0039): „KI-Antwort" vs. „Artikel unklar".
+                  Ein Postfach, zwei Anlässe — ohne Kennzeichnung müsste man
+                  jede Meldung lesen, um zu wissen, worum es geht. */}
+              <Badge tone={ticket.kind === "comprehension" ? "info" : "neutral"}>
+                {ticket.kind === "comprehension"
+                  ? t("admin.inbox.kind.comprehension")
+                  : t("admin.inbox.kind.support")}
+              </Badge>
               <Badge tone={ticket.status === "open" ? "warn" : "ok"} dot>
                 {ticket.status === "open" ? t("admin.inbox.open") : t("admin.inbox.doneLabel")}
               </Badge>
@@ -122,6 +134,13 @@ export function InboxView({ locale }: { locale: Locale }) {
             {ticket.question ? (
               <p className="mb-1.5 text-xs text-ink-muted">
                 {t("admin.inbox.question", { q: ticket.question })}
+              </p>
+            ) : null}
+            {/* Die angeklickte Stelle — ohne sie ist ein Verständnis-Hinweis
+                kaum verwertbar („irgendwo war etwas unklar"). */}
+            {ticket.quote ? (
+              <p className="mb-2 border-l-2 border-hairline-strong pl-3 text-sm italic text-ink-muted">
+                {ticket.quote}
               </p>
             ) : null}
             <p className="whitespace-pre-wrap text-sm text-ink">{ticket.message}</p>

@@ -27,11 +27,11 @@ const HOST_A = "tenant-a.hallofhelp.com";
 const HOST_B = "tenant-b.hallofhelp.com";
 
 const MIGRATIONS = [
-  "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0033_api_docs_url.sql",
+  "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql",
   "0002_auth.sql",
   "0003_branding.sql",
   "0004_two_factor_plugin_columns.sql",
-  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql", "0038_header_actions.sql",
+  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql", "0038_header_actions.sql", "0015_support_tickets.sql", "0039_comprehension_reports.sql",
 ] as const;
 
 function makeTenant(id: string, slug: string): Tenant {

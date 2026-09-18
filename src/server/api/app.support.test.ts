@@ -45,7 +45,7 @@ const VALID_MESSAGE = "Der Passwort-Reset-Link kommt bei mir nie an.";
 
 function makeFixture(opts: { denySensitive?: boolean } = {}) {
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0033_api_docs_url.sql", "0015_support_tickets.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0015_support_tickets.sql", "0039_comprehension_reports.sql"]);
   const repo = new D1SupportRepository(d1FromSqlite(sqlite));
 
   const authDb: Record<string, Row[]> = {
@@ -229,5 +229,78 @@ describe("Admin-Inbox (/api/v1/admin/support)", () => {
     });
     expect(del.status).toBe(200);
     expect(await f.repo.listByTenant("t_demo", 10)).toHaveLength(0);
+  });
+});
+/* ————— „Ich verstehe etwas nicht" (0039/0040) ————— */
+
+/**
+ * Verhinderte Fehlerfälle:
+ *  - Der Modus ist abgeschaltet, der Endpunkt nimmt trotzdem an — die
+ *    Instanz hat ihn dann nur in der Oberfläche versteckt.
+ *  - Der zweite Schritt (Adresse) wird erzwungen, obwohl er freiwillig ist.
+ *  - Die Meldung landet ohne Artikel-/Block-Bezug im Postfach und ist damit
+ *    für die Redaktion wertlos.
+ */
+const report_ = (f: Fixture, body: unknown) =>
+  f.app.request("/api/v1/support/comprehension", {
+    method: "POST",
+    headers: { host: HOST_DEMO, "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+describe("POST /api/v1/support/comprehension", () => {
+  const report = {
+    articleId: "art_1",
+    anchor: 2,
+    quote: "Dieser Satz ist unklar.",
+    message: "Was bedeutet »Sondereigentum« hier?",
+  };
+
+  it("nimmt eine anonyme Meldung an und hält Artikel, Block und Zitat fest", async () => {
+    const f = makeFixture();
+    const res = await report_(f, report);
+    expect(res.status).toBe(201);
+
+    const tickets = await f.repo.listByTenant("t_demo", 10);
+    expect(tickets).toHaveLength(1);
+    expect(tickets[0]).toMatchObject({
+      kind: "comprehension",
+      articleId: "art_1",
+      anchor: 2,
+      quote: "Dieser Satz ist unklar.",
+      contactEmail: null,
+    });
+  });
+
+  it("nimmt eine Adresse an, lehnt aber eine kaputte ab", async () => {
+    const f = makeFixture();
+    expect(
+      (await report_(f, {
+        ...report,
+        email: "leser@example.com",
+      })).status,
+    ).toBe(201);
+    const res = await report_(f, {
+      ...report,
+      email: "kaputt",
+    });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: "invalid_email" });
+  });
+
+  it("verlangt Artikel, Block und genug Text", async () => {
+    const f = makeFixture();
+    for (const [patch, error] of [
+      [{ articleId: "" }, "article_required"],
+      [{ anchor: -1 }, "invalid_anchor"],
+      [{ message: "hm" }, "message_too_short"],
+    ] as const) {
+      const res = await report_(f, {
+        ...report,
+        ...patch,
+      });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toMatchObject({ error });
+    }
   });
 });

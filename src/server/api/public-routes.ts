@@ -37,6 +37,12 @@ export const PUBLIC_ROUTES = {
   // tionsweg ANONYMER Endnutzer (Architektur Support-Flow). Schichten:
   // IP-Rate-Limit (sensitive), strikte Längen, Mail NUR an die konfigurierte
   // Tenant-Adresse (nie an Nutzer-Input), Inbox als verlustfreier Fallback.
+  // /support/comprehension: BEWUSST public — „Ich verstehe etwas nicht" ist
+  // derselbe Eskalationsweg anonymer Endnutzer wie /support/tickets, nur mit
+  // Artikel- statt Antwort-Bezug. Gleiche Schichten: IP-Rate-Limit
+  // (sensitive), strikte Längen, Mail NUR an die konfigurierte Tenant-Adresse,
+  // Postfach als verlustfreier Fallback. Zusätzlich abschaltbar je Instanz
+  // (0040) — aus heißt 404, nicht nur „versteckt".
   // /widget/session: BEWUSST public — vergibt dem eingebetteten Widget die
   // signierte Besucher-ID (Cross-Site-iframe kann Cookies nicht lesen).
   // Reine Identitätsvergabe hinter dem events-Rate-Limit; kein privilegierter
@@ -53,6 +59,7 @@ export const PUBLIC_ROUTES = {
     "/api/v1/events/feedback",
     "/api/v1/ask",
     "/api/v1/support/tickets",
+    "/api/v1/support/comprehension",
     "/api/v1/widget/session",
     "/api/v1/answers/check",
   ],

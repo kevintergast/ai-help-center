@@ -146,6 +146,27 @@ export function settingsAdminRouter(deps: ApiDeps) {
     return c.json({ ok: true, on });
   });
 
+  /**
+   * „ICH VERSTEHE ETWAS NICHT" (0040) ein-/ausschalten. `admin`, nicht
+   * `owner`: Das ist eine Entscheidung darüber, wie Rückmeldungen
+   * hereinkommen — nichts Grundsätzliches wie Sprache oder Indexierung.
+   */
+  r.put("/comprehension-mode", requireTeam("admin"), async (c) => {
+    let on: unknown;
+    try {
+      on = ((await c.req.json()) as { on?: unknown }).on;
+    } catch {
+      return c.json({ error: "invalid_json" }, 400);
+    }
+    if (typeof on !== "boolean") return c.json({ error: "invalid_on" }, 400);
+
+    const settings = await deps.getSettingsDeps?.();
+    if (!settings) return c.json({ error: "settings_unavailable" }, 503);
+
+    await settings.setComprehensionMode(c.get("tenant").id, on);
+    return c.json({ ok: true, on });
+  });
+
   // Standardsprache der Instanz (Endnutzer-UI, Meta, Mails) — OWNER wie SEO:
   // eine Instanz-Grundsatzentscheidung, keine Content-Pflege.
   r.put("/locale", requireOwner, async (c) => {

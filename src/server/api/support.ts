@@ -4,6 +4,7 @@ import type { TicketStatus } from "@/server/support/store";
 import type { ApiDeps, ApiEnv } from "./context";
 import { applyVisitorCookie, resolveActor } from "./events";
 import { allowRequest, clientIp, rateLimited } from "./rate-limit";
+import { parseComprehensionInput } from "@/lib/content/comprehension";
 
 /**
  * SUPPORT-FLOW (Architektur 2026-06-28, Richtung A: Endnutzer → Tenant).
@@ -30,6 +31,77 @@ const INBOX_LIMIT = 200;
 
 export function supportPublicRouter(deps: ApiDeps) {
   const r = new Hono<ApiEnv>();
+
+  /**
+   * „ICH VERSTEHE ETWAS NICHT" (0039) — PUBLIC, wie /tickets.
+   *
+   * Eigener Endpunkt statt eines Flags an /tickets: Die Pflichtfelder sind
+   * andere (Artikel + Block statt Frage), und die Instanz kann den Modus
+   * abschalten. Beides an einer Route zu verzweigen hätte die Prüfung
+   * unübersichtlich gemacht.
+   *
+   * ABGESCHALTET → 404, nicht 403: Ist der Modus aus, gibt es diese Funktion
+   * für den Endnutzer schlicht nicht.
+   */
+  r.post("/comprehension", async (c) => {
+    const tenant = c.get("tenant");
+    if (tenant.comprehensionMode === false) return c.json({ error: "not_found" }, 404);
+
+    if (
+      !(await allowRequest(deps.rateLimiters?.sensitive, `cmp:${tenant.id}:${clientIp(c)}`))
+    ) {
+      return rateLimited(c);
+    }
+
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      return c.json({ error: "invalid_json" }, 400);
+    }
+
+    const parsed = parseComprehensionInput(raw);
+    if (!parsed.ok) return c.json({ error: parsed.error }, 400);
+
+    const support = await deps.getSupportDeps?.();
+    if (!support) return c.json({ error: "support_unavailable" }, 503);
+
+    const actor = await resolveActor(c, deps.visitorCodec);
+    applyVisitorCookie(c, actor);
+
+    await support.repo.create({
+      tenantId: tenant.id,
+      kind: "comprehension",
+      message: parsed.report.message,
+      contactEmail: parsed.report.email,
+      question: null,
+      articleId: parsed.report.articleId,
+      anchor: parsed.report.anchor,
+      quote: parsed.report.quote,
+      actorType: actor.actorType,
+      visitorId: actor.visitorId,
+      nowSec: Math.floor(Date.now() / 1000),
+    });
+
+    // Mail wie beim Support-Ticket: Best-Effort, das Postfach ist die Wahrheit.
+    if (tenant.supportEmail) {
+      try {
+        await support.sendTicketMail({
+          to: tenant.supportEmail,
+          tenantName: tenant.name,
+          message: parsed.report.quote
+            ? `„${parsed.report.quote}"\n\n${parsed.report.message}`
+            : parsed.report.message,
+          contactEmail: parsed.report.email,
+          question: null,
+        });
+      } catch (err) {
+        console.error("[support] Mailversand (Verständnis) fehlgeschlagen:", err);
+      }
+    }
+
+    return c.json({ ok: true }, 201);
+  });
 
   r.post("/tickets", async (c) => {
     if (
