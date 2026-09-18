@@ -27,11 +27,11 @@ const HOST_A = "tenant-a.hallofhelp.com";
 const HOST_B = "tenant-b.hallofhelp.com";
 
 const MIGRATIONS = [
-  "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0033_api_docs_url.sql",
+  "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql",
   "0002_auth.sql",
   "0003_branding.sql",
   "0004_two_factor_plugin_columns.sql",
-  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql",
+  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql", "0038_header_actions.sql", "0015_support_tickets.sql", "0039_comprehension_reports.sql", "0042_review_suggestion.sql",
 ] as const;
 
 function makeTenant(id: string, slug: string): Tenant {
@@ -1652,5 +1652,79 @@ describe("Kontaktwege (/admin/contact-methods)", () => {
 
     expect((await store.listContactMethods("t_a")).map((m) => m.title)).toEqual(["A"]);
     expect((await store.listContactMethods("t_b")).map((m) => m.title)).toEqual(["B"]);
+  });
+});
+
+/* ————— Aktions-Knöpfe im Kopf (0038) ————— */
+
+/**
+ * Verhinderte Fehlerfälle:
+ *  - Ein `javascript:`- oder http-Ziel landet im Kopf JEDER Seite.
+ *  - Ein ungültiger Knopf im Stapel hinterlässt einen halben Satz — sofort
+ *    überall sichtbar.
+ *  - Der Deckel greift nicht und der Kopf füllt sich mit Knöpfen.
+ */
+describe("Aktions-Knöpfe (/admin/header-actions)", () => {
+  const put = (app: TestApp, buttons: unknown[], cookie: string, host = HOST_A) =>
+    app.request("/api/v1/admin/header-actions", {
+      method: "PUT",
+      headers: { host, "content-type": "application/json", cookie },
+      body: JSON.stringify({ buttons }),
+    });
+
+  it("gated wie Inhaltspflege; speichert in Reihenfolge", async () => {
+    const { app, authDb, store } = makeApp();
+    const userCookie = await sessionAs(app, authDb, HOST_A, "user");
+    expect((await put(app, [], userCookie)).status).toBe(403);
+
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    const res = await put(
+      app,
+      [
+        { label: "Termin", icon: "play", href: "https://cal.example/x", variant: "colored" },
+        { label: "Kontakt", href: "/contact", variant: "ghost" },
+      ],
+      cookie,
+    );
+    expect(res.status).toBe(200);
+
+    const buttons = await store.listHeaderActions("t_a");
+    expect(buttons.map((b) => b.label)).toEqual(["Termin", "Kontakt"]);
+    expect(buttons[0].variant).toBe("colored");
+    expect(buttons[1].icon).toBeNull();
+  });
+
+  it("lehnt unsichere und unverschlüsselte Ziele ab — ohne etwas zu ändern", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    await put(app, [{ label: "Bestand", href: "/contact", variant: "ghost" }], cookie);
+
+    for (const href of ["javascript:alert(1)", "http://cal.example/x", "//fremd.example"]) {
+      const res = await put(
+        app,
+        [
+          { label: "Gut", href: "/contact", variant: "ghost" },
+          { label: "Böse", href, variant: "ghost" },
+        ],
+        cookie,
+      );
+      expect(res.status, href).toBe(400);
+      expect(await res.json()).toMatchObject({ error: "invalid_href", index: 1 });
+    }
+
+    expect((await store.listHeaderActions("t_a")).map((b) => b.label)).toEqual(["Bestand"]);
+  });
+
+  it("Deckel greift beim vierten Knopf", async () => {
+    const { app, authDb } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    const many = Array.from({ length: 4 }, (_, i) => ({
+      label: `K${i}`,
+      href: "/contact",
+      variant: "ghost",
+    }));
+    const res = await put(app, many, cookie);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: "too_many_buttons" });
   });
 });

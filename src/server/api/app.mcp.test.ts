@@ -5,6 +5,7 @@ import type { Tenant } from "@/lib/tenant/types";
 import { buildAuth, tenantAuthOptions } from "@/server/auth/auth";
 import { applyMigrations, d1FromSqlite } from "@/server/auth/sqlite-test-support";
 import { D1ContentRepository } from "@/server/content/store";
+import { D1SupportRepository } from "@/server/support/store";
 import { D1ApiKeyRepository } from "@/server/apikeys/store";
 import { generateApiKey, hashApiKey } from "@/server/apikeys/keys";
 import type { ApiScope } from "@/server/apikeys/scopes";
@@ -30,7 +31,7 @@ const MCP = "/api/v1/mcp";
 const MIGRATIONS = [
   "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql",
   "0002_auth.sql", "0004_two_factor_plugin_columns.sql",
-  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql",
+  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql", "0038_header_actions.sql", "0015_support_tickets.sql", "0039_comprehension_reports.sql", "0042_review_suggestion.sql",
   "0027_api_keys.sql",
 ] as const;
 
@@ -85,6 +86,8 @@ function makeApp() {
     delete: async (key: string) => void mediaObjects.delete(key),
   };
 
+  const supportRepo = new D1SupportRepository(d1FromSqlite(db));
+
   const deps: ApiDeps = {
     resolveTenant: async (host) => TENANTS[(host ?? "").split(":")[0].toLowerCase()] ?? null,
     createAuthForTenant: async () =>
@@ -102,6 +105,7 @@ function makeApp() {
     }),
     getLegalDeps: async () => null,
     getContentDeps: async () => ({ store, media }),
+    getSupportDeps: async () => ({ repo: supportRepo, sendTicketMail: async () => true }),
     getApiKeyDeps: async () => ({ repo: keys }),
     getConfirmations: async (tenantId) =>
       makeConfirmationCodec({
@@ -120,7 +124,7 @@ function makeApp() {
   };
 
   return {
-    app: buildApiApp(deps), db, store, keys, indexCalls, auditEntries, mediaObjects,
+    app: buildApiApp(deps), db, store, keys, indexCalls, auditEntries, mediaObjects, supportRepo,
     get summarizerCalls() { return summarizer.calls; },
   };
 }
@@ -1269,5 +1273,152 @@ describe("MCP — Kontaktwege", () => {
     expect(res.data!.pageVisible).toBe(false);
     expect(String(res.data!.note)).toContain("404");
     expect(await f.store.listContactMethods("t_a")).toHaveLength(0);
+  });
+});
+
+/**
+ * KI MELDET EIN PROBLEM (0042). Die GRENZEN sind hier der eigentliche Wert —
+ * ohne sie wäre die Funktion ein Kanal, über den eine Maschine das Postfach
+ * eines Menschen fluten kann. Verhinderte Fehlerfälle:
+ *  - Kein Tagesdeckel → 500 Meldungen in einer Minute, das seltene
+ *    menschliche Signal ersäuft darin.
+ *  - Dieselbe Stelle immer wieder → dasselbe Ergebnis, mehr Rauschen.
+ *  - Meldung ohne Vorschlag → verlagerte Arbeit statt abgenommener.
+ *  - Meldung auf einen ENTWURF → verrät dessen Existenz und meldet etwas,
+ *    das noch niemand sehen kann.
+ */
+describe("MCP — KI meldet eine unklare Stelle", () => {
+  const REPORT = {
+    message: "Der Absatz nennt zwei Fristen, ohne zu sagen, welche für Bestandskunden gilt.",
+    suggestion: "Ergänze, dass die 14-Tage-Frist nur für Neukunden gilt, Bestandskunden 30 Tage haben.",
+  };
+
+  async function publishedArticle(f: ReturnType<typeof makeApp>, token: string, slug: string) {
+    const id = await seedArticle(f.app, token, slug, slug);
+    await callTool(f.app, token, "publish_article", { id });
+    return id;
+  }
+
+  it("legt eine Meldung an, nennt das Restkontingent und lässt den Artikel unberührt", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write", "articles:publish"]);
+    const id = await publishedArticle(f, token, "fristen");
+
+    const res = await callTool(f.app, token, "report_unclear_passage", {
+      articleId: id,
+      anchor: 0,
+      quote: "Ein hinreichend langer Textblock.",
+      ...REPORT,
+    });
+    expect(res.isError).toBe(false);
+    expect(res.data!.created).toBe(true);
+    expect(res.data!.remainingToday).toBe(19);
+
+    const tickets = await f.supportRepo.listByTenant("t_a", 10);
+    expect(tickets).toHaveLength(1);
+    expect(tickets[0]).toMatchObject({ kind: "ai_review", articleId: id, anchor: 0 });
+    expect(tickets[0].suggestion).toBe(REPORT.suggestion);
+
+    // Der Artikel selbst bleibt, wie er war.
+    const article = await f.store.getForEdit("t_a", id, "de");
+    expect(article?.body).toHaveLength(1);
+  });
+
+  it("GRENZE: dieselbe Stelle ein zweites Mal legt NICHTS an", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write", "articles:publish"]);
+    const id = await publishedArticle(f, token, "fristen");
+
+    await callTool(f.app, token, "report_unclear_passage", { articleId: id, anchor: 0, ...REPORT });
+    const zweite = await callTool(f.app, token, "report_unclear_passage", {
+      articleId: id,
+      anchor: 0,
+      ...REPORT,
+    });
+    expect(zweite.isError).toBe(false);
+    expect(zweite.data!.created).toBe(false);
+    expect(zweite.data!.reason).toBe("already_reported");
+    expect(await f.supportRepo.listByTenant("t_a", 10)).toHaveLength(1);
+  });
+
+  it("GRENZE: Tagesdeckel greift und nennt ihn beim Namen", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write", "articles:publish"]);
+    const id = await publishedArticle(f, token, "fristen");
+
+    // 20 Meldungen direkt einsetzen (der Deckel zählt je Mandant, nicht je Stelle).
+    const now = Math.floor(Date.now() / 1000);
+    for (let i = 0; i < 20; i += 1) {
+      await f.supportRepo.create({
+        tenantId: "t_a",
+        kind: "ai_review",
+        message: "x".repeat(30),
+        contactEmail: null,
+        question: null,
+        articleId: id,
+        anchor: 100 + i,
+        quote: null,
+        suggestion: "y".repeat(30),
+        actorType: "internal",
+        visitorId: null,
+        nowSec: now,
+      });
+    }
+
+    const res = await callTool(f.app, token, "report_unclear_passage", {
+      articleId: id,
+      anchor: 0,
+      ...REPORT,
+    });
+    expect(res.isError).toBe(true);
+    expect(res.data!.error).toBe("daily_limit_reached");
+    expect(res.data!.limit).toBe(20);
+  });
+
+  it("verlangt einen Vorschlag — „unklar“ allein reicht nicht", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write", "articles:publish"]);
+    const id = await publishedArticle(f, token, "fristen");
+
+    const ohne = await callTool(f.app, token, "report_unclear_passage", {
+      articleId: id,
+      anchor: 0,
+      message: REPORT.message,
+    });
+    expect(ohne.isError).toBe(true);
+    expect(ohne.data!.error).toBe("suggestion_required");
+
+    const kurz = await callTool(f.app, token, "report_unclear_passage", {
+      articleId: id,
+      anchor: 0,
+      message: REPORT.message,
+      suggestion: "besser machen",
+    });
+    expect(kurz.isError).toBe(true);
+    expect(kurz.data!.error).toBe("suggestion_too_short");
+  });
+
+  it("lehnt Entwürfe und nicht existierende Blöcke ab", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write", "articles:publish"]);
+    const entwurf = await seedArticle(f.app, token, "geheim", "Entwurf");
+    const id = await publishedArticle(f, token, "fristen");
+
+    const aufEntwurf = await callTool(f.app, token, "report_unclear_passage", {
+      articleId: entwurf,
+      anchor: 0,
+      ...REPORT,
+    });
+    expect(aufEntwurf.isError).toBe(true);
+    expect(aufEntwurf.data!.error).toBe("article_not_found");
+
+    const falscherBlock = await callTool(f.app, token, "report_unclear_passage", {
+      articleId: id,
+      anchor: 99,
+      ...REPORT,
+    });
+    expect(falscherBlock.isError).toBe(true);
+    expect(falscherBlock.data!.error).toBe("invalid_anchor");
+    expect(await f.supportRepo.listByTenant("t_a", 10)).toHaveLength(0);
   });
 });

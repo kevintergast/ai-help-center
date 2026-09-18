@@ -1,30 +1,40 @@
 "use client";
 
 import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import type { Article } from "@/lib/content/types";
+import { searchArticles, type SearchHit, type SearchSegment } from "@/lib/content/search";
 import { cn } from "@/lib/ui/cn";
 import { useClickOutside } from "@/lib/ui/use-click-outside";
-import { SearchIcon } from "./icons";
-
-export interface ComboItem {
-  id: string;
-  title: string;
-  category?: string;
-}
+import { SearchIcon, CloseIcon } from "./icons";
 
 export interface SearchComboboxProps {
-  items: ComboItem[];
+  /** Vollständige Artikel — die Suche liest auch den KÖRPER, nicht nur Titel. */
+  articles: Article[];
   placeholder?: string;
   emptyLabel: string;
   "aria-label": string;
+  clearLabel: string;
   className?: string;
-  onSelect?: (item: ComboItem) => void;
+  onSelect?: (hit: SearchHit) => void;
 }
 
-/** Suchfeld mit Live-Ergebnissen (Combobox-Pattern). Findet Artikel beim Tippen. */
+/**
+ * SUCHFELD mit Live-Ergebnissen (Combobox-Pattern).
+ *
+ * Sucht über Titel, Kategorie UND Inhalt (lib/content/search.ts) und zeigt je
+ * Treffer einen Ausschnitt mit markierten Fundstellen — damit man VOR dem
+ * Klick sieht, warum ein Artikel gefunden wurde. Vorher wurde nur der Titel
+ * verglichen; wer sich an eine Formulierung im Artikel erinnerte, fand ihn nicht.
+ *
+ * LEERE ANFRAGE = KEINE LISTE. Vorher erschienen bei Fokus alle Artikel als
+ * „Treffer" — eine Liste, die nichts beantwortet und die echten Ergebnisse
+ * später nur verdeckt.
+ */
 export function SearchCombobox({
-  items,
+  articles,
   placeholder,
   emptyLabel,
+  clearLabel,
   className,
   onSelect,
   "aria-label": ariaLabel,
@@ -33,25 +43,19 @@ export function SearchCombobox({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const listId = useId();
   useClickOutside(ref, () => setOpen(false), open);
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(
-      (it) =>
-        it.title.toLowerCase().includes(q) ||
-        (it.category ?? "").toLowerCase().includes(q),
-    );
-  }, [items, query]);
+  const results = useMemo(() => searchArticles(articles, query), [articles, query]);
+  const showList = open && query.trim().length > 0;
 
   function pick(i: number) {
-    const it = results[i];
-    if (!it) return;
-    setQuery(it.title);
+    const hit = results[i];
+    if (!hit) return;
+    setQuery("");
     setOpen(false);
-    onSelect?.(it);
+    onSelect?.(hit);
   }
 
   function onKey(e: KeyboardEvent<HTMLInputElement>) {
@@ -66,18 +70,23 @@ export function SearchCombobox({
       e.preventDefault();
       pick(active);
     } else if (e.key === "Escape") {
-      setOpen(false);
+      e.preventDefault();
+      if (query.length > 0) setQuery("");
+      else setOpen(false);
     }
   }
 
   return (
     <div ref={ref} className={cn("relative", className)}>
-      <div className="flex items-center gap-2.5 rounded-full border border-hairline bg-surface-raised px-4 py-2.5 focus-within:border-transparent focus-within:shadow-[0_0_0_2px_var(--ring)]">
-        <SearchIcon className="shrink-0 text-ink-muted" />
+      {/* Schlanker als vorher: kleinere Schrift, weniger Polsterung, keine
+          angehobene Fläche — die Leiste ist ein Werkzeug, kein Blickfang. */}
+      <div className="flex items-center gap-2 rounded-full border border-hairline bg-surface px-3 py-1.5 transition-colors focus-within:border-transparent focus-within:shadow-[0_0_0_2px_var(--ring)]">
+        <SearchIcon width={15} height={15} className="shrink-0 text-ink-muted" />
         <input
+          ref={inputRef}
           type="text"
           role="combobox"
-          aria-expanded={open}
+          aria-expanded={showList}
           aria-controls={listId}
           aria-autocomplete="list"
           aria-label={ariaLabel}
@@ -90,34 +99,56 @@ export function SearchCombobox({
             setOpen(true);
           }}
           onKeyDown={onKey}
-          className="w-full bg-transparent text-base text-ink outline-none placeholder:text-ink-muted"
+          className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink-muted"
         />
+        {query.length > 0 ? (
+          <button
+            type="button"
+            aria-label={clearLabel}
+            onClick={() => {
+              setQuery("");
+              inputRef.current?.focus();
+            }}
+            className="shrink-0 rounded-full p-0.5 text-ink-muted transition-colors hover:text-ink"
+          >
+            <CloseIcon width={13} height={13} />
+          </button>
+        ) : null}
       </div>
-      {open ? (
+
+      {showList ? (
         <ul
           role="listbox"
           id={listId}
           aria-label={ariaLabel}
-          className="absolute z-50 mt-1.5 max-h-72 w-full overflow-auto rounded-card border border-hairline bg-surface-raised p-1.5 shadow-focusglow"
+          // BREITER ALS DAS FELD: In der schmalen Leiste (224px) bricht ein
+          // Textausschnitt nach drei Wörtern um und ist nicht mehr überfliegbar.
+          // Die Liste schwebt ohnehin — sie darf die Leiste überragen.
+          className="absolute z-50 mt-1.5 max-h-[24rem] w-[min(26rem,calc(100vw-2rem))] min-w-full overflow-auto rounded-card border border-hairline bg-surface-raised p-1.5 shadow-focusglow"
         >
           {results.length === 0 ? (
             <li className="px-3 py-2.5 text-sm text-ink-muted">{emptyLabel}</li>
           ) : (
-            results.map((it, i) => (
+            results.map((hit, i) => (
               <li
-                key={it.id}
+                key={hit.id}
                 role="option"
                 aria-selected={i === active}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => pick(i)}
                 className={cn(
-                  "flex cursor-pointer items-center justify-between gap-3 rounded-comfy px-3 py-2 text-sm",
+                  "cursor-pointer rounded-comfy px-3 py-2",
                   i === active ? "bg-tint" : "",
                 )}
               >
-                <span className="text-ink">{it.title}</span>
-                {it.category ? (
-                  <span className="shrink-0 text-xs text-ink-muted">{it.category}</span>
+                <p className="text-sm font-medium text-ink">
+                  <Segments parts={hit.titleSegments} />
+                </p>
+                <p className="mt-0.5 text-xs text-ink-muted">{hit.category}</p>
+                {hit.snippet.length > 0 ? (
+                  <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink-muted">
+                    <Segments parts={hit.snippet} />
+                  </p>
                 ) : null}
               </li>
             ))
@@ -125,5 +156,26 @@ export function SearchCombobox({
         </ul>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Markierte Fundstellen. Bewusst über Segmente statt über eingefügtes Markup:
+ * Der Suchbegriff kommt vom Nutzer, und HTML daraus zu bauen wäre ein
+ * Einfallstor. React setzt Text hier immer als Text.
+ */
+function Segments({ parts }: { parts: SearchSegment[] }) {
+  return (
+    <>
+      {parts.map((p, i) =>
+        p.match ? (
+          <mark key={i} className="rounded-[3px] bg-warn-bg px-0.5 text-ink">
+            {p.text}
+          </mark>
+        ) : (
+          <span key={i}>{p.text}</span>
+        ),
+      )}
+    </>
   );
 }

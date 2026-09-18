@@ -8,6 +8,8 @@ import {
 import { MAX_LINK_CARDS, MAX_TAG_TEXT, TAG_COLORS, TEXT_VARIANTS } from "@/lib/content/blocks";
 import { ENTRY_CARD_KINDS, MAX_ENTRY_CARDS } from "@/lib/content/entry-cards";
 import { CONTACT_KINDS, MAX_CONTACT_METHODS } from "@/lib/content/contact-methods";
+import { ACTION_VARIANTS, MAX_ACTION_BUTTONS } from "@/lib/content/action-buttons";
+import { MAX_AI_REVIEWS_PER_DAY } from "@/lib/content/ai-review";
 import { ARTICLE_ICONS } from "@/lib/content/article-icons";
 import { API_SCOPES, scopeDef } from "@/server/apikeys/scopes";
 import { fail, ok, type McpTool, type ToolContext } from "./types";
@@ -299,6 +301,15 @@ export const getContentConventions: McpTool = {
         maxMethods: MAX_CONTACT_METHODS,
         kinds: [...CONTACT_KINDS],
         note: "Cards on /contact — the way out when neither the articles nor an AI answer helped. Read with list_contact_methods, set with set_contact_methods (which replaces the whole set). kind 'email' and 'phone' need a real address/number; 'form' needs none and renders a form that sends a ticket to the operator's inbox. The page AND its entry at the bottom of the navigation exist exactly while at least one option is set up — there is no separate on/off switch. Never invent an address or number: only enter what the operator gave you.",
+      },
+      headerActions: {
+        maxButtons: MAX_ACTION_BUTTONS,
+        variants: [...ACTION_VARIANTS],
+        note: "Up to three action buttons in the help center header. Read with list_header_actions, set with set_header_actions (replaces the whole set). Targets: https URLs or paths inside this help center; http:// is rejected. There is deliberately no free colour — 'colored' uses the help center's own brand colour, which is already contrast-checked.",
+      },
+      reportingProblems: {
+        maxPerDay: MAX_AI_REVIEWS_PER_DAY,
+        note: "If you notice a passage that is unclear, contradictory or wrong while reading, you can report it with report_unclear_passage. It lands in the operator's inbox marked as an AI report and NEVER changes the article. A concrete suggestion is required. Limits: at most this many per day for the whole help center, and one open report per passage — report what genuinely blocks a reader, not everything you would phrase differently.",
       },
       lifecycle: {
         note: "Articles created through this server always start as drafts. Publishing is a separate tool and a separate permission.",

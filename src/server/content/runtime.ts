@@ -40,6 +40,7 @@ function d1HelpCenterRepo(db: D1Database, tenant: Tenant): HelpCenterRepository 
     promptSuggestions: () => sampleHelpCenterRepo.promptSuggestions(),
     entryCards: () => store.listEntryCards(tid),
     contactMethods: () => store.listContactMethods(tid),
+    headerActions: () => store.listHeaderActions(tid),
   };
 }
 
@@ -52,7 +53,7 @@ export async function getHelpCenterRepo(tenant: Tenant): Promise<HelpCenterRepos
 /** Vorab aufgelöstes Lese-Bundle fürs (Client-)Hilfezentrum. */
 export async function getHelpCenterData(tenant: Tenant): Promise<HelpCenterData> {
   const repo = await getHelpCenterRepo(tenant);
-  const [groups, searchItems, articles, roadmap, changelog, suggestions, entryCards, contactMethods] =
+  const [groups, searchItems, articles, roadmap, changelog, suggestions, entryCards, contactMethods, headerActions] =
     await Promise.all([
       repo.listByCategory(),
       repo.searchItems(),
@@ -62,8 +63,9 @@ export async function getHelpCenterData(tenant: Tenant): Promise<HelpCenterData>
       repo.promptSuggestions(),
       repo.entryCards(),
       repo.contactMethods(),
+      repo.headerActions(),
     ]);
-  return { groups, searchItems, articles, roadmap, changelog, suggestions, entryCards, contactMethods };
+  return { groups, searchItems, articles, roadmap, changelog, suggestions, entryCards, contactMethods, headerActions };
 }
 
 /**

@@ -33,7 +33,7 @@ type Row = Record<string, unknown>;
 function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
   const { settingsAvailable = true } = opts;
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql", "0033_api_docs_url.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql"]);
   const repo = new D1TenantRepository(d1FromSqlite(sqlite));
 
   const authDb: Record<string, Row[]> = {
@@ -64,6 +64,9 @@ function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
             setShowHeaderName: (tenantId, show) => repo.setShowHeaderName(tenantId, show),
             setApiDocsUrl: (tenantId, url) => repo.setApiDocsUrl(tenantId, url),
             setWidgetOnSite: (tenantId, on) => repo.setWidgetOnSite(tenantId, on),
+            setComprehensionMode: (tenantId, on) => repo.setComprehensionMode(tenantId, on),
+            setWidgetAppearance: (tenantId, variant, label) =>
+              repo.setWidgetAppearance(tenantId, variant, label),
           }
         : null,
   };

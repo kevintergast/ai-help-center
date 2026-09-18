@@ -43,6 +43,17 @@ export function PhoneIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** Fragezeichen im Kreis — „Ich verstehe etwas nicht". */
+export function HelpCircleIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9a2.5 2.5 0 1 1 3.2 2.4c-.6.2-.9.7-.9 1.3v.6" />
+      <path d="M12 17h.01" />
+    </svg>
+  );
+}
+
 export function MicIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>

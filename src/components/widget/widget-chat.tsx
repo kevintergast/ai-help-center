@@ -29,7 +29,18 @@ type View =
   | { kind: "answer"; answer: AskAnswer }
   | { kind: "error"; code: "unavailable" | "frozen" | "limited" | "network"; question: string };
 
-export function WidgetChat({ locale, tenantName }: { locale: Locale; tenantName: string }) {
+export function WidgetChat({
+  locale,
+  tenantName,
+  logoUrl = null,
+  logoDarkUrl = null,
+}: {
+  locale: Locale;
+  tenantName: string;
+  /** White-Label-Logo (0041); ohne eigenes Logo bleibt das Funken-Zeichen. */
+  logoUrl?: string | null;
+  logoDarkUrl?: string | null;
+}) {
   const t = getT(locale);
   const [view, setView] = useState<View>({ kind: "idle" });
   const [input, setInput] = useState("");
@@ -106,7 +117,18 @@ export function WidgetChat({ locale, tenantName }: { locale: Locale; tenantName:
     <div className="flex h-dvh flex-col bg-canvas text-ink">
       <header className="flex items-center justify-between gap-2 border-b border-hairline bg-surface px-4 py-3">
         <div className="flex min-w-0 items-center gap-2">
-          <SparkleIcon width={16} height={16} className="shrink-0 text-brand" />
+          {/* Kopf des Widgets trägt das Logo der INSTANZ (0041). Das feste
+              Funken-Zeichen war in einem White-Label-Produkt die falsche
+              Vorgabe; ohne eigenes Logo bleibt es der Rückfall. */}
+          {logoUrl ? (
+            <picture>
+              {logoDarkUrl ? <source srcSet={logoDarkUrl} media="(prefers-color-scheme: dark)" /> : null}
+              { }
+              <img src={logoUrl} alt="" className="h-5 w-auto shrink-0" />
+            </picture>
+          ) : (
+            <SparkleIcon width={16} height={16} className="shrink-0 text-brand" />
+          )}
           <p className="truncate text-sm font-semibold">
             {t("widget.title", { name: tenantName })}
           </p>

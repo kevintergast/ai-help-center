@@ -26,6 +26,48 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.5.0] – 2026-09-18
+
+_Volltextsuche, Kopf-Knöpfe, Widget-Varianten und Verständnis-Hinweise_
+
+### Hinzugefügt
+- **hc:** Volltextsuche über Titel, Kategorie UND Inhalt — je Treffer ein
+  Textausschnitt um die Fundstelle mit markierten Stellen. Mehrere Wörter als
+  UND, Diakritika egal, Rangfolge Titel → Kategorie → Inhalt (6e9dd1b)
+- **hc:** Bis zu drei Aktions-Knöpfe im Kopf, je Beschriftung, optionales
+  Symbol und eine von vier Varianten (ghost/outlined/filled/colored); Ziele nur
+  https oder instanz-intern (Migration 0038) (8e3793f)
+- **hc:** „Ich verstehe etwas nicht" — Modus, in dem Leser die unklare Stelle
+  IM Artikel anklicken und kommentieren; zweiter Schritt (Rückmelde-Adresse)
+  freiwillig. Landet im Postfach als eigene Art, je Instanz abschaltbar
+  (Migrationen 0039/0040) (370d389)
+- **widget:** Dieselben vier Varianten für den Starter, eigene Symbole je
+  Zustand (PNG/WebP über den gehärteten Branding-Upload, kein SVG) und das
+  White-Label-Logo im Widget-Kopf (Migration 0041) (dd40c17)
+- **content:** Wählbares Symbol je Artikel für die Navigation, Standard keins
+  (Migration 0036) (f0421a3)
+- **content:** Kontaktseite `/contact` mit Karten für E-Mail, Telefon und
+  Formular (Migration 0037) (f0421a3)
+
+### Geändert
+- **ui:** Neue Flächen-Hierarchie — `--page` (App-Grund) getrennt von
+  `--surface` (Inhalt/Karten); kühl-neutrale Palette, White-Label unberührt
+  (f0421a3)
+- **hc:** Die Legal-Zeile im Fuß zeigt das Logo des MANDANTEN statt fest
+  unseres Emblems — ein White-Label-Leck (6e9dd1b)
+- **hc:** Eigener blauer Ton `info` für ruhige Flags wie „Beta" (6e9dd1b)
+- **hc:** Die API-Dokumentation steht im Kopf UND in der Leiste (6e9dd1b)
+
+### Behoben
+- **hc:** Dialog-Schließen nahm jeden Schritt des Verständnis-Modus zurück —
+  ein natives `<dialog>` feuert `close` auch beim programmatischen Schließen
+  (57c8e68)
+- **ci:** Nachprüfung vom Deploy entkoppeln — sie darf keinen Tag kosten
+  (96ac9f0)
+
+### Wartung
+- **content:** Dogfood-Artikel für die neuen Fähigkeiten (db6c10d, 6cde47e)
+
 ## [0.4.1] – 2026-09-17
 
 _Kontaktwege über MCP pflegbar_

@@ -8,6 +8,8 @@
  * verstecktes iframe auf /widget DESSELBEN Origins (kein CORS, Branding und
  * APIs first-party im iframe). Kommunikation per postMessage, origin-geprüft:
  *   hoh:ready {color} → Button auf Brand-Farbe einfärben
+ * Erscheinungsbild (Variante, Beschriftung, Symbole) kommt aus
+ * GET /api/v1/widget/config — der Loader bleibt dadurch statisch cachebar.
  *   hoh:close         → Panel schließen
  * KEIN Nutzer-Input im Template — der String ist statisch (kein XSS-Vektor).
  * Statisch cachebar (1 h, immutable wäre falsch: Loader soll updatebar sein).
@@ -60,11 +62,89 @@ const LOADER_JS = `(function () {
     frame.style.display = open ? "block" : "none";
     frame.setAttribute("aria-hidden", open ? "false" : "true");
     btn.setAttribute("aria-label", open ? "Hilfe schlie\\u00dfen" : "Hilfe \\u00f6ffnen");
+    if (cfg) applyIcon(open ? cfg.iconOpenUrl : cfg.iconUrl);
   }
 
   btn.addEventListener("click", function () {
     setOpen(!open);
   });
+
+  // ERSCHEINUNGSBILD (0041) nachladen. Der Loader bleibt dadurch ein
+  // STATISCHER, cachebarer String — die Einstellungen kommen aus der API,
+  // statt je Instanz ins Skript gebacken zu werden.
+  //
+  // Alle Werte werden als TEXT verarbeitet, nie als Markup: Beschriftung geht
+  // über textContent, Symbole über img.src. Ein fremder String kann so kein
+  // Element werden. Die Symbol-Adressen stammen ohnehin aus unserem eigenen
+  // Origin und werden darauf geprüft.
+  function applyVariant(cfg) {
+    var v = cfg.variant;
+    var color = typeof cfg.color === "string" && cfg.color ? cfg.color : "#4f46e5";
+    var fg = typeof cfg.colorFg === "string" && cfg.colorFg ? cfg.colorFg : "#fff";
+    if (v === "ghost") {
+      btn.style.background = "transparent";
+      btn.style.color = color;
+      btn.style.border = "0";
+      btn.style.boxShadow = "none";
+    } else if (v === "outlined") {
+      btn.style.background = "transparent";
+      btn.style.color = color;
+      btn.style.border = "2px solid " + color;
+      btn.style.boxShadow = "none";
+    } else if (v === "filled") {
+      btn.style.background = "#16181d";
+      btn.style.color = "#fff";
+    } else {
+      btn.style.background = color;
+      btn.style.color = fg;
+    }
+  }
+
+  function sameOriginUrl(raw) {
+    if (typeof raw !== "string" || !raw) return null;
+    try {
+      var u = new URL(raw, origin);
+      return u.origin === origin ? u.href : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function applyIcon(url) {
+    var safe = sameOriginUrl(url);
+    if (!safe) return;
+    var img = document.createElement("img");
+    img.src = safe;
+    img.alt = "";
+    img.style.cssText = "width:28px;height:28px;object-fit:contain;display:block;";
+    btn.innerHTML = "";
+    btn.appendChild(img);
+  }
+
+  var cfg = null;
+  fetch(origin + "/api/v1/widget/config", { credentials: "omit" })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (data) {
+      if (!data) return;
+      cfg = data;
+      applyVariant(data);
+      applyIcon(data.iconUrl);
+      if (typeof data.label === "string" && data.label) {
+        // Mit Beschriftung wird aus dem runden Knopf eine Pille.
+        btn.style.width = "auto";
+        btn.style.height = "48px";
+        btn.style.padding = "0 18px";
+        btn.style.gap = "8px";
+        btn.style.display = "inline-flex";
+        btn.style.alignItems = "center";
+        btn.style.font = "500 15px/1 system-ui, sans-serif";
+        var span = document.createElement("span");
+        span.textContent = data.label;
+        btn.appendChild(span);
+        btn.setAttribute("aria-label", data.label);
+      }
+    })
+    .catch(function () { /* Erscheinungsbild ist Komfort — der Starter steht auch ohne. */ });
 
   window.addEventListener("message", function (event) {
     if (event.origin !== origin || !event.data || typeof event.data !== "object") return;

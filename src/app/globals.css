@@ -47,6 +47,8 @@
   --shadow-focus: rgba(16, 24, 40, 0.1) 0 4px 12px;
 
   /* Semantik (getrennt vom Marken-Akzent) */
+  --sem-info: #175cd3;
+  --sem-info-bg: #eff6ff;
   --sem-ok: #067647;
   --sem-ok-bg: #ecfdf3;
   --sem-ok-bd: #abefc6;
@@ -81,7 +83,11 @@
     --shadow-inset: rgba(255, 255, 255, 0.06) 0 0.5px 0 0 inset,
       rgba(0, 0, 0, 0.5) 0 0 0 0.5px inset, rgba(0, 0, 0, 0.3) 0 1px 2px 0;
     --shadow-focus: rgba(0, 0, 0, 0.5) 0 4px 14px;
-    --sem-ok: #75e0a7;
+    --sem-info: #84caff;
+    --sem-info-bg: #101f36;
+    --sem-info: #84caff;
+  --sem-info-bg: #101f36;
+  --sem-ok: #75e0a7;
     --sem-ok-bg: #0d2a1d;
     --sem-ok-bd: #1a4733;
     --sem-warn: #fdb022;
@@ -132,6 +138,8 @@
   --shadow-inset: rgba(255, 255, 255, 0.06) 0 0.5px 0 0 inset,
     rgba(0, 0, 0, 0.5) 0 0 0 0.5px inset, rgba(0, 0, 0, 0.3) 0 1px 2px 0;
   --shadow-focus: rgba(0, 0, 0, 0.5) 0 4px 14px;
+  --sem-info: #84caff;
+  --sem-info-bg: #101f36;
   --sem-ok: #75e0a7;
   --sem-ok-bg: #0d2a1d;
   --sem-ok-bd: #1a4733;
@@ -189,4 +197,32 @@
   *::-webkit-scrollbar-corner {
     background: transparent;
   }
+}
+
+/* AUSWAHL-MODUS „Ich verstehe etwas nicht" (0039).
+   Die Klasse setzt die Komponente am <body>; die anklickbaren Blöcke stehen in
+   einem ganz anderen Teilbaum. Der Zeiger ist das ehrlichste Signal, dass die
+   Seite sich gerade anders verhält — ohne ihn klickt man ins Leere und
+   wundert sich. Textauswahl ist aus, sonst markiert jeder Klick Text statt
+   einen Block zu wählen. */
+body.hoh-picking {
+  cursor: crosshair;
+  user-select: none;
+}
+body.hoh-picking [data-block] {
+  cursor: crosshair;
+  border-radius: var(--radius-comfy, 10px);
+  outline: 1px dashed color-mix(in srgb, var(--brand-primary) 45%, transparent);
+  outline-offset: 4px;
+  transition: outline-color 120ms, background-color 120ms;
+}
+body.hoh-picking [data-block]:hover {
+  outline: 2px solid var(--brand-primary);
+  background-color: color-mix(in srgb, var(--brand-primary) 7%, transparent);
+}
+/* Im Auswahlmodus darf nichts anderes anklickbar sein — sonst landet man
+   mitten im Vorgang auf einer anderen Seite. */
+body.hoh-picking [data-block] a,
+body.hoh-picking [data-block] button {
+  pointer-events: none;
 }

@@ -394,8 +394,14 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
     // 24h-Dedup, IP-Rate-Limit — Begründung in public-routes.ts).
     // 2026-07-17: + /support/tickets („Etwas stimmt nicht?" — anonymer
     // Eskalationsweg; Schichten in public-routes.ts/api/support.ts).
+    // 2026-09-18: + /support/comprehension („Ich verstehe etwas nicht" —
+    // derselbe anonyme Eskalationsweg wie /support/tickets, nur mit Artikel-
+    // statt Antwort-Bezug; gleiche Schichten, zusätzlich je Instanz
+    // abschaltbar → dann 404).
     // 2026-07-17: + /widget/session (signierte Besucher-ID fürs eingebettete
     // Widget — Begründung in api/widget.ts).
+    // 2026-09-18: + /widget/config (Erscheinungsbild des Widget-Starters —
+    // genau das, was ohnehin jeder auf der Kundenseite sieht; reines Lesen).
     // 2026-07-17: + /answers/check (Staleness-Prüfung LOKAL gespeicherter
     // Antworten anonymer local-first-Nutzer; Hash-Vergleich nur gegen
     // VERÖFFENTLICHTES, kein Draft-Orakel — Begründung public-routes.ts).
@@ -416,7 +422,9 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
           "/api/v1/events/feedback",
           "/api/v1/ask",
           "/api/v1/support/tickets",
+          "/api/v1/support/comprehension",
           "/api/v1/widget/session",
+          "/api/v1/widget/config",
           "/api/v1/answers/check",
         ],
         "prefixes": [

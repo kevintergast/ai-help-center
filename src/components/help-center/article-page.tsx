@@ -11,6 +11,7 @@ import { ArticleToc, hasToc } from "./article-toc";
 import { ViewBeacon } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
 import { ArticleFeedback } from "./article-feedback";
+import { ComprehensionMode } from "./comprehension-mode";
 import { ArticleVideos } from "./article-videos";
 import { articleHeadings } from "@/lib/content/headings";
 import { ArrowLeftIcon, DocIcon } from "@/components/ui/icons";
@@ -39,6 +40,8 @@ export interface ArticlePageProps {
   showName?: boolean;
   /** Link auf die eigene API-Dokumentation (0033) — durchgereicht an HelpShell. */
   apiDocsUrl?: string | null;
+  /** „Ich verstehe etwas nicht" (0039) — aus = Knopf erscheint nicht. */
+  comprehensionMode?: boolean;
   article: Article;
   /** Bereits aufgelöste verwandte Artikel (mit slug für die Verlinkung). */
   related: ArticleSummary[];
@@ -59,6 +62,7 @@ export function ArticlePage({
   logoDarkUrl = null,
   showName = true,
   apiDocsUrl = null,
+  comprehensionMode = true,
   article,
   related,
   data,
@@ -179,6 +183,15 @@ export function ArticlePage({
                     </figcaption>
                   </figure>
                 ))}
+              </div>
+            ) : null}
+            {/* „Ich verstehe etwas nicht" (0039) — neben der Hilfreich-Frage,
+                weil beide dieselbe Frage von zwei Seiten stellen: War der
+                Artikel gut? Und wenn nicht, WO genau? Erscheint nur, wenn die
+                Instanz den Modus anhat. */}
+            {comprehensionMode ? (
+              <div className="mt-8 flex justify-start">
+                <ComprehensionMode locale={locale} articleId={article.id} />
               </div>
             ) : null}
             <div className="mt-8">

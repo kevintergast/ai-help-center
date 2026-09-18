@@ -73,7 +73,7 @@ class FakeBrandingRepo implements BrandingRepository {
   private row(tenantId: string) {
     let r = this.rows.get(tenantId);
     if (!r) {
-      r = { colors: null, keys: { light: null, dark: null, favicon: null } };
+      r = { colors: null, keys: { light: null, dark: null, favicon: null, widget: null, "widget-open": null } };
       this.rows.set(tenantId, r);
     }
     return r;
@@ -512,5 +512,51 @@ describe("GET /api/v1/branding/logo (public)", () => {
     });
     expect(spoofed.status).toBe(404);
     expect(await spoofed.json()).toMatchObject({ error: "unknown_tenant" });
+  });
+});
+
+/**
+ * WIDGET-SYMBOLE (0041) laufen über DIESELBE Route wie Logo und Favicon.
+ * Verhinderte Fehlerfälle:
+ *  - Der neue Slot umgeht die Typ-Prüfung und nimmt SVG an — genau der
+ *    XSS-Vektor, den ALLOWED_LOGO_TYPES ausschließt.
+ *  - Der R2-Schlüssel kollidiert mit dem Logo und überschreibt es.
+ */
+describe("Widget-Symbole (0041)", () => {
+  const uploadIcon = (
+    app: TestApp,
+    cookie: string,
+    bytes: Uint8Array,
+    contentType: string,
+    variant = "widget",
+  ) =>
+    app.request(`/api/v1/admin/branding/logo?variant=${variant}`, {
+      method: "POST",
+      headers: { host: HOST_A, cookie, "content-type": contentType },
+      body: bytes.slice(),
+    });
+
+  it("nimmt PNG an und legt es unter einem EIGENEN Schlüssel ab", async () => {
+    const { app, db, bucket, repo } = makeApp();
+    const cookie = await adminSession(app, db, HOST_A);
+
+    expect((await uploadIcon(app, cookie, PNG_BYTES, "image/png")).status).toBe(200);
+    expect((await uploadIcon(app, cookie, PNG_BYTES, "image/png", "widget-open")).status).toBe(200);
+
+    const keys = [...bucket.store.keys()].sort();
+    expect(keys).toEqual(["tenants/t_a/widget-icon", "tenants/t_a/widget-icon-open"]);
+    // Das Logo bleibt unangetastet — eigener Slot, eigener Schlüssel.
+    expect(keys).not.toContain("tenants/t_a/logo");
+    expect(await repo.getLogoKey("t_a", "widget")).toBe("tenants/t_a/widget-icon");
+  });
+
+  it("lehnt SVG ab — auch im neuen Slot", async () => {
+    const { app, db, bucket } = makeApp();
+    const cookie = await adminSession(app, db, HOST_A);
+    const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script/></svg>');
+
+    const res = await uploadIcon(app, cookie, svg, "image/svg+xml");
+    expect(res.status).toBe(415);
+    expect(bucket.store.size).toBe(0);
   });
 });

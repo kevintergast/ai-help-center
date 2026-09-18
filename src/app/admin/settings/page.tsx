@@ -8,6 +8,8 @@ import { SearchIndexManager } from "@/components/admin/search-index-manager";
 import { SeoIndexingManager } from "@/components/admin/seo-indexing-manager";
 import { SupportEmailManager } from "@/components/admin/support-email-manager";
 import { ApiDocsManager } from "@/components/admin/api-docs-manager";
+import { ComprehensionToggle } from "@/components/admin/comprehension-toggle";
+import { WidgetAppearanceManager } from "@/components/admin/widget-appearance-manager";
 import { WidgetSiteToggle } from "@/components/admin/widget-site-toggle";
 import { WidgetSnippet } from "@/components/admin/widget-snippet";
 
@@ -61,7 +63,23 @@ export default async function AdminSettingsPage() {
 
         <SettingsCard title={t("admin.settings.apiDocs")}>
           {/* Link auf die eigene API-Doku (0033) — erscheint in der Navigation. */}
-          <ApiDocsManager
+          <div>
+          <h3 className="mb-2 text-sm font-semibold">{t("admin.widget.appearanceTitle")}</h3>
+          <WidgetAppearanceManager
+            locale={tenant.defaultLocale}
+            initialVariant={tenant.widget?.variant ?? "colored"}
+            initialLabel={tenant.widget?.label ?? null}
+            initialIconUrl={tenant.widget?.iconUrl ?? null}
+            initialIconOpenUrl={tenant.widget?.iconOpenUrl ?? null}
+          />
+        </div>
+
+        <ComprehensionToggle
+          locale={tenant.defaultLocale}
+          initialOn={tenant.comprehensionMode !== false}
+        />
+
+        <ApiDocsManager
             locale={tenant.defaultLocale}
             initialUrl={tenant.apiDocsUrl ?? null}
           />
