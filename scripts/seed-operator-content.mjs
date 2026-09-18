@@ -151,7 +151,7 @@ const ARTICLES = [
       },
       "Mit »Zurückziehen« wird ein Artikel wieder unsichtbar, ohne gelöscht zu werden. Jede Änderung wird als Version gesichert, sodass der Verlauf nachvollziehbar bleibt.",
       "Beim Bearbeiten hast du zwei Wege: »Entwurf speichern« sichert deinen Stand, ohne ihn zu veröffentlichen — du kannst später weiterarbeiten und den Artikel erst dann online stellen. »Veröffentlichen« macht ihn sichtbar. Bei einem bereits veröffentlichten Artikel sind gespeicherte Änderungen sofort live; willst du in Ruhe umbauen, ziehe ihn vorher mit »Zurückziehen« offline.",
-      "Solltest du die Seite mit ungespeicherten Änderungen verlassen wollen — etwa durch einen Klick auf einen Link — fragt der Editor nach und bietet an, vorher zu speichern. Nichts geht mehr verloren.",
+      "Solltest du eine Seite mit ungespeicherten Änderungen verlassen wollen — etwa durch einen Klick auf einen Link — fragt der Verwaltungsbereich nach: hierbleiben, speichern und weiter, oder verwerfen und weiter. Das gilt überall, wo du etwas pflegst, nicht nur im Artikel-Editor. Beim Schließen des Tabs oder beim Neuladen warnt der Browser mit seinem eigenen Hinweis — dort sind eigene Knöpfe technisch nicht möglich.",
       "Endgültig löschen kannst du einen Artikel im Editor (Bearbeiten-Modus, »Artikel löschen«) — nach einer Bestätigung werden auch seine Bilder und der Such-Index-Eintrag entfernt. Andere Sprachfassungen bleiben bestehen.",
       "Jede Überschrift in einem veröffentlichten Artikel ist einzeln verlinkbar: Beim Überfahren erscheint ein kleines Link-Symbol — ein Klick kopiert die Adresse direkt zu diesem Abschnitt, ideal um Kunden auf genau eine Stelle zu verweisen.",
       "Ab drei Überschriften zeigt der Artikel zusätzlich ein Inhaltsverzeichnis — auf großen Bildschirmen rechts neben dem Text, auf dem Handy über dem Artikel. Es entsteht automatisch aus deinen Überschriften; du musst nichts pflegen.",
@@ -217,6 +217,7 @@ const ARTICLES = [
     category: "Branding",
     min: 1,
     body: [
+      "Das Favicon ist mehr als das Zeichen im Browser-Tab: Es erscheint auch unten in der Zeile mit Impressum, Datenschutz und AGB. Dort ist der Platz ein kleines Quadrat — ein breites Logo würde darin untergehen, deshalb steht da bewusst das Favicon. Ohne eigenes Favicon bleibt die Zeile schlicht ohne Zeichen.",
       "In den Einstellungen lädst du dein Logo hoch (PNG, JPEG oder WebP, maximal 1 MB) und legst deine Primär- und Akzentfarbe fest — jede Karte speichert direkt beim Klick.",
       "Optional hinterlegst du ein zweites Logo für den dunklen Modus: Besucher mit Dark Mode sehen dann automatisch die passende Variante. Ohne dunkles Logo wird überall das helle gezeigt.",
       "Das Favicon — das kleine Bild im Browser-Tab und in Lesezeichen — übernimmt automatisch dein helles Logo, sobald du eines hochgeladen hast. Du musst dafür nichts tun. Weil ein breites Logo im Tab winzig wird, kannst du zusätzlich ein eigenes Favicon hinterlegen: ein quadratisches Emblem, mindestens 64×64, als PNG, JPEG, WebP oder ICO. Es hat Vorrang vor dem Logo.",
