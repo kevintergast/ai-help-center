@@ -26,6 +26,55 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.5.1] – 2026-09-18
+
+_Fundstellen im Artikel, Schutz vor verlorenen Änderungen, API-Doku als normaler Knopf_
+
+### Hinzugefügt
+- **hc:** Fundstellen im Artikel: Die Suchanfrage reist über `?q=` mit, alle
+  Vorkommen werden markiert, und eine Leiste unten springt mit Pfeilen von
+  Stelle zu Stelle („3 von 6") und beendet die Suche per X. Das Suchfeld behält
+  die Anfrage (c50a2d3)
+- **admin:** Schutz vor verlorenen Änderungen auf ALLEN Pflege-Flächen
+  (Reihenfolge, Einstiegs-Karten, Kontaktwege, Kopf-Knöpfe, Widget) — bisher
+  nur im Artikel-Editor. Eigener Dialog mit Hierbleiben / Speichern und weiter /
+  Verwerfen bei App-Navigation; beim Tab-Schließen bleibt es bei der
+  Browser-Warnung, dort sind eigene Knöpfe technisch nicht möglich (9a449b4)
+- **content:** `foldAligned` / `findRanges` — längentreue Faltung fürs
+  Markieren; die bestehende `fold` kürzt den Text (NFD zerlegt „ü") und würde
+  alle Positionen verschieben (c50a2d3)
+
+### Geändert
+- **hc:** Im Kontaktformular ist eine gültige E-Mail-Adresse jetzt PFLICHT; der
+  Knopf bleibt ohne sie gesperrt. Unter einer KI-Antwort bleibt sie freiwillig —
+  dort ist die anonyme Meldung der Normalfall (c50a2d3)
+- **hc:** Der API-Doku-Link ist kein Sonderfall mehr, sondern ein normaler
+  Aktions-Knopf. Entfernt: feste Plätze in Kopf und Leiste, das Feld in den
+  Einstellungen, `PUT /admin/settings/api-docs` und die Komponente. Migration
+  0043 übernimmt gepflegte Adressen als Knopf (5ee21da)
+- **tenant:** `api_docs_url` wird nicht mehr abgefragt (Zeilentyp, Spaltenliste,
+  Mapping und Feld am Tenant-Typ entfernt). Damit ist die Bedingung für den
+  Contract-Schritt erfüllt: Nach dem nächsten Prod-Deploy kennt kein laufender
+  Stand die Spalte mehr und `DROP COLUMN` ist gefahrlos (d011aec)
+- **hc:** Im Legal-Fuß steht das Favicon statt des Logos — der Platz dort ist
+  ein 16-Punkt-Quadrat. KEIN Rückfall aufs Logo: Eine Instanz mit Logo, aber
+  ohne Favicon zeigt dort jetzt nichts (96ed447)
+
+### Behoben
+- **admin:** Verwaiste Einstellungs-Karte — beim API-Doku-Umbau blieb die Karte
+  stehen, seitdem saßen Widget-Erscheinungsbild und Verständnis-Schalter unter
+  der Überschrift „API-Dokumentation (Link)" (97c7024)
+- **admin:** Überlaufende Pflege-Zeilen: feste Auswahlbreite + dehnbares Feld +
+  Knopf ohne `flex-wrap`, Knopf per festem Rand auf Höhe geschoben. Jetzt
+  `flex-wrap items-end` und `ml-auto` — die Ausrichtung kommt aus der Box, nicht
+  aus einer geratenen Zahl (97c7024)
+- **hc:** Das Artikel-Flag stand auf der Artikelseite noch in voller Größe und
+  konkurrierte mit dem Status daneben — jetzt klein und in Versalien (c50a2d3)
+
+### Wartung
+- **content:** Dogfood nachgezogen — Wächter gilt überall, Favicon im Fuß
+  (c451825)
+
 ## [0.5.0] – 2026-09-18
 
 _Volltextsuche, Kopf-Knöpfe, Widget-Varianten und Verständnis-Hinweise_

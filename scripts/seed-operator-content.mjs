@@ -19,6 +19,7 @@ const RELEASE_0_3_0 = 1789394400; // 2026-09-15
 const RELEASE_0_4_0 = 1789480800; // 2026-09-16
 const RELEASE_0_4_1 = 1789567200; // 2026-09-17
 const RELEASE_0_5_0 = 1789740000; // 2026-09-18
+const RELEASE_0_5_1 = 1789750000; // 2026-09-18
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -514,6 +515,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Fundstellen im Artikel, Schutz vor verlorenen Änderungen und eine Pflicht-Adresse",
+    description:
+      "Wer aus der Suche kommt, findet das gesuchte Wort jetzt im Artikel markiert wieder — eine Leiste unten springt mit Pfeilen von Stelle zu Stelle. Im Verwaltungsbereich warnt eine Rückfrage, bevor ungespeicherte Änderungen verloren gehen: hierbleiben, speichern und weiter, oder verwerfen. Im Kontaktformular ist die E-Mail-Adresse jetzt Pflicht, damit eine Antwort überhaupt möglich ist. Und der Link auf eine eigene API-Dokumentation ist kein Sonderfall mehr, sondern ein ganz normaler Aktions-Knopf im Kopf.",
+    at: RELEASE_0_5_1,
+    version: "0.5.1",
+    level: "patch",
+  },
   {
     title: "Suche im Volltext, Kopf-Knöpfe, Widget-Varianten und Verständnis-Hinweise",
     description:
