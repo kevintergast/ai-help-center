@@ -86,6 +86,18 @@ export function ComprehensionMode({
     if (phase === "comment") textareaRef.current?.focus();
   }, [phase]);
 
+  /**
+   * Ein `<dialog>` feuert `close` AUCH, wenn wir es selbst schließen — also
+   * bei jedem Schritt weiter. Ein unbedingtes `reset()` am `onClose` hätte
+   * darum jeden Fortschritt sofort zurückgenommen (Live-Fund 2026-09-18:
+   * „Weiter" setzte den Modus, das Schließen des Dialogs beendete ihn wieder).
+   *
+   * Deshalb wirkt das Abbrechen nur, wenn die Phase NOCH die des Dialogs ist:
+   * Hat sie sich schon weiterbewegt, kam das Schließen von uns.
+   */
+  const dismiss = (from: Phase, to: Phase = "off") => () =>
+    setPhase((p) => (p === from ? to : p));
+
   function reset() {
     setPhase("off");
     setAnchor(null);
@@ -146,7 +158,7 @@ export function ComprehensionMode({
       </button>
 
       {/* Schritt 1: erklären, bevor sich die Seite anders verhält. */}
-      <Dialog open={phase === "explain"} onClose={reset} closeLabel={t("hc.comprehension.dialogClose")} title={t("hc.comprehension.explainTitle")}>
+      <Dialog open={phase === "explain"} onClose={dismiss("explain")} closeLabel={t("hc.comprehension.dialogClose")} title={t("hc.comprehension.explainTitle")}>
         <p className="text-sm text-ink-muted">{t("hc.comprehension.explainBody")}</p>
         <div className="mt-4 flex items-center gap-2">
           <Button onClick={() => setPhase("picking")}>{t("hc.comprehension.continue")}</Button>
@@ -159,7 +171,7 @@ export function ComprehensionMode({
       {/* Schritt 2: der Kommentar zur angeklickten Stelle. */}
       <Dialog
         open={phase === "comment"}
-        onClose={() => setPhase("picking")}
+        onClose={dismiss("comment", "picking")}
         closeLabel={t("hc.comprehension.dialogClose")}
         title={t("hc.comprehension.commentTitle")}
       >
@@ -203,7 +215,7 @@ export function ComprehensionMode({
 
       {/* Schritt 3: FREIWILLIG. „Ohne Adresse senden" steht gleichwertig
           daneben, nicht als kleiner Verzicht-Link darunter. */}
-      <Dialog open={phase === "email"} onClose={reset} closeLabel={t("hc.comprehension.dialogClose")} title={t("hc.comprehension.emailTitle")}>
+      <Dialog open={phase === "email"} onClose={dismiss("email")} closeLabel={t("hc.comprehension.dialogClose")} title={t("hc.comprehension.emailTitle")}>
         <p className="text-sm text-ink-muted">{t("hc.comprehension.emailBody")}</p>
         <input
           type="email"
@@ -234,7 +246,7 @@ export function ComprehensionMode({
         ) : null}
       </Dialog>
 
-      <Dialog open={phase === "sent"} onClose={reset} closeLabel={t("hc.comprehension.dialogClose")} title={t("hc.comprehension.sentTitle")}>
+      <Dialog open={phase === "sent"} onClose={dismiss("sent")} closeLabel={t("hc.comprehension.dialogClose")} title={t("hc.comprehension.sentTitle")}>
         <p className="text-sm text-ink-muted">{t("hc.comprehension.sentBody")}</p>
         <div className="mt-4">
           <Button onClick={reset}>{t("hc.comprehension.close")}</Button>
