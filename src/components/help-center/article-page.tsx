@@ -12,6 +12,7 @@ import { ViewBeacon } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
 import { ArticleFeedback } from "./article-feedback";
 import { ComprehensionMode } from "./comprehension-mode";
+import { ArticleFindBar } from "./article-find-bar";
 import { ArticleVideos } from "./article-videos";
 import { articleHeadings } from "@/lib/content/headings";
 import { ArrowLeftIcon, DocIcon } from "@/components/ui/icons";
@@ -211,6 +212,9 @@ export function ArticlePage({
                 }}
               />
             </div>
+
+            {/* Fundstellen-Leiste (?q=) — schwebt unten, deshalb hier egal wo. */}
+            <ArticleFindBar locale={locale} />
 
             {related.length > 0 ? (
               <section className="mt-10">

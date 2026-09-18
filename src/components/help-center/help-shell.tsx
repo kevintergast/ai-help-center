@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { HelpViewer } from "@/lib/auth/viewer";
 import type { Locale } from "@/lib/tenant/types";
 import type { MessageKey } from "@/i18n/messages/de";
@@ -112,6 +112,8 @@ export function HelpShell({
 }: HelpShellProps) {
   const t = getT(locale);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const findQuery = searchParams.get("q") ?? "";
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [drill, setDrill] = useState<null | "roadmap" | "changelog">(null);
   const [saved, setSaved] = useState<SavedArticle[]>([]);
@@ -170,11 +172,13 @@ export function HelpShell({
           ein Nachschlagen über die Id entfällt. */}
       <SearchCombobox
         articles={data.articles}
+        initialQuery={findQuery}
         placeholder={t("hc.searchPlaceholder")}
         emptyLabel={t("hc.searchEmpty")}
         aria-label={t("hc.searchAria")}
         clearLabel={t("hc.searchClear")}
-        onSelect={(hit) => openSlug(hit.slug)}
+        // Die Anfrage reist mit: Im Artikel markiert sie die Fundstellen.
+        onSelect={(hit, q) => openSlug(q.trim() ? `${hit.slug}?q=${encodeURIComponent(q.trim())}` : hit.slug)}
       />
       <nav aria-label={t("hc.articlesHeading")} className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
         {/* Ganz oben: Roadmap + Changelog (öffnen eine Ebene tiefer). */}

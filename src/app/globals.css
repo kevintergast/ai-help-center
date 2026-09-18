@@ -226,3 +226,16 @@ body.hoh-picking [data-block] a,
 body.hoh-picking [data-block] button {
   pointer-events: none;
 }
+
+/* FUNDSTELLEN im Artikel (?q=). Alle Treffer ruhig gelb, der AKTUELLE deutlich
+   abgesetzt — sonst weiß man beim Weiterspringen nicht, wo man gerade steht. */
+mark.hoh-find {
+  background-color: var(--sem-warn-bg);
+  color: var(--ink);
+  border-radius: 3px;
+  padding: 0 1px;
+}
+mark.hoh-find-current {
+  background-color: var(--brand-primary);
+  color: var(--brand-primary-fg);
+}

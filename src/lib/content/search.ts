@@ -217,3 +217,49 @@ export function searchArticles(
   scored.sort((x, y) => y.rank - x.rank || x.hit.title.localeCompare(y.hit.title));
   return scored.slice(0, limit).map((s) => s.hit);
 }
+
+/**
+ * Längentreue Faltung: Jedes Zeichen wird EINZELN entkleidet, damit die
+ * Positionen im Ergebnis exakt denen im Original entsprechen.
+ *
+ * `fold()` oben darf den Text kürzen (NFD zerlegt „ü" in zwei Zeichen, das
+ * Trema fällt weg) — fürs Vergleichen ist das egal. Zum MARKIEREN im
+ * Artikeltext ist es fatal: Jede Verschiebung um ein Zeichen setzt die
+ * Markierung woanders hin. Deshalb hier die Variante, die die Länge hält.
+ */
+export function foldAligned(text: string): string {
+  let out = "";
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text[i];
+    const f = c.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    // Nur übernehmen, wenn genau EIN Zeichen herauskommt — sonst bliebe die
+    // Länge nicht erhalten (etwa bei Ligaturen).
+    out += f.length === 1 ? f : c.toLowerCase();
+  }
+  return out;
+}
+
+/** Fundstellen eines Wortes in einem Text (Positionen im ORIGINAL). */
+export function findRanges(text: string, words: string[]): [number, number][] {
+  const haystack = foldAligned(text);
+  const spans: [number, number][] = [];
+  for (const w of words) {
+    if (w.length === 0) continue;
+    let from = 0;
+    for (;;) {
+      const at = haystack.indexOf(w, from);
+      if (at === -1) break;
+      spans.push([at, at + w.length]);
+      from = at + w.length;
+    }
+  }
+  if (spans.length === 0) return [];
+  spans.sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [spans[0]];
+  for (const [start, end] of spans.slice(1)) {
+    const last = merged[merged.length - 1];
+    if (start <= last[1]) last[1] = Math.max(last[1], end);
+    else merged.push([start, end]);
+  }
+  return merged;
+}
