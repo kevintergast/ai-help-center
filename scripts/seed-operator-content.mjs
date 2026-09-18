@@ -18,6 +18,7 @@ const RELEASE_0_2_0 = 1787492800; // 2026-08-23
 const RELEASE_0_3_0 = 1789394400; // 2026-09-15
 const RELEASE_0_4_0 = 1789480800; // 2026-09-16
 const RELEASE_0_4_1 = 1789567200; // 2026-09-17
+const RELEASE_0_5_0 = 1789740000; // 2026-09-18
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -48,6 +49,24 @@ const ARTICLES = [
       "Anschließend kannst du Branding, Team und Artikel deines Hilfezentrums pflegen.",
     ],
     related: ["konto-erstellen", "branding-anpassen"],
+  },
+  {
+    slug: "suche-nutzen",
+    icon: "search",
+    title: "Suchen & finden",
+    category: "Erste Schritte",
+    min: 2,
+    body: [
+      "Oben links in der Leiste steht die Suche. Sie durchsucht nicht nur Überschriften, sondern auch den INHALT deiner Artikel — wer sich an eine Formulierung mitten im Text erinnert, findet sie damit.",
+      "Zu jedem Treffer siehst du den Titel, die Kategorie und einen Ausschnitt aus dem Text mit markierter Fundstelle. So erkennst du vor dem Klick, warum ein Artikel gefunden wurde.",
+      "## Wie sie sucht",
+      "Mehrere Wörter wirken als UND: »sprache kontakt« findet nur Artikel, die beides enthalten. Groß- und Kleinschreibung ist egal, Umlaute ebenso — »ubersetzung« findet »Übersetzung«.",
+      "Die Rangfolge ist fest: Ein Treffer im Titel steht vor einem in der Kategorie, der vor einem im Fließtext. Und ein Wort am Anfang eines Begriffs zählt mehr als eines mitten drin.",
+      "## Wo ihre Grenze ist",
+      "Die Suche arbeitet WÖRTLICH. Sie kennt keine Wortstämme, keine Synonyme und verzeiht keine Tippfehler — »Sprachen« findet »Sprache« nur über den gemeinsamen Anfang.",
+      "Das ist Absicht: Wörtlich heißt vorhersagbar. Für die andere Art zu suchen gibt es daneben das KI-Feld — es versteht die Frage, auch wenn kein Wort davon im Artikel steht. Zwei Wege, zwei Stärken.",
+    ],
+    related: ["ki-antworten", "navigation-und-einstieg"],
   },
   {
     slug: "konto-erstellen",
@@ -168,7 +187,7 @@ const ARTICLES = [
       "Hat kein Artikel ein Symbol, fällt die Spalte ganz weg und die Titel stehen bündig links. Sobald ein Artikel eines hat, wird die Spalte für alle freigehalten, damit die Titel nicht versetzt stehen.",
       "## Beta-Kennzeichnung in der Leiste",
       "Beschreibt ein Artikel eine Funktion, die noch in der Beta ist, gib ihm im Editor ein Flag mit dem Text »Beta«. Das Badge erscheint dann NEBEN dem Artikel in der linken Leiste — nicht erst im Artikel selbst.",
-      "Damit sieht ein Leser schon vor dem Klick, worauf er sich einlässt. Für die Farbe stehen fünf Töne zur Wahl; »Warnung« (gelb) ist für Beta-Hinweise der übliche Griff.",
+      "Damit sieht ein Leser schon vor dem Klick, worauf er sich einlässt. Für die Farbe stehen sechs Töne zur Wahl. Für »Beta« nimm »Blau (Hinweis)«: Es sagt »hier ist noch Bewegung drin«, ohne zu warnen. Gelb hebst du dir für echte Vorsicht auf.",
       "## Alles davon per KI",
       "Reihenfolge, Karten und Flags lassen sich auch über einen angebundenen KI-Client setzen. Siehe »Eigenen KI-Client verbinden (MCP)«.",
     ],
@@ -284,6 +303,62 @@ const ARTICLES = [
       "Weil die Wege sofort öffentlich sind, hängt das Schreiben am Recht »Changelog und Roadmap pflegen«, nicht am reinen Schreibrecht für Artikel. Siehe »Eigenen KI-Client verbinden (MCP)«.",
     ],
     related: ["navigation-und-einstieg", "support-tickets"],
+  },
+  {
+    slug: "kopf-knoepfe-und-widget",
+    icon: "grid",
+    title: "Kopf-Knöpfe & Widget gestalten",
+    category: "Branding",
+    min: 3,
+    body: [
+      "Zwei Flächen tragen deine Handschrift nach außen: die Knöpfe oben im Kopf des Hilfezentrums und der Starter des Widgets auf deiner Website. Beide nutzen dieselben vier Varianten — einmal verstanden, überall gültig.",
+      "## Die vier Varianten",
+      "**Ghost:** nur Text, kein Rahmen, keine Fläche. Für Nebensächliches. **Outlined:** Rahmen, durchsichtige Fläche. Der ruhige Standard. **Filled:** kräftige Fläche in Textfarbe, höchster Kontrast. **Colored:** Fläche in DEINER Markenfarbe.",
+      "Eine freie Farbe gibt es bewusst nicht. »Colored« nimmt die Farbe, die du im Branding gesetzt hast — die ist bereits auf Lesbarkeit geprüft. Ein zusätzlicher Farbwähler könnte einen Knopf erzeugen, dessen Schrift auf der eigenen Fläche verschwindet.",
+      "## Knöpfe im Kopf",
+      "Unter »Navigation« legst du bis zu drei Knöpfe an: Beschriftung, wahlweise ein Symbol, ein Ziel und die Variante. Gut für die eine Handlung, die überall erreichbar sein soll — Termin buchen, Statusseite, Demo anfragen.",
+      "Als Ziel sind vollständige https-Adressen erlaubt oder instanz-interne Pfade wie »/contact«. Unverschlüsselte http-Adressen nehmen wir nicht an: Der Knopf steht im Kopf jeder Seite.",
+      "Die Vorschau in der Pflegeoberfläche zeigt den Knopf so, wie er später aussieht — das sagt mehr als der Name der Variante.",
+      "## Widget gestalten",
+      "In den Einstellungen wählst du dieselben vier Varianten für den Starter, dazu eine eigene Beschriftung. Ohne Beschriftung bleibt er ein runder Knopf, mit wird eine Pille daraus.",
+      "Beides — die Kopf-Knöpfe und Variante samt Beschriftung des Widgets — lässt sich auch über einen angebundenen KI-Client setzen. Die Symbole bleiben bewusst bei dir: Das sind Bilddateien, die du hochlädst.",
+      "Für den geschlossenen und den geöffneten Zustand kannst du je ein eigenes Symbol hochladen. Im Kopf des Widgets erscheint automatisch dein Logo.",
+      {
+        type: "accordion",
+        title: "Warum nehmen wir kein SVG für die Symbole?",
+        text:
+          "SVG ist kein Bild im engeren Sinn, sondern ein Dokument — es kann Skripte und Ereignis-Handler enthalten. Von unserer eigenen Adresse ausgeliefert wäre das ein Einfallstor.\n\nFür ein Symbol in FESTER Größe bringt Vektor ohnehin nichts, was doppelte Auflösung nicht auch kann: Lade dein Zeichen als PNG oder WebP mit 96×96 Punkten hoch, dann ist auch auf feinen Bildschirmen kein Unterschied zu sehen.",
+      },
+    ],
+    related: ["branding-anpassen", "widget-einbinden"],
+  },
+  {
+    slug: "verstaendnis-hinweise",
+    icon: "info",
+    title: "„Ich verstehe etwas nicht“",
+    category: "Support",
+    min: 2,
+    body: [
+      "Manchmal ist ein Artikel nicht falsch, sondern nur unklar — und zwar an einer bestimmten Stelle. Dafür gibt es unter jedem Artikel den Knopf »Ich verstehe etwas nicht«.",
+      "Der Leser schaltet damit einen Modus ein: Eine kurze Erklärung, dann wird der Zeiger zum Fadenkreuz und jeder Absatz, jedes Bild und jede Tabelle bekommt einen Rahmen. Ein Klick auf die unklare Stelle öffnet ein Feld für den Hinweis. Danach kann er freiwillig eine E-Mail-Adresse hinterlassen — oder anonym absenden.",
+      "## Was du davon hast",
+      "Der Hinweis kommt MIT der Stelle bei dir an: Du siehst, welcher Artikel gemeint ist und welchen Absatz der Leser angeklickt hat, samt dem Text dieser Stelle. »Irgendwo in der Mitte war etwas seltsam« hilft niemandem — das hier schon.",
+      "Die Hinweise landen im selben Postfach wie die Support-Anfragen, unter »Probleme«, dort gekennzeichnet als »Artikel unklar«.",
+      "## Abgrenzung zu »Etwas stimmt nicht?«",
+      "»Etwas stimmt nicht?« steht unter einer KI-ANTWORT und meldet, dass die Antwort nicht taugte. »Ich verstehe etwas nicht« steht am ARTIKEL und meldet eine Stelle im Text. Anderer Anlass, anderer Kontext — aber dasselbe Postfach, damit du nur einen Ort im Blick behalten musst.",
+      "## Abschalten",
+      "Unter »Einstellungen« kannst du den Modus ausschalten. Standardmäßig ist er an. Aus heißt wirklich aus: Der Knopf verschwindet, und auch ein direkter Aufruf der Schnittstelle wird abgewiesen.",
+      "## Wenn eine KI etwas meldet",
+      "Auch ein angebundener KI-Client kann eine unklare oder widersprüchliche Stelle melden, während er deine Artikel liest. Solche Meldungen erscheinen im Postfach als »KI-Hinweis« — getrennt von den Hinweisen echter Leser.",
+      "Diese Trennung ist wichtig: Ein Mensch, der meldet, dass er nicht weiterkommt, ist selten und wertvoll. Eine Maschine kann davon beliebig viele erzeugen. Lägen beide im selben Topf, würde das seltene Signal darin untergehen.",
+      {
+        type: "accordion",
+        title: "Welche Grenzen gelten für KI-Meldungen?",
+        text:
+          "Höchstens 20 Meldungen pro Tag für dein ganzes Hilfezentrum — gezählt wird je Instanz, nicht je Zugriffs-Schlüssel.\n\nZu derselben Stelle gibt es nur EINE offene Meldung. Ein zweiter Versuch legt nichts an, sondern bekommt die Antwort, dass es bereits bekannt ist.\n\nEin Verbesserungsvorschlag ist Pflicht: »Das ist unklar« allein wird abgelehnt. Wer meldet, sagt auch, wie es besser hieße — sonst verlagert die Meldung nur Arbeit.\n\nGemeldet werden können ausschließlich VERÖFFENTLICHTE Artikel. Und eine Meldung ändert nie den Artikel — sie landet im Postfach, entschieden wird von dir.",
+      },
+    ],
+    related: ["support-tickets", "artikel-veroeffentlichen"],
   },
   {
     slug: "support-tickets",
@@ -438,6 +513,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Suche im Volltext, Kopf-Knöpfe, Widget-Varianten und Verständnis-Hinweise",
+    description:
+      "Die Suche durchsucht jetzt auch den INHALT der Artikel und zeigt je Treffer den Textausschnitt mit markierter Fundstelle. Neu im Kopf: bis zu drei eigene Aktions-Knöpfe in vier Varianten — dieselben Varianten gibt es jetzt auch für den Widget-Starter, samt eigener Symbole und deinem Logo im Widget-Kopf. Und Leser können mit »Ich verstehe etwas nicht« direkt auf die unklare Stelle im Artikel klicken. Außerdem: wählbare Symbole je Artikel und ein ruhigeres, klareres Erscheinungsbild.",
+    at: RELEASE_0_5_0,
+    version: "0.5.0",
+    level: "minor",
+  },
   {
     title: "Kontaktwege per KI-Client pflegen",
     description:

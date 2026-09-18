@@ -19,5 +19,12 @@ export default async function WidgetPage() {
   const tenant = await getCurrentTenant();
   // Unbekannter Host: Root-Layout rendert die Not-Found-Shell; hier nichts.
   if (!tenant) return null;
-  return <WidgetChat locale={tenant.defaultLocale} tenantName={tenant.name} />;
+  return (
+    <WidgetChat
+      locale={tenant.defaultLocale}
+      tenantName={tenant.name}
+      logoUrl={tenant.branding.logoUrl}
+      logoDarkUrl={tenant.branding.logoDarkUrl ?? null}
+    />
+  );
 }

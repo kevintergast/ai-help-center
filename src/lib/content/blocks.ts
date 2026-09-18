@@ -26,7 +26,7 @@
  */
 
 /** Feste Farb-Palette für Tags/Flags (Mapping auf Design-Töne, kein freies CSS). */
-export const TAG_COLORS = ["neutral", "brand", "ok", "warn", "crit"] as const;
+export const TAG_COLORS = ["neutral", "info", "brand", "ok", "warn", "crit"] as const;
 export type TagColor = (typeof TAG_COLORS)[number];
 
 export interface ArticleTag {

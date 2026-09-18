@@ -305,7 +305,13 @@ export function ArticleBlocksView({
   return (
     <div className="flex flex-col gap-4 text-[15px] leading-relaxed text-ink">
       {blocks.map((block, i) => (
-        <SingleBlockView key={i} block={block} ctx={ctx} />
+        /* `data-block` ist der ANKER für „Ich verstehe etwas nicht" (0039):
+           der Index im Körper. Bewusst der Index und keine Zeichenposition —
+           eine Markierung über Zeichen bricht, sobald jemand den Text
+           bearbeitet, und der Hinweis zeigt danach ins Leere. */
+        <div key={i} data-block={i}>
+          <SingleBlockView block={block} ctx={ctx} />
+        </div>
       ))}
     </div>
   );

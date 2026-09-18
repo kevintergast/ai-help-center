@@ -199,6 +199,10 @@ export interface SettingsDeps {
   setShowHeaderName(tenantId: string, show: boolean): Promise<void>;
   setApiDocsUrl(tenantId: string, url: string | null): Promise<void>;
   setWidgetOnSite(tenantId: string, on: boolean): Promise<void>;
+  /** „Ich verstehe etwas nicht" (0040) ein-/ausschalten. */
+  setComprehensionMode(tenantId: string, on: boolean): Promise<void>;
+  /** Erscheinungsbild des Widgets (0041). */
+  setWidgetAppearance(tenantId: string, variant: string, label: string | null): Promise<void>;
 }
 
 export interface AskRuntime {

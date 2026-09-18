@@ -27,6 +27,7 @@ export default {
           strong: "var(--border-strong)",
         },
         tint: "var(--tint)",
+        info: { DEFAULT: "var(--sem-info)", bg: "var(--sem-info-bg)" },
         ok: { DEFAULT: "var(--sem-ok)", bg: "var(--sem-ok-bg)", bd: "var(--sem-ok-bd)" },
         warn: { DEFAULT: "var(--sem-warn)", bg: "var(--sem-warn-bg)", bd: "var(--sem-warn-bd)" },
         crit: { DEFAULT: "var(--sem-crit)", bg: "var(--sem-crit-bg)", bd: "var(--sem-crit-bd)" },

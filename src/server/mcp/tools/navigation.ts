@@ -5,11 +5,28 @@ import {
   type EntryCard,
 } from "@/lib/content/entry-cards";
 import {
+  ACTION_VARIANTS,
+  MAX_ACTION_BUTTONS,
+  MAX_ACTION_LABEL,
+  isActionVariant,
+  parseActionButtonInput,
+  type ActionButton,
+} from "@/lib/content/action-buttons";
+import { ARTICLE_ICONS } from "@/lib/content/article-icons";
+import {
   CONTACT_KINDS,
   MAX_CONTACT_METHODS,
   parseContactMethodInput,
   type ContactMethod,
 } from "@/lib/content/contact-methods";
+import {
+  MAX_AI_REVIEWS_PER_DAY,
+  MAX_AI_REVIEW_MESSAGE,
+  MAX_AI_REVIEW_SUGGESTION,
+  MIN_AI_REVIEW_MESSAGE,
+  MIN_AI_REVIEW_SUGGESTION,
+  parseAiReviewInput,
+} from "@/lib/content/ai-review";
 import { fail, ok, type McpTool, type ToolContext } from "./types";
 
 /**
@@ -315,10 +332,274 @@ export const setContactMethods: McpTool = {
   },
 };
 
+export const listHeaderActions: McpTool = {
+  name: "list_header_actions",
+  title: "Kopf-Knöpfe lesen",
+  description:
+    "Read the action buttons shown in the help center's header. Call this before set_header_actions so you know what is already there.",
+  scope: "articles:read",
+  annotations: { readOnlyHint: true },
+  inputSchema: { type: "object", properties: {} },
+  async handler(_args, ctx) {
+    const content = await ctx.deps.getContentDeps();
+    if (!content) return fail("content_unavailable", "Content storage is not available.");
+    return ok({
+      buttons: await content.store.listHeaderActions(ctx.tenant.id),
+      max: MAX_ACTION_BUTTONS,
+    });
+  },
+};
+
+export const setHeaderActions: McpTool = {
+  name: "set_header_actions",
+  title: "Kopf-Knöpfe setzen",
+  description:
+    `REPLACES all action buttons in the help center header with the list you pass, in that order. At most ${MAX_ACTION_BUTTONS}. Pass an empty array to remove them all. Visible to end users immediately — there is no draft state. Use this for the one action that should be reachable from every page (book a call, status page, demo).`,
+  scope: "updates:write",
+  annotations: PUBLIC_HINTS,
+  inputSchema: {
+    type: "object",
+    properties: {
+      buttons: {
+        type: "array",
+        maxItems: MAX_ACTION_BUTTONS,
+        description: "The complete new set of buttons, leftmost first.",
+        items: {
+          type: "object",
+          properties: {
+            label: { type: "string", description: `Button text, max ${MAX_ACTION_LABEL} characters.` },
+            href: {
+              type: "string",
+              description:
+                "An absolute https URL, or a path inside this help center such as /contact. http:// is rejected — the button sits in the header of every page.",
+            },
+            icon: {
+              type: "string",
+              enum: [...ARTICLE_ICONS],
+              description: "Optional icon; omit for text only.",
+            },
+            variant: {
+              type: "string",
+              enum: [...ACTION_VARIANTS],
+              description:
+                "ghost = text only; outlined = border, transparent; filled = high-contrast fill; colored = the help center's own brand colour. There is deliberately no free colour: the brand colour is already contrast-checked.",
+            },
+          },
+          required: ["label", "href", "variant"],
+        },
+      },
+    },
+    required: ["buttons"],
+  },
+  async handler(args, ctx) {
+    if (!Array.isArray(args.buttons)) return fail("invalid_params", "`buttons` must be an array.");
+    if (args.buttons.length > MAX_ACTION_BUTTONS) {
+      return fail(
+        "too_many_buttons",
+        `At most ${MAX_ACTION_BUTTONS} header buttons are allowed; ${args.buttons.length} were given.`,
+      );
+    }
+
+    const content = await ctx.deps.getContentDeps();
+    if (!content) return fail("content_unavailable", "Content storage is not available.");
+    if (await frozen(ctx)) return FROZEN_RESULT();
+
+    // ALLE prüfen, bevor irgendetwas geschrieben wird — die Knöpfe stehen im
+    // Kopf JEDER Seite, ein Zwischenzustand wäre sofort überall sichtbar.
+    const parsed: Omit<ActionButton, "id">[] = [];
+    for (let i = 0; i < args.buttons.length; i += 1) {
+      const res = parseActionButtonInput(args.buttons[i]);
+      if (!res.ok) {
+        return fail(res.error, `Button ${i + 1} was rejected: ${res.error}. Nothing was changed.`);
+      }
+      parsed.push(res.button);
+    }
+
+    const written = await content.store.replaceHeaderActions(ctx.tenant.id, parsed);
+    return ok({ buttons: written, note: "Header buttons are live now." });
+  },
+};
+
+export const getWidgetAppearance: McpTool = {
+  name: "get_widget_appearance",
+  title: "Widget-Erscheinungsbild lesen",
+  description:
+    "Read how the embeddable widget's launcher looks (variant, label, whether custom icons are set).",
+  scope: "settings:read",
+  annotations: { readOnlyHint: true },
+  inputSchema: { type: "object", properties: {} },
+  async handler(_args, ctx) {
+    const w = ctx.tenant.widget;
+    return ok({
+      variant: w?.variant ?? "colored",
+      label: w?.label ?? null,
+      hasClosedIcon: Boolean(w?.iconUrl),
+      hasOpenIcon: Boolean(w?.iconOpenUrl),
+      note: "Icons are images and are uploaded by a person in the admin area — this server sets only variant and label.",
+    });
+  },
+};
+
+export const setWidgetAppearance: McpTool = {
+  name: "set_widget_appearance",
+  title: "Widget-Erscheinungsbild setzen",
+  description:
+    "Set the variant and label of the embeddable widget's launcher. Same four variants as the header buttons. An empty label makes it a round icon button. Visible to end users immediately. Icons cannot be set here — they are image uploads and stay with a person.",
+  scope: "settings:write",
+  annotations: PUBLIC_HINTS,
+  inputSchema: {
+    type: "object",
+    properties: {
+      variant: { type: "string", enum: [...ACTION_VARIANTS] },
+      label: {
+        type: "string",
+        description: `Launcher text, max ${MAX_ACTION_LABEL} characters. Empty = icon only.`,
+      },
+    },
+    required: ["variant"],
+  },
+  async handler(args, ctx) {
+    if (!isActionVariant(args.variant)) {
+      return fail("invalid_variant", `\`variant\` must be one of: ${ACTION_VARIANTS.join(", ")}.`);
+    }
+    const raw = typeof args.label === "string" ? args.label.trim() : "";
+    if (raw.length > MAX_ACTION_LABEL) {
+      return fail("label_too_long", `\`label\` must be at most ${MAX_ACTION_LABEL} characters.`);
+    }
+
+    const settings = await ctx.deps.getSettingsDeps?.();
+    if (!settings) return fail("settings_unavailable", "Settings storage is not available.");
+    if (await frozen(ctx)) return FROZEN_RESULT();
+
+    const label = raw.length > 0 ? raw : null;
+    await settings.setWidgetAppearance(ctx.tenant.id, args.variant, label);
+    return ok({ variant: args.variant, label, note: "The widget launcher is updated." });
+  },
+};
+
+export const reportUnclearPassage: McpTool = {
+  name: "report_unclear_passage",
+  title: "Unklare Stelle melden",
+  description:
+    `Report a passage in a published article that is unclear, contradictory or wrong. The report lands in the operator's inbox, marked as coming from an AI — it never changes the article itself. Use this when you notice a real problem while reading, not as a routine sweep. A SUGGESTION is required: saying only "this is unclear" moves the work instead of doing it. Limits: at most ${MAX_AI_REVIEWS_PER_DAY} reports per day for this help center, and one open report per passage. The response tells you how many are left.`,
+  scope: "articles:write",
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  inputSchema: {
+    type: "object",
+    properties: {
+      articleId: { type: "string", description: "Id of the article (from list_articles)." },
+      anchor: {
+        type: "integer",
+        minimum: 0,
+        description:
+          "Index of the body block the problem is in (0 = first block). Get the body with get_article and count from the top.",
+      },
+      quote: {
+        type: "string",
+        description: "The passage you mean, verbatim (max 300 characters). Helps if the block later moves.",
+      },
+      message: {
+        type: "string",
+        description: `What exactly is unclear or wrong, in ${MIN_AI_REVIEW_MESSAGE}-${MAX_AI_REVIEW_MESSAGE} characters. Be concrete — "confusing" is not a finding.`,
+      },
+      suggestion: {
+        type: "string",
+        description: `How it should read instead, in ${MIN_AI_REVIEW_SUGGESTION}-${MAX_AI_REVIEW_SUGGESTION} characters. REQUIRED.`,
+      },
+    },
+    required: ["articleId", "anchor", "message", "suggestion"],
+  },
+  async handler(args, ctx) {
+    const parsed = parseAiReviewInput(args);
+    if (!parsed.ok) {
+      return fail(parsed.error, `The report was rejected: ${parsed.error}.`);
+    }
+
+    const support = await ctx.deps.getSupportDeps?.();
+    if (!support) return fail("support_unavailable", "The inbox is not available.");
+    const content = await ctx.deps.getContentDeps();
+    if (!content) return fail("content_unavailable", "Content storage is not available.");
+    if (await frozen(ctx)) return FROZEN_RESULT();
+
+    // Nur VERÖFFENTLICHTE Artikel: Ein Hinweis auf einen Entwurf meldet etwas,
+    // das noch niemand sieht — und verrät nebenbei, dass es ihn gibt.
+    const article = await content.store.getPublishedArticleBySlugOrId(
+      ctx.tenant.id,
+      ctx.tenant.defaultLocale,
+      parsed.review.articleId,
+    );
+    if (!article) {
+      return fail(
+        "article_not_found",
+        `No published article with id '${parsed.review.articleId}' in this help center.`,
+      );
+    }
+    if (parsed.review.anchor >= article.body.length) {
+      return fail(
+        "invalid_anchor",
+        `Block ${parsed.review.anchor} does not exist — the article has ${article.body.length} blocks (0-${article.body.length - 1}).`,
+      );
+    }
+
+    // GRENZE 1 — Tagesdeckel je MANDANT. Schlüssel sind billig angelegt;
+    // geschützt werden muss das Postfach, nicht der Schlüssel.
+    const dayAgo = ctx.nowSec - 24 * 60 * 60;
+    const used = await support.repo.countAiReviewsSince(ctx.tenant.id, dayAgo);
+    if (used >= MAX_AI_REVIEWS_PER_DAY) {
+      return fail(
+        "daily_limit_reached",
+        `This help center has reached its limit of ${MAX_AI_REVIEWS_PER_DAY} AI reports per day. Try again later, and report only what genuinely blocks a reader.`,
+        { limit: MAX_AI_REVIEWS_PER_DAY, used },
+      );
+    }
+
+    // GRENZE 2 — eine OFFENE Meldung je Stelle. Dieselbe Passage ein zweites
+    // Mal zu melden bringt nichts; die KI erfährt stattdessen, dass es bekannt ist.
+    if (await support.repo.hasOpenAiReview(ctx.tenant.id, article.id, parsed.review.anchor)) {
+      return ok({
+        created: false,
+        reason: "already_reported",
+        note: "There is already an open report for this passage. Nothing was added.",
+        remainingToday: MAX_AI_REVIEWS_PER_DAY - used,
+      });
+    }
+
+    await support.repo.create({
+      tenantId: ctx.tenant.id,
+      kind: "ai_review",
+      message: parsed.review.message,
+      contactEmail: null,
+      question: null,
+      articleId: article.id,
+      anchor: parsed.review.anchor,
+      quote: parsed.review.quote,
+      suggestion: parsed.review.suggestion,
+      // Die Meldung kommt von einem SCHLÜSSEL, nicht von einem Konto — eine
+      // Nutzer-Identität vorzutäuschen wäre falsch. Der Schlüssel steht im Audit.
+      actorType: "internal",
+      visitorId: null,
+      nowSec: ctx.nowSec,
+    });
+
+    return ok({
+      created: true,
+      article: article.slug,
+      anchor: parsed.review.anchor,
+      remainingToday: MAX_AI_REVIEWS_PER_DAY - used - 1,
+      note: "Filed in the operator's inbox as an AI report. The article itself is unchanged.",
+    });
+  },
+};
+
 export const NAVIGATION_TOOLS: McpTool[] = [
   reorderArticles,
   listEntryCards,
   setEntryCards,
   listContactMethods,
   setContactMethods,
+  listHeaderActions,
+  setHeaderActions,
+  getWidgetAppearance,
+  setWidgetAppearance,
+  reportUnclearPassage,
 ];

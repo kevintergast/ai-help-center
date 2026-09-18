@@ -13,13 +13,18 @@ import type { BrandingColors } from "./validate";
  *  favicon_r2_key). Dark und favicon sind optional — ohne dunkles Logo zeigt
  *  das UI im Dark Mode das helle, ohne Favicon dient das helle Logo als
  *  Tab-Icon (Kette in src/lib/theme/brand.ts). */
-export type LogoVariant = "light" | "dark" | "favicon";
+export type LogoVariant = "light" | "dark" | "favicon" | "widget" | "widget-open";
 
 /** Query-/Body-Wert strikt auf eine Variante mappen (alles Unbekannte = light).
  *  Whitelist statt Blacklist: kein User-Input erzeugt je einen neuen Slot. */
 export function parseLogoVariant(raw: string | undefined | null): LogoVariant {
   if (raw === "dark") return "dark";
   if (raw === "favicon") return "favicon";
+  // Widget-Symbole (0041) laufen durch DENSELBEN gehärteten Upload wie Logo
+  // und Favicon — ein zweiter Weg hätte Typ-Allowlist, Magic-Bytes-Abgleich
+  // und Größendeckel dupliziert, und Duplikate driften.
+  if (raw === "widget") return "widget";
+  if (raw === "widget-open") return "widget-open";
   return "light";
 }
 
@@ -29,6 +34,8 @@ const KEY_SUFFIX: Record<LogoVariant, string> = {
   light: "logo",
   dark: "logo-dark",
   favicon: "favicon",
+  widget: "widget-icon",
+  "widget-open": "widget-icon-open",
 };
 
 export function logoKeyFor(tenantId: string, variant: LogoVariant = "light"): string {
@@ -36,10 +43,15 @@ export function logoKeyFor(tenantId: string, variant: LogoVariant = "light"): st
 }
 
 /** Spalte je Variante — zentral, damit kein SQL-String die Wahl dupliziert. */
-const LOGO_COLUMN: Record<LogoVariant, "logo_r2_key" | "logo_dark_r2_key" | "favicon_r2_key"> = {
+const LOGO_COLUMN: Record<
+  LogoVariant,
+  "logo_r2_key" | "logo_dark_r2_key" | "favicon_r2_key" | "widget_icon_r2_key" | "widget_icon_open_r2_key"
+> = {
   light: "logo_r2_key",
   dark: "logo_dark_r2_key",
   favicon: "favicon_r2_key",
+  widget: "widget_icon_r2_key",
+  "widget-open": "widget_icon_open_r2_key",
 };
 
 /** Minimaler R2-Ausschnitt, den das Logo-Handling braucht (strukturkompatibel zu R2Bucket). */

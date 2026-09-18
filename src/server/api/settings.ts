@@ -1,3 +1,4 @@
+import { isActionVariant, MAX_ACTION_LABEL } from "@/lib/content/action-buttons";
 import { Hono } from "hono";
 import { requireOwner, requireTeam } from "@/server/auth/guards";
 import type { ApiDeps, ApiEnv } from "./context";
@@ -144,6 +145,54 @@ export function settingsAdminRouter(deps: ApiDeps) {
 
     await settings.setWidgetOnSite(c.get("tenant").id, on);
     return c.json({ ok: true, on });
+  });
+
+  /**
+   * „ICH VERSTEHE ETWAS NICHT" (0040) ein-/ausschalten. `admin`, nicht
+   * `owner`: Das ist eine Entscheidung darüber, wie Rückmeldungen
+   * hereinkommen — nichts Grundsätzliches wie Sprache oder Indexierung.
+   */
+  r.put("/comprehension-mode", requireTeam("admin"), async (c) => {
+    let on: unknown;
+    try {
+      on = ((await c.req.json()) as { on?: unknown }).on;
+    } catch {
+      return c.json({ error: "invalid_json" }, 400);
+    }
+    if (typeof on !== "boolean") return c.json({ error: "invalid_on" }, 400);
+
+    const settings = await deps.getSettingsDeps?.();
+    if (!settings) return c.json({ error: "settings_unavailable" }, 503);
+
+    await settings.setComprehensionMode(c.get("tenant").id, on);
+    return c.json({ ok: true, on });
+  });
+
+  /**
+   * ERSCHEINUNGSBILD DES WIDGETS (0041): Variante + Beschriftung. Die Symbole
+   * laufen über den Branding-Upload (`/admin/branding/logo?variant=widget`)
+   * und nicht hier — dort sitzen Typ-Allowlist, Magic-Bytes-Abgleich und
+   * Größendeckel bereits.
+   */
+  r.put("/widget-appearance", requireTeam("admin"), async (c) => {
+    let body: { variant?: unknown; label?: unknown };
+    try {
+      body = (await c.req.json()) as typeof body;
+    } catch {
+      return c.json({ error: "invalid_json" }, 400);
+    }
+    if (!isActionVariant(body.variant)) return c.json({ error: "invalid_variant" }, 400);
+
+    // Leer = Rückfall auf den i18n-Standard, nicht „leerer Knopf".
+    const raw = typeof body.label === "string" ? body.label.trim() : "";
+    if (raw.length > MAX_ACTION_LABEL) return c.json({ error: "label_too_long" }, 400);
+    const label = raw.length > 0 ? raw : null;
+
+    const settings = await deps.getSettingsDeps?.();
+    if (!settings) return c.json({ error: "settings_unavailable" }, 503);
+
+    await settings.setWidgetAppearance(c.get("tenant").id, body.variant, label);
+    return c.json({ ok: true, variant: body.variant, label });
   });
 
   // Standardsprache der Instanz (Endnutzer-UI, Meta, Mails) — OWNER wie SEO:

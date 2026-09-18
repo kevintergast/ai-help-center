@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { requireTeam } from "@/server/auth/guards";
 import { MAX_ENTRY_CARDS, parseEntryCardInput } from "@/lib/content/entry-cards";
 import { MAX_CONTACT_METHODS, parseContactMethodInput } from "@/lib/content/contact-methods";
+import { MAX_ACTION_BUTTONS, parseActionButtonInput } from "@/lib/content/action-buttons";
 import type { ApiDeps, ApiEnv } from "./context";
 
 /**
@@ -188,4 +189,50 @@ async function readJson(c: {
   } catch {
     return { ok: false };
   }
+}
+
+/**
+ * AKTIONS-KNÖPFE im Kopf pflegen (`/admin/header-actions`).
+ *
+ *   GET  /api/v1/admin/header-actions   — Liste (Anzeigereihenfolge)
+ *   PUT  /api/v1/admin/header-actions   — GANZEN Satz ersetzen
+ *
+ * Nur Ersetzen wie bei Karten und Kontaktwegen: Bei höchstens drei Knöpfen ist
+ * „hier ist der neue Stand" einfacher und atomar. Sie stehen im Kopf JEDER
+ * Seite — ein Zwischenzustand wäre sofort überall sichtbar.
+ */
+export function headerActionsAdminRouter(deps: ApiDeps) {
+  const r = new Hono<ApiEnv>();
+
+  r.get("/", requireTeam("content"), async (c) => {
+    const content = await deps.getContentDeps();
+    if (!content) return c.json({ error: "content_unavailable" }, 503);
+    return c.json({ buttons: await content.store.listHeaderActions(c.get("tenant").id) });
+  });
+
+  r.put("/", requireTeam("content"), async (c) => {
+    const parsed = await readJson(c);
+    if (!parsed.ok) return c.json({ error: "invalid_json" }, 400);
+
+    const body = parsed.body as { buttons?: unknown };
+    if (!Array.isArray(body.buttons)) return c.json({ error: "buttons_required" }, 400);
+    if (body.buttons.length > MAX_ACTION_BUTTONS) {
+      return c.json({ error: "too_many_buttons", max: MAX_ACTION_BUTTONS }, 409);
+    }
+
+    const buttons = [];
+    for (let i = 0; i < body.buttons.length; i += 1) {
+      const b = parseActionButtonInput(body.buttons[i]);
+      if (!b.ok) return c.json({ error: b.error, index: i }, 400);
+      buttons.push(b.button);
+    }
+
+    const content = await deps.getContentDeps();
+    if (!content) return c.json({ error: "content_unavailable" }, 503);
+
+    await content.store.replaceHeaderActions(c.get("tenant").id, buttons);
+    return c.json({ buttons: await content.store.listHeaderActions(c.get("tenant").id) });
+  });
+
+  return r;
 }

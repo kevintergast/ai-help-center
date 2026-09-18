@@ -49,7 +49,7 @@ export const API_SCOPES = {
   "articles:write": {
     tier: "write",
     summary:
-      "Create and edit articles, images, videos and translations. Everything stays a draft — this scope cannot publish.",
+      "Create and edit articles, images, videos and translations, and report unclear passages to the operator's inbox. Everything stays a draft — this scope cannot publish.",
   },
   "articles:publish": {
     tier: "public",
@@ -58,7 +58,8 @@ export const API_SCOPES = {
   },
   "settings:write": {
     tier: "public",
-    summary: "Change branding, SEO indexing, support address and default language. Visible to end users.",
+    summary:
+      "Change branding, SEO indexing, support address, default language and the widget launcher's appearance. Visible to end users.",
   },
   "support:read": {
     tier: "public",
@@ -73,7 +74,7 @@ export const API_SCOPES = {
   "updates:write": {
     tier: "public",
     summary:
-      "Create, edit and delete changelog entries, roadmap items, the start page's entry cards and the contact page's options. These have no draft state — changes are immediately visible to end users.",
+      "Create, edit and delete changelog entries, roadmap items, the start page's entry cards, the contact page's options and the header action buttons. These have no draft state — changes are immediately visible to end users.",
   },
   "articles:delete": {
     tier: "destructive",

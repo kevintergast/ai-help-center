@@ -101,6 +101,7 @@ export default async function ArticleRoute({
         logoDarkUrl={tenant.branding.logoDarkUrl ?? null}
         showName={tenant.showHeaderName ?? true}
       apiDocsUrl={tenant.apiDocsUrl ?? null}
+        comprehensionMode={tenant.comprehensionMode !== false}
         article={article}
         related={related}
         data={data}

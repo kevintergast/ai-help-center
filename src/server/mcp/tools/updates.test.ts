@@ -83,12 +83,14 @@ describe("Registrierung & Scope", () => {
       // Changelog/Roadmap ohne Entwurfszustand.
       "set_entry_cards",
       "set_contact_methods",
+      // Kopf-Knöpfe (0038) stehen ebenfalls sofort im Kopf jeder Seite.
+      "set_header_actions",
     ]) {
       const tool = findTool(name);
       expect(tool, name).toBeDefined();
       expect(tool!.scope).toBe("updates:write");
     }
-    expect(ALL_TOOLS.filter((t) => t.scope === "updates:write")).toHaveLength(7);
+    expect(ALL_TOOLS.filter((t) => t.scope === "updates:write")).toHaveLength(8);
   });
 
   it("ein Schlüssel mit articles:write sieht sie NICHT (kein Veröffentlichen durch die Hintertür)", () => {

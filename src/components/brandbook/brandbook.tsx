@@ -26,6 +26,25 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { MicIcon, DocIcon, CopyIcon, InfoIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/ui/cn";
 import * as c from "./brandbook-content";
+import type { Article } from "@/lib/content/types";
+
+/**
+ * Demo-Artikel fürs Brandbook. Die Suche liest jetzt echte Artikel (inkl.
+ * Körper), deshalb reichen die schlanken Beispiel-Einträge aus
+ * brandbook-content.ts nicht mehr — sie werden hier aufgefüllt.
+ */
+const LIVE_SEARCH_ARTICLES: Article[] = c.liveSearch.items.map((it) => ({
+  id: it.id,
+  slug: it.id,
+  title: it.title,
+  category: it.category,
+  status: "current" as const,
+  updatedLabel: "",
+  readingMinutes: 1,
+  body: [{ type: "text" as const, variant: "standard" as const, text: `${it.title} — ${it.category}.` }],
+  videos: [],
+  relatedIds: [],
+}));
 
 function Band({ section, children }: { section: c.Section; children: ReactNode }) {
   return (
@@ -442,10 +461,11 @@ export function Brandbook() {
         {/* Live-Suche */}
         <Band section={c.sections["suche-live"]}>
           <SearchCombobox
-            items={c.liveSearch.items}
+            articles={LIVE_SEARCH_ARTICLES}
             placeholder={c.liveSearch.placeholder}
             emptyLabel={c.liveSearch.emptyLabel}
             aria-label={c.liveSearch.ariaLabel}
+            clearLabel={c.liveSearch.ariaLabel}
             className="max-w-xl"
           />
         </Band>
