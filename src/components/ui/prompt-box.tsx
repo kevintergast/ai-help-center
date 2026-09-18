@@ -5,10 +5,6 @@ import { cn } from "@/lib/ui/cn";
 import { IconButton } from "./icon-button";
 import { MicIcon, SendIcon } from "./icons";
 
-export interface PromptMode {
-  id: string;
-  label: string;
-}
 
 export interface PromptBoxLabels {
   send: string;
@@ -17,10 +13,9 @@ export interface PromptBoxLabels {
 
 export interface PromptBoxProps {
   placeholder: string;
-  modes?: PromptMode[];
   suggestions?: string[];
   labels: PromptBoxLabels;
-  onSubmit?: (text: string, mode: string) => void;
+  onSubmit?: (text: string) => void;
   /**
    * Kompakt starten und erst bei Fokus aufklappen (Modus/Vorschläge zeigen);
    * beim Verlassen ohne Text wieder einklappen. Für die Leiste am Seitenrand.
@@ -36,7 +31,6 @@ export interface PromptBoxProps {
  */
 export function PromptBox({
   placeholder,
-  modes = [],
   suggestions = [],
   labels,
   onSubmit,
@@ -44,7 +38,6 @@ export function PromptBox({
   className,
 }: PromptBoxProps) {
   const [text, setText] = useState("");
-  const [mode, setMode] = useState(modes[0]?.id ?? "");
   const [expanded, setExpanded] = useState(!expandable);
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -61,7 +54,7 @@ export function PromptBox({
   function submit() {
     const value = text.trim();
     if (!value) return;
-    onSubmit?.(value, mode);
+    onSubmit?.(value);
     setText("");
     requestAnimationFrame(grow);
   }
@@ -130,26 +123,6 @@ export function PromptBox({
         {compact ? sendButton : null}
         {!compact ? (
           <div className="mt-2 flex items-center gap-2">
-            {modes.length > 0 ? (
-              <div role="group" className="flex rounded-full border border-hairline bg-surface p-0.5">
-                {modes.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    aria-pressed={mode === m.id}
-                    onClick={() => setMode(m.id)}
-                    className={cn(
-                      "rounded-full px-3 py-1 text-sm transition-colors",
-                      mode === m.id
-                        ? "bg-[var(--btn-primary-bg)] text-[var(--btn-primary-fg)]"
-                        : "text-ink-muted hover:text-ink",
-                    )}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
             <span className="flex-1" />
             <IconButton aria-label={labels.mic} className="h-9 w-9">
               <MicIcon width={16} height={16} />

@@ -170,10 +170,6 @@ export function HelpCenter({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const promptModes = [
-    { id: "ask", label: t("hc.modeAsk") },
-    { id: "search", label: t("hc.modeSearch") },
-  ];
   const promptLabels = { send: t("hc.promptSend"), mic: t("hc.promptMic") };
 
   return (
@@ -194,7 +190,6 @@ export function HelpCenter({
           <PromptBox
             expandable
             placeholder={t("hc.promptPlaceholder")}
-            modes={promptModes}
             suggestions={data.suggestions}
             labels={promptLabels}
             onSubmit={(text) => void ask(text)}
@@ -208,7 +203,6 @@ export function HelpCenter({
           locale={locale}
           entryCards={data.entryCards}
           suggestions={data.suggestions}
-          modes={promptModes}
           labels={promptLabels}
           onAsk={(text) => void ask(text)}
         />
@@ -266,7 +260,6 @@ function WelcomeView({
   locale,
   entryCards,
   suggestions,
-  modes,
   labels,
   onAsk,
 }: {
@@ -274,7 +267,6 @@ function WelcomeView({
   locale: Locale;
   entryCards: EntryCard[];
   suggestions: string[];
-  modes: { id: string; label: string }[];
   labels: { send: string; mic: string };
   onAsk: (text: string) => void;
 }) {
@@ -288,7 +280,6 @@ function WelcomeView({
         </h1>
         <PromptBox
           placeholder={t("hc.promptPlaceholder")}
-          modes={modes}
           suggestions={suggestions}
           labels={labels}
           onSubmit={(text) => onAsk(text)}

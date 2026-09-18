@@ -14,6 +14,11 @@ import {
 } from "@/lib/content/action-buttons";
 import { ARTICLE_ICONS } from "@/lib/content/article-icons";
 import {
+  MAX_PROMPT_SUGGESTIONS,
+  MAX_SUGGESTION_LENGTH,
+  parsePromptSuggestions,
+} from "@/lib/content/prompt-suggestions";
+import {
   CONTACT_KINDS,
   MAX_CONTACT_METHODS,
   parseContactMethodInput,
@@ -591,6 +596,69 @@ export const reportUnclearPassage: McpTool = {
   },
 };
 
+export const listPromptSuggestions: McpTool = {
+  name: "list_prompt_suggestions",
+  title: "Frage-Vorschläge lesen",
+  description:
+    "Read the example questions shown under the AI input on the start page. Call this before set_prompt_suggestions so you know what is already there.",
+  scope: "articles:read",
+  annotations: { readOnlyHint: true },
+  inputSchema: { type: "object", properties: {} },
+  async handler(_args, ctx) {
+    const content = await ctx.deps.getContentDeps();
+    if (!content) return fail("content_unavailable", "Content storage is not available.");
+    return ok({
+      suggestions: await content.store.listPromptSuggestions(ctx.tenant.id),
+      max: MAX_PROMPT_SUGGESTIONS,
+    });
+  },
+};
+
+export const setPromptSuggestions: McpTool = {
+  name: "set_prompt_suggestions",
+  title: "Frage-Vorschläge setzen",
+  description:
+    `REPLACES the example questions under the AI input with the list you pass, in that order. Between 0 and ${MAX_PROMPT_SUGGESTIONS}; an empty array removes them all. Visible to end users immediately. Write them as a READER would ask — real questions this help center can actually answer, not topic labels. Empty entries are dropped.`,
+  scope: "updates:write",
+  annotations: PUBLIC_HINTS,
+  inputSchema: {
+    type: "object",
+    properties: {
+      suggestions: {
+        type: "array",
+        maxItems: MAX_PROMPT_SUGGESTIONS,
+        description: `0 to ${MAX_PROMPT_SUGGESTIONS} questions, first one shown first.`,
+        items: { type: "string", description: `A question, max ${MAX_SUGGESTION_LENGTH} characters.` },
+      },
+    },
+    required: ["suggestions"],
+  },
+  async handler(args, ctx) {
+    const parsed = parsePromptSuggestions(args.suggestions);
+    if (!parsed.ok) {
+      return fail(
+        parsed.error,
+        parsed.error === "too_many"
+          ? `At most ${MAX_PROMPT_SUGGESTIONS} suggestions are allowed.`
+          : `Suggestion ${(parsed.index ?? 0) + 1} was rejected: ${parsed.error}. Nothing was changed.`,
+      );
+    }
+
+    const content = await ctx.deps.getContentDeps();
+    if (!content) return fail("content_unavailable", "Content storage is not available.");
+    if (await frozen(ctx)) return FROZEN_RESULT();
+
+    const written = await content.store.replacePromptSuggestions(ctx.tenant.id, parsed.suggestions);
+    return ok({
+      suggestions: written,
+      note:
+        written > 0
+          ? "The suggestions are live under the AI input now."
+          : "All suggestions removed — the input now stands alone.",
+    });
+  },
+};
+
 export const NAVIGATION_TOOLS: McpTool[] = [
   reorderArticles,
   listEntryCards,
@@ -602,4 +670,6 @@ export const NAVIGATION_TOOLS: McpTool[] = [
   getWidgetAppearance,
   setWidgetAppearance,
   reportUnclearPassage,
+  listPromptSuggestions,
+  setPromptSuggestions,
 ];

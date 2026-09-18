@@ -9,6 +9,7 @@ import { MAX_LINK_CARDS, MAX_TAG_TEXT, TAG_COLORS, TEXT_VARIANTS } from "@/lib/c
 import { ENTRY_CARD_KINDS, MAX_ENTRY_CARDS } from "@/lib/content/entry-cards";
 import { CONTACT_KINDS, MAX_CONTACT_METHODS } from "@/lib/content/contact-methods";
 import { ACTION_VARIANTS, MAX_ACTION_BUTTONS } from "@/lib/content/action-buttons";
+import { MAX_PROMPT_SUGGESTIONS } from "@/lib/content/prompt-suggestions";
 import { MAX_AI_REVIEWS_PER_DAY } from "@/lib/content/ai-review";
 import { ARTICLE_ICONS } from "@/lib/content/article-icons";
 import { API_SCOPES, scopeDef } from "@/server/apikeys/scopes";
@@ -310,6 +311,10 @@ export const getContentConventions: McpTool = {
       reportingProblems: {
         maxPerDay: MAX_AI_REVIEWS_PER_DAY,
         note: "If you notice a passage that is unclear, contradictory or wrong while reading, you can report it with report_unclear_passage. It lands in the operator's inbox marked as an AI report and NEVER changes the article. A concrete suggestion is required. Limits: at most this many per day for the whole help center, and one open report per passage — report what genuinely blocks a reader, not everything you would phrase differently.",
+      },
+      promptSuggestions: {
+        max: MAX_PROMPT_SUGGESTIONS,
+        note: "Example questions under the AI input on the start page — the first thing someone reads who does not know what to ask. Read with list_prompt_suggestions, set with set_prompt_suggestions (replaces the whole set). Write them as a READER would ask, and only what this help center can actually answer.",
       },
       lifecycle: {
         note: "Articles created through this server always start as drafts. Publishing is a separate tool and a separate permission.",

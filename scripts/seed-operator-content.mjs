@@ -66,6 +66,9 @@ const ARTICLES = [
       "## Wo ihre Grenze ist",
       "Die Suche arbeitet WÖRTLICH. Sie kennt keine Wortstämme, keine Synonyme und verzeiht keine Tippfehler — »Sprachen« findet »Sprache« nur über den gemeinsamen Anfang.",
       "Das ist Absicht: Wörtlich heißt vorhersagbar. Für die andere Art zu suchen gibt es daneben das KI-Feld — es versteht die Frage, auch wenn kein Wort davon im Artikel steht. Zwei Wege, zwei Stärken.",
+      "## Frage-Vorschläge",
+      "Unter der KI-Eingabe kannst du bis zu vier Beispielfragen zeigen. Sie sind das Erste, was jemand liest, der noch nicht weiß, was er fragen soll — und damit eine Aussage darüber, wofür dein Hilfezentrum da ist.",
+      "Gepflegt werden sie unter »Navigation«. Schreib sie so, wie ein Leser fragen würde, und nur das, was dein Hilfezentrum wirklich beantworten kann. Keine Vorschläge ist auch in Ordnung: Dann steht die Eingabe schlicht da.",
     ],
     related: ["ki-antworten", "navigation-und-einstieg"],
   },
@@ -486,6 +489,14 @@ const CONTACT_METHODS = [
   },
 ];
 
+/** Frage-Vorschläge unter der KI-Eingabe (0044, höchstens vier). */
+const PROMPT_SUGGESTIONS = [
+  "Wie erstelle ich mein erstes Hilfezentrum?",
+  "Wie binde ich das Widget auf meiner Website ein?",
+  "Wie verbinde ich meinen eigenen KI-Client?",
+  "Was passiert, wenn mein Credit-Limit erreicht ist?",
+];
+
 /** Einstiegs-Karten unter der KI-Eingabe (höchstens sechs). */
 const ENTRY_CARDS = [
   {
@@ -604,6 +615,15 @@ ARTICLES.forEach((a, i) => {
     `INSERT INTO articles (id,tenant_id,locale,slug,title,category,status,body_json,videos_json,related_ids_json,flag_json,icon,sort,reading_minutes,is_ai_generated,created_at,updated_at,published_at)\n` +
       `VALUES ('${id}','${TENANT}','${LOCALE}','${esc(a.slug)}','${esc(a.title)}','${esc(a.category)}','published','${body}','[]','${related}',${flag},${icon},${i},${a.min || 1},0,${t},${t},${t})\n` +
       `ON CONFLICT(tenant_id,id) DO UPDATE SET locale=excluded.locale,slug=excluded.slug,title=excluded.title,category=excluded.category,status='published',body_json=excluded.body_json,related_ids_json=excluded.related_ids_json,flag_json=excluded.flag_json,icon=excluded.icon,sort=excluded.sort,reading_minutes=excluded.reading_minutes,updated_at=excluded.updated_at,published_at=COALESCE(articles.published_at,excluded.published_at);`,
+  );
+});
+
+// Frage-Vorschläge (0044) — seed-autoritativ.
+out.push(`DELETE FROM prompt_suggestions WHERE tenant_id = '${TENANT}';`);
+PROMPT_SUGGESTIONS.forEach((text, i) => {
+  out.push(
+    `INSERT INTO prompt_suggestions (id,tenant_id,text,sort) VALUES ('op_ps_${i + 1}','${TENANT}','${esc(text)}',${i})\n` +
+      `ON CONFLICT(tenant_id,id) DO UPDATE SET text=excluded.text,sort=excluded.sort;`,
   );
 });
 

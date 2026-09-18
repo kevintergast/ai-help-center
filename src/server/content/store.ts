@@ -15,6 +15,7 @@ import { MAX_ENTRY_CARDS, type EntryCard, type EntryCardKind } from "@/lib/conte
 import { readArticleIcon } from "@/lib/content/article-icons";
 import { MAX_CONTACT_METHODS, type ContactKind, type ContactMethod } from "@/lib/content/contact-methods";
 import { MAX_ACTION_BUTTONS, type ActionButton, type ActionVariant } from "@/lib/content/action-buttons";
+import { MAX_PROMPT_SUGGESTIONS } from "@/lib/content/prompt-suggestions";
 import { readArticleIcon as readIconName } from "@/lib/content/article-icons";
 import { groupByCategory } from "@/lib/content/fake-repo";
 import type { ArticleInput, ArticleUpdateInput } from "./validate";
@@ -174,6 +175,11 @@ export interface ContentStore {
   listHeaderActions(tenantId: string): Promise<ActionButton[]>;
   /** Ganzen Satz ersetzen (ein Batch) — wie Karten und Kontaktwege. */
   replaceHeaderActions(tenantId: string, buttons: Omit<ActionButton, "id">[]): Promise<number>;
+
+  // ——— Frage-Vorschläge (0044) ———
+  listPromptSuggestions(tenantId: string): Promise<string[]>;
+  /** Ganzen Satz ersetzen (ein Batch) — wie Karten, Wege und Knöpfe. */
+  replacePromptSuggestions(tenantId: string, suggestions: string[]): Promise<number>;
 }
 
 /** Max. Bilder je Artikel (Speicher-/UI-Deckel). */
@@ -1128,6 +1134,35 @@ export class D1ContentRepository implements ContentStore {
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
           )
           .bind(newId("ha"), tenantId, b.label, b.icon, b.href, b.variant, index),
+      ),
+    ];
+    await this.db.batch<unknown>(stmts);
+    return capped.length;
+  }
+
+  // ——— Frage-Vorschläge (0044) ———
+
+  async listPromptSuggestions(tenantId: string): Promise<string[]> {
+    const { results } = await this.db
+      .prepare(
+        `SELECT text FROM prompt_suggestions
+          WHERE tenant_id = ? ORDER BY sort ASC, created_at ASC`,
+      )
+      .bind(tenantId)
+      .all<{ text: string }>();
+    return results.map((r) => r.text);
+  }
+
+  async replacePromptSuggestions(tenantId: string, suggestions: string[]): Promise<number> {
+    const capped = suggestions.slice(0, MAX_PROMPT_SUGGESTIONS);
+    const stmts = [
+      this.db.prepare(`DELETE FROM prompt_suggestions WHERE tenant_id = ?`).bind(tenantId),
+      ...capped.map((text, index) =>
+        this.db
+          .prepare(
+            `INSERT INTO prompt_suggestions (id, tenant_id, text, sort) VALUES (?, ?, ?, ?)`,
+          )
+          .bind(newId("ps"), tenantId, text, index),
       ),
     ];
     await this.db.batch<unknown>(stmts);

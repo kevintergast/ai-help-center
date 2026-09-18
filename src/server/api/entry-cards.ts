@@ -3,6 +3,7 @@ import { requireTeam } from "@/server/auth/guards";
 import { MAX_ENTRY_CARDS, parseEntryCardInput } from "@/lib/content/entry-cards";
 import { MAX_CONTACT_METHODS, parseContactMethodInput } from "@/lib/content/contact-methods";
 import { MAX_ACTION_BUTTONS, parseActionButtonInput } from "@/lib/content/action-buttons";
+import { MAX_PROMPT_SUGGESTIONS, parsePromptSuggestions } from "@/lib/content/prompt-suggestions";
 import type { ApiDeps, ApiEnv } from "./context";
 
 /**
@@ -232,6 +233,50 @@ export function headerActionsAdminRouter(deps: ApiDeps) {
 
     await content.store.replaceHeaderActions(c.get("tenant").id, buttons);
     return c.json({ buttons: await content.store.listHeaderActions(c.get("tenant").id) });
+  });
+
+  return r;
+}
+
+/**
+ * FRAGE-VORSCHLÄGE pflegen (`/admin/prompt-suggestions`).
+ *
+ *   GET  /api/v1/admin/prompt-suggestions   — Liste (Anzeigereihenfolge)
+ *   PUT  /api/v1/admin/prompt-suggestions   — GANZEN Satz ersetzen
+ *
+ * Nur Ersetzen, wie bei Karten, Wegen und Knöpfen: Bei höchstens vier kurzen
+ * Sätzen ist „hier ist der neue Stand" einfacher und atomar.
+ */
+export function promptSuggestionsAdminRouter(deps: ApiDeps) {
+  const r = new Hono<ApiEnv>();
+
+  r.get("/", requireTeam("content"), async (c) => {
+    const content = await deps.getContentDeps();
+    if (!content) return c.json({ error: "content_unavailable" }, 503);
+    return c.json({
+      suggestions: await content.store.listPromptSuggestions(c.get("tenant").id),
+      max: MAX_PROMPT_SUGGESTIONS,
+    });
+  });
+
+  r.put("/", requireTeam("content"), async (c) => {
+    const parsed = await readJson(c);
+    if (!parsed.ok) return c.json({ error: "invalid_json" }, 400);
+
+    const body = parsed.body as { suggestions?: unknown };
+    const res = parsePromptSuggestions(body.suggestions);
+    if (!res.ok) {
+      return c.json(
+        { error: res.error, ...(res.index !== undefined ? { index: res.index } : {}) },
+        res.error === "too_many" ? 409 : 400,
+      );
+    }
+
+    const content = await deps.getContentDeps();
+    if (!content) return c.json({ error: "content_unavailable" }, 503);
+
+    await content.store.replacePromptSuggestions(c.get("tenant").id, res.suggestions);
+    return c.json({ suggestions: await content.store.listPromptSuggestions(c.get("tenant").id) });
   });
 
   return r;

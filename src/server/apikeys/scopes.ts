@@ -36,7 +36,7 @@ export const API_SCOPES = {
   "articles:read": {
     tier: "read",
     summary:
-      "Read help articles, drafts, categories, translations, conventions, the start page's entry cards and the contact page's options.",
+      "Read help articles, drafts, categories, translations, conventions, the start page's entry cards the contact page's options and the start page's question suggestions.",
   },
   "analytics:read": {
     tier: "read",
@@ -74,7 +74,7 @@ export const API_SCOPES = {
   "updates:write": {
     tier: "public",
     summary:
-      "Create, edit and delete changelog entries, roadmap items, the start page's entry cards, the contact page's options and the header action buttons. These have no draft state — changes are immediately visible to end users.",
+      "Create, edit and delete changelog entries, roadmap items, the start page's entry cards, the contact page's options, the header action buttons and the start page's question suggestions. These have no draft state — changes are immediately visible to end users.",
   },
   "articles:delete": {
     tier: "destructive",

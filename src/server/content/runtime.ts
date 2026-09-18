@@ -36,8 +36,9 @@ function d1HelpCenterRepo(db: D1Database, tenant: Tenant): HelpCenterRepository 
     // RAG-STUB (Punkt 3): geerdete Beispielantwort über die echten Artikel.
     roadmap: () => store.roadmap(tid),
     changelog: () => store.changelog(tid, locale),
-    // Prompt-Vorschläge sind (noch) nicht in D1 modelliert → statisches Sample.
-    promptSuggestions: () => sampleHelpCenterRepo.promptSuggestions(),
+    // Vorschläge kommen aus D1 (0044). Vorher stand auf JEDER Instanz
+    // dasselbe feste Beispiel — auf einer Kundeninstanz UNSERE Fragen.
+    promptSuggestions: () => store.listPromptSuggestions(tid),
     entryCards: () => store.listEntryCards(tid),
     contactMethods: () => store.listContactMethods(tid),
     headerActions: () => store.listHeaderActions(tid),

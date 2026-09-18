@@ -7,6 +7,7 @@ import { NavOrderManager } from "@/components/admin/nav-order-manager";
 import { EntryCardsManager } from "@/components/admin/entry-cards-manager";
 import { ContactMethodsManager } from "@/components/admin/contact-methods-manager";
 import { HeaderActionsManager } from "@/components/admin/header-actions-manager";
+import { PromptSuggestionsManager } from "@/components/admin/prompt-suggestions-manager";
 
 /**
  * NAVIGATION & EINSTIEG — Reihenfolge der linken Leiste (0034) und die Karten
@@ -40,6 +41,11 @@ export default async function AdminNavigationPage() {
         <Card>
           <h2 className="mb-3 text-base font-semibold">{t("admin.navOrder.title")}</h2>
           <NavOrderManager locale={tenant.defaultLocale} />
+        </Card>
+
+        <Card>
+          <h2 className="mb-3 text-base font-semibold">{t("admin.suggestions.title")}</h2>
+          <PromptSuggestionsManager locale={tenant.defaultLocale} />
         </Card>
 
         <Card>

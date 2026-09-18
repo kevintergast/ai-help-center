@@ -32,6 +32,7 @@ import {
   contactMethodsAdminRouter,
   entryCardsAdminRouter,
   headerActionsAdminRouter,
+  promptSuggestionsAdminRouter,
 } from "./entry-cards";
 import { supportAdminRouter, supportPublicRouter } from "./support";
 import { widgetPublicRouter } from "./widget";
@@ -275,6 +276,8 @@ export function buildApiApp(deps: ApiDeps) {
   app.use("/admin/contact-methods/*", contentFreeze);
   app.use("/admin/header-actions", contentFreeze);
   app.use("/admin/header-actions/*", contentFreeze);
+  app.use("/admin/prompt-suggestions", contentFreeze);
+  app.use("/admin/prompt-suggestions/*", contentFreeze);
 
   // Branding (White-Label pflegbar): Admin-Pflege + öffentliches Logo-Serving.
   // Details/Sicherheitsentscheidungen: ./branding.ts
@@ -286,6 +289,7 @@ export function buildApiApp(deps: ApiDeps) {
   app.route("/admin/entry-cards", entryCardsAdminRouter(deps));
   app.route("/admin/contact-methods", contactMethodsAdminRouter(deps));
   app.route("/admin/header-actions", headerActionsAdminRouter(deps));
+  app.route("/admin/prompt-suggestions", promptSuggestionsAdminRouter(deps));
 
   // Legal-Docs pro Instanz (Design h): owner-exklusive Pflege + admin-Lesen +
   // öffentliches Ausliefern (Impressum/Datenschutz ohne Login). Details/

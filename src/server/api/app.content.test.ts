@@ -31,7 +31,7 @@ const MIGRATIONS = [
   "0002_auth.sql",
   "0003_branding.sql",
   "0004_two_factor_plugin_columns.sql",
-  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql", "0038_header_actions.sql", "0043_api_docs_to_header_action.sql", "0015_support_tickets.sql", "0039_comprehension_reports.sql", "0042_review_suggestion.sql",
+  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql", "0038_header_actions.sql", "0043_api_docs_to_header_action.sql", "0044_prompt_suggestions.sql", "0015_support_tickets.sql", "0039_comprehension_reports.sql", "0042_review_suggestion.sql",
 ] as const;
 
 function makeTenant(id: string, slug: string): Tenant {
@@ -1726,5 +1726,63 @@ describe("Aktions-Knöpfe (/admin/header-actions)", () => {
     const res = await put(app, many, cookie);
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ error: "too_many_buttons" });
+  });
+});
+
+/* ————— Frage-Vorschläge (0044) ————— */
+
+/**
+ * Verhinderte Fehlerfälle:
+ *  - Ein leer gelassenes Feld wird als Fehler gewertet → man wird einen
+ *    Vorschlag nicht mehr los.
+ *  - Mehr als vier rutschen durch und füllen die Startseite zu.
+ *  - Mandanten sehen die Vorschläge des jeweils anderen.
+ */
+describe("Frage-Vorschläge (/admin/prompt-suggestions)", () => {
+  const put = (app: TestApp, suggestions: unknown, cookie: string, host = HOST_A) =>
+    app.request("/api/v1/admin/prompt-suggestions", {
+      method: "PUT",
+      headers: { host, "content-type": "application/json", cookie },
+      body: JSON.stringify({ suggestions }),
+    });
+
+  it("gated wie Inhaltspflege; speichert in Reihenfolge und wirft Leeres weg", async () => {
+    const { app, authDb, store } = makeApp();
+    const userCookie = await sessionAs(app, authDb, HOST_A, "user");
+    expect((await put(app, [], userCookie)).status).toBe(403);
+
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    const res = await put(app, ["Wie starte ich?", "   ", "Was kostet das?"], cookie);
+    expect(res.status).toBe(200);
+    expect(await store.listPromptSuggestions("t_a")).toEqual([
+      "Wie starte ich?",
+      "Was kostet das?",
+    ]);
+  });
+
+  it("leere Liste ist gültig und entfernt alles", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    await put(app, ["Eine Frage"], cookie);
+    expect((await put(app, [], cookie)).status).toBe(200);
+    expect(await store.listPromptSuggestions("t_a")).toEqual([]);
+  });
+
+  it("Deckel greift beim fünften", async () => {
+    const { app, authDb } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    const res = await put(app, ["a", "b", "c", "d", "e"], cookie);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: "too_many" });
+  });
+
+  it("Mandanten sehen einander nicht", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookieA = await sessionAs(app, authDb, HOST_A, "content");
+    const cookieB = await sessionAs(app, authDb, HOST_B, "content");
+    await put(app, ["Frage A"], cookieA);
+    await put(app, ["Frage B"], cookieB, HOST_B);
+    expect(await store.listPromptSuggestions("t_a")).toEqual(["Frage A"]);
+    expect(await store.listPromptSuggestions("t_b")).toEqual(["Frage B"]);
   });
 });
