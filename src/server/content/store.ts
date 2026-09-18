@@ -14,6 +14,8 @@ import type {
 import { MAX_ENTRY_CARDS, type EntryCard, type EntryCardKind } from "@/lib/content/entry-cards";
 import { readArticleIcon } from "@/lib/content/article-icons";
 import { MAX_CONTACT_METHODS, type ContactKind, type ContactMethod } from "@/lib/content/contact-methods";
+import { MAX_ACTION_BUTTONS, type ActionButton, type ActionVariant } from "@/lib/content/action-buttons";
+import { readArticleIcon as readIconName } from "@/lib/content/article-icons";
 import { groupByCategory } from "@/lib/content/fake-repo";
 import type { ArticleInput, ArticleUpdateInput } from "./validate";
 
@@ -167,6 +169,11 @@ export interface ContentStore {
   listContactMethods(tenantId: string): Promise<ContactMethod[]>;
   /** Ganzen Satz ersetzen (ein Batch) — wie bei den Einstiegs-Karten. */
   replaceContactMethods(tenantId: string, methods: Omit<ContactMethod, "id">[]): Promise<number>;
+
+  // ——— Aktions-Knöpfe im Kopf (0038) ———
+  listHeaderActions(tenantId: string): Promise<ActionButton[]>;
+  /** Ganzen Satz ersetzen (ein Batch) — wie Karten und Kontaktwege. */
+  replaceHeaderActions(tenantId: string, buttons: Omit<ActionButton, "id">[]): Promise<number>;
 }
 
 /** Max. Bilder je Artikel (Speicher-/UI-Deckel). */
@@ -1082,6 +1089,45 @@ export class D1ContentRepository implements ContentStore {
             m.value.length > 0 ? m.value : null,
             index,
           ),
+      ),
+    ];
+    await this.db.batch<unknown>(stmts);
+    return capped.length;
+  }
+
+  // ——— Aktions-Knöpfe im Kopf (0038) ———
+
+  async listHeaderActions(tenantId: string): Promise<ActionButton[]> {
+    const { results } = await this.db
+      .prepare(
+        `SELECT id, label, icon, href, variant FROM header_actions
+          WHERE tenant_id = ? ORDER BY sort ASC, created_at ASC`,
+      )
+      .bind(tenantId)
+      .all<{ id: string; label: string; icon: string | null; href: string; variant: string }>();
+    return results.map((r) => ({
+      id: r.id,
+      label: r.label,
+      icon: readIconName(r.icon),
+      href: r.href,
+      variant: r.variant as ActionVariant,
+    }));
+  }
+
+  async replaceHeaderActions(
+    tenantId: string,
+    buttons: Omit<ActionButton, "id">[],
+  ): Promise<number> {
+    const capped = buttons.slice(0, MAX_ACTION_BUTTONS);
+    const stmts = [
+      this.db.prepare(`DELETE FROM header_actions WHERE tenant_id = ?`).bind(tenantId),
+      ...capped.map((b, index) =>
+        this.db
+          .prepare(
+            `INSERT INTO header_actions (id, tenant_id, label, icon, href, variant, sort)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .bind(newId("ha"), tenantId, b.label, b.icon, b.href, b.variant, index),
       ),
     ];
     await this.db.batch<unknown>(stmts);

@@ -1,6 +1,7 @@
 import type { ArticleBlock, ArticleFlag } from "./blocks";
 import type { EntryCard } from "./entry-cards";
 import type { ContactMethod } from "./contact-methods";
+import type { ActionButton } from "./action-buttons";
 import type { ArticleIcon } from "./article-icons";
 
 /**
@@ -195,6 +196,8 @@ export interface HelpCenterRepository {
   entryCards(): Promise<EntryCard[]>;
   /** Kontaktwege (`/contact`); leer = die Seite und ihr Link entfallen. */
   contactMethods(): Promise<ContactMethod[]>;
+  /** Aktions-Knöpfe im Kopf (0038). */
+  headerActions(): Promise<ActionButton[]>;
 }
 
 /**
@@ -213,4 +216,5 @@ export interface HelpCenterData {
   suggestions: string[];
   entryCards: EntryCard[];
   contactMethods: ContactMethod[];
+  headerActions: ActionButton[];
 }

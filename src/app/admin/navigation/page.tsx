@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { NavOrderManager } from "@/components/admin/nav-order-manager";
 import { EntryCardsManager } from "@/components/admin/entry-cards-manager";
 import { ContactMethodsManager } from "@/components/admin/contact-methods-manager";
+import { HeaderActionsManager } from "@/components/admin/header-actions-manager";
 
 /**
  * NAVIGATION & EINSTIEG — Reihenfolge der linken Leiste (0034) und die Karten
@@ -44,6 +45,11 @@ export default async function AdminNavigationPage() {
         <Card>
           <h2 className="mb-3 text-base font-semibold">{t("admin.entryCards.title")}</h2>
           <EntryCardsManager locale={tenant.defaultLocale} articles={articles} />
+        </Card>
+
+        <Card>
+          <h2 className="mb-3 text-base font-semibold">{t("admin.headerActions.title")}</h2>
+          <HeaderActionsManager locale={tenant.defaultLocale} />
         </Card>
 
         <Card>

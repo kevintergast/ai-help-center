@@ -18,6 +18,7 @@ import { cn } from "@/lib/ui/cn";
 import { Badge } from "@/components/ui/badge";
 import { HelpDrillContext } from "./entry-cards";
 import { ArticleIconGlyph } from "@/components/ui/article-icon";
+import { ACTION_VARIANT_CLASSES, isExternalHref } from "@/lib/content/action-buttons";
 
 /**
  * CHANGELOG-STUFEN (0030) für Endnutzer: Die technischen Wörter major/minor/patch
@@ -395,6 +396,37 @@ export function HelpShell({
               <span className="hidden sm:inline">{t("hc.createHelpCenter")}</span>
             </Link>
           ) : null}
+          {/* AKTIONS-KNÖPFE (0038) der Instanz — vor unseren eigenen
+              Bedienelementen, weil sie die Handlung tragen, die dem Betreiber
+              wichtig ist. Auf schmalen Schirmen bleibt nur das Symbol; ohne
+              Symbol bleibt der Knopf sichtbar, denn ein Knopf ohne
+              Beschriftung UND ohne Zeichen wäre eine leere Fläche. */}
+          {data.headerActions.map((b) => {
+            const external = isExternalHref(b.href);
+            const cls = cn(
+              "inline-flex items-center gap-1.5 rounded-std px-2.5 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:shadow-focusglow",
+              ACTION_VARIANT_CLASSES[b.variant],
+            );
+            const inner = (
+              <>
+                {b.icon ? <ArticleIconGlyph name={b.icon} size={15} /> : null}
+                <span className={b.icon ? "hidden sm:inline" : undefined}>{b.label}</span>
+                {external ? (
+                  <ExternalLinkIcon width={11} height={11} className="shrink-0 opacity-60" aria-hidden />
+                ) : null}
+              </>
+            );
+            return external ? (
+              <a key={b.id} href={b.href} target="_blank" rel="noopener noreferrer" className={cls}>
+                {inner}
+              </a>
+            ) : (
+              <Link key={b.id} href={b.href} className={cls}>
+                {inner}
+              </Link>
+            );
+          })}
+
           {/* API-DOKU (0033) im Kopf, direkt neben dem Theme-Umschalter.
               Sie stand vorher in der linken Leiste zwischen den Artikeln und
               las sich dort wie ein weiterer Artikel — sie ist aber ein

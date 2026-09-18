@@ -1,6 +1,7 @@
 import { parseArticleBody } from "./blocks";
 import type { EntryCard } from "./entry-cards";
 import type { ContactMethod } from "./contact-methods";
+import type { ActionButton } from "./action-buttons";
 import type {
   Article,
   ArticleSummary,
@@ -221,6 +222,12 @@ export const SAMPLE_CONTACT_METHODS: ContactMethod[] = [
   { id: "cm_s3", kind: "form", title: "Anliegen schildern", description: "Wir melden uns per E-Mail zurück.", value: "" },
 ];
 
+/** Beispiel-Knöpfe für den Dev-Fallback (zeigt zwei der vier Varianten). */
+export const SAMPLE_HEADER_ACTIONS: ActionButton[] = [
+  { id: "ha_s1", label: "Termin buchen", icon: "play", href: "https://example.com/termin", variant: "colored" },
+  { id: "ha_s2", label: "Status", icon: "chart", href: "https://status.example.com", variant: "ghost" },
+];
+
 export const SAMPLE_SUGGESTIONS = [
   "Wie binde ich das Widget ein?",
   "Was passiert, wenn mein Credit-Limit erreicht ist?",
@@ -268,4 +275,5 @@ export const sampleHelpCenterRepo: HelpCenterRepository = {
   promptSuggestions: async () => SAMPLE_SUGGESTIONS,
   entryCards: async () => SAMPLE_ENTRY_CARDS,
   contactMethods: async () => SAMPLE_CONTACT_METHODS,
+  headerActions: async () => SAMPLE_HEADER_ACTIONS,
 };
