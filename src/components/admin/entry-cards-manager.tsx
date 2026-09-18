@@ -153,8 +153,13 @@ export function EntryCardsManager({
               key={d.key}
               className="flex flex-col gap-3 rounded-card border border-hairline bg-surface p-4"
             >
-              <div className="flex items-start gap-3">
-                <div className="w-44 shrink-0">
+              {/* Umbruch erlaubt und Ausrichtung an der Unterkante: Die Zeile
+                  hielt vorher mit fester Auswahlbreite + dehnbarem Feld + Knopf
+                  auf schmalen Schirmen nicht mehr zusammen, und der Knopf saß
+                  per festem Rand auf Position — sobald eine Beschriftung
+                  umbrach, stand er daneben. */}
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="w-full min-w-[11rem] sm:w-44 sm:flex-none">
                   <span className="mb-1 block text-xs text-ink-muted">
                     {t("admin.entryCards.kind")}
                   </span>
@@ -177,7 +182,7 @@ export function EntryCardsManager({
                   value={d.title}
                   onChange={(e) => patch(d.key, { title: e.target.value })}
                   placeholder={t("admin.entryCards.cardTitlePlaceholder")}
-                  className="flex-1"
+                  className="min-w-[12rem] flex-1"
                 />
                 <IconButton
                   aria-label={t("admin.entryCards.delete")}
@@ -185,7 +190,7 @@ export function EntryCardsManager({
                     setDrafts((ds) => ds.filter((x) => x.key !== d.key));
                     setState("idle");
                   }}
-                  className="mt-6"
+                  className="ml-auto"
                 >
                   <CloseIcon width={16} height={16} />
                 </IconButton>

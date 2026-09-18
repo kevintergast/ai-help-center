@@ -58,26 +58,12 @@ export default async function AdminSettingsPage() {
             locale={tenant.defaultLocale}
             initialEmail={tenant.supportEmail ?? null}
           />
-        </SettingsCard>
-
-        <SettingsCard title={t("admin.settings.apiDocs")}>
-          {/* Link auf die eigene API-Doku (0033) — erscheint in der Navigation. */}
-          <div>
-          <h3 className="mb-2 text-sm font-semibold">{t("admin.widget.appearanceTitle")}</h3>
-          <WidgetAppearanceManager
+          {/* Gehört hierher: Die Hinweise landen im SELBEN Postfach wie die
+              Support-Anfragen (0039/0040). */}
+          <ComprehensionToggle
             locale={tenant.defaultLocale}
-            initialVariant={tenant.widget?.variant ?? "colored"}
-            initialLabel={tenant.widget?.label ?? null}
-            initialIconUrl={tenant.widget?.iconUrl ?? null}
-            initialIconOpenUrl={tenant.widget?.iconOpenUrl ?? null}
+            initialOn={tenant.comprehensionMode !== false}
           />
-        </div>
-
-        <ComprehensionToggle
-          locale={tenant.defaultLocale}
-          initialOn={tenant.comprehensionMode !== false}
-        />
-
         </SettingsCard>
 
         <SettingsCard title={t("admin.settings.domain")}>
@@ -121,6 +107,14 @@ export default async function AdminSettingsPage() {
           <WidgetSiteToggle
             locale={tenant.defaultLocale}
             initialOn={tenant.widgetOnSite === true}
+          />
+          {/* Aussehen des Starters (0041) — gehört zum Widget, nicht woandershin. */}
+          <WidgetAppearanceManager
+            locale={tenant.defaultLocale}
+            initialVariant={tenant.widget?.variant ?? "colored"}
+            initialLabel={tenant.widget?.label ?? null}
+            initialIconUrl={tenant.widget?.iconUrl ?? null}
+            initialIconOpenUrl={tenant.widget?.iconOpenUrl ?? null}
           />
         </SettingsCard>
       </div>
