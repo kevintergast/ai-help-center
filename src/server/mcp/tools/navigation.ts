@@ -387,7 +387,7 @@ export const setHeaderActions: McpTool = {
               type: "string",
               enum: [...ACTION_VARIANTS],
               description:
-                "ghost = text only; outlined = border, transparent; filled = high-contrast fill; colored = the help center's own brand colour. There is deliberately no free colour: the brand colour is already contrast-checked.",
+                "ghost = text only; outlined = border, transparent; filled = high-contrast fill; colored = the help center's own brand colour. There is deliberately no free colour: buttons must not drift away from the instance's palette.",
             },
           },
           required: ["label", "href", "variant"],

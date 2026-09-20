@@ -306,7 +306,7 @@ export const getContentConventions: McpTool = {
       headerActions: {
         maxButtons: MAX_ACTION_BUTTONS,
         variants: [...ACTION_VARIANTS],
-        note: "Up to three action buttons in the help center header. Read with list_header_actions, set with set_header_actions (replaces the whole set). Targets: https URLs or paths inside this help center; http:// is rejected. There is deliberately no free colour — 'colored' uses the help center's own brand colour, which is already contrast-checked.",
+        note: "Up to three action buttons in the help center header. Read with list_header_actions, set with set_header_actions (replaces the whole set). Targets: https URLs or paths inside this help center; http:// is rejected. There is deliberately no free colour — 'colored' uses the help center's own brand colour, so buttons cannot drift away from the instance's palette.",
       },
       reportingProblems: {
         maxPerDay: MAX_AI_REVIEWS_PER_DAY,
