@@ -1,6 +1,8 @@
 import { isHexColor, normalizeHex } from "./color";
+import { contrastProblems } from "./contrast";
 import {
   DEFAULT_ANCHORS,
+  generateTheme,
   isNeutralTone,
   isSurfaceStyle,
   type ThemeAnchors,
@@ -146,4 +148,114 @@ export function parseThemeInput(body: unknown): ThemeInputResult {
       dark: dark.palette,
     },
   };
+}
+
+
+/* ====================================================================
+   ABLEITEN STATT AUFZÄHLEN — die Form, die der MCP-Zugang benutzt.
+   ==================================================================== */
+
+/**
+ * Die Admin-Oberfläche schickt alle 48 Werte, weil ihr Formular sie hat. Ein
+ * Sprachmodell hat sie nicht — es würde sie ERFINDEN, und das Ergebnis stünde
+ * ungeprüft auf einer Kundenseite. Deshalb nimmt der MCP-Weg die vier Anker
+ * und leitet ab; Ausnahmen nennt man einzeln.
+ *
+ * Zwei Eingabeformen auf EINEM Kern: `composeTheme` erzeugt und mischt,
+ * `parseThemeInput` (oben) nimmt den fertigen Satz entgegen. Gespeichert wird
+ * in beiden Fällen dasselbe Dokument.
+ */
+export type ThemeOverrides = Partial<Record<ThemeTokenKey, string>>;
+
+export interface ComposeThemeResult {
+  ok: boolean;
+  config?: ThemeConfig;
+  error?: ThemeInputError | "unknown_token";
+  /** Der beanstandete Schlüssel — die KI soll wissen, WORAN es lag. */
+  token?: string;
+}
+
+function readOverrides(raw: unknown): { map?: ThemeOverrides; badKey?: string; badValue?: string } {
+  if (raw === undefined || raw === null) return { map: {} };
+  if (typeof raw !== "object" || Array.isArray(raw)) return { badKey: "" };
+  const out: ThemeOverrides = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    // Unbekannte Schlüssel werden ABGELEHNT, nicht ignoriert: Ein Modell, das
+    // "--page" oder "background" schreibt, soll das erfahren, statt zu glauben,
+    // es hätte etwas gesetzt.
+    if (!(THEME_TOKEN_KEYS as readonly string[]).includes(key)) return { badKey: key };
+    if (!isHexColor(value)) return { badValue: key };
+    out[key as ThemeTokenKey] = normalizeHex(value) as string;
+  }
+  return { map: out };
+}
+
+/**
+ * Baut aus vier Ankern und optionalen Ausnahmen eine vollständige Farbwelt.
+ * Was nicht ausdrücklich genannt ist, kommt aus der Ableitung — die hält die
+ * Kontrastschwelle ein. Ausnahmen dürfen sie unterschreiten; der Aufrufer
+ * bekommt das über `themeWarnings` zurückgemeldet und kann es dem Modell
+ * zeigen, statt es stillschweigend zu übernehmen.
+ */
+export function composeTheme(input: unknown): ComposeThemeResult {
+  if (typeof input !== "object" || input === null) return { ok: false, error: "invalid_shape" };
+  const b = input as Record<string, unknown>;
+
+  if (!isHexColor(b.brand) || !isHexColor(b.accent)) return { ok: false, error: "invalid_anchors", token: "brand/accent" };
+  if (!isNeutralTone(b.neutral) || !isSurfaceStyle(b.surface)) {
+    return { ok: false, error: "invalid_anchors", token: "neutral/surface" };
+  }
+
+  const anchors: ThemeAnchors = {
+    brand: normalizeHex(b.brand) as string,
+    accent: normalizeHex(b.accent) as string,
+    neutral: b.neutral,
+    surface: b.surface,
+  };
+
+  const light = readOverrides(b.light);
+  if (!light.map) {
+    return light.badKey !== undefined
+      ? { ok: false, error: "unknown_token", token: `light.${light.badKey}` }
+      : { ok: false, error: "invalid_color", token: `light.${light.badValue}` };
+  }
+  const dark = readOverrides(b.dark);
+  if (!dark.map) {
+    return dark.badKey !== undefined
+      ? { ok: false, error: "unknown_token", token: `dark.${dark.badKey}` }
+      : { ok: false, error: "invalid_color", token: `dark.${dark.badValue}` };
+  }
+
+  const generated = generateTheme(anchors);
+  return {
+    ok: true,
+    config: {
+      anchors,
+      light: { ...generated.light, ...light.map },
+      dark: { ...generated.dark, ...dark.map },
+    },
+  };
+}
+
+export interface ThemeWarning {
+  mode: ThemeMode;
+  /** z. B. "muted on page" — die Token-Namen sind die CSS-Namen. */
+  pair: string;
+  ratio: number;
+  min: number;
+}
+
+/**
+ * Die Beanstandungen einer fertigen Farbwelt, über beide Modi. Leer heißt: Was
+ * wir prüfen, hält. Das ist genau die Liste, die der Verwaltungsbereich rechts
+ * anzeigt — eine zweite Wahrheit für Maschinen wäre eine Wahrheit zu viel.
+ */
+export function themeWarnings(config: ThemeConfig): ThemeWarning[] {
+  const out: ThemeWarning[] = [];
+  for (const mode of ["light", "dark"] as const) {
+    for (const p of contrastProblems(config[mode])) {
+      out.push({ mode, pair: `${p.fg} on ${p.bg}`, ratio: p.ratio, min: p.min });
+    }
+  }
+  return out;
 }

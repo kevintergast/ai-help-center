@@ -2,6 +2,7 @@ import { READ_TOOLS } from "./read";
 import { INSIGHT_TOOLS } from "./insights";
 import { WRITE_TOOLS } from "./write";
 import { NAVIGATION_TOOLS } from "./navigation";
+import { THEME_TOOLS } from "./theme";
 import { UPDATE_TOOLS } from "./updates";
 import { DESTRUCTIVE_TOOLS } from "./destructive";
 import { hasScope } from "@/server/apikeys/scopes";
@@ -20,6 +21,7 @@ export const ALL_TOOLS: McpTool[] = [
   ...INSIGHT_TOOLS,
   ...WRITE_TOOLS,
   ...NAVIGATION_TOOLS,
+  ...THEME_TOOLS,
   ...UPDATE_TOOLS,
   ...DESTRUCTIVE_TOOLS,
 ];

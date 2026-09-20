@@ -101,7 +101,7 @@ export const getSettings: McpTool = {
   name: "get_settings",
   title: "Einstellungen lesen",
   description:
-    "Read branding and help center settings: name, colors, default language, SEO indexing and support address.",
+    "Read branding and help center settings: name, colors, default language, SEO indexing and support address. `hasOwnColourWorld` tells you whether the instance maintains a full palette of its own — if it does, `branding` shows only its brand colours and get_theme has the rest.",
   scope: "settings:read",
   annotations: READ_ONLY,
   inputSchema: { type: "object", properties: {} },
@@ -113,6 +113,10 @@ export const getSettings: McpTool = {
       defaultLocale: t.defaultLocale,
       customDomain: t.customDomain,
       branding: t.branding,
+      // Ohne diesen Hinweis liest eine Kunden-KI `branding.colorPrimary` und
+      // hält das für die ganze Farbgebung — seit 0045 ist es nur noch die
+      // Marken-Farbe daraus.
+      hasOwnColourWorld: t.theme != null,
     });
   },
 };

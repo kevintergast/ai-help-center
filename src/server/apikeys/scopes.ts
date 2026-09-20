@@ -44,7 +44,7 @@ export const API_SCOPES = {
   },
   "settings:read": {
     tier: "read",
-    summary: "Read branding and help center settings.",
+    summary: "Read branding, the help center's colour world and its settings.",
   },
   "articles:write": {
     tier: "write",
@@ -59,7 +59,7 @@ export const API_SCOPES = {
   "settings:write": {
     tier: "public",
     summary:
-      "Change branding, SEO indexing, support address, default language and the widget launcher's appearance. Visible to end users.",
+      "Change branding, the help center's colours for light and dark mode, SEO indexing, support address, default language and the widget launcher's appearance. Visible to end users.",
   },
   "support:read": {
     tier: "public",

@@ -1,4 +1,3 @@
-import { readPlanState } from "@/server/billing/store";
 import {
   MAX_ENTRY_CARDS,
   parseEntryCardInput,
@@ -33,6 +32,13 @@ import {
   parseAiReviewInput,
 } from "@/lib/content/ai-review";
 import { fail, ok, type McpTool, type ToolContext } from "./types";
+import { frozen } from "./guards";
+
+const FROZEN_RESULT = () =>
+  fail(
+    "plan_frozen",
+    "This help center is frozen because of an overdue plan. Content changes are blocked until billing is settled.",
+  );
 
 /**
  * NAVIGATIONS-WERKZEUGE — Reihenfolge der Leiste (0034), Einstiegs-Karten der
@@ -53,18 +59,7 @@ import { fail, ok, type McpTool, type ToolContext } from "./types";
 
 const PUBLIC_HINTS = { readOnlyHint: false, destructiveHint: false, idempotentHint: true } as const;
 
-async function frozen(ctx: ToolContext): Promise<boolean> {
-  const billing = await ctx.deps.getBillingDeps?.();
-  if (!billing) return false;
-  const state = await readPlanState(billing.repo, ctx.tenant.id, ctx.nowSec);
-  return state.status === "frozen";
-}
 
-const FROZEN_RESULT = () =>
-  fail(
-    "plan_frozen",
-    "This help center is frozen because of an overdue plan. Content changes are blocked until billing is settled.",
-  );
 
 export const reorderArticles: McpTool = {
   name: "reorder_articles",
