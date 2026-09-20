@@ -528,6 +528,7 @@ async function getSettingsDepsRuntime(): Promise<SettingsDeps | null> {
     setComprehensionMode: (tenantId, on) => repo.setComprehensionMode(tenantId, on),
     setWidgetAppearance: (tenantId, variant, label) =>
       repo.setWidgetAppearance(tenantId, variant, label),
+    setTheme: (tenantId, config) => repo.setTheme(tenantId, config),
   };
 }
 

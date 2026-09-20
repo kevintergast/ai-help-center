@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { Locale } from "@/lib/tenant/types";
@@ -187,6 +189,7 @@ function LogoSlot({
 export function BrandingManager({
   locale,
   initialPrimary,
+  themeActive = false,
   initialAccent,
   primaryFg,
   logoUrl,
@@ -196,6 +199,13 @@ export function BrandingManager({
 }: {
   locale: Locale;
   initialPrimary: string;
+  /**
+   * Instanz hat eine eigene Farbwelt (0045). Dann sind DIESE beiden Felder
+   * wirkungslos — im Hilfezentrum gilt der Theme-Satz, nicht color_primary.
+   * Statt sie stehen zu lassen und den Eindruck zu erwecken, sie täten etwas,
+   * verweisen wir auf die Seite, die tatsächlich zuständig ist.
+   */
+  themeActive?: boolean;
   initialAccent: string;
   /** Wird unverändert mitgesendet (API verlangt alle drei Farben). */
   primaryFg: string;
@@ -368,6 +378,14 @@ export function BrandingManager({
         </p>
       </div>
 
+      {themeActive ? (
+        <div className="flex flex-col gap-2 rounded-card border border-hairline bg-surface-raised p-4">
+          <p className="text-sm text-ink-muted">{t("admin.settings.colorsViaTheme")}</p>
+          <Link href="/admin/design" className="text-sm text-brand underline underline-offset-2">
+            {t("admin.settings.colorsViaThemeLink")}
+          </Link>
+        </div>
+      ) : (
       <form onSubmit={saveColors} className="flex flex-col gap-4" noValidate>
         <div className="grid gap-5 sm:grid-cols-2">
           <ColorField label={t("admin.settings.primaryColor")} value={primary} onChange={setPrimary} />
@@ -390,6 +408,7 @@ export function BrandingManager({
           </span>
         </div>
       </form>
+      )}
 
       <form onSubmit={saveLanguage} className="flex flex-col gap-3 border-t border-hairline pt-5" noValidate>
         <div className="max-w-xs">

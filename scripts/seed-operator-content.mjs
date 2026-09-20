@@ -222,7 +222,7 @@ const ARTICLES = [
     min: 1,
     body: [
       "Das Favicon ist mehr als das Zeichen im Browser-Tab: Es erscheint auch unten in der Zeile mit Impressum, Datenschutz und AGB. Dort ist der Platz ein kleines Quadrat — ein breites Logo würde darin untergehen, deshalb steht da bewusst das Favicon. Ohne eigenes Favicon bleibt die Zeile schlicht ohne Zeichen.",
-      "In den Einstellungen lädst du dein Logo hoch (PNG, JPEG oder WebP, maximal 1 MB) und legst deine Primär- und Akzentfarbe fest — jede Karte speichert direkt beim Klick.",
+      "In den Einstellungen lädst du dein Logo hoch (PNG, JPEG oder WebP, maximal 1 MB) und legst deine Primär- und Akzentfarbe fest — jede Karte speichert direkt beim Klick. Sobald du unter „Farbwelt“ eine eigene Farbwelt gespeichert hast, verschwinden die beiden Farbfelder hier und verweisen dorthin: Zwei Stellen für dieselbe Farbe wären eine Stelle zu viel.",
       "Optional hinterlegst du ein zweites Logo für den dunklen Modus: Besucher mit Dark Mode sehen dann automatisch die passende Variante. Ohne dunkles Logo wird überall das helle gezeigt.",
       "Das Favicon — das kleine Bild im Browser-Tab und in Lesezeichen — übernimmt automatisch dein helles Logo, sobald du eines hochgeladen hast. Du musst dafür nichts tun. Weil ein breites Logo im Tab winzig wird, kannst du zusätzlich ein eigenes Favicon hinterlegen: ein quadratisches Emblem, mindestens 64×64, als PNG, JPEG, WebP oder ICO. Es hat Vorrang vor dem Logo.",
       "Steckt dein Schriftzug bereits im Logo, kannst du die Anzeige des Instanznamens im Header abschalten (Schalter in den Branding-Einstellungen). Ohne Logo wird der Name immer angezeigt.",
@@ -230,6 +230,22 @@ const ARTICLES = [
       "Ebenfalls in den Einstellungen: die Standardsprache deines Hilfezentrums (Deutsch oder Englisch) — sie kann nur der Besitzer ändern.",
     ],
     related: ["hilfezentrum-erstellen"],
+  },
+  {
+    slug: "farbwelt-anpassen",
+    title: "Farbwelt für Hell und Dunkel",
+    category: "Branding",
+    min: 3,
+    body: [
+      "Unter „Farbwelt“ im Verwaltungsbereich bestimmst du nicht nur Marken- und Akzentfarbe, sondern die gesamte Farbgebung des Hilfezentrums: Flächen, Text, Linien und die Statusfarben für Hinweis, Erfolg, Warnung und Fehler. Hell und Dunkel werden dabei getrennt gepflegt.",
+      "Der schnelle Weg ist der Generator. Du gibst vier Dinge an — Markenfarbe, Akzentfarbe, den Grundton der Grautöne (kühl, neutral oder warm) und ob die Flächen rein oder leicht getönt sein sollen. Ein Klick auf „Farbwelt erzeugen“ füllt daraus beide Modi vollständig aus. Der Dunkelmodus entsteht dabei nicht durch simples Umdrehen: Flächen werden dunkel, Schrift hell, und die Markenfarbe wird so weit aufgehellt, dass sie auf dunklem Grund noch trägt.",
+      "Danach kannst du jeden Wert einzeln überschreiben. Die Felder stehen nach Gruppen sortiert; unter der Beschriftung siehst du jeweils den technischen Namen, falls du aus einem eigenen Design-System kommst. Wichtig: Eine Änderung im hellen Modus fasst den dunklen nicht an — wer beide will, pflegt beide.",
+      "Rechts läuft die Kontrollspalte mit. Die Vorschau zeigt jede Änderung sofort an einem nachgebauten Artikel, darunter steht die Kontrastprüfung. Geprüft werden nur Paare, die im Hilfezentrum wirklich übereinanderliegen — gedämpfter Text auf der Inhaltsfläche etwa, oder Schrift auf der Markenfarbe. Fließtext braucht 4,5:1; darunter erscheint eine Warnung, auch am betroffenen Feld.",
+      "Diese Warnungen halten dich nicht auf. Es gibt Fälle, in denen eine Marke eine bestimmte Farbe verlangt, und eine Sperre würde nur zu Umwegen führen. Der Generator dagegen hält die Schwelle immer ein: Gibst du eine sehr helle Markenfarbe an, dunkelt er sie farbtontreu ab, bis sie als Linkfarbe lesbar ist. Willst du genau deinen Ton, setzt du ihn danach von Hand zurück — die Warnung bleibt dann stehen, und das ist der ehrliche Zustand.",
+      "Gespeichert wird für die ganze Instanz: Jeder Seitenaufruf ab diesem Moment kommt in den neuen Farben — auch der erste Aufbau, es blitzt also nichts in den alten Farben auf. Wer die Seite gerade offen hat, sieht die Änderung beim nächsten Laden. Marken- und Akzentfarbe aus dem hellen Satz werden zugleich als Marken-Identität der Instanz gesichert: Das Widget auf deiner eigenen Seite kennt den Modus des Besuchers nicht und braucht einen festen Wert.",
+      "„Auf Standard zurücksetzen“ entfernt die eigene Farbwelt wieder. Das Hilfezentrum zeigt dann die Standardfarben, überschrieben von deiner Marken- und Akzentfarbe — der Zustand vor dem ersten Speichern.",
+    ],
+    related: ["branding-anpassen", "widget-einbinden"],
   },
   {
     slug: "rechtstexte",

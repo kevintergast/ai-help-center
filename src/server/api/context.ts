@@ -1,3 +1,4 @@
+import type { ThemeConfig } from "@/lib/theme/palette";
 import type { UpdatesStore } from "@/server/content/updates";
 import type { betterAuth } from "better-auth";
 import type { Tenant } from "@/lib/tenant/types";
@@ -202,6 +203,8 @@ export interface SettingsDeps {
   setComprehensionMode(tenantId: string, on: boolean): Promise<void>;
   /** Erscheinungsbild des Widgets (0041). */
   setWidgetAppearance(tenantId: string, variant: string, label: string | null): Promise<void>;
+  /** Eigene Farbwelt (0045); `null` entfernt sie wieder. */
+  setTheme(tenantId: string, config: ThemeConfig | null): Promise<void>;
 }
 
 export interface AskRuntime {

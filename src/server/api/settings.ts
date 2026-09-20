@@ -1,4 +1,5 @@
 import { isActionVariant, MAX_ACTION_LABEL } from "@/lib/content/action-buttons";
+import { parseThemeInput } from "@/lib/theme/palette";
 import { Hono } from "hono";
 import { requireOwner, requireTeam } from "@/server/auth/guards";
 import type { ApiDeps, ApiEnv } from "./context";
@@ -11,6 +12,8 @@ import type { ApiDeps, ApiEnv } from "./context";
  *   PUT /api/v1/admin/settings/locale  { locale: "de" | "en" }     — OWNER
  *   PUT /api/v1/admin/settings/header-name    { show: boolean }   — admin
  *   PUT /api/v1/admin/settings/widget-on-site { on: boolean }     — admin
+ *   PUT /api/v1/admin/settings/theme   { anchors, light, dark }   — admin
+ *   DELETE /api/v1/admin/settings/theme                           — admin
  *
  * SEO-Opt-out (Migration 0013): `false` schaltet die Instanz auf noindex
  * (Meta-Tag auf jeder Seite, robots Disallow-all, leere Sitemap, raus aus dem
@@ -154,6 +157,45 @@ export function settingsAdminRouter(deps: ApiDeps) {
 
     await settings.setWidgetAppearance(c.get("tenant").id, body.variant, label);
     return c.json({ ok: true, variant: body.variant, label });
+  });
+
+  /**
+   * EIGENE FARBWELT (0045) setzen. `admin`, nicht `owner`: Das ist dieselbe
+   * Art Entscheidung wie das Branding daneben — Erscheinungsbild, nicht
+   * Bestand der Instanz.
+   *
+   * Der Body enthält die Farbwelt VOLLSTÄNDIG (Anker + beide Modi, je 24
+   * Tokens). Kein Teil-Update: Die Farbwelt ergibt nur als Ganzes Sinn, und
+   * ein halb geschriebener Satz wäre auf jeder Kundenseite sofort sichtbar.
+   * Jeder Wert muss `#rgb`/`#rrggbb` sein — was hier durchkäme, stünde
+   * anschließend in einem <style>-Block (siehe lib/theme/css.ts).
+   */
+  r.put("/theme", requireTeam("admin"), async (c) => {
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "invalid_json" }, 400);
+    }
+    const parsed = parseThemeInput(body);
+    if (!parsed.ok || !parsed.config) {
+      return c.json({ error: parsed.error ?? "invalid_shape", token: parsed.token }, 400);
+    }
+
+    const settings = await deps.getSettingsDeps?.();
+    if (!settings) return c.json({ error: "settings_unavailable" }, 503);
+
+    await settings.setTheme(c.get("tenant").id, parsed.config);
+    return c.json({ ok: true, theme: parsed.config });
+  });
+
+  /** Farbwelt entfernen → Standard-Theme + die drei Marken-Farben. */
+  r.delete("/theme", requireTeam("admin"), async (c) => {
+    const settings = await deps.getSettingsDeps?.();
+    if (!settings) return c.json({ error: "settings_unavailable" }, 503);
+
+    await settings.setTheme(c.get("tenant").id, null);
+    return c.json({ ok: true, theme: null });
   });
 
   // Standardsprache der Instanz (Endnutzer-UI, Meta, Mails) — OWNER wie SEO:

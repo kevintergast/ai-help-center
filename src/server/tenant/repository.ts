@@ -1,4 +1,5 @@
 import { isActionVariant } from "@/lib/content/action-buttons";
+import { readThemeConfig, serializeThemeConfig, type ThemeConfig } from "@/lib/theme/palette";
 import type { Locale, Tenant } from "@/lib/tenant/types";
 
 interface TenantRow {
@@ -24,13 +25,14 @@ interface TenantRow {
   widget_label: string | null;
   widget_icon_r2_key: string | null;
   widget_icon_open_r2_key: string | null;
+  theme: string | null;
 }
 
 const COLS =
   "id, slug, name, custom_domain, default_locale, logo_url, logo_r2_key, logo_dark_r2_key, " +
   "favicon_r2_key, branding_updated_at, color_primary, color_accent, color_primary_fg, seo_indexable, support_email, show_header_name, " +
   "widget_on_site, comprehension_mode, widget_variant, widget_label, " +
-  "widget_icon_r2_key, widget_icon_open_r2_key";
+  "widget_icon_r2_key, widget_icon_open_r2_key, theme";
 
 /**
  * `branding.logoUrl` ist ABGELEITET (Priorität dokumentiert in 0003_branding.sql):
@@ -103,6 +105,10 @@ export function rowToTenant(r: TenantRow): Tenant {
       iconUrl: r.widget_icon_r2_key ? "/api/v1/branding/logo?variant=widget" : null,
       iconOpenUrl: r.widget_icon_open_r2_key ? "/api/v1/branding/logo?variant=widget-open" : null,
     },
+    // Eigene Farbwelt (0045). Unlesbares JSON ergibt bewusst `null` statt
+    // eines Fehlers: eine kaputte Zeile darf das Hilfezentrum nicht
+    // abschalten — dann gilt eben das Standard-Theme.
+    theme: readThemeConfig(r.theme),
   };
 }
 
@@ -178,6 +184,37 @@ export class D1TenantRepository {
     await this.db
       .prepare(`UPDATE tenants SET widget_variant = ?, widget_label = ? WHERE id = ?`)
       .bind(variant, label, tenantId)
+      .run();
+  }
+
+  /**
+   * Eigene Farbwelt setzen oder entfernen (0045).
+   *
+   * Die drei Marken-Spalten werden MITGESCHRIEBEN: sie bleiben die
+   * Marken-Identität der Instanz außerhalb des Hilfezentrums (Widget auf der
+   * Kundenseite, Mails) und dürfen nicht auseinanderlaufen mit dem, was
+   * Besucher im Hilfezentrum sehen. Maßgeblich ist der HELLE Satz — ein
+   * Widget auf einer fremden Seite kennt deren Modus nicht.
+   *
+   * `null` entfernt nur die Farbwelt; die Marken-Spalten bleiben stehen, denn
+   * genau sie sind dann wieder der Rückfall.
+   */
+  async setTheme(tenantId: string, config: ThemeConfig | null): Promise<void> {
+    if (!config) {
+      await this.db.prepare(`UPDATE tenants SET theme = NULL WHERE id = ?`).bind(tenantId).run();
+      return;
+    }
+    await this.db
+      .prepare(
+        `UPDATE tenants SET theme = ?, color_primary = ?, color_accent = ?, color_primary_fg = ? WHERE id = ?`,
+      )
+      .bind(
+        serializeThemeConfig(config),
+        config.light["brand-primary"],
+        config.light["brand-accent"],
+        config.light["brand-primary-fg"],
+        tenantId,
+      )
       .run();
   }
 
