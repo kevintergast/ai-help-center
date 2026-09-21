@@ -20,6 +20,7 @@ const RELEASE_0_4_0 = 1789480800; // 2026-09-16
 const RELEASE_0_4_1 = 1789567200; // 2026-09-17
 const RELEASE_0_5_0 = 1789740000; // 2026-09-18
 const RELEASE_0_5_1 = 1789750000; // 2026-09-18
+const RELEASE_0_6_0 = 1789984800; // 2026-09-21
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -221,7 +222,7 @@ const ARTICLES = [
     category: "Branding",
     min: 1,
     body: [
-      "Das Favicon ist mehr als das Zeichen im Browser-Tab: Es erscheint auch unten in der Zeile mit Impressum, Datenschutz und AGB. Dort ist der Platz ein kleines Quadrat — ein breites Logo würde darin untergehen, deshalb steht da bewusst das Favicon. Ohne eigenes Favicon bleibt die Zeile schlicht ohne Zeichen.",
+      "Das Favicon ist mehr als das Zeichen im Browser-Tab: Es erscheint auch unten im Fuß, vor den Rechtstexten und deinen eigenen Links. Dort ist der Platz ein kleines Quadrat — ein breites Logo würde darin untergehen, deshalb steht da bewusst das Favicon. Ohne eigenes Favicon bleibt die Zeile schlicht ohne Zeichen.",
       "In den Einstellungen lädst du dein Logo hoch (PNG, JPEG oder WebP, maximal 1 MB) und legst deine Primär- und Akzentfarbe fest — jede Karte speichert direkt beim Klick. Sobald du unter „Farbwelt“ eine eigene Farbwelt gespeichert hast, verschwinden die beiden Farbfelder hier und verweisen dorthin: Zwei Stellen für dieselbe Farbe wären eine Stelle zu viel.",
       "Optional hinterlegst du ein zweites Logo für den dunklen Modus: Besucher mit Dark Mode sehen dann automatisch die passende Variante. Ohne dunkles Logo wird überall das helle gezeigt.",
       "Das Favicon — das kleine Bild im Browser-Tab und in Lesezeichen — übernimmt automatisch dein helles Logo, sobald du eines hochgeladen hast. Du musst dafür nichts tun. Weil ein breites Logo im Tab winzig wird, kannst du zusätzlich ein eigenes Favicon hinterlegen: ein quadratisches Emblem, mindestens 64×64, als PNG, JPEG, WebP oder ICO. Es hat Vorrang vor dem Logo.",
@@ -252,12 +253,35 @@ const ARTICLES = [
     slug: "rechtstexte",
     title: "Rechtstexte hinterlegen",
     category: "Rechtliches",
-    min: 1,
+    min: 3,
     body: [
       "Als Owner hinterlegst du Rechtstexte wie Impressum oder Datenschutzerklärung — entweder als Link auf eine bestehende Seite oder direkt als Text (Markdown), auch per Datei-Upload.",
       "Die Texte sind öffentlich über feste Pfade erreichbar und werden je Hilfezentrum getrennt gespeichert.",
+      "Welche davon unten im Fuß verlinkt werden, entscheidest du getrennt davon unter „Navigation & Einstieg“ → „Fuß des Hilfezentrums“. Alle drei sind von Anfang an angehakt; du kannst jeden einzeln abschalten.",
+      "Nicht alle drei wiegen gleich schwer. Die Datenschutzerklärung gehört auf jedes Hilfezentrum: Sobald jemand es aufruft, werden personenbezogene Daten verarbeitet, und darüber muss informiert werden (Art. 13 DSGVO). Ein Impressum verlangen Deutschland, Österreich und die Schweiz von geschäftsmäßigen Angeboten — sitzt du woanders, kann der Punkt entfallen. AGB sind hier in aller Regel gar nicht nötig, weil im Hilfezentrum kein Vertrag zustande kommt; verlinke sie, wenn du sie aus anderem Grund zeigen willst.",
+      "## Was in deine Datenschutzerklärung gehört",
+      "Für die Besucher deines Hilfezentrums bist du der Verantwortliche, wir verarbeiten in deinem Auftrag. Deshalb musst du in deiner Erklärung beschreiben, was hier passiert. Das ist wenig: Beim Aufruf fallen die üblichen Server-Daten an (Adresse, Browser, Zeitpunkt, aufgerufene Seite). Für die Statistik und die Nutzerzahl bilden wir daraus serverseitig ein Kürzel, das nur für den laufenden Monat und nur für deine Instanz gilt — Adresse und Browser selbst werden dafür nicht gespeichert.",
+      "Was du NICHT erklären musst: Cookies zur Reichweitenmessung. Es gibt keine. Dein Hilfezentrum setzt nur dann ein Cookie, wenn sich jemand anmeldet — das ist für die Anmeldung technisch nötig und einwilligungsfrei. Ein Cookie-Banner brauchst du also nicht.",
+      "Zwei Dinge bleiben trotzdem im Browser deines Besuchers liegen, weil er sie selbst ausgelöst hat: die gespeicherten KI-Antworten unter „Meine Artikel“ und die Wahl zwischen hellem und dunklem Modus. Beides verlässt sein Gerät nicht, solange er kein Konto hat, und ist einwilligungsfrei — er hat es ja verlangt. Erwähnen solltest du es trotzdem.",
+      "Stellt jemand der KI eine Frage, wird der Fragetext zur Beantwortung verarbeitet; die Frage selbst speichern wir nicht. Schickt jemand eine Support-Anfrage, gehen die eingegebenen Angaben an deine hinterlegte Adresse und in dein Postfach. Betten Artikel YouTube-Videos ein, lädt das Video erst auf Klick — vorher geht nichts an YouTube.",
+      "Das ist eine Einordnung, keine Rechtsberatung — im Zweifel fragst du deine eigene.",
     ],
-    related: ["rollen-und-rechte"],
+    related: ["rollen-und-rechte", "fuss-anpassen"],
+  },
+  {
+    slug: "fuss-anpassen",
+    title: "Fuß: Rechtstexte und eigene Links",
+    category: "Rechtliches",
+    min: 1,
+    body: [
+      "Die schmale Zeile ganz unten im Hilfezentrum pflegst du unter „Navigation & Einstieg“ → „Fuß des Hilfezentrums“. Dort legst du fest, welche der drei Rechtstexte verlinkt werden — und was sonst noch danebensteht.",
+      "Bis zu fünf eigene Links kommen dazu: Beschriftung und Ziel, mehr braucht es nicht. Typisch sind eine Status-Seite, die Hauptwebsite, eine Erklärung zur Barrierefreiheit oder ein Sicherheitskontakt. Externe Ziele müssen mit https:// beginnen und öffnen in einem neuen Tab; interne Pfade wie /contact sind ebenfalls erlaubt.",
+      "Der Fuß ist bewusst eine Zeile und kein zweites Menü. Für die eine Handlung, die überall erreichbar sein soll — Termin buchen, Demo anfragen — sind die Aktions-Knöpfe im Kopf der richtige Ort.",
+      "Ein abgeschalteter Rechtstext verschwindet aus dem Fuß; seine Seite bleibt unter ihrem festen Pfad erreichbar, falls du sie anderswo verlinkst.",
+      "Ganz unten in derselben Karte sitzt der Schalter „Powered by HallofHelp im Fuß zeigen“. Er ist standardmäßig aus — dein Hilfezentrum trägt deinen Namen, nicht unseren. Wer uns trotzdem nennen mag, schaltet ihn ein.",
+      "Steht am Ende gar nichts im Fuß — keine Rechtstexte, keine eigenen Links, kein Hinweis —, entfällt die Zeile ganz. Ein leerer Balken mit Trennlinie wäre ein sichtbarer Rest ohne Inhalt.",
+    ],
+    related: ["rechtstexte", "kopf-knoepfe-und-widget"],
   },
   {
     slug: "ki-antworten",
@@ -282,6 +306,7 @@ const ARTICLES = [
     body: [
       "Die Nutzung deines Hilfezentrums wird in Credits gemessen: Ein Artikel-Aufruf durch Besucher kostet 1 Credit, eine KI-Antwort 20 Credits, eine KI-Übersetzung eines Artikels 50 Credits. Die Suche ist kostenlos. Artikel-Aufrufe durch dich und dein Team werden nie berechnet; KI-Antworten deines Teams zählen zu einem reduzierten internen Satz.",
       "Jeder Plan enthält ein monatliches Credit-Kontingent und eine Obergrenze aktiver Nutzer. Beides setzt sich am Monatsanfang automatisch zurück. Deinen aktuellen Verbrauch siehst du jederzeit im Admin-Bereich unter »Plan & Credits«. Für größere Anforderungen gibt es den Enterprise-Tarif — sprich dazu direkt mit unserem Vertrieb.",
+      "Aktive Nutzer zählen wir ohne Cookie — dein Hilfezentrum braucht dafür also kein Einwilligungs-Banner. Aus Adresse und Browser deines Besuchers entsteht serverseitig ein Kürzel, das nur für diesen Monat und nur für dein Hilfezentrum gilt; weder Adresse noch Browser werden gespeichert, und über Monatsgrenzen hinweg lässt sich nichts zusammenführen. Damit niemand durch ein Browser-Update oder eine neue IPv6-Adresse doppelt zählt, fließen bewusst nur die stabilen Teile ein. Teilen sich viele Besucher einen Firmen-Anschluss mit gleichem Browser, zählen sie unter Umständen als einer — zu deinen Gunsten.",
       "Erreichst du ein Limit, läuft dein Hilfezentrum zunächst 30 Tage normal weiter — du siehst einen Hinweis mit Countdown. Erst danach pausieren KI-Antworten und Inhalts-Änderungen, bis du upgradest. Deine Artikel bleiben dabei durchgehend öffentlich sichtbar; es wird nichts gelöscht.",
     ],
     related: ["ki-antworten"],
@@ -543,6 +568,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Eigene Farbwelt, eigene Einstiegsfragen, eigener Fuß",
+    description:
+      "Das größte Stück: Unter „Farbwelt“ bestimmst du jetzt die GESAMTE Farbgebung deines Hilfezentrums — Flächen, Text, Linien und Statusfarben, für Hell und Dunkel getrennt. Vier Angaben genügen dem Generator, der Rest füllt sich; die Kontrastprüfung läuft live daneben mit. Auch dein KI-Client kann sie setzen. Zweitens sind die Beispielfragen unter der KI-Eingabe keine festen Beispiele mehr, sondern deine eigenen. Drittens gehört die Zeile ganz unten dir: Du entscheidest, welche der drei Rechtstexte dort verlinkt sind, und legst bis zu fünf eigene Links daneben — Status-Seite, Hauptwebsite, Barrierefreiheit. Steht nichts drin, verschwindet die Zeile. Und eine Änderung, die man nicht sieht, die dir aber Arbeit abnimmt: Aktive Nutzer zählen wir jetzt ohne Cookie — dein Hilfezentrum braucht deshalb kein Einwilligungs-Banner.",
+    at: RELEASE_0_6_0,
+    version: "0.6.0",
+    level: "minor",
+  },
   {
     title: "Fundstellen im Artikel, Schutz vor verlorenen Änderungen und eine Pflicht-Adresse",
     description:
