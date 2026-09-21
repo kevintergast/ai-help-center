@@ -23,6 +23,7 @@ import {
   MenuIcon,
   CloseIcon,
   KeyIcon,
+  PaletteIcon,
   MegaphoneIcon,
 } from "@/components/ui/icons";
 
@@ -46,6 +47,7 @@ const NAV: {
   { href: "/admin/inbox", key: "admin.nav.inbox", icon: InboxIcon, badge: true },
   // Schlüssel vergeben Rechte → wie die Seite selbst admin/owner-exklusiv.
   { href: "/admin/api-keys", key: "admin.nav.apiKeys", icon: KeyIcon, roles: ["admin", "owner"] },
+  { href: "/admin/design", key: "admin.nav.design", icon: PaletteIcon },
   { href: "/admin/settings", key: "admin.nav.settings", icon: SettingsIcon },
 ];
 

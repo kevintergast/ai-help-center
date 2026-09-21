@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { AskOutcome } from "@/server/rag/ask";
 import type { ApiDeps, ApiEnv } from "./context";
-import { applyVisitorCookie, resolveActor } from "./events";
+import { resolveActor } from "./events";
 import { allowRequest, clientIp, rateLimited } from "./rate-limit";
 
 /**
@@ -14,7 +14,8 @@ import { allowRequest, clientIp, rateLimited } from "./rate-limit";
  * DAVOR bzw. DAHINTER: AI-Gateway (Spend-Limit/Rate-Limit/Caching), WAF-
  * Rate-Limit (User-Schritt), Grounding-Schwelle (keine Generierung ohne
  * Treffer) und Plan-Gate (frozen → 402, VOR jedem AI-Aufruf).
- * Besucher-Identität wie beim View-Beacon (hoh_vid-Cookie) → MAU/Credits.
+ * Besucher-Identität wie beim View-Beacon (serverseitig abgeleitet, kein
+ * Cookie — security/visitor-id.ts) → MAU/Credits.
  */
 
 const MIN_QUESTION_CHARS = 3;
@@ -47,7 +48,6 @@ export function askPublicRouter(deps: ApiDeps) {
     if (!ask) return c.json({ error: "ask_unavailable" }, 503);
 
     const actor = await resolveActor(c, deps.visitorCodec);
-    applyVisitorCookie(c, actor);
 
     let outcome: AskOutcome;
     try {

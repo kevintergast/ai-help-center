@@ -398,8 +398,11 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
     // derselbe anonyme Eskalationsweg wie /support/tickets, nur mit Artikel-
     // statt Antwort-Bezug; gleiche Schichten, zusätzlich je Instanz
     // abschaltbar → dann 404).
-    // 2026-07-17: + /widget/session (signierte Besucher-ID fürs eingebettete
-    // Widget — Begründung in api/widget.ts).
+    // 2026-09-21: − /widget/session. Der Bootstrap vergab dem iframe eine
+    // signierte Besucher-ID; seit die ID serverseitig abgeleitet wird
+    // (security/visitor-id.ts), gibt es nichts mehr zu vergeben. Eine
+    // Allowlist-Zeile für eine Route, die es nicht gibt, wäre ein offenes
+    // Tor ohne Tür dahinter — sie fällt mit der Route.
     // 2026-09-18: + /widget/config (Erscheinungsbild des Widget-Starters —
     // genau das, was ohnehin jeder auf der Kundenseite sieht; reines Lesen).
     // 2026-07-17: + /answers/check (Staleness-Prüfung LOKAL gespeicherter
@@ -423,7 +426,6 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
           "/api/v1/ask",
           "/api/v1/support/tickets",
           "/api/v1/support/comprehension",
-          "/api/v1/widget/session",
           "/api/v1/widget/config",
           "/api/v1/answers/check",
         ],

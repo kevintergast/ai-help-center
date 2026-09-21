@@ -9,6 +9,7 @@ import {
 } from "@/lib/content/fake-repo";
 import { D1BillingRepository } from "@/server/billing/store";
 import { getDbSafe } from "@/server/db/client";
+import { DEFAULT_LEGAL_FOOTER } from "@/lib/content/footer-links";
 import { D1ContentRepository } from "./store";
 
 /**
@@ -36,11 +37,13 @@ function d1HelpCenterRepo(db: D1Database, tenant: Tenant): HelpCenterRepository 
     // RAG-STUB (Punkt 3): geerdete Beispielantwort über die echten Artikel.
     roadmap: () => store.roadmap(tid),
     changelog: () => store.changelog(tid, locale),
-    // Prompt-Vorschläge sind (noch) nicht in D1 modelliert → statisches Sample.
-    promptSuggestions: () => sampleHelpCenterRepo.promptSuggestions(),
+    // Vorschläge kommen aus D1 (0044). Vorher stand auf JEDER Instanz
+    // dasselbe feste Beispiel — auf einer Kundeninstanz UNSERE Fragen.
+    promptSuggestions: () => store.listPromptSuggestions(tid),
     entryCards: () => store.listEntryCards(tid),
     contactMethods: () => store.listContactMethods(tid),
     headerActions: () => store.listHeaderActions(tid),
+    footerLinks: () => store.listFooterLinks(tid),
   };
 }
 
@@ -53,19 +56,42 @@ export async function getHelpCenterRepo(tenant: Tenant): Promise<HelpCenterRepos
 /** Vorab aufgelöstes Lese-Bundle fürs (Client-)Hilfezentrum. */
 export async function getHelpCenterData(tenant: Tenant): Promise<HelpCenterData> {
   const repo = await getHelpCenterRepo(tenant);
-  const [groups, searchItems, articles, roadmap, changelog, suggestions, entryCards, contactMethods, headerActions] =
-    await Promise.all([
-      repo.listByCategory(),
-      repo.searchItems(),
-      repo.listArticles(),
-      repo.roadmap(),
-      repo.changelog(),
-      repo.promptSuggestions(),
-      repo.entryCards(),
-      repo.contactMethods(),
-      repo.headerActions(),
-    ]);
-  return { groups, searchItems, articles, roadmap, changelog, suggestions, entryCards, contactMethods, headerActions };
+  const [
+    groups,
+    searchItems,
+    articles,
+    roadmap,
+    changelog,
+    suggestions,
+    entryCards,
+    contactMethods,
+    headerActions,
+    footerLinks,
+  ] = await Promise.all([
+    repo.listByCategory(),
+    repo.searchItems(),
+    repo.listArticles(),
+    repo.roadmap(),
+    repo.changelog(),
+    repo.promptSuggestions(),
+    repo.entryCards(),
+    repo.contactMethods(),
+    repo.headerActions(),
+    repo.footerLinks(),
+  ]);
+  return {
+    groups,
+    searchItems,
+    articles,
+    roadmap,
+    changelog,
+    suggestions,
+    entryCards,
+    contactMethods,
+    headerActions,
+    footerLinks,
+    footer: { ...(tenant.footer ?? DEFAULT_LEGAL_FOOTER), poweredBy: tenant.footer?.poweredBy === true },
+  };
 }
 
 /**

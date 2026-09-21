@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { AskAnswer } from "@/lib/content/types";
 import type { Locale } from "@/lib/tenant/types";
 import { getT } from "@/i18n/t";
@@ -13,15 +13,18 @@ import { SendIcon, SparkleIcon, XIcon } from "@/components/ui/icons";
  * WIDGET-CHAT (Bauphase Widget): die komplette Ask-Erfahrung in kompakt,
  * gerendert INNERHALB des Cross-Site-iframes (/widget). Besonderheiten
  * gegenüber dem Hilfezentrum:
- *  - Besucher-ID über `x-hoh-vid`-Header (Bootstrap /widget/session,
- *    partitionierter localStorage) — Third-Party-Cookies sind blockierbar.
+ *  - KEINE eigene Besucher-Kennung mehr: Die ID leitet der Server aus
+ *    Adresse + User-Agent + Periode ab (security/visitor-id.ts). Das löst
+ *    genau das Problem, für das hier früher ein Bootstrap-Aufruf und
+ *    partitionierter localStorage standen — Third-Party-Cookies sind
+ *    blockierbar, eine Ableitung ist es nicht. Nebeneffekt: Widget und
+ *    Hilfezentrum ergeben jetzt dieselbe ID, also endlich echtes Dedup
+ *    über beide Flächen.
  *  - Quellen-Links öffnen das Hilfezentrum in NEUEM Tab (target=_blank,
  *    Citation.slug), Roadmap/Changelog-Zitate werden nur gekennzeichnet.
  *  - Schließen-X + Brand-Farbe laufen per postMessage an den Loader
  *    (widget.js) im Eltern-Fenster.
  */
-
-const VID_STORAGE_KEY = "hoh:widget:vid";
 
 type View =
   | { kind: "idle" }
@@ -44,35 +47,14 @@ export function WidgetChat({
   const t = getT(locale);
   const [view, setView] = useState<View>({ kind: "idle" });
   const [input, setInput] = useState("");
-  const vidRef = useRef<string | null>(null);
-
-  // Bootstrap: signierte Besucher-ID holen/auffrischen + Loader informieren
-  // (Brand-Farbe für den Launcher-Button; erst ab jetzt ist alles gestylt).
+  // Loader informieren (Brand-Farbe für den Launcher-Knopf; erst ab jetzt
+  // ist alles gestylt). Der frühere Identitäts-Bootstrap entfällt.
   useEffect(() => {
-    void (async () => {
-      try {
-        const stored = localStorage.getItem(VID_STORAGE_KEY);
-        const res = await fetch("/api/v1/widget/session", {
-          headers: stored ? { "x-hoh-vid": stored } : {},
-        });
-        if (res.ok) {
-          const { visitorId } = (await res.json()) as { visitorId: string };
-          vidRef.current = visitorId;
-          localStorage.setItem(VID_STORAGE_KEY, visitorId);
-        }
-      } catch {
-        /* ohne ID weiter — Server vergibt dann pro Request */
-      }
-    })();
     const color = getComputedStyle(document.documentElement)
       .getPropertyValue("--brand-primary")
       .trim();
     window.parent?.postMessage({ type: "hoh:ready", color }, "*");
   }, []);
-
-  function vidHeaders(): Record<string, string> {
-    return vidRef.current ? { "x-hoh-vid": vidRef.current } : {};
-  }
 
   async function ask(question: string) {
     const q = question.trim();
@@ -82,7 +64,7 @@ export function WidgetChat({
     try {
       const res = await fetch("/api/v1/ask", {
         method: "POST",
-        headers: { "content-type": "application/json", ...vidHeaders() },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ question: q }),
       });
       if (res.ok) {
@@ -107,7 +89,7 @@ export function WidgetChat({
   function sendWidgetFeedback(helpful: boolean) {
     void fetch("/api/v1/events/feedback", {
       method: "POST",
-      headers: { "content-type": "application/json", ...vidHeaders() },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ helpful }),
       keepalive: true,
     }).catch(() => {});

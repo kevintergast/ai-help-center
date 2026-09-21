@@ -6,6 +6,7 @@ import { AUTH_BASE_PATH, buildAuth, tenantAuthOptions } from "@/server/auth/auth
 import { applyMigrations, d1FromSqlite } from "@/server/auth/sqlite-test-support";
 import { GRACE_DAYS } from "@/server/billing/plan-state";
 import { PLANS } from "@/server/billing/pricing";
+import { makeVisitorIdCodec } from "@/server/security/visitor-id";
 import { D1BillingRepository } from "@/server/billing/store";
 import { buildApiApp } from "./app";
 import type { ApiDeps } from "./context";
@@ -50,7 +51,7 @@ type Row = Record<string, unknown>;
 
 function makeFixture() {
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql", "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql", "0038_header_actions.sql", "0043_api_docs_to_header_action.sql", "0015_support_tickets.sql", "0039_comprehension_reports.sql", "0042_review_suggestion.sql", "0009_usage_billing.sql", "0011_usage_feedback_types.sql", "0016_usage_ai_source_type.sql", "0020_usage_ai_translation_type.sql", "0026_usage_ai_video_summary.sql", "0022_plan_custom_limits.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql", "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql", "0038_header_actions.sql", "0043_api_docs_to_header_action.sql", "0044_prompt_suggestions.sql", "0015_support_tickets.sql", "0039_comprehension_reports.sql", "0042_review_suggestion.sql", "0009_usage_billing.sql", "0011_usage_feedback_types.sql", "0016_usage_ai_source_type.sql", "0020_usage_ai_translation_type.sql", "0026_usage_ai_video_summary.sql", "0022_plan_custom_limits.sql"]);
   sqlite
     .prepare(
       `INSERT INTO articles (id, tenant_id, slug, title, category, status)
@@ -77,6 +78,9 @@ function makeFixture() {
     getLegalDeps: async () => null,
     getContentDeps: async () => null,
     getBillingDeps: async () => ({ repo: new D1BillingRepository(d1FromSqlite(sqlite)) }),
+    // Wie in Produktion: Ohne Codec vergibt resolveActor pro Request eine
+    // Zufalls-ID (dev ohne Secret) — Dedup wäre dann gar nicht prüfbar.
+    visitorCodec: makeVisitorIdCodec(TEST_SECRET),
   };
   return { app: buildApiApp(deps), sqlite, authDb };
 }
@@ -89,6 +93,10 @@ function postView(f: Fixture, body: unknown, cookie?: string) {
     headers: {
       host: HOST_DEMO,
       "content-type": "application/json",
+      // Herkunft = Grundlage der abgeleiteten Besucher-ID. Fest gesetzt,
+      // damit zwei Aufrufe im Test derselbe Besucher SIND.
+      "cf-connecting-ip": "203.0.113.7",
+      "user-agent": "Mozilla/5.0 (Test)",
       ...(cookie ? { cookie } : {}),
     },
     body: JSON.stringify(body),
@@ -129,17 +137,18 @@ describe("POST /api/v1/events/view (public Beacon)", () => {
     f = makeFixture();
   });
 
-  it("anonym: 204 + pseudonymes Besucher-Cookie + Event verbucht; Replay dedupliziert", async () => {
+  it("anonym: 204 OHNE Cookie + Event verbucht; Replay dedupliziert", async () => {
     const first = await postView(f, { slug: "erste-schritte" });
     expect(first.status).toBe(204);
-    const setCookie = first.headers.getSetCookie().find((c) => c.startsWith("hoh_vid="));
-    expect(setCookie).toBeTruthy();
-    expect(setCookie).toContain("HttpOnly");
+    // Es landet nichts mehr im Endgerät — das ist der Grund, warum keine
+    // Instanz für die Zählung ein Einwilligungs-Banner braucht.
+    expect(first.headers.getSetCookie().some((c) => c.startsWith("hoh_vid="))).toBe(false);
     expect(countEvents(f)).toBe(1);
 
-    // Gleicher Besucher (Cookie zurückgespielt) im Dedup-Fenster → kein 2. Event.
-    const vid = setCookie!.split(";")[0];
-    const second = await postView(f, { slug: "erste-schritte" }, vid);
+    // Derselbe Besucher (gleiche Herkunft) im Dedup-Fenster → kein 2. Event.
+    // Früher musste dafür das Cookie zurückgespielt werden; jetzt genügt,
+    // dass Adresse und Browser dieselben sind.
+    const second = await postView(f, { slug: "erste-schritte" });
     expect(second.status).toBe(204);
     expect(countEvents(f)).toBe(1);
   });

@@ -69,6 +69,21 @@ export function evaluatePlanState(input: PlanStateInput): PlanState {
   // Bezahlte Pläne: Credits über dem Kontingent sind metered Overage (aktiv);
   // nur die MAU-Obergrenze bleibt ein harter Verstoß.
   const overCredits = plan.overagePackCents === null && input.creditsUsed > plan.includedCredits;
+
+  /**
+   * MAU IST EIN HARTES LIMIT (Entscheidung 2026-09-21, bewusst beibehalten).
+   *
+   * Die Zahl wird cookiefrei abgeleitet (security/visitor-id.ts) und ist
+   * damit angreifbar: Wer allen Verkehr über einen Proxy leitet, drückt sie
+   * nach unten. Das Risiko ist bekannt und angenommen — die tatsächliche
+   * Nutzung schlägt sich ohnehin in Credits nieder, und die zählen exakt.
+   * Was hier gesperrt wird, ist die Plan-Grenze, nicht der Umsatz.
+   *
+   * Die Gegenrichtung ist die gefährlichere: Zählt die Ableitung jemanden
+   * doppelt, drängt sie ihn zu Unrecht ins Upgrade. Deshalb ist die
+   * Ableitung bewusst auf STABILITÄT getrimmt (Haupt-Version statt voller
+   * Browser-Version, /64-Präfix bei IPv6) — Begründung dort.
+   */
   const overMau = input.mauCount > plan.mauLimit;
   const isOver = overCredits || overMau;
 

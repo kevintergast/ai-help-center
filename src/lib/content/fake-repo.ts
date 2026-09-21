@@ -228,6 +228,10 @@ export const SAMPLE_HEADER_ACTIONS: ActionButton[] = [
   { id: "ha_s2", label: "Status", icon: "chart", href: "https://status.example.com", variant: "ghost" },
 ];
 
+/**
+ * NUR der Dev-Fallback ohne D1. Im Betrieb kommen die Vorschläge aus der
+ * Instanz (0044) — vorher standen diese hier auf JEDER Instanz.
+ */
 export const SAMPLE_SUGGESTIONS = [
   "Wie binde ich das Widget ein?",
   "Was passiert, wenn mein Credit-Limit erreicht ist?",
@@ -276,4 +280,8 @@ export const sampleHelpCenterRepo: HelpCenterRepository = {
   entryCards: async () => SAMPLE_ENTRY_CARDS,
   contactMethods: async () => SAMPLE_CONTACT_METHODS,
   headerActions: async () => SAMPLE_HEADER_ACTIONS,
+  // Ohne D1 gibt es keine eigenen Fuß-Links: Der Fuß zeigt dann nur die
+  // Rechtstexte. Eine erfundene Beispiel-Zeile wäre im Fuß JEDER lokalen
+  // Ansicht sichtbar und würde wie echte Pflege aussehen.
+  footerLinks: async () => [],
 };

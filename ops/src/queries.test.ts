@@ -1,7 +1,12 @@
 import BetterSqlite3 from "better-sqlite3";
 import { beforeEach, describe, expect, it } from "vitest";
 import { applyMigrations, d1FromSqlite } from "@product/server/auth/sqlite-test-support";
-import { listTenants, platformStats, tenantDetail } from "./queries";
+import {
+  listTenants,
+  platformStats,
+  SHARED_ORIGIN_EVENT_THRESHOLD,
+  tenantDetail,
+} from "./queries";
 
 /**
  * OPS-QUERIES gegen die ECHTE Migrations-DDL. Verhinderte Fehlerfälle:
@@ -134,5 +139,57 @@ describe("tenantDetail", () => {
     expect(detail!.usage30).toEqual({ views: 1, generations: 1, translations: 0 });
 
     expect(await tenantDetail(ctx.db, "t_gibtsnicht", NOW)).toBeNull();
+  });
+});
+
+/**
+ * GETEILTE HERKUNFT — das Signal, das die cookiefreie Zählung ehrlich hält.
+ *
+ * Verhinderte Fehlerfälle:
+ *  - Das Zeichen bleibt aus, obwohl hunderte Menschen hinter einer Adresse
+ *    sitzen → wir sehen eine kleine Instanz, wo eine große ist, und merken
+ *    die Unterzählung nie.
+ *  - Es schlägt bei normalen Lesern an → jede Instanz sähe verdächtig aus
+ *    und das Zeichen wäre wertlos.
+ *  - Angemeldete Nutzer werden mitgezählt → die können gar nicht
+ *    zusammenfallen (eigene Nutzer-Id), das wäre ein Fehlalarm.
+ */
+describe("Geteilte Herkunft (cookiefreie Zählung)", () => {
+  function events(
+    sqlite: BetterSqlite3.Database,
+    visitorId: string,
+    n: number,
+    actorType = "anon",
+  ) {
+    const stmt = sqlite.prepare(
+      `INSERT INTO usage_events (id, tenant_id, type, credits, actor_type, visitor_id, created_at)
+       VALUES (?, 't_a', 'article_view', 1, ?, ?, ?)`,
+    );
+    for (let i = 0; i < n; i += 1) stmt.run(`e_${visitorId}_${i}`, actorType, visitorId, NOW);
+  }
+
+  it("meldet IDs mit unplausibel hohem Aufkommen samt Anteil", async () => {
+    const { sqlite, db } = setup();
+    events(sqlite, "geteilt", SHARED_ORIGIN_EVENT_THRESHOLD + 1);
+    events(sqlite, "mensch", 3);
+
+    const row = (await listTenants(db, NOW)).find((t) => t.id === "t_a")!;
+    expect(row.sharedOriginIds).toBe(1);
+    expect(row.sharedOriginPct).toBeGreaterThan(90);
+  });
+
+  it("bleibt bei normalem Lesen still", async () => {
+    const { sqlite, db } = setup();
+    events(sqlite, "fleissig", SHARED_ORIGIN_EVENT_THRESHOLD);
+    const row = (await listTenants(db, NOW)).find((t) => t.id === "t_a")!;
+    expect(row.sharedOriginIds).toBe(0);
+    expect(row.sharedOriginPct).toBe(0);
+  });
+
+  it("zählt angemeldete Nutzer nicht mit (die fallen nie zusammen)", async () => {
+    const { sqlite, db } = setup();
+    events(sqlite, "u:kollege", SHARED_ORIGIN_EVENT_THRESHOLD + 1, "user");
+    const row = (await listTenants(db, NOW)).find((t) => t.id === "t_a")!;
+    expect(row.sharedOriginIds).toBe(0);
   });
 });

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { getCurrentTenant } from "@/lib/tenant/current";
-import { PLATFORM_FAVICON_URL, brandingToStyle, faviconUrlFor } from "@/lib/theme/brand";
+import { PLATFORM_FAVICON_URL, faviconUrlFor } from "@/lib/theme/brand";
+import { tenantThemeCss } from "@/lib/theme/css";
 import { DEFAULT_LOCALE } from "@/i18n/config";
 import { getT } from "@/i18n/t";
 import { getAppEnv } from "@/lib/env";
@@ -68,13 +69,18 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     );
   }
 
+  // Farbwelt der Instanz als <style>-Block: serverseitig gerendert → der
+  // ERSTE Paint hat bereits die Mandanten-Farben (kein FOUC, kein
+  // Client-Fetch). Der Inhalt besteht aus festen Selektoren und Werten, die
+  // `normalizeHex` passiert haben — Mandanten-Eingabe kann hier keine
+  // CSS-Struktur werden (Begründung und Kaskade in lib/theme/css.ts).
+  const themeCss = tenantThemeCss(tenant.branding, tenant.theme);
+
   return (
-    // Tenant-Branding als Inline-Style aufs <html>: serverseitig gerendert →
-    // der ERSTE Paint hat bereits die Mandanten-Farben (kein FOUC, kein
-    // Client-Fetch). Zur Dark-Mode-Interaktion siehe brandingToStyle (brand.ts).
-    <html lang={tenant.defaultLocale} style={brandingToStyle(tenant.branding)} suppressHydrationWarning>
+    <html lang={tenant.defaultLocale} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {themeCss ? <style dangerouslySetInnerHTML={{ __html: themeCss }} /> : null}
       </head>
       <body
         className="min-h-screen bg-page font-sans text-ink antialiased"

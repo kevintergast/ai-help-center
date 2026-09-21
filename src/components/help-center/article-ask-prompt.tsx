@@ -34,10 +34,6 @@ export function ArticleAskPrompt({
     <PromptBox
       expandable
       placeholder={t("hc.promptPlaceholder")}
-      modes={[
-        { id: "ask", label: t("hc.modeAsk") },
-        { id: "search", label: t("hc.modeSearch") },
-      ]}
       suggestions={suggestions}
       labels={{ send: t("hc.promptSend"), mic: t("hc.promptMic") }}
       onSubmit={submit}

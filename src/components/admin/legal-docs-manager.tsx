@@ -137,6 +137,15 @@ export function LegalDocsManager({ locale }: { locale: Locale }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="-mt-1 text-xs text-ink-muted">{t("admin.legal.intro")}</p>
+      {/* Von den dreien ist nur DIESER überall nötig: Sobald jemand die
+          Instanz aufruft, werden personenbezogene Daten verarbeitet. Das
+          „Fehlt noch"-Abzeichen allein sagt nicht, dass es hier anders wiegt
+          als beim Impressum (DACH) oder den AGB (gar keine Pflicht). */}
+      {docs.some((d) => d.docType === "privacy" && !d.present) ? (
+        <p className="text-xs text-warn" role="status">
+          {t("admin.legal.privacyMissing")}
+        </p>
+      ) : null}
       {(["imprint", "privacy", "terms"] as const).map((docType) => {
         const status = docs.find((d) => d.docType === docType);
         const present = status?.present ?? false;

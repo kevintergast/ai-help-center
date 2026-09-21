@@ -85,12 +85,14 @@ describe("Registrierung & Scope", () => {
       "set_contact_methods",
       // Kopf-Knöpfe (0038) stehen ebenfalls sofort im Kopf jeder Seite.
       "set_header_actions",
+      // Frage-Vorschläge (0044) stehen ebenfalls sofort auf der Startseite.
+      "set_prompt_suggestions",
     ]) {
       const tool = findTool(name);
       expect(tool, name).toBeDefined();
       expect(tool!.scope).toBe("updates:write");
     }
-    expect(ALL_TOOLS.filter((t) => t.scope === "updates:write")).toHaveLength(8);
+    expect(ALL_TOOLS.filter((t) => t.scope === "updates:write")).toHaveLength(9);
   });
 
   it("ein Schlüssel mit articles:write sieht sie NICHT (kein Veröffentlichen durch die Hintertür)", () => {

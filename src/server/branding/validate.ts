@@ -1,17 +1,18 @@
+import { isHexColor } from "@/lib/theme/color";
+
 /**
  * Validierung für Branding-Eingaben — bewusst von Hand (kein Zod im Projekt).
  *
- * Farben landen als CSS-Custom-Properties im Inline-Style des <html>-Tags.
+ * Farben landen als CSS-Custom-Properties im <style>-Block des Dokuments.
  * Deshalb STRIKTES Hex-Whitelisting (#rgb | #rrggbb, case-insensitive) statt
  * "irgendein CSS-Farbwert": alles andere (rgb(), Keywords, …) wird abgelehnt,
  * damit niemals CSS-Injection-Payloads wie "red;}body{…" durchrutschen.
+ *
+ * Die Prüfung selbst steht in `@/lib/theme/color` — dieselbe Funktion, die der
+ * Theme-Generator benutzt. Zwei Hex-Regexe in einem Projekt driften
+ * auseinander, und die eine, die dann lascher ist, entscheidet.
  */
-const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
-
-/** Ist der Wert eine strikte Hex-Farbe (#rgb oder #rrggbb)? */
-export function isHexColor(value: unknown): value is string {
-  return typeof value === "string" && HEX_COLOR.test(value);
-}
+export { isHexColor } from "@/lib/theme/color";
 
 /** Die drei pflegbaren Branding-Farben (Teilmenge von TenantBranding). */
 export interface BrandingColors {

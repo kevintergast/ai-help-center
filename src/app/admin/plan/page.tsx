@@ -97,6 +97,7 @@ export default async function AdminPlanPage() {
             warn={mauPct >= 100}
             className="my-4"
           />
+          <p className="-mt-2 mb-4 text-xs text-ink-muted">{t("admin.plan.mauHint")}</p>
           <div className="mt-4 flex items-center justify-between border-t border-hairline pt-4 text-sm">
             <span className="text-ink-muted">{t("admin.plan.overage")}</span>
             <span className="tabular-nums text-ink">
