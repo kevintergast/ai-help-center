@@ -16,8 +16,10 @@ import type { RateLimiterBinding } from "./rate-limit";
  *  - Limiter greift NICHT auf den teuren/mail-sendenden Pfaden (429 fehlt) →
  *    automatisierte Flutung von /ask, Beacons und Auth-Mails bliebe möglich.
  *  - Limiter gerät fälschlich vor GETTER/harmlose Auth-Pfade (Login bräche).
- *  - Gefälschte Besucher-Cookies werden als Identität akzeptiert →
- *    Dedup-Umgehung (Credits-Sabotage) + MAU-Inflation.
+ *  - Mitgeschickte Besucher-Kennungen werden als Identität akzeptiert →
+ *    Dedup-Umgehung (Credits-Sabotage) + MAU-Inflation. Seit die ID
+ *    serverseitig abgeleitet wird, darf NICHTS aus dem Request sie mehr
+ *    beeinflussen — und es darf kein Cookie mehr gesetzt werden.
  */
 
 const HOST = "demo.hallofhelp.com";
@@ -136,100 +138,84 @@ describe("IP-Rate-Limits (429 auf den richtigen Pfaden, fail-open sonst)", () =>
   });
 });
 
-describe("Signierte Besucher-IDs am Beacon", () => {
-  it("gefälschtes Cookie wird verworfen → neue signierte ID; echtes Cookie bleibt", async () => {
-    const f = makeFixture();
-
-    // Gefälschte/erfundene ID: Server stellt eine NEUE signierte ID aus.
-    const forged = await post(f, "/api/v1/events/view", { slug: "erste-schritte" }, "hoh_vid=erfunden-123");
-    expect(forged.status).toBe(204);
-    const issued = forged.headers.get("set-cookie");
-    expect(issued).toContain("hoh_vid=");
-    const value = /hoh_vid=([^;]+)/.exec(issued ?? "")?.[1] ?? "";
-    expect(await f.codec.verify("t_demo", decodeURIComponent(value))).not.toBeNull();
-
-    // Gültige (signierte) ID wird akzeptiert — kein neues Cookie nötig.
-    const valid = await post(
-      f,
-      "/api/v1/events/view",
-      { slug: "erste-schritte" },
-      `hoh_vid=${value}`,
-    );
-    expect(valid.status).toBe(204);
-    expect(valid.headers.get("set-cookie")).toBeNull();
-
-    // Request 2 lief unter DERSELBEN (der frisch vergebenen) ID wie Request 1
-    // → View-Dedup greift: genau EIN Event. Die erfundene ID selbst hat NIE
-    // eine eigene Identität erzeugt — Rotation bringt dem Angreifer nichts.
-    const events = f.sqlite.prepare(`SELECT COUNT(*) AS c FROM usage_events`).get() as {
-      c: number;
-    };
-    expect(events.c).toBe(1);
-  });
-
-  it("Feedback-Beacon verbucht mit signierter ID (0 Credits) und antwortet 204", async () => {
-    const f = makeFixture();
-    const res = await post(f, "/api/v1/events/feedback", { slug: "erste-schritte", helpful: false });
-    expect(res.status).toBe(204);
-    const row = f.sqlite
-      .prepare(`SELECT type, credits FROM usage_events WHERE tenant_id = 't_demo'`)
-      .get();
-    expect(row).toEqual({ type: "feedback_unhelpful", credits: 0 });
-  });
-});
-
-describe("Widget-Transport (x-hoh-vid-Header + /widget/session)", () => {
-  const withHeader = (
+describe("Cookiefreie Besucher-IDs am Beacon", () => {
+  /** Wie `post`, aber mit wählbarer Adresse/Browser (cf-connecting-ip). */
+  const from = (
     f: ReturnType<typeof makeFixture>,
     path: string,
     body: unknown,
-    vid: string,
+    headers: Record<string, string> = {},
   ) =>
     f.app.request(path, {
       method: "POST",
       headers: {
         host: HOST,
         "content-type": "application/json",
-        "x-hoh-vid": vid,
+        "cf-connecting-ip": "203.0.113.7",
+        "user-agent": "Mozilla/5.0 (Test)",
+        ...headers,
       },
       body: JSON.stringify(body),
     });
 
-  it("/widget/session stellt eine verifizierbare ID aus und REUSED eine gültige", async () => {
+  it("setzt KEIN Cookie mehr — und dedupliziert trotzdem", async () => {
     const f = makeFixture();
-    const first = await f.app.request("/api/v1/widget/session", { headers: { host: HOST } });
-    expect(first.status).toBe(200);
-    const { visitorId } = (await first.json()) as { visitorId: string };
-    expect(await f.codec.verify("t_demo", visitorId)).toBe(visitorId);
-    expect(first.headers.get("set-cookie")).toContain("hoh_vid=");
 
-    // Zweiter Bootstrap MIT gültigem Header: dieselbe Identität zurück
-    // (kein MAU-Inflations-Reset bei jedem Widget-Load).
-    const second = await f.app.request("/api/v1/widget/session", {
-      headers: { host: HOST, "x-hoh-vid": visitorId },
-    });
-    expect(((await second.json()) as { visitorId: string }).visitorId).toBe(visitorId);
-  });
+    const first = await from(f, "/api/v1/events/view", { slug: "erste-schritte" });
+    expect(first.status).toBe(204);
+    // Der eigentliche Zweck der Umstellung: nichts landet im Endgerät, also
+    // braucht die Instanz auch kein Einwilligungs-Banner.
+    expect(first.headers.get("set-cookie")).toBeNull();
 
-  it("gültiger Header identifiziert (Dedup greift, kein neues Cookie); gefälschter nicht", async () => {
-    const f = makeFixture();
-    const { visitorId } = (await (
-      await f.app.request("/api/v1/widget/session", { headers: { host: HOST } })
-    ).json()) as { visitorId: string };
-
-    // Zwei Views mit demselben Header = EIN Event (Dedup über die Header-Identität).
-    const v1 = await withHeader(f, "/api/v1/events/view", { slug: "erste-schritte" }, visitorId);
-    expect(v1.status).toBe(204);
-    expect(v1.headers.get("set-cookie")).toBeNull();
-    await withHeader(f, "/api/v1/events/view", { slug: "erste-schritte" }, visitorId);
-    const count = f.sqlite.prepare(`SELECT COUNT(*) AS c FROM usage_events`).get() as {
+    // Zweiter Aufruf derselben Herkunft ⇒ dieselbe abgeleitete ID ⇒ Dedup.
+    await from(f, "/api/v1/events/view", { slug: "erste-schritte" });
+    const events = f.sqlite.prepare(`SELECT COUNT(*) AS c FROM usage_events`).get() as {
       c: number;
     };
-    expect(count.c).toBe(1);
+    expect(events.c).toBe(1);
+  });
 
-    // Gefälschter Header wird ignoriert → NEUE signierte ID (Cookie gesetzt).
-    const forged = await withHeader(f, "/api/v1/events/view", { slug: "erste-schritte" }, "erfunden.abc");
-    expect(forged.status).toBe(204);
-    expect(forged.headers.get("set-cookie")).toContain("hoh_vid=");
+  it("mitgeschickte Kennungen ändern nichts (nichts mehr zu rotieren)", async () => {
+    const f = makeFixture();
+    await from(f, "/api/v1/events/view", { slug: "erste-schritte" });
+
+    // Früher erzeugte ein erfundenes Cookie bzw. ein gefälschter Header eine
+    // neue Identität (und damit eine neue MAU-Zeile). Jetzt ist die Herkunft
+    // dieselbe, also bleibt es bei EINEM Event — egal was im Request steht.
+    await from(f, "/api/v1/events/view", { slug: "erste-schritte" }, {
+      cookie: "hoh_vid=erfunden-123",
+      "x-hoh-vid": "auch-erfunden.abc",
+    });
+    const events = f.sqlite.prepare(`SELECT COUNT(*) AS c FROM usage_events`).get() as {
+      c: number;
+    };
+    expect(events.c).toBe(1);
+
+    const mau = f.sqlite.prepare(`SELECT COUNT(*) AS c FROM usage_mau`).get() as { c: number };
+    expect(mau.c).toBe(1);
+  });
+
+  it("andere Herkunft = anderer Besucher (Zählung trennt weiterhin)", async () => {
+    const f = makeFixture();
+    await from(f, "/api/v1/events/view", { slug: "erste-schritte" });
+    await from(f, "/api/v1/events/view", { slug: "erste-schritte" }, {
+      "cf-connecting-ip": "198.51.100.9",
+    });
+    const mau = f.sqlite.prepare(`SELECT COUNT(*) AS c FROM usage_mau`).get() as { c: number };
+    expect(mau.c).toBe(2);
+  });
+
+  it("Feedback-Beacon verbucht mit abgeleiteter ID (0 Credits) und antwortet 204", async () => {
+    const f = makeFixture();
+    const res = await from(f, "/api/v1/events/feedback", {
+      slug: "erste-schritte",
+      helpful: false,
+    });
+    expect(res.status).toBe(204);
+    expect(res.headers.get("set-cookie")).toBeNull();
+    const row = f.sqlite
+      .prepare(`SELECT type, credits FROM usage_events WHERE tenant_id = 't_demo'`)
+      .get();
+    expect(row).toEqual({ type: "feedback_unhelpful", credits: 0 });
   });
 });

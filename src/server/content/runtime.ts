@@ -9,6 +9,7 @@ import {
 } from "@/lib/content/fake-repo";
 import { D1BillingRepository } from "@/server/billing/store";
 import { getDbSafe } from "@/server/db/client";
+import { DEFAULT_LEGAL_FOOTER } from "@/lib/content/footer-links";
 import { D1ContentRepository } from "./store";
 
 /**
@@ -42,6 +43,7 @@ function d1HelpCenterRepo(db: D1Database, tenant: Tenant): HelpCenterRepository 
     entryCards: () => store.listEntryCards(tid),
     contactMethods: () => store.listContactMethods(tid),
     headerActions: () => store.listHeaderActions(tid),
+    footerLinks: () => store.listFooterLinks(tid),
   };
 }
 
@@ -54,19 +56,42 @@ export async function getHelpCenterRepo(tenant: Tenant): Promise<HelpCenterRepos
 /** Vorab aufgelöstes Lese-Bundle fürs (Client-)Hilfezentrum. */
 export async function getHelpCenterData(tenant: Tenant): Promise<HelpCenterData> {
   const repo = await getHelpCenterRepo(tenant);
-  const [groups, searchItems, articles, roadmap, changelog, suggestions, entryCards, contactMethods, headerActions] =
-    await Promise.all([
-      repo.listByCategory(),
-      repo.searchItems(),
-      repo.listArticles(),
-      repo.roadmap(),
-      repo.changelog(),
-      repo.promptSuggestions(),
-      repo.entryCards(),
-      repo.contactMethods(),
-      repo.headerActions(),
-    ]);
-  return { groups, searchItems, articles, roadmap, changelog, suggestions, entryCards, contactMethods, headerActions };
+  const [
+    groups,
+    searchItems,
+    articles,
+    roadmap,
+    changelog,
+    suggestions,
+    entryCards,
+    contactMethods,
+    headerActions,
+    footerLinks,
+  ] = await Promise.all([
+    repo.listByCategory(),
+    repo.searchItems(),
+    repo.listArticles(),
+    repo.roadmap(),
+    repo.changelog(),
+    repo.promptSuggestions(),
+    repo.entryCards(),
+    repo.contactMethods(),
+    repo.headerActions(),
+    repo.footerLinks(),
+  ]);
+  return {
+    groups,
+    searchItems,
+    articles,
+    roadmap,
+    changelog,
+    suggestions,
+    entryCards,
+    contactMethods,
+    headerActions,
+    footerLinks,
+    footer: { ...(tenant.footer ?? DEFAULT_LEGAL_FOOTER), poweredBy: tenant.footer?.poweredBy === true },
+  };
 }
 
 /**

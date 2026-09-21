@@ -4,6 +4,12 @@ import { MAX_ENTRY_CARDS, parseEntryCardInput } from "@/lib/content/entry-cards"
 import { MAX_CONTACT_METHODS, parseContactMethodInput } from "@/lib/content/contact-methods";
 import { MAX_ACTION_BUTTONS, parseActionButtonInput } from "@/lib/content/action-buttons";
 import { MAX_PROMPT_SUGGESTIONS, parsePromptSuggestions } from "@/lib/content/prompt-suggestions";
+import {
+  DEFAULT_LEGAL_FOOTER,
+  MAX_FOOTER_LINKS,
+  parseFooterLinkInput,
+  parseLegalFooterInput,
+} from "@/lib/content/footer-links";
 import type { ApiDeps, ApiEnv } from "./context";
 
 /**
@@ -277,6 +283,76 @@ export function promptSuggestionsAdminRouter(deps: ApiDeps) {
 
     await content.store.replacePromptSuggestions(c.get("tenant").id, res.suggestions);
     return c.json({ suggestions: await content.store.listPromptSuggestions(c.get("tenant").id) });
+  });
+
+  return r;
+}
+
+/**
+ * FUSS DES HILFEZENTRUMS pflegen (`/admin/footer`, 0046).
+ *
+ *   GET  /api/v1/admin/footer   — Schalter + eigene Links
+ *   PUT  /api/v1/admin/footer   — GANZEN Stand ersetzen
+ *
+ * EIN Endpunkt für beides, obwohl zwei Tabellen dahinterstehen: In der
+ * Oberfläche ist es EINE Karte mit EINEM Speichern-Knopf. Zwei Endpunkte
+ * hießen zwei Netzaufrufe, von denen der zweite scheitern kann — der Fuß
+ * stünde dann halb umgestellt auf jeder Seite der Instanz.
+ *
+ * GATE: `admin`, nicht `content`. Welche Rechtstexte im Fuß stehen, ist eine
+ * Entscheidung über den Auftritt der Instanz (wie SEO oder Domain), keine
+ * Inhaltspflege. Die Rechtstexte SELBST bleiben owner-exklusiv (api/legal.ts)
+ * — hier wird nur entschieden, ob der Link erscheint.
+ */
+export function footerAdminRouter(deps: ApiDeps) {
+  const r = new Hono<ApiEnv>();
+
+  r.get("/", requireTeam("admin"), async (c) => {
+    const content = await deps.getContentDeps();
+    if (!content) return c.json({ error: "content_unavailable" }, 503);
+    const tenant = c.get("tenant");
+    return c.json({
+      legal: tenant.footer ?? DEFAULT_LEGAL_FOOTER,
+      poweredBy: tenant.footer?.poweredBy === true,
+      links: await content.store.listFooterLinks(tenant.id),
+      max: MAX_FOOTER_LINKS,
+    });
+  });
+
+  r.put("/", requireTeam("admin"), async (c) => {
+    const parsed = await readJson(c);
+    if (!parsed.ok) return c.json({ error: "invalid_json" }, 400);
+
+    const body = parsed.body as { legal?: unknown; poweredBy?: unknown; links?: unknown };
+    if (!Array.isArray(body.links)) return c.json({ error: "links_required" }, 400);
+    if (body.links.length > MAX_FOOTER_LINKS) {
+      return c.json({ error: "too_many_links", max: MAX_FOOTER_LINKS }, 409);
+    }
+
+    // ALLE prüfen, bevor irgendetwas geschrieben wird.
+    const links = [];
+    for (let i = 0; i < body.links.length; i += 1) {
+      const l = parseFooterLinkInput(body.links[i]);
+      if (!l.ok) return c.json({ error: l.error, index: i }, 400);
+      links.push(l.link);
+    }
+
+    const legal = parseLegalFooterInput(body.legal);
+    const poweredBy = body.poweredBy === true;
+
+    const content = await deps.getContentDeps();
+    const settings = await deps.getSettingsDeps?.();
+    if (!content || !settings) return c.json({ error: "content_unavailable" }, 503);
+
+    const tenantId = c.get("tenant").id;
+    await settings.setFooterFlags(tenantId, { ...legal, poweredBy });
+    await content.store.replaceFooterLinks(tenantId, links);
+
+    return c.json({
+      legal,
+      poweredBy,
+      links: await content.store.listFooterLinks(tenantId),
+    });
   });
 
   return r;

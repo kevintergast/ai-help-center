@@ -230,7 +230,21 @@ app.get("/", async (c) => {
                 {nf.format(t.creditsUsed)}{" "}
                 <span class="muted">/ {nf.format(t.state.plan.includedCredits)}</span>
               </td>
-              <td class="num">{nf.format(t.mau)}</td>
+              <td class="num">
+                {nf.format(t.mau)}
+                {/* Geteilte Herkunft: Die Zahl ist dann eine Untergrenze —
+                    ohne Zeichen sähe hier eine kleine Instanz aus, wo eine
+                    große sitzt. */}
+                {t.sharedOriginIds > 0 ? (
+                  <span
+                    class="muted"
+                    title={`${t.sharedOriginIds} ID(s) mit unplausibel hohem Aufkommen — vermutlich viele Menschen hinter einer Adresse. ${t.sharedOriginPct}% der anonymen Aufrufe.`}
+                  >
+                    {" "}
+                    ⚠
+                  </span>
+                ) : null}
+              </td>
               <td class="num">{t.overageCents > 0 ? eur.format(t.overageCents / 100) : "—"}</td>
               <td class="num">{nf.format(t.publishedArticles)}</td>
               <td class="num">{t.openTickets > 0 ? nf.format(t.openTickets) : "—"}</td>
@@ -355,6 +369,18 @@ app.get("/t/:id", async (c) => {
             <dt>MAU (Monat)</dt>
             <dd>
               {nf.format(row.mau)} / {nf.format(row.state.plan.mauLimit)}
+            </dd>
+            <dt>Geteilte Herkunft</dt>
+            <dd>
+              {row.sharedOriginIds > 0 ? (
+                <>
+                  {nf.format(row.sharedOriginIds)} auffällige ID(s) ·{" "}
+                  {row.sharedOriginPct}% der anonymen Aufrufe —{" "}
+                  <span class="muted">MAU ist hier eine Untergrenze</span>
+                </>
+              ) : (
+                <span class="muted">unauffällig</span>
+              )}
             </dd>
             <dt>Overage (Berechnung)</dt>
             <dd>{row.overageCents > 0 ? eur.format(row.overageCents / 100) : "—"}</dd>

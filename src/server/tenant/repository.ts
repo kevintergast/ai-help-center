@@ -26,13 +26,18 @@ interface TenantRow {
   widget_icon_r2_key: string | null;
   widget_icon_open_r2_key: string | null;
   theme: string | null;
+  footer_imprint: number;
+  footer_privacy: number;
+  footer_terms: number;
+  footer_powered_by: number;
 }
 
 const COLS =
   "id, slug, name, custom_domain, default_locale, logo_url, logo_r2_key, logo_dark_r2_key, " +
   "favicon_r2_key, branding_updated_at, color_primary, color_accent, color_primary_fg, seo_indexable, support_email, show_header_name, " +
   "widget_on_site, comprehension_mode, widget_variant, widget_label, " +
-  "widget_icon_r2_key, widget_icon_open_r2_key, theme";
+  "widget_icon_r2_key, widget_icon_open_r2_key, theme, " +
+  "footer_imprint, footer_privacy, footer_terms, footer_powered_by";
 
 /**
  * `branding.logoUrl` ist ABGELEITET (Priorität dokumentiert in 0003_branding.sql):
@@ -109,6 +114,15 @@ export function rowToTenant(r: TenantRow): Tenant {
     // eines Fehlers: eine kaputte Zeile darf das Hilfezentrum nicht
     // abschalten — dann gilt eben das Standard-Theme.
     theme: readThemeConfig(r.theme),
+    // Fuß (0046): welche Rechtstexte dort stehen. Fehlender Wert (Altbestand
+    // ohne Spalte) = AN, wie der Spalten-Default — sonst verschwänden nach
+    // einem Update stillschweigend Pflichtlinks.
+    footer: {
+      imprint: r.footer_imprint !== 0,
+      privacy: r.footer_privacy !== 0,
+      terms: r.footer_terms !== 0,
+      poweredBy: r.footer_powered_by === 1,
+    },
   };
 }
 
@@ -176,6 +190,30 @@ export class D1TenantRepository {
     await this.db
       .prepare(`UPDATE tenants SET comprehension_mode = ? WHERE id = ?`)
       .bind(on ? 1 : 0, tenantId)
+      .run();
+  }
+
+  /**
+   * Fuß-Schalter setzen (0046). EIN Aufruf für alle vier: Sie werden in einer
+   * Karte gemeinsam gespeichert, und ein Zwischenzustand wäre auf jeder Seite
+   * sofort sichtbar.
+   */
+  async setFooterFlags(
+    tenantId: string,
+    flags: { imprint: boolean; privacy: boolean; terms: boolean; poweredBy: boolean },
+  ): Promise<void> {
+    await this.db
+      .prepare(
+        `UPDATE tenants SET footer_imprint = ?, footer_privacy = ?, footer_terms = ?,
+                            footer_powered_by = ? WHERE id = ?`,
+      )
+      .bind(
+        flags.imprint ? 1 : 0,
+        flags.privacy ? 1 : 0,
+        flags.terms ? 1 : 0,
+        flags.poweredBy ? 1 : 0,
+        tenantId,
+      )
       .run();
   }
 

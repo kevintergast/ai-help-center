@@ -280,4 +280,8 @@ export const sampleHelpCenterRepo: HelpCenterRepository = {
   entryCards: async () => SAMPLE_ENTRY_CARDS,
   contactMethods: async () => SAMPLE_CONTACT_METHODS,
   headerActions: async () => SAMPLE_HEADER_ACTIONS,
+  // Ohne D1 gibt es keine eigenen Fuß-Links: Der Fuß zeigt dann nur die
+  // Rechtstexte. Eine erfundene Beispiel-Zeile wäre im Fuß JEDER lokalen
+  // Ansicht sichtbar und würde wie echte Pflege aussehen.
+  footerLinks: async () => [],
 };

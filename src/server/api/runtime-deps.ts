@@ -529,6 +529,7 @@ async function getSettingsDepsRuntime(): Promise<SettingsDeps | null> {
     setWidgetAppearance: (tenantId, variant, label) =>
       repo.setWidgetAppearance(tenantId, variant, label),
     setTheme: (tenantId, config) => repo.setTheme(tenantId, config),
+    setFooterFlags: (tenantId, flags) => repo.setFooterFlags(tenantId, flags),
   };
 }
 
@@ -598,18 +599,12 @@ async function visitorSecret(): Promise<string | null> {
 /**
  * Besucher-ID-Codec, lazy an AUTH_SECRET gebunden (String ODER Secrets-Store,
  * wie bei createAuth). Ohne Secret (dev ohne Bindings — dort gibt es kein
- * Billing) fallen die IDs auf unsignierte UUIDs zurück, identisch zur
- * codec-losen Semantik in events.ts.
+ * Billing) eine Zufalls-ID, identisch zur codec-losen Semantik in events.ts.
  */
 const visitorCodecRuntime: VisitorIdCodec = {
-  async issue(tenantId: string): Promise<string> {
+  async derive(input): Promise<string> {
     const secret = await visitorSecret();
-    return secret ? makeVisitorIdCodec(secret).issue(tenantId) : crypto.randomUUID();
-  },
-  async verify(tenantId: string, value: string): Promise<string | null> {
-    const secret = await visitorSecret();
-    if (secret) return makeVisitorIdCodec(secret).verify(tenantId, value);
-    return /^[0-9a-f-]{36}$/.test(value) ? value : null;
+    return secret ? makeVisitorIdCodec(secret).derive(input) : crypto.randomUUID();
   },
 };
 

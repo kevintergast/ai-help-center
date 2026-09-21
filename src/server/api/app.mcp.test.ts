@@ -121,6 +121,7 @@ function makeApp() {
       setWidgetOnSite: async () => {},
       setComprehensionMode: async () => {},
       setWidgetAppearance: async () => {},
+      setFooterFlags: async () => {},
       // Schreibt dorthin, wo die NÄCHSTE Anfrage liest: In Produktion löst
       // jeder Request den Tenant neu aus D1 auf, hier steht er im Objekt.
       setTheme: async (tenantId, config) => {

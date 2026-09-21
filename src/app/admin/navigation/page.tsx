@@ -8,6 +8,7 @@ import { EntryCardsManager } from "@/components/admin/entry-cards-manager";
 import { ContactMethodsManager } from "@/components/admin/contact-methods-manager";
 import { HeaderActionsManager } from "@/components/admin/header-actions-manager";
 import { PromptSuggestionsManager } from "@/components/admin/prompt-suggestions-manager";
+import { FooterManager } from "@/components/admin/footer-manager";
 
 /**
  * NAVIGATION & EINSTIEG — Reihenfolge der linken Leiste (0034) und die Karten
@@ -61,6 +62,15 @@ export default async function AdminNavigationPage() {
         <Card>
           <h2 className="mb-3 text-base font-semibold">{t("admin.contact.title")}</h2>
           <ContactMethodsManager locale={tenant.defaultLocale} />
+        </Card>
+
+        {/* Der Fuß gehört zur Navigation, nicht zu den Einstellungen: Er ist
+            eine Wegweiser-Zeile wie die Knöpfe im Kopf. Die Rechtstexte
+            SELBST (Inhalt) bleiben unter Einstellungen — hier steht nur, ob
+            ihr Link erscheint. */}
+        <Card>
+          <h2 className="mb-3 text-base font-semibold">{t("admin.footer.title")}</h2>
+          <FooterManager locale={tenant.defaultLocale} />
         </Card>
       </div>
     </div>

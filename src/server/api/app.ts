@@ -31,6 +31,7 @@ import { updatesAdminRouter } from "./updates";
 import {
   contactMethodsAdminRouter,
   entryCardsAdminRouter,
+  footerAdminRouter,
   headerActionsAdminRouter,
   promptSuggestionsAdminRouter,
 } from "./entry-cards";
@@ -289,6 +290,7 @@ export function buildApiApp(deps: ApiDeps) {
   app.route("/admin/entry-cards", entryCardsAdminRouter(deps));
   app.route("/admin/contact-methods", contactMethodsAdminRouter(deps));
   app.route("/admin/header-actions", headerActionsAdminRouter(deps));
+  app.route("/admin/footer", footerAdminRouter(deps));
   app.route("/admin/prompt-suggestions", promptSuggestionsAdminRouter(deps));
 
   // Legal-Docs pro Instanz (Design h): owner-exklusive Pflege + admin-Lesen +

@@ -67,14 +67,17 @@ const OK: AskOutcome = {
 };
 
 describe("POST /api/v1/ask", () => {
-  it("public + anonym: 200 mit AskAnswer-Shape, Frage normalisiert, Besucher-Cookie gesetzt", async () => {
+  it("public + anonym: 200 mit AskAnswer-Shape, Frage normalisiert, OHNE Besucher-Cookie", async () => {
     const { app, askCalls } = makeApp(OK);
     const res = await post(app, { question: "  Wie   lade ich mein Team ein?  " });
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ grounded: true, citations: [{ id: "a1" }] });
     expect(askCalls[0].question).toBe("Wie lade ich mein Team ein?");
     expect(askCalls[0].actor.actorType).toBe("anon");
-    expect(res.headers.getSetCookie().some((c) => c.startsWith("hoh_vid="))).toBe(true);
+    // Die Besucher-ID wird serverseitig abgeleitet (security/visitor-id.ts) —
+    // /ask darf nichts mehr im Endgerät ablegen, sonst wäre die Instanz
+    // wieder einwilligungspflichtig.
+    expect(res.headers.getSetCookie().some((c) => c.startsWith("hoh_vid="))).toBe(false);
   });
 
   it("Validierung: fehlend/zu kurz/zu lang/kein JSON → 400, Pipeline wird NIE berührt", async () => {

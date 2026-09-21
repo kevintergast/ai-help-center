@@ -205,6 +205,11 @@ export interface SettingsDeps {
   setWidgetAppearance(tenantId: string, variant: string, label: string | null): Promise<void>;
   /** Eigene Farbwelt (0045); `null` entfernt sie wieder. */
   setTheme(tenantId: string, config: ThemeConfig | null): Promise<void>;
+  /** Schalter im Fuß (0046): Rechtstext-Links + „Powered by". */
+  setFooterFlags(
+    tenantId: string,
+    flags: { imprint: boolean; privacy: boolean; terms: boolean; poweredBy: boolean },
+  ): Promise<void>;
 }
 
 export interface AskRuntime {

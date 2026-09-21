@@ -70,6 +70,18 @@ export interface Tenant {
    * nicht als Inline-Style — ein Inline-Style kennt keine Modi.
    */
   theme?: ThemeConfig | null;
+  /**
+   * Fuß des Hilfezentrums (0046): welche der drei vorkonfigurierten
+   * Rechtstexte dort stehen — plus der „Powered by"-Hinweis. FEHLEND =
+   * alle drei Rechtstexte an, Hinweis aus (Registry-Fallback ohne
+   * CF-Kontext und ältere Fixtures bleiben damit gültig).
+   */
+  footer?: {
+    imprint: boolean;
+    privacy: boolean;
+    terms: boolean;
+    poweredBy: boolean;
+  };
   /** Erscheinungsbild des Widgets (0041). */
   widget?: {
     variant: ActionVariant;

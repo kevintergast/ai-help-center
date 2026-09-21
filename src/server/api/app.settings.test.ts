@@ -34,7 +34,7 @@ type Row = Record<string, unknown>;
 function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
   const { settingsAvailable = true } = opts;
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql", "0045_theme_palette.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql", "0045_theme_palette.sql", "0046_footer.sql"]);
   const repo = new D1TenantRepository(d1FromSqlite(sqlite));
 
   const authDb: Record<string, Row[]> = {
@@ -68,6 +68,7 @@ function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
             setWidgetAppearance: (tenantId, variant, label) =>
               repo.setWidgetAppearance(tenantId, variant, label),
             setTheme: (tenantId, config) => repo.setTheme(tenantId, config),
+            setFooterFlags: (tenantId, flags) => repo.setFooterFlags(tenantId, flags),
           }
         : null,
   };
