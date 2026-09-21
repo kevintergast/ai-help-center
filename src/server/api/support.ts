@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { requireTeam } from "@/server/auth/guards";
 import type { TicketStatus } from "@/server/support/store";
 import type { ApiDeps, ApiEnv } from "./context";
-import { applyVisitorCookie, resolveActor } from "./events";
+import { resolveActor } from "./events";
 import { allowRequest, clientIp, rateLimited } from "./rate-limit";
 import { parseComprehensionInput } from "@/lib/content/comprehension";
 
@@ -67,7 +67,6 @@ export function supportPublicRouter(deps: ApiDeps) {
     if (!support) return c.json({ error: "support_unavailable" }, 503);
 
     const actor = await resolveActor(c, deps.visitorCodec);
-    applyVisitorCookie(c, actor);
 
     await support.repo.create({
       tenantId: tenant.id,
@@ -144,7 +143,6 @@ export function supportPublicRouter(deps: ApiDeps) {
     if (!support) return c.json({ error: "support_unavailable" }, 503);
 
     const actor = await resolveActor(c, deps.visitorCodec);
-    applyVisitorCookie(c, actor);
 
     const tenant = c.get("tenant");
     await support.repo.create({

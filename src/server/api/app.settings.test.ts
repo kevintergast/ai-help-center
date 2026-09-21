@@ -5,6 +5,7 @@ import type { Tenant } from "@/lib/tenant/types";
 import { AUTH_BASE_PATH, buildAuth, tenantAuthOptions } from "@/server/auth/auth";
 import { applyMigrations, d1FromSqlite } from "@/server/auth/sqlite-test-support";
 import { D1TenantRepository } from "@/server/tenant/repository";
+import { generateTheme } from "@/lib/theme/generate";
 import { buildApiApp } from "./app";
 import type { ApiDeps } from "./context";
 
@@ -33,7 +34,7 @@ type Row = Record<string, unknown>;
 function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
   const { settingsAvailable = true } = opts;
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql", "0045_theme_palette.sql", "0046_footer.sql"]);
   const repo = new D1TenantRepository(d1FromSqlite(sqlite));
 
   const authDb: Record<string, Row[]> = {
@@ -66,6 +67,8 @@ function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
             setComprehensionMode: (tenantId, on) => repo.setComprehensionMode(tenantId, on),
             setWidgetAppearance: (tenantId, variant, label) =>
               repo.setWidgetAppearance(tenantId, variant, label),
+            setTheme: (tenantId, config) => repo.setTheme(tenantId, config),
+            setFooterFlags: (tenantId, flags) => repo.setFooterFlags(tenantId, flags),
           }
         : null,
   };
@@ -331,3 +334,113 @@ describe("PUT /api/v1/admin/settings/widget-on-site (0028)", () => {
  *  - Leeres Feld entfernt den Link NICHT → die Zeile bliebe für immer stehen.
  *  - Rollen-Gate fehlt → jeder Redakteur könnte die Navigation umbiegen.
  */
+
+/**
+ * EIGENE FARBWELT (0045, Theme-Generator). Verhinderte Fehlerfälle:
+ *  - Ein Wert, der kein Hex ist, landet in der Datenbank und von dort in den
+ *    <style>-Block JEDES Besuchers — das wäre CSS-Injection auf der
+ *    Kundeninstanz. Die Route muss VOR dem Schreiben ablehnen.
+ *  - Eine halb geschriebene Farbwelt (nur `light`, nur ein paar Tokens) wird
+ *    angenommen; im Hilfezentrum steht dann ein gemischter Satz.
+ *  - Der Redakteur darf das Erscheinungsbild der Instanz umstellen.
+ *  - Die Farbwelt wird gespeichert, aber die drei Marken-Spalten laufen
+ *    auseinander → Widget und Mails zeigen eine andere Marke als das
+ *    Hilfezentrum.
+ */
+const putTheme = (f: Fixture, body: unknown, cookie?: string) =>
+  f.app.request("/api/v1/admin/settings/theme", {
+    method: "PUT",
+    headers: {
+      host: HOST_DEMO,
+      "content-type": "application/json",
+      ...(cookie ? { cookie } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+const deleteTheme = (f: Fixture, cookie?: string) =>
+  f.app.request("/api/v1/admin/settings/theme", {
+    method: "DELETE",
+    headers: { host: HOST_DEMO, ...(cookie ? { cookie } : {}) },
+  });
+
+describe("PUT/DELETE /api/v1/admin/settings/theme (0045)", () => {
+  let f: Fixture;
+  const anchors = { brand: "#e11d48", accent: "#f59e0b", neutral: "warm", surface: "tinted" };
+  const generated = generateTheme(anchors as never);
+  const body = { anchors, light: generated.light, dark: generated.dark };
+
+  beforeEach(() => {
+    f = makeFixture();
+  });
+
+  it("ohne eigene Farbwelt ist theme null", async () => {
+    expect((await f.repo.getBySlug("demo"))?.theme ?? null).toBeNull();
+  });
+
+  it("admin: speichert beide Modi getrennt und liest sie zurück", async () => {
+    const admin = await session(f, "admin-t@example.com", "admin");
+    expect((await putTheme(f, body, admin)).status).toBe(200);
+
+    const theme = (await f.repo.getBySlug("demo"))?.theme;
+    expect(theme?.light.page).toBe(generated.light.page);
+    expect(theme?.dark.page).toBe(generated.dark.page);
+    expect(theme?.light.page).not.toBe(theme?.dark.page);
+    expect(theme?.anchors.neutral).toBe("warm");
+  });
+
+  it("zieht die drei Marken-Spalten mit, damit Widget und Mails nicht abweichen", async () => {
+    const admin = await session(f, "admin-t2@example.com", "admin");
+    await putTheme(f, body, admin);
+    const tenant = await f.repo.getBySlug("demo");
+    expect(tenant?.branding.colorPrimary).toBe(generated.light["brand-primary"]);
+    expect(tenant?.branding.colorAccent).toBe(generated.light["brand-accent"]);
+    expect(tenant?.branding.colorPrimaryFg).toBe(generated.light["brand-primary-fg"]);
+  });
+
+  it("lehnt einen Nicht-Hex-Wert ab, ohne irgendetwas zu schreiben", async () => {
+    const admin = await session(f, "admin-t3@example.com", "admin");
+    const res = await putTheme(
+      f,
+      { ...body, light: { ...generated.light, ink: "red;}body{display:none" } },
+      admin,
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: "invalid_color", token: "ink" });
+    expect((await f.repo.getBySlug("demo"))?.theme ?? null).toBeNull();
+  });
+
+  it("lehnt eine unvollständige Farbwelt ab", async () => {
+    const admin = await session(f, "admin-t4@example.com", "admin");
+    const { page: _drop, ...light } = generated.light;
+    expect((await putTheme(f, { ...body, light }, admin)).status).toBe(400);
+    expect((await putTheme(f, { anchors, light: generated.light }, admin)).status).toBe(400);
+    expect((await putTheme(f, { ...body, anchors: { ...anchors, neutral: "pink" } }, admin)).status).toBe(400);
+  });
+
+  it("user → 403, anonym → 401", async () => {
+    const user = await session(f, "user-t@example.com", "user");
+    expect((await putTheme(f, body, user)).status).toBe(403);
+    expect((await putTheme(f, body)).status).toBe(401);
+    expect((await deleteTheme(f)).status).toBe(401);
+  });
+
+  it("DELETE entfernt die Farbwelt, lässt die Marken-Farben aber stehen", async () => {
+    const admin = await session(f, "admin-t5@example.com", "admin");
+    await putTheme(f, body, admin);
+    expect((await deleteTheme(f, admin)).status).toBe(200);
+
+    const tenant = await f.repo.getBySlug("demo");
+    expect(tenant?.theme ?? null).toBeNull();
+    // Sie sind jetzt wieder der Rückfall — sie zu löschen hieße, die Instanz
+    // auf unsere Demo-Farben zurückzusetzen.
+    expect(tenant?.branding.colorPrimary).toBe(generated.light["brand-primary"]);
+  });
+
+  it("ohne Settings-Bindings → 503 (kein stiller Erfolg)", async () => {
+    const noDeps = makeFixture({ settingsAvailable: false });
+    const admin = await session(noDeps, "admin-t6@example.com", "admin");
+    expect((await putTheme(noDeps, body, admin)).status).toBe(503);
+    expect((await deleteTheme(noDeps, admin)).status).toBe(503);
+  });
+});

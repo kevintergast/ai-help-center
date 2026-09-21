@@ -375,10 +375,6 @@ export type StatusKey = keyof typeof statusMap;
 
 export const promptDemo = {
   placeholder: "Frag die KI etwas — oder beschreib dein Problem …",
-  modes: [
-    { id: "ask", label: "Fragen" },
-    { id: "search", label: "Suchen" },
-  ],
   suggestions: [
     "Wie binde ich das Widget ein?",
     "Rechnung stornieren",

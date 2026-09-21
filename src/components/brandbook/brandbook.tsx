@@ -450,7 +450,6 @@ export function Brandbook() {
         <Band section={c.sections.prompt}>
           <PromptBox
             placeholder={c.promptDemo.placeholder}
-            modes={c.promptDemo.modes}
             suggestions={c.promptDemo.suggestions}
             labels={{ send: c.promptDemo.send, mic: c.promptDemo.mic }}
             onSubmit={() => showToast(c.promptDemo.sentToast)}

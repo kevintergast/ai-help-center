@@ -1,0 +1,14 @@
+-- Eigene Farbwelt je Instanz (Theme-Generator).
+--
+-- EINE Spalte statt 48: Die Farbwelt wird immer als Ganzes gelesen und als
+-- Ganzes geschrieben — dasselbe Ersetze-den-Satz-Muster wie bei Einstiegs-
+-- karten, Kontaktwegen und Kopfzeilen-Knöpfen. Einzelne Spalten je Token
+-- würden bei jedem neuen Token eine Migration erzwingen.
+--
+-- Inhalt: {"v":1,"anchors":{…},"light":{…},"dark":{…}} — Format und
+-- Toleranz beim Lesen in src/lib/theme/palette.ts. NULL heißt „keine eigene
+-- Farbwelt": dann gilt das Standard-Theme aus globals.css, überschrieben von
+-- den drei Marken-Farben (color_primary/-accent/-primary_fg). Die drei
+-- Spalten bleiben bestehen: sie sind weiterhin die Marken-Identität der
+-- Instanz (Widget, Mails) und die Startwerte des Generators.
+ALTER TABLE tenants ADD COLUMN theme TEXT;

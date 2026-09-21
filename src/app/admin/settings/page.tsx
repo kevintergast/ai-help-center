@@ -49,6 +49,7 @@ export default async function AdminSettingsPage() {
             logoDarkUrl={b.logoDarkUrl ?? null}
             faviconUrl={b.faviconUrl ?? null}
             initialShowName={tenant.showHeaderName ?? true}
+            themeActive={tenant.theme != null}
           />
         </SettingsCard>
 

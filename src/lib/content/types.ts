@@ -2,6 +2,7 @@ import type { ArticleBlock, ArticleFlag } from "./blocks";
 import type { EntryCard } from "./entry-cards";
 import type { ContactMethod } from "./contact-methods";
 import type { ActionButton } from "./action-buttons";
+import type { FooterLink, LegalFooterVisibility } from "./footer-links";
 import type { ArticleIcon } from "./article-icons";
 
 /**
@@ -198,6 +199,8 @@ export interface HelpCenterRepository {
   contactMethods(): Promise<ContactMethod[]>;
   /** Aktions-Knöpfe im Kopf (0038). */
   headerActions(): Promise<ActionButton[]>;
+  /** Eigene Links im Fuß (0046); die Rechtstexte kommen aus dem Tenant. */
+  footerLinks(): Promise<FooterLink[]>;
 }
 
 /**
@@ -217,4 +220,12 @@ export interface HelpCenterData {
   entryCards: EntryCard[];
   contactMethods: ContactMethod[];
   headerActions: ActionButton[];
+  footerLinks: FooterLink[];
+  /**
+   * Fuß-Einstellungen der Instanz (0046). Sie stehen HIER im Lese-Bundle und
+   * nicht als eigene Prop, weil alle drei Ansichten (Start, Artikel, Kontakt)
+   * dieselbe Hülle rendern — als Prop müsste derselbe Wert durch drei
+   * Komponenten und vier Seiten gereicht werden, nur um unten anzukommen.
+   */
+  footer: LegalFooterVisibility & { poweredBy: boolean };
 }

@@ -1,6 +1,6 @@
 import { Hono, type Context } from "hono";
-import { getCookie, setCookie } from "hono/cookie";
 import type { UsageActorType } from "@/server/billing/store";
+import { periodOf } from "@/server/billing/pricing";
 import type { VisitorIdCodec } from "@/server/security/visitor-id";
 import type { ApiDeps, ApiEnv, GuardSessionData } from "./context";
 import { allowRequest, clientIp, rateLimited } from "./rate-limit";
@@ -16,15 +16,15 @@ import { allowRequest, clientIp, rateLimited } from "./rate-limit";
  * Ingestion fail-open zu sein ist hier korrekt: es gibt nichts zu schützen,
  * nur zu zählen (im Gegensatz zu Auth/Turnstile, die fail-closed sind).
  *
- * BESUCHER-IDENTITÄT: pseudonymes First-Party-Cookie `hoh_vid` (httpOnly,
- * SameSite=Lax, 13 Monate) — Basis für View-Dedup + MAU. Eingeloggte Nutzer
- * werden über die Session identifiziert (`u:<user_id>`, geräteübergreifend
- * stabil); Team-Rollen zählen als `internal` (0 Credits, kein MAU, im Admin
+ * BESUCHER-IDENTITÄT: OHNE COOKIE. Die pseudonyme ID wird pro Request
+ * serverseitig aus Adresse + User-Agent + Periode abgeleitet (siehe
+ * security/visitor-id.ts) — es wird nichts im Endgerät abgelegt und nichts
+ * davon gespeichert, nur der Hash. Damit braucht keine Instanz ein
+ * Einwilligungs-Banner für die Zählung. Eingeloggte Nutzer werden weiterhin
+ * über die Session identifiziert (`u:<user_id>`, geräteübergreifend stabil);
+ * Team-Rollen zählen als `internal` (0 Credits, kein MAU, im Admin
  * ausblendbar — Architektur-Entscheidung).
  */
-
-const VISITOR_COOKIE = "hoh_vid";
-const VISITOR_COOKIE_MAX_AGE_SEC = 395 * 24 * 60 * 60; // 13 Monate (ePrivacy-üblich)
 
 /** Rollen, deren Aufrufe als interne (Team-)Nutzung gelten. */
 const TEAM_ROLES = new Set(["content", "admin", "owner"]);
@@ -33,8 +33,6 @@ export interface ResolvedActor {
   actorType: UsageActorType;
   visitorId: string;
   userId: string | null;
-  /** Cookie neu gesetzt? (nur für anonyme Erstbesucher) */
-  setVisitorCookie: string | null;
 }
 
 /**
@@ -43,21 +41,13 @@ export interface ResolvedActor {
  * Cookie mitkommt (anonyme Mehrheit zahlt keinen Auth-Roundtrip). Fehler beim
  * Lookup ⇒ anonym (für Analytics unkritisch, es hängt kein Privileg daran).
  *
- * ABUSE-HÄRTUNG: Mit Codec sind Besucher-IDs HMAC-SIGNIERT (per Tenant).
- * Erfundene/rotierte/fremde Cookies verifizieren nicht → gelten als neuer
- * Besucher und bekommen eine frisch SIGNIERTE ID. Massen-Rotation läuft damit
- * zwingend durch die rate-limitierten Endpunkte statt durch Cookie-Fantasie
- * (MAU-/Dedup-Integrität, siehe security/visitor-id.ts).
- *
- * WIDGET-TRANSPORT (`x-hoh-vid`-Header): Im Cross-Site-iframe des Widgets
- * blocken Safari & Co. Third-Party-Cookies — das Widget hält seine (vom
- * Bootstrap-Endpoint ausgestellte, SIGNIERTE) ID deshalb im partitionierten
- * localStorage und sendet sie als Header. NUR mit gültiger Signatur
- * akzeptiert (gefälschte Header zählen wie gefälschte Cookies: neue ID);
- * ohne Codec (dev ohne Secret) wird der Header ignoriert.
+ * ABUSE-SEITE: Die ID ist nicht mehr mitgeschickt, sondern ABGELEITET — es
+ * gibt also nichts mehr zu fälschen oder zu rotieren. Wer seine Zählung
+ * zurücksetzen will, muss die Adresse wechseln; wer fremde MAU aufblähen
+ * will, braucht viele Adressen UND muss am Rate-Limit der Event-Endpunkte
+ * vorbei. Das frühere Cookie ließ sich dagegen bei jedem Request neu
+ * erfinden (deshalb war es signiert).
  */
-export const VISITOR_HEADER = "x-hoh-vid";
-
 export async function resolveActor(
   c: Context<ApiEnv>,
   codec?: VisitorIdCodec,
@@ -76,7 +66,6 @@ export async function resolveActor(
           actorType: TEAM_ROLES.has(role) ? "internal" : "user",
           visitorId: `u:${userId}`,
           userId,
-          setVisitorCookie: null,
         };
       }
     } catch {
@@ -84,44 +73,27 @@ export async function resolveActor(
     }
   }
 
+  // Anonym: ID ableiten. Ohne Codec (dev ohne Secret) eine Zufalls-ID — dort
+  // gibt es kein Billing, und eine feste Kennung wäre irreführender als eine
+  // sichtbar wegwerfbare.
   const tenantId = c.get("tenant").id;
-
-  // 1) Header-Transport (Widget) — nur signiert gültig, sonst ignoriert.
-  const fromHeader = c.req.header(VISITOR_HEADER);
-  if (fromHeader && codec) {
-    const valid = await codec.verify(tenantId, fromHeader);
-    if (valid) {
-      return { actorType: "anon", visitorId: valid, userId: null, setVisitorCookie: null };
-    }
+  if (!codec) {
+    return { actorType: "anon", visitorId: crypto.randomUUID(), userId: null };
   }
-
-  // 2) First-Party-Cookie (Hilfezentrum selbst).
-  const existing = getCookie(c, VISITOR_COOKIE);
-  if (existing) {
-    if (codec) {
-      const valid = await codec.verify(tenantId, existing);
-      if (valid) {
-        return { actorType: "anon", visitorId: valid, userId: null, setVisitorCookie: null };
-      }
-      // ungültig/gefälscht → unten frisch (signiert) vergeben
-    } else if (/^[0-9a-f-]{36}$/.test(existing)) {
-      return { actorType: "anon", visitorId: existing, userId: null, setVisitorCookie: null };
-    }
-  }
-  const fresh = codec ? await codec.issue(tenantId) : crypto.randomUUID();
-  return { actorType: "anon", visitorId: fresh, userId: null, setVisitorCookie: fresh };
-}
-
-/** Frisch vergebene anonyme Besucher-ID als Cookie setzen (geteilt mit /ask). */
-export function applyVisitorCookie(c: Context<ApiEnv>, actor: ResolvedActor): void {
-  if (!actor.setVisitorCookie) return;
-  setCookie(c, VISITOR_COOKIE, actor.setVisitorCookie, {
-    httpOnly: true,
-    sameSite: "Lax",
-    path: "/",
-    maxAge: VISITOR_COOKIE_MAX_AGE_SEC,
-    secure: new URL(c.req.url).protocol === "https:",
+  const visitorId = await codec.derive({
+    tenantId,
+    period: periodOf(Date.now()),
+    // Nur was der Browser ohnehin schickt — nichts wird per `Accept-CH`
+    // nachgefordert (das wäre Fingerprinting, s. security/visitor-id.ts).
+    signals: {
+      ip: clientIp(c),
+      userAgent: c.req.header("user-agent") ?? "",
+      acceptLanguage: c.req.header("accept-language") ?? "",
+      platform: c.req.header("sec-ch-ua-platform") ?? "",
+      mobile: c.req.header("sec-ch-ua-mobile") ?? "",
+    },
   });
+  return { actorType: "anon", visitorId, userId: null };
 }
 
 export function eventsPublicRouter(deps: ApiDeps) {
@@ -148,7 +120,6 @@ export function eventsPublicRouter(deps: ApiDeps) {
     if (!billing) return done();
 
     const actor = await resolveActor(c, deps.visitorCodec);
-    applyVisitorCookie(c, actor);
 
     await billing.repo.recordView({
       tenantId: c.get("tenant").id,
@@ -190,7 +161,6 @@ export function eventsPublicRouter(deps: ApiDeps) {
     if (!billing) return done();
 
     const actor = await resolveActor(c, deps.visitorCodec);
-    applyVisitorCookie(c, actor);
 
     await billing.repo.recordFeedback({
       tenantId: c.get("tenant").id,

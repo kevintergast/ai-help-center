@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { HelpDrillContext } from "./entry-cards";
 import { ArticleIconGlyph } from "@/components/ui/article-icon";
 import { ACTION_VARIANT_CLASSES, isExternalHref } from "@/lib/content/action-buttons";
+import { LEGAL_FOOTER_HREF } from "@/lib/content/footer-links";
 
 /**
  * CHANGELOG-STUFEN (0030) für Endnutzer: Die technischen Wörter major/minor/patch
@@ -473,11 +474,13 @@ export function HelpShell({
           {!drill && footer ? (
             <div className="border-t border-hairline bg-surface px-4 py-3">{footer}</div>
           ) : null}
-          <LegalFooter
+          <SiteFooter
             t={t}
             faviconUrl={faviconUrl}
             tenantName={tenantName}
             isOperator={isOperator === true}
+            footer={data.footer}
+            links={data.footerLinks}
           />
         </main>
       </div>
@@ -486,30 +489,55 @@ export function HelpShell({
 }
 
 /**
- * Schmale Legal-Zeile am unteren Rand. Das Zeichen links war fest unser
- * Emblem — auf einer Kundeninstanz stand damit UNSER Logo im Fuß, obwohl das
- * ganze Produkt White-Label ist.
+ * Schmale Zeile am unteren Rand. Das Zeichen links war fest unser Emblem —
+ * auf einer Kundeninstanz stand damit UNSER Logo im Fuß, obwohl das ganze
+ * Produkt White-Label ist.
  *
  * Gezeigt wird das FAVICON des Mandanten, nicht sein Logo: Der Platz hier ist
  * ein 16-Punkt-Quadrat. Ein Logo ist breit und geht darin entweder unter oder
  * wird gequetscht; das Favicon ist genau für diese Größe gezeichnet.
  *
  * KEIN Rückfall aufs Logo: Das brächte genau das zurück, was hier stört. Ohne
- * Favicon bleibt die Zeile schlicht ohne Zeichen — die Rechtslinks tragen sie
- * auch allein. (Nur die Operator-Instanz zeigt unser Emblem; dort IST es das
+ * Favicon bleibt die Zeile schlicht ohne Zeichen — die Links tragen sie auch
+ * allein. (Nur die Operator-Instanz zeigt unser Emblem; dort IST es das
  * Zeichen des Mandanten.)
+ *
+ * RECHTSTEXTE (0046): Die drei Links standen früher FEST hier — auf jeder
+ * Instanz, auch ohne hinterlegten Text. Wer dann klickte, las „… hat diesen
+ * Rechtstext noch nicht hinterlegt", was nach kaputtem Produkt aussieht.
+ * Jetzt entscheidet die Instanz, welche erscheinen; danach folgen ihre
+ * eigenen Links (Status-Seite, Hauptwebsite, Barrierefreiheit …).
+ *
+ * REIHENFOLGE ist fest — erst Recht, dann Eigenes: Das ist die Ordnung, in
+ * der Fußzeilen überall gelesen werden, und sie erspart eine
+ * tabellenübergreifende Sortierung, die der Betreiber pflegen müsste.
  */
-function LegalFooter({
+function SiteFooter({
   t,
   faviconUrl,
   tenantName,
   isOperator,
+  footer,
+  links,
 }: {
   t: T;
   faviconUrl: string | null;
   tenantName: string;
   isOperator: boolean;
+  footer: HelpCenterData["footer"];
+  links: HelpCenterData["footerLinks"];
 }) {
+  const legal: { href: string; label: string }[] = [];
+  if (footer.imprint) legal.push({ href: LEGAL_FOOTER_HREF.imprint, label: t("hc.legal.imprint") });
+  if (footer.privacy) legal.push({ href: LEGAL_FOOTER_HREF.privacy, label: t("hc.legal.privacy") });
+  if (footer.terms) legal.push({ href: LEGAL_FOOTER_HREF.terms, label: t("hc.legal.terms") });
+
+  // Nichts zu zeigen → gar keine Zeile. Ein leerer Balken mit Trennlinie wäre
+  // ein sichtbarer Rest ohne Inhalt.
+  if (legal.length === 0 && links.length === 0 && !footer.poweredBy && !faviconUrl && !isOperator) {
+    return null;
+  }
+
   return (
     <div className="flex items-center gap-3 border-t border-hairline bg-surface px-5 py-2 md:px-10">
       {faviconUrl ? (
@@ -519,15 +547,34 @@ function LegalFooter({
         <Emblem className="h-4 w-4 shrink-0 text-ink" />
       ) : null}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
-        <Link href="/legal/impressum" className="transition-colors hover:text-ink">
-          {t("hc.legal.imprint")}
-        </Link>
-        <Link href="/legal/datenschutz" className="transition-colors hover:text-ink">
-          {t("hc.legal.privacy")}
-        </Link>
-        <Link href="/legal/agb" className="transition-colors hover:text-ink">
-          {t("hc.legal.terms")}
-        </Link>
+        {legal.map((l) => (
+          <Link key={l.href} href={l.href} className="transition-colors hover:text-ink">
+            {l.label}
+          </Link>
+        ))}
+        {/* Eigene Links der Instanz. Externe Ziele öffnen in einem neuen Tab
+            und tragen das Außen-Zeichen — wie die Knöpfe im Kopf. */}
+        {links.map((l) =>
+          isExternalHref(l.href) ? (
+            <a
+              key={l.id}
+              href={l.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 transition-colors hover:text-ink"
+            >
+              {l.label}
+              <ExternalLinkIcon width={11} height={11} className="opacity-60" aria-hidden />
+            </a>
+          ) : (
+            <Link key={l.id} href={l.href} className="transition-colors hover:text-ink">
+              {l.label}
+            </Link>
+          ),
+        )}
+        {footer.poweredBy ? (
+          <span className="ml-auto">{t("hc.footer.poweredBy")}</span>
+        ) : null}
       </div>
     </div>
   );

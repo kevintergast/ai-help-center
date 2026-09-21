@@ -1,4 +1,3 @@
-import { readPlanState } from "@/server/billing/store";
 import { ARTICLE_ICONS } from "@/lib/content/article-icons";
 import { SlugConflictError } from "@/server/content/store";
 import {
@@ -27,6 +26,7 @@ import {
   type ImageImportError,
 } from "@/server/content/media-import";
 import { fail, ok, UNTRUSTED_NOTE, type McpTool, type ToolContext } from "./types";
+import { frozen } from "./guards";
 
 /**
  * SCHREIB-WERKZEUGE (Stufe 2 gelb + Stufe 3 orange).
@@ -50,12 +50,6 @@ const IMPORT_CATEGORY = "Import";
  * dem Menschen-Pfad: nach abgelaufener Grace sind Mutationen gesperrt. Ohne
  * Billing-Daten wird NICHT geraten (die Fach-Aufrufe scheitern dann ohnehin).
  */
-async function frozen(ctx: ToolContext): Promise<boolean> {
-  const billing = await ctx.deps.getBillingDeps?.();
-  if (!billing) return false;
-  const state = await readPlanState(billing.repo, ctx.tenant.id, ctx.nowSec);
-  return state.status === "frozen";
-}
 
 const FROZEN_RESULT = () =>
   fail(

@@ -27,6 +27,12 @@ export interface PlatformStats {
   series: { views: number[]; generations: number[] };
 }
 
+/** Beginn der laufenden Abrechnungsperiode (UTC-Monatsanfang) in Sekunden. */
+function periodStartSec(nowSec: number): number {
+  const d = new Date(nowSec * 1000);
+  return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 1000);
+}
+
 function startOfUtcDay(sec: number): number {
   return sec - (sec % DAY_SEC);
 }
@@ -105,6 +111,21 @@ export interface TenantRow {
   openTickets: number;
   publishedArticles: number;
   overageCents: number;
+  /**
+   * GETEILTE HERKUNFT (2026-09-21): Zahl der anonymen Besucher-IDs dieser
+   * Periode, die für sich mehr Ereignisse erzeugt haben, als ein Mensch
+   * plausibel erzeugt. Solche IDs sind in aller Regel VIELE Menschen hinter
+   * einer Adresse mit gleichem Browser (Firmen-NAT, Proxy).
+   *
+   * WARUM SICHTBAR: Die cookiefreie Zählung (security/visitor-id.ts) kann
+   * diese Menschen nicht trennen — die MAU dieser Instanz ist dann eine
+   * Untergrenze, keine Zahl. Da die MAU eine HARTE Plan-Grenze ist, wäre das
+   * sonst der stille Weg daran vorbei: Wir sähen eine kleine Instanz, wo
+   * eine große sitzt. Hier steht sie stattdessen sichtbar in der Liste.
+   */
+  sharedOriginIds: number;
+  /** Anteil der Aufrufe (0–100), der auf diese IDs entfällt. */
+  sharedOriginPct: number;
 }
 
 /** Basis-Zeile aus `tenants` + Aggregaten (Owner via Subquery). */
@@ -135,11 +156,52 @@ const TENANT_LIST_SQL = `
            WHERE a.tenant_id = t.id AND a.status = 'published') AS published_articles
     FROM tenants t`;
 
+/**
+ * Ab wie vielen Ereignissen im Monat eine einzelne anonyme ID nicht mehr als
+ * eine Person durchgeht. 500 Aufrufe sind gut 16 pro Tag, jeden Tag — das
+ * liest kein Mensch in einem Hilfezentrum. Bewusst hoch angesetzt: Die Zahl
+ * soll auffällige Fälle zeigen, nicht fleißige Leser verdächtigen.
+ */
+export const SHARED_ORIGIN_EVENT_THRESHOLD = 500;
+
+/**
+ * Anonyme IDs mit unplausibel hohem Aufkommen + ihr Anteil an allen anonymen
+ * Aufrufen der Periode. NUR `anon`: Angemeldete zählen über die Nutzer-Id und
+ * können gar nicht zusammenfallen.
+ */
+async function sharedOrigin(
+  db: D1Database,
+  tenantId: string,
+  periodStartSec: number,
+): Promise<{ ids: number; pct: number }> {
+  const WHERE = `tenant_id = ? AND actor_type = 'anon' AND created_at >= ?`;
+  // Zwei Anweisungen statt einer mit nummerierten Platzhaltern: D1 und die
+  // sqlite-Testbrücke binden beide streng positionell.
+  const [hot, all] = await Promise.all([
+    db
+      .prepare(
+        `SELECT COUNT(*) AS ids, COALESCE(SUM(n), 0) AS hot FROM (
+           SELECT COUNT(*) AS n FROM usage_events
+            WHERE ${WHERE} GROUP BY visitor_id HAVING COUNT(*) > ?)`,
+      )
+      .bind(tenantId, periodStartSec, SHARED_ORIGIN_EVENT_THRESHOLD)
+      .first<{ ids: number; hot: number }>(),
+    db
+      .prepare(`SELECT COUNT(*) AS total FROM usage_events WHERE ${WHERE}`)
+      .bind(tenantId, periodStartSec)
+      .first<{ total: number }>(),
+  ]);
+  const total = all?.total ?? 0;
+  if (!hot || total === 0) return { ids: 0, pct: 0 };
+  return { ids: hot.ids, pct: Math.round((hot.hot / total) * 100) };
+}
+
 async function toTenantRow(db: D1Database, raw: RawTenantRow, nowSec: number): Promise<TenantRow> {
   // Status über die GETEILTE Produkt-Logik (Plan, over_limit, Grace, Freeze).
   const repo = new D1BillingRepository(db);
   const state = await readPlanState(repo, raw.id, nowSec);
   const overage = computeOverage(PLANS[state.plan.id], raw.credits_used ?? 0);
+  const shared = await sharedOrigin(db, raw.id, periodStartSec(nowSec));
   return {
     id: raw.id,
     slug: raw.slug,
@@ -153,6 +215,8 @@ async function toTenantRow(db: D1Database, raw: RawTenantRow, nowSec: number): P
     openTickets: raw.open_tickets,
     publishedArticles: raw.published_articles,
     overageCents: overage.amountCents,
+    sharedOriginIds: shared.ids,
+    sharedOriginPct: shared.pct,
   };
 }
 

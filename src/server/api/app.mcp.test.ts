@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Tenant } from "@/lib/tenant/types";
 import { buildAuth, tenantAuthOptions } from "@/server/auth/auth";
 import { applyMigrations, d1FromSqlite } from "@/server/auth/sqlite-test-support";
+import { THEME_TOKEN_KEYS } from "@/lib/theme/tokens";
 import { D1ContentRepository } from "@/server/content/store";
 import { D1SupportRepository } from "@/server/support/store";
 import { D1ApiKeyRepository } from "@/server/apikeys/store";
@@ -31,7 +32,7 @@ const MCP = "/api/v1/mcp";
 const MIGRATIONS = [
   "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql",
   "0002_auth.sql", "0004_two_factor_plugin_columns.sql",
-  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql", "0033_api_docs_url.sql", "0038_header_actions.sql", "0043_api_docs_to_header_action.sql", "0015_support_tickets.sql", "0039_comprehension_reports.sql", "0042_review_suggestion.sql",
+  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql", "0033_api_docs_url.sql", "0038_header_actions.sql", "0043_api_docs_to_header_action.sql", "0044_prompt_suggestions.sql", "0015_support_tickets.sql", "0039_comprehension_reports.sql", "0042_review_suggestion.sql",
   "0027_api_keys.sql",
 ] as const;
 
@@ -54,6 +55,11 @@ const TENANTS: Record<string, Tenant> = {
 function makeApp() {
   const db = new Database(":memory:");
   applyMigrations(db, MIGRATIONS);
+  // Frische Tenant-Objekte je Fixture — `set_theme` schreibt in das Objekt
+  // (siehe getSettingsDeps unten), und ein Modul-globales Objekt würde die
+  // Farbwelt eines Tests in den nächsten schleppen.
+  TENANTS[HOST_A] = makeTenant("t_a", "tenant-a");
+  TENANTS[HOST_B] = makeTenant("t_b", "tenant-b");
   db.prepare("INSERT INTO tenants (id, slug, name) VALUES ('t_a','tenant-a','A')").run();
   db.prepare("INSERT INTO tenants (id, slug, name) VALUES ('t_b','tenant-b','B')").run();
 
@@ -107,6 +113,35 @@ function makeApp() {
     getContentDeps: async () => ({ store, media }),
     getSupportDeps: async () => ({ repo: supportRepo, sendTicketMail: async () => true }),
     getApiKeyDeps: async () => ({ repo: keys }),
+    getSettingsDeps: async () => ({
+      setSeoIndexable: async () => {},
+      setSupportEmail: async () => {},
+      setDefaultLocale: async () => {},
+      setShowHeaderName: async () => {},
+      setWidgetOnSite: async () => {},
+      setComprehensionMode: async () => {},
+      setWidgetAppearance: async () => {},
+      setFooterFlags: async () => {},
+      // Schreibt dorthin, wo die NÄCHSTE Anfrage liest: In Produktion löst
+      // jeder Request den Tenant neu aus D1 auf, hier steht er im Objekt.
+      setTheme: async (tenantId, config) => {
+        const host = tenantId === "t_a" ? HOST_A : HOST_B;
+        TENANTS[host] = {
+          ...TENANTS[host],
+          theme: config,
+          ...(config
+            ? {
+                branding: {
+                  ...TENANTS[host].branding,
+                  colorPrimary: config.light["brand-primary"],
+                  colorAccent: config.light["brand-accent"],
+                  colorPrimaryFg: config.light["brand-primary-fg"],
+                },
+              }
+            : {}),
+        };
+      },
+    }),
     getConfirmations: async (tenantId) =>
       makeConfirmationCodec({
         secret: `${TEST_SECRET}:${tenantId}`,
@@ -1420,5 +1455,141 @@ describe("MCP — KI meldet eine unklare Stelle", () => {
     expect(falscherBlock.isError).toBe(true);
     expect(falscherBlock.data!.error).toBe("invalid_anchor");
     expect(await f.supportRepo.listByTenant("t_a", 10)).toHaveLength(0);
+  });
+});
+
+/* ————— Farbwelt (0045) ————— */
+
+/**
+ * Verhinderte Fehlerfälle:
+ *  - Das Werkzeug verlangt 48 Farbwerte → das Modell ERFINDET sie, und eine
+ *    ungeprüfte Palette steht auf der Kundenseite. Deshalb: vier Anker,
+ *    Ableitung serverseitig, und der Normalweg ist nachweislich kontrastrein.
+ *  - Eine Ausnahme unterschreitet die Schwelle und verschwindet still — das
+ *    Modell hielte die Farbwelt für in Ordnung.
+ *  - Ein erfundener Token-Name ("background", "--page") wird ignoriert; das
+ *    Modell glaubt, es hätte etwas gesetzt.
+ *  - Ein Schlüssel, der laut eigener Zusage nur Inhalte pflegt, stellt das
+ *    Erscheinungsbild der Instanz um.
+ *  - `reset_theme` löscht die Marken-Farben mit — die sind der Rückfall.
+ */
+describe("MCP — Farbwelt", () => {
+  const ANKER = { brand: "#b91c1c", accent: "#06b6d4", neutral: "warm", surface: "tinted" };
+
+  it("leitet aus vier Angaben beide Modi ab — kontrastrein, ohne dass jemand Farben aufzählt", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["settings:read", "settings:write"]);
+
+    const vorher = await callTool(f.app, token, "get_theme");
+    expect(vorher.data!.active).toBe(false);
+
+    const res = await callTool(f.app, token, "set_theme", ANKER);
+    expect(res.isError).toBe(false);
+    const light = res.data!.light as Record<string, string>;
+    const dark = res.data!.dark as Record<string, string>;
+
+    // Vollständig, getrennt, und nichts zu beanstanden.
+    expect(Object.keys(light).sort()).toEqual([...THEME_TOKEN_KEYS].sort());
+    expect(light.page).not.toBe(dark.page);
+    expect(res.data!.warnings).toEqual([]);
+
+    const nachher = await callTool(f.app, token, "get_theme");
+    expect(nachher.data!.active).toBe(true);
+    expect((nachher.data!.anchors as Record<string, string>).neutral).toBe("warm");
+  });
+
+  it("übernimmt eine gezielte Ausnahme — und meldet die Beanstandung, statt sie zu schlucken", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["settings:write"]);
+
+    // Gedämpfter Text fast in Flächenfarbe: lesbar ist das nicht.
+    const res = await callTool(f.app, token, "set_theme", {
+      ...ANKER,
+      light: { muted: "#eeeeee" },
+    });
+    expect(res.isError).toBe(false);
+    expect((res.data!.light as Record<string, string>).muted).toBe("#eeeeee");
+
+    const warnings = res.data!.warnings as { mode: string; pair: string }[];
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(warnings.every((w) => w.mode === "light")).toBe(true);
+    expect(warnings.map((w) => w.pair)).toContain("muted on surface");
+    // Gespeichert wird trotzdem — Warnung, keine Sperre.
+    expect(String(res.data!.note)).toContain("Saved");
+  });
+
+  it("lehnt einen erfundenen Token-Namen ab, statt ihn zu ignorieren", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["settings:write"]);
+
+    for (const key of ["background", "--page", "pageColor"]) {
+      const res = await callTool(f.app, token, "set_theme", { ...ANKER, light: { [key]: "#ffffff" } });
+      expect(res.isError, key).toBe(true);
+      expect(res.data!.error).toBe("unknown_token");
+    }
+  });
+
+  it("lässt nur Hex durch — ein CSS-Schnipsel käme in einen <style>-Block", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["settings:write"]);
+
+    const böse = await callTool(f.app, token, "set_theme", {
+      ...ANKER,
+      dark: { page: "red;}body{display:none" },
+    });
+    expect(böse.isError).toBe(true);
+    expect(böse.data!.error).toBe("invalid_color");
+
+    expect((await callTool(f.app, token, "set_theme", { ...ANKER, brand: "red" })).data!.error).toBe(
+      "invalid_anchors",
+    );
+    expect((await callTool(f.app, token, "set_theme", { ...ANKER, neutral: "pink" })).data!.error).toBe(
+      "invalid_anchors",
+    );
+
+    // Nichts davon darf etwas hinterlassen haben.
+    const lesen = await issueKey(f.keys, "t_a", ["settings:read"]);
+    expect((await callTool(f.app, lesen, "get_theme")).data!.active).toBe(false);
+  });
+
+  it("hängt an settings:write — ein Inhalts-Schlüssel sieht es nicht und darf es nicht", async () => {
+    const f = makeApp();
+    const inhalt = await issueKey(f.keys, "t_a", ["articles:read", "articles:write", "articles:publish"]);
+
+    const { json } = await rpc(f.app, inhalt, "tools/list");
+    const namen = (json as Record<string, { tools: { name: string }[] }>).result.tools.map((t) => t.name);
+    expect(namen).not.toContain("set_theme");
+    expect(namen).not.toContain("reset_theme");
+
+    // Unsichtbar UND gesperrt.
+    const { res } = await rpc(f.app, inhalt, "tools/call", { name: "set_theme", arguments: ANKER });
+    expect(res.status).toBe(403);
+  });
+
+  it("reset_theme entfernt die Farbwelt, lässt die Marken-Farben aber stehen", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["settings:read", "settings:write"]);
+
+    const gesetzt = await callTool(f.app, token, "set_theme", ANKER);
+    const marke = (gesetzt.data!.light as Record<string, string>)["brand-primary"];
+
+    const zurück = await callTool(f.app, token, "reset_theme");
+    expect(zurück.isError).toBe(false);
+    expect(zurück.data!.active).toBe(false);
+    // Sie sind jetzt wieder der Rückfall — sie mitzulöschen hieße, die Instanz
+    // auf fremde Standardfarben zu stellen.
+    expect((zurück.data!.branding as Record<string, string>).colorPrimary).toBe(marke);
+    expect((await callTool(f.app, token, "get_theme")).data!.active).toBe(false);
+  });
+
+  it("get_settings verrät, DASS es eine eigene Farbwelt gibt", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["settings:read", "settings:write"]);
+
+    // Ohne diesen Hinweis liest eine KI `branding.colorPrimary` und hält das
+    // für die ganze Farbgebung.
+    expect((await callTool(f.app, token, "get_settings")).data!.hasOwnColourWorld).toBe(false);
+    await callTool(f.app, token, "set_theme", ANKER);
+    expect((await callTool(f.app, token, "get_settings")).data!.hasOwnColourWorld).toBe(true);
   });
 });

@@ -77,7 +77,15 @@ export interface PlanDef {
   baseFeeCents: number;
   /** Inkludierte Credits pro Abrechnungsmonat. */
   includedCredits: number;
-  /** Faire MAU-Obergrenze pro Monat (dedupliziert via visitor_id). */
+  /**
+   * Faire MAU-Obergrenze pro Monat (dedupliziert via visitor_id) — ein
+   * HARTES Limit: Überschreiten führt über Grace in den Freeze.
+   *
+   * Die zugrunde liegende Zahl wird cookiefrei abgeleitet und ist deshalb
+   * nach unten angreifbar (Proxy vor dem Hilfezentrum). Das Risiko ist
+   * bewusst angenommen: Die tatsächliche Nutzung schlägt sich in Credits
+   * nieder, und die zählen exakt. Details: server/security/visitor-id.ts.
+   */
   mauLimit: number;
   /**
    * Overage: Preis in Cent je angefangenem 5.000er-Credit-Paket über dem

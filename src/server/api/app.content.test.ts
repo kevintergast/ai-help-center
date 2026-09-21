@@ -5,6 +5,7 @@ import type { Tenant } from "@/lib/tenant/types";
 import { AUTH_BASE_PATH, buildAuth, tenantAuthOptions } from "@/server/auth/auth";
 import { applyMigrations, d1FromSqlite } from "@/server/auth/sqlite-test-support";
 import { D1ContentRepository, MAX_IMAGES_PER_ARTICLE } from "@/server/content/store";
+import { D1TenantRepository } from "@/server/tenant/repository";
 import { parseArticleBody } from "@/lib/content/blocks";
 import { buildApiApp } from "./app";
 import type { BillingDeps } from "@/server/billing/store";
@@ -27,11 +28,11 @@ const HOST_A = "tenant-a.hallofhelp.com";
 const HOST_B = "tenant-b.hallofhelp.com";
 
 const MIGRATIONS = [
-  "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql",
+  "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql", "0046_footer.sql",
   "0002_auth.sql",
   "0003_branding.sql",
   "0004_two_factor_plugin_columns.sql",
-  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql", "0038_header_actions.sql", "0043_api_docs_to_header_action.sql", "0015_support_tickets.sql", "0039_comprehension_reports.sql", "0042_review_suggestion.sql",
+  "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql", "0038_header_actions.sql", "0043_api_docs_to_header_action.sql", "0044_prompt_suggestions.sql", "0015_support_tickets.sql", "0039_comprehension_reports.sql", "0042_review_suggestion.sql",
 ] as const;
 
 function makeTenant(id: string, slug: string): Tenant {
@@ -72,6 +73,10 @@ function makeApp(
   contentDb.prepare("INSERT INTO tenants (id, slug, name) VALUES ('t_a','tenant-a','A')").run();
   contentDb.prepare("INSERT INTO tenants (id, slug, name) VALUES ('t_b','tenant-b','B')").run();
   const store = new D1ContentRepository(d1FromSqlite(contentDb));
+  // Echtes Tenant-Repo auf DERSELBEN sqlite-DB: Der Fuß (0046) schreibt seine
+  // Schalter in `tenants` und seine Links in `footer_links` — beide Wege
+  // müssen im Test wirklich landen, sonst prüft er nur sich selbst.
+  const tenantRepo = new D1TenantRepository(d1FromSqlite(contentDb));
 
   // Map-Fake des R2-MEDIA-Buckets (Bilder): Struktur wie ArticleMediaBucket.
   const mediaObjects = new Map<string, { bytes: Uint8Array; contentType?: string }>();
@@ -128,6 +133,7 @@ function makeApp(
     getTeamDeps: async () => null,
     getLegalDeps: async () => null,
     getContentDeps: async () => (contentAvailable ? { store, media } : null),
+    getSettingsDeps: async () => tenantRepo,
     getContentIndexer: async () => ({
       onContentChange: async (tenantId, articleId) => {
         indexCalls.push({ tenantId, articleId });
@@ -1726,5 +1732,158 @@ describe("Aktions-Knöpfe (/admin/header-actions)", () => {
     const res = await put(app, many, cookie);
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({ error: "too_many_buttons" });
+  });
+});
+
+/* ————— Frage-Vorschläge (0044) ————— */
+
+/**
+ * Verhinderte Fehlerfälle:
+ *  - Ein leer gelassenes Feld wird als Fehler gewertet → man wird einen
+ *    Vorschlag nicht mehr los.
+ *  - Mehr als vier rutschen durch und füllen die Startseite zu.
+ *  - Mandanten sehen die Vorschläge des jeweils anderen.
+ */
+describe("Frage-Vorschläge (/admin/prompt-suggestions)", () => {
+  const put = (app: TestApp, suggestions: unknown, cookie: string, host = HOST_A) =>
+    app.request("/api/v1/admin/prompt-suggestions", {
+      method: "PUT",
+      headers: { host, "content-type": "application/json", cookie },
+      body: JSON.stringify({ suggestions }),
+    });
+
+  it("gated wie Inhaltspflege; speichert in Reihenfolge und wirft Leeres weg", async () => {
+    const { app, authDb, store } = makeApp();
+    const userCookie = await sessionAs(app, authDb, HOST_A, "user");
+    expect((await put(app, [], userCookie)).status).toBe(403);
+
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    const res = await put(app, ["Wie starte ich?", "   ", "Was kostet das?"], cookie);
+    expect(res.status).toBe(200);
+    expect(await store.listPromptSuggestions("t_a")).toEqual([
+      "Wie starte ich?",
+      "Was kostet das?",
+    ]);
+  });
+
+  it("leere Liste ist gültig und entfernt alles", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    await put(app, ["Eine Frage"], cookie);
+    expect((await put(app, [], cookie)).status).toBe(200);
+    expect(await store.listPromptSuggestions("t_a")).toEqual([]);
+  });
+
+  it("Deckel greift beim fünften", async () => {
+    const { app, authDb } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "content");
+    const res = await put(app, ["a", "b", "c", "d", "e"], cookie);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: "too_many" });
+  });
+
+  it("Mandanten sehen einander nicht", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookieA = await sessionAs(app, authDb, HOST_A, "content");
+    const cookieB = await sessionAs(app, authDb, HOST_B, "content");
+    await put(app, ["Frage A"], cookieA);
+    await put(app, ["Frage B"], cookieB, HOST_B);
+    expect(await store.listPromptSuggestions("t_a")).toEqual(["Frage A"]);
+    expect(await store.listPromptSuggestions("t_b")).toEqual(["Frage B"]);
+  });
+});
+
+/* ————— Fuß des Hilfezentrums (0046) ————— */
+
+/**
+ * Verhinderte Fehlerfälle:
+ *  - Ein `javascript:`/http-Ziel landet im Fuß JEDER Seite (wie beim Kopf).
+ *  - Ein ungültiger Link im Stapel hinterlässt einen halben Satz.
+ *  - Die Rechtstext-Schalter werden gespeichert, die Links aber nicht (oder
+ *    umgekehrt) — der Fuß stünde halb umgestellt draußen.
+ *  - Ein Redakteur (content) kann den Auftritt der Instanz ändern: Welche
+ *    Rechtstexte im Fuß stehen, ist eine admin-Entscheidung.
+ *  - Der Deckel greift nicht und der Fuß wird zum zweiten Menü.
+ */
+describe("Fuß (/admin/footer)", () => {
+  const put = (app: TestApp, body: unknown, cookie: string, host = HOST_A) =>
+    app.request("/api/v1/admin/footer", {
+      method: "PUT",
+      headers: { host, "content-type": "application/json", cookie },
+      body: JSON.stringify(body),
+    });
+
+  it("speichert Schalter UND Links; Redakteure dürfen nicht", async () => {
+    const { app, authDb, store, contentDb } = makeApp();
+
+    const contentCookie = await sessionAs(app, authDb, HOST_A, "content");
+    expect((await put(app, { legal: {}, links: [] }, contentCookie)).status).toBe(403);
+
+    const cookie = await sessionAs(app, authDb, HOST_A, "admin");
+    const res = await put(
+      app,
+      {
+        legal: { imprint: true, privacy: true, terms: false },
+        poweredBy: true,
+        links: [
+          { label: "Status", href: "https://status.example" },
+          { label: "Kontakt", href: "/contact" },
+        ],
+      },
+      cookie,
+    );
+    expect(res.status).toBe(200);
+
+    const links = await store.listFooterLinks("t_a");
+    expect(links.map((l) => l.label)).toEqual(["Status", "Kontakt"]);
+
+    const row = contentDb
+      .prepare("SELECT footer_imprint, footer_terms, footer_powered_by FROM tenants WHERE id = 't_a'")
+      .get() as { footer_imprint: number; footer_terms: number; footer_powered_by: number };
+    expect(row).toMatchObject({ footer_imprint: 1, footer_terms: 0, footer_powered_by: 1 });
+  });
+
+  it("lehnt unsichere Ziele ab — ohne die Schalter anzufassen", async () => {
+    const { app, authDb, store, contentDb } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "admin");
+    await put(app, { legal: {}, links: [{ label: "Bestand", href: "/contact" }] }, cookie);
+
+    for (const href of ["javascript:alert(1)", "http://fremd.example", "//fremd.example"]) {
+      const res = await put(
+        app,
+        {
+          legal: { privacy: false },
+          links: [
+            { label: "Gut", href: "/contact" },
+            { label: "Böse", href },
+          ],
+        },
+        cookie,
+      );
+      expect(res.status, href).toBe(400);
+      expect(await res.json()).toMatchObject({ error: "invalid_href", index: 1 });
+    }
+
+    expect((await store.listFooterLinks("t_a")).map((l) => l.label)).toEqual(["Bestand"]);
+    const row = contentDb
+      .prepare("SELECT footer_privacy FROM tenants WHERE id = 't_a'")
+      .get() as { footer_privacy: number };
+    expect(row.footer_privacy).toBe(1);
+  });
+
+  it("Deckel greift beim sechsten Link", async () => {
+    const { app, authDb } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "admin");
+    const many = Array.from({ length: 6 }, (_, i) => ({ label: `L${i}`, href: "/contact" }));
+    const res = await put(app, { legal: {}, links: many }, cookie);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: "too_many_links" });
+  });
+
+  it("trennt Mandanten: der Fuß von B bleibt leer", async () => {
+    const { app, authDb, store } = makeApp();
+    const cookie = await sessionAs(app, authDb, HOST_A, "admin");
+    await put(app, { legal: {}, links: [{ label: "Status", href: "/x" }] }, cookie);
+    expect(await store.listFooterLinks("t_b")).toEqual([]);
   });
 });

@@ -1,4 +1,5 @@
 import type { ActionVariant } from "@/lib/content/action-buttons";
+import type { ThemeConfig } from "@/lib/theme/palette";
 export type Locale = "de" | "en";
 
 /** Pro-Mandant anpassbares Erscheinungsbild (White-Label). */
@@ -61,6 +62,26 @@ export interface Tenant {
   widgetOnSite?: boolean;
   /** „Ich verstehe etwas nicht" (0039); fehlend = AN. */
   comprehensionMode?: boolean;
+  /**
+   * Eigene Farbwelt der Instanz (0045, Theme-Generator) — getrennte Sätze
+   * für Hell und Dunkel. FEHLEND/null = keine eigene Farbwelt: es gilt das
+   * Standard-Theme aus globals.css, überschrieben von den drei Marken-Farben
+   * in `branding`. Ausgeliefert wird sie als <style>-Block (lib/theme/css.ts),
+   * nicht als Inline-Style — ein Inline-Style kennt keine Modi.
+   */
+  theme?: ThemeConfig | null;
+  /**
+   * Fuß des Hilfezentrums (0046): welche der drei vorkonfigurierten
+   * Rechtstexte dort stehen — plus der „Powered by"-Hinweis. FEHLEND =
+   * alle drei Rechtstexte an, Hinweis aus (Registry-Fallback ohne
+   * CF-Kontext und ältere Fixtures bleiben damit gültig).
+   */
+  footer?: {
+    imprint: boolean;
+    privacy: boolean;
+    terms: boolean;
+    poweredBy: boolean;
+  };
   /** Erscheinungsbild des Widgets (0041). */
   widget?: {
     variant: ActionVariant;

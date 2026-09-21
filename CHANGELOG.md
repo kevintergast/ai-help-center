@@ -26,6 +26,22 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.6.0] – 2026-09-21
+
+_Vier neue pflegbare Fähigkeiten: Farbwelt je Instanz (Hell/Dunkel, inkl. MCP), eigene Frage-Vorschläge, konfigurierbarer Fuß mit eigenen Links — dazu die Umstellung der Besucherzählung auf ein cookiefreies Verfahren._
+
+### Hinzugefügt
+- **hc:** Fuß je Instanz pflegbar, Besucherzählung ohne Cookie (0182ac3)
+- **mcp:** Farbwelt per MCP setzen — ableiten statt 48 Werte aufzählen (6a69649)
+- **theme:** Farbwelt je Instanz für Hell und Dunkel pflegbar (5b74169)
+- **hc:** Frage-Vorschläge je Instanz pflegbar, Modus-Umschalter entfernt (8b63ea6)
+
+### Behoben
+- **mcp:** Kontrast-Zusicherung aus zwei Werkzeugbeschreibungen entfernt (1564543)
+
+### Wartung
+- **content:** Fuß, cookiefreie Zählung und Datenschutz-Pflichten im Seed (bd7e292)
+
 ## [0.5.1] – 2026-09-18
 
 _Fundstellen im Artikel, Schutz vor verlorenen Änderungen, API-Doku als normaler Knopf_
