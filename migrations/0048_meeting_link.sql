@@ -5,18 +5,23 @@
 -- oder Onboarding ist der direkte Weg ein Kalender-Link: Der Nutzer sucht sich
 -- selbst einen freien Termin, niemand muss zurückrufen.
 --
--- EINE SPALTE, VIER PLATZIERUNGEN. Der Link soll an vier Stellen erscheinen
--- können (Artikelende, nach erfolgloser Hilfe, Kontaktseite, Startseite) —
--- jede einzeln abschaltbar. Deshalb steht er NICHT als vierter Kontaktweg in
--- `contact_methods`: Dann läge die Buchungsadresse an einer Stelle und die
--- Schalter für die anderen drei woanders, und wer den Kontaktweg löscht, risse
--- die Artikel-Platzierung stumm mit weg. Eine zweite Wahrheit, die garantiert
--- irgendwann auseinanderläuft.
+-- EINE SPALTE, MEHRERE KALENDER, VIER PLATZIERUNGEN. Ein allgemeines
+-- Erstgespräch reicht selten — die Einrichtung einer Telefonanlage braucht
+-- einen anderen Termin als eine Produktfrage. Gespeichert wird deshalb eine
+-- LISTE von Kalendern (je mit sprechender Kennung wie `telefonanlage`), dazu
+-- die vier Platzierungs-Schalter und die Kennung des Kalenders, der an diesen
+-- automatischen Stellen steht. Einzelne Kalender erreicht man gezielt über den
+-- Support-Baustein im Artikel.
 --
--- JSON statt sieben Spalten (Muster 0045/theme): Adresse, Beschriftung,
--- Überschrift, Beschreibung und vier Schalter sind EIN Sachverhalt, der immer
--- zusammen gelesen und zusammen geschrieben wird. Sieben Spalten dafür wären
--- sieben Gelegenheiten, die Hälfte zu vergessen. Gelesen wird über
+-- NICHT als vierter Kontaktweg in `contact_methods`: Dann läge die
+-- Buchungsadresse an einer Stelle und die Schalter dafür woanders, und wer den
+-- Kontaktweg löscht, risse die Artikel-Platzierungen stumm mit weg. Eine
+-- zweite Wahrheit, die garantiert irgendwann auseinanderläuft.
+--
+-- JSON statt vieler Spalten (Muster 0045/theme): Kalenderliste, Schalter und
+-- Platzierungs-Kennung sind EIN Sachverhalt, der immer zusammen gelesen und
+-- geschrieben wird — und eine Liste ließe sich in Spalten ohnehin nicht
+-- abbilden, ohne eine zweite Tabelle aufzumachen. Gelesen wird über
 -- `readMeetingConfig` (lib/content/meeting.ts) — kaputtes JSON ergibt bewusst
 -- `null` (kein Buchungslink) statt eines Fehlers, denn eine unlesbare Zeile
 -- darf ein Hilfezentrum nicht abschalten.

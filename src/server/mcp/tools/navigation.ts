@@ -34,6 +34,7 @@ import {
 import {
   MAX_MEETING_DESCRIPTION,
   MAX_MEETING_LABEL,
+  MAX_MEETING_LINKS,
   MAX_MEETING_TITLE,
   parseMeetingInput,
 } from "@/lib/content/meeting";
@@ -670,9 +671,9 @@ export const setPromptSuggestions: McpTool = {
  */
 export const setMeeting: McpTool = {
   name: "set_meeting",
-  title: "Buchungslink setzen",
+  title: "Buchungslinks setzen",
   description:
-    "Set (or remove) the help center's booking link — 'book personal support'. It can appear in up to four places, each switched separately: at the end of every article, after a reader votes an article or AI answer 'not helpful' (or the AI found no answer), as a card on the contact page, and as an extra entry card on the start page. All four default to off. Pass `remove: true` to delete the link everywhere. The URL must be https. IMPORTANT: only use a booking address the operator actually gave you — a wrong one sends people who are already stuck into an empty calendar.",
+    "REPLACES the help center's booking links — 'book personal support'. You can keep several calendars: a general one and more specific ones (e.g. one for setting up a phone system). Each needs a short, speaking `id` (lowercase, digits, hyphens) because articles refer to it from their support blocks. `placements` decides where the GENERAL link appears automatically (end of every article, after a 'not helpful' vote or an AI answer with no sources, contact page, start page) — all default to off, and `placementLinkId` picks which calendar goes there. Specific calendars are placed deliberately inside articles via the `support` block. Pass `remove: true` to delete everything. URLs must be https. IMPORTANT: only use booking addresses the operator actually gave you.",
   scope: "updates:write",
   annotations: PUBLIC_HINTS,
   inputSchema: {
@@ -680,18 +681,38 @@ export const setMeeting: McpTool = {
     properties: {
       remove: {
         type: "boolean",
-        description: "true removes the booking link from all four places. Ignores all other fields.",
+        description: "true removes all booking links everywhere. Ignores the other fields.",
       },
-      url: { type: "string", description: "https address of the booking calendar (cal.com, Calendly, Microsoft Bookings …)." },
-      label: { type: "string", description: `Button text, max ${MAX_MEETING_LABEL} characters, e.g. "Book a meeting".` },
-      title: { type: "string", description: `Heading above the button, max ${MAX_MEETING_TITLE} characters, e.g. "Still have questions?".` },
-      description: {
+      links: {
+        type: "array",
+        maxItems: MAX_MEETING_LINKS,
+        description: "The complete new set of calendars. Replaces what is there.",
+        items: {
+          type: "object",
+          properties: {
+            id: {
+              type: "string",
+              description:
+                "Short speaking key, lowercase letters, digits and hyphens, e.g. 'telefonanlage'. Support blocks in articles refer to this.",
+            },
+            url: { type: "string", description: "https address of the booking calendar." },
+            title: { type: "string", description: `Heading, max ${MAX_MEETING_TITLE} characters, e.g. "Still have questions?".` },
+            label: { type: "string", description: `Button text, max ${MAX_MEETING_LABEL} characters, e.g. "Book a meeting".` },
+            description: {
+              type: "string",
+              description: `One short line under the heading, max ${MAX_MEETING_DESCRIPTION} characters. Optional.`,
+            },
+          },
+          required: ["id", "url", "title", "label"],
+        },
+      },
+      placementLinkId: {
         type: "string",
-        description: `One short line under the heading, max ${MAX_MEETING_DESCRIPTION} characters. Optional.`,
+        description: "Which calendar appears in the automatic spots. Defaults to the first one.",
       },
       placements: {
         type: "object",
-        description: "Where the link appears. Anything you leave out is OFF.",
+        description: "Where the general link appears. Anything you leave out is OFF.",
         properties: {
           article: { type: "boolean", description: "At the end of every article." },
           noHelp: {
@@ -711,7 +732,7 @@ export const setMeeting: McpTool = {
 
     if (args.remove === true) {
       await settings.setMeeting(ctx.tenant.id, null);
-      return ok({ meeting: null, note: "The booking link is removed everywhere." });
+      return ok({ meeting: null, note: "All booking links are removed." });
     }
 
     const parsed = parseMeetingInput(args);
@@ -719,8 +740,10 @@ export const setMeeting: McpTool = {
       return fail(
         parsed.error,
         parsed.error === "invalid_url"
-          ? "`url` must be a full https address, e.g. https://cal.com/team/intro."
-          : `The field is missing or too long (${parsed.error}).`,
+          ? "Every `url` must be a full https address, e.g. https://cal.com/team/intro."
+          : parsed.error === "invalid_id"
+            ? "Every `id` must be lowercase letters, digits and hyphens, e.g. 'telefonanlage'."
+            : `The input is not valid (${parsed.error}).`,
       );
     }
 
@@ -732,8 +755,8 @@ export const setMeeting: McpTool = {
       meeting: parsed.config,
       note:
         shown.length > 0
-          ? `The booking link is live at: ${shown.join(", ")}.`
-          : "Saved, but no placement is switched on — the link is nowhere to be seen. Turn on at least one of article, noHelp, contact, home.",
+          ? `Saved. The calendar '${parsed.config.placementLinkId}' is live at: ${shown.join(", ")}. Other calendars only appear where an article places a support block.`
+          : "Saved, but no automatic placement is switched on — the links only appear where an article places a support block. Turn on at least one of article, noHelp, contact, home if you want them shown automatically.",
     });
   },
 };

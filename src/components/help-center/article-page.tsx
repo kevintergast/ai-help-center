@@ -12,7 +12,7 @@ import { ViewBeacon } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
 import { ArticleFeedback } from "./article-feedback";
 import { MeetingCta } from "./meeting-cta";
-import { showsAt } from "@/lib/content/meeting";
+import { placementLink, showsAt } from "@/lib/content/meeting";
 import { ComprehensionMode } from "./comprehension-mode";
 import { ArticleFindBar } from "./article-find-bar";
 import { ArticleVideos } from "./article-videos";
@@ -188,6 +188,8 @@ export function ArticlePage({
               videos={article.videos}
               files={article.files ?? []}
               articleSlug={article.slug}
+              /* Ziele des Support-Bausteins (0048) — zentral, nicht im Block. */
+              meeting={data.meeting}
               videoPlayLabel={t("hc.videoPlay")}
               fileDownloadLabel={t("hc.fileDownload")}
               locale={locale}
@@ -229,7 +231,7 @@ export function ArticlePage({
                   showsAt(data.meeting, "noHelp") && !showsAt(data.meeting, "article") ? (
                     <MeetingCta
                       locale={locale}
-                      meeting={data.meeting!}
+                      link={placementLink(data.meeting)!}
                       context={article.title}
                       className="mt-4"
                     />
@@ -244,7 +246,7 @@ export function ArticlePage({
             {showsAt(data.meeting, "article") ? (
               <MeetingCta
                 locale={locale}
-                meeting={data.meeting!}
+                link={placementLink(data.meeting)!}
                 context={article.title}
                 className="mt-4"
               />

@@ -8,7 +8,7 @@ import { getT } from "@/i18n/t";
 import { HelpShell } from "./help-shell";
 import { SupportTicketForm } from "./support-ticket-form";
 import { MeetingCta } from "./meeting-cta";
-import { showsAt } from "@/lib/content/meeting";
+import { placementLink, showsAt } from "@/lib/content/meeting";
 import { InboxIcon, PhoneIcon, SendIcon } from "@/components/ui/icons";
 
 /**
@@ -79,7 +79,7 @@ export function ContactPage({
                 größten Hürde — er gehört nicht vor die schnelle Mail. */}
             {showsAt(data.meeting, "contact") ? (
               <li>
-                <MeetingCta locale={locale} meeting={data.meeting!} variant="card" />
+                <MeetingCta locale={locale} link={placementLink(data.meeting)!} variant="card" />
               </li>
             ) : null}
           </ul>

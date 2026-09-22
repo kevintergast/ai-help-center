@@ -1740,9 +1740,14 @@ describe("MCP — Postfach", () => {
  */
 describe("MCP — Buchungslink", () => {
   const VALID = {
-    url: "https://cal.com/team/intro",
-    label: "Termin buchen",
-    title: "Noch Fragen?",
+    links: [
+      {
+        id: "beratung",
+        url: "https://cal.com/team/intro",
+        label: "Termin buchen",
+        title: "Noch Fragen?",
+      },
+    ],
     placements: { article: true },
   };
 
@@ -1760,7 +1765,7 @@ describe("MCP — Buchungslink", () => {
     const f = makeApp();
     const token = await issueKey(f.keys, "t_a", ["updates:write"]);
     const { data } = await callTool(f.app, token, "set_meeting", VALID);
-    expect((data!.meeting as { url: string }).url).toBe(VALID.url);
+    expect((data!.meeting as { links: { url: string }[] }).links[0].url).toBe(VALID.links[0].url);
     expect(String(data!.note)).toContain("article");
   });
 
@@ -1768,7 +1773,10 @@ describe("MCP — Buchungslink", () => {
     const f = makeApp();
     const token = await issueKey(f.keys, "t_a", ["updates:write"]);
     for (const url of ["javascript:alert(1)", "http://cal.com/team", "/termin"]) {
-      const { data } = await callTool(f.app, token, "set_meeting", { ...VALID, url });
+      const { data } = await callTool(f.app, token, "set_meeting", {
+        ...VALID,
+        links: [{ ...VALID.links[0], url }],
+      });
       expect(data, url).toMatchObject({ error: "invalid_url" });
     }
   });
@@ -1777,6 +1785,6 @@ describe("MCP — Buchungslink", () => {
     const f = makeApp();
     const token = await issueKey(f.keys, "t_a", ["updates:write"]);
     const { data } = await callTool(f.app, token, "set_meeting", { ...VALID, placements: {} });
-    expect(String(data!.note)).toContain("no placement");
+    expect(String(data!.note)).toContain("no automatic placement");
   });
 });

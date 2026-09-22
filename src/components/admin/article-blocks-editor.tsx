@@ -34,6 +34,8 @@ import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/input";
+import type { MeetingLink } from "@/lib/content/meeting";
 import { CloseIcon, PencilIcon } from "@/components/ui/icons";
 
 /**
@@ -85,6 +87,7 @@ type AddKind =
   | { kind: "accordion" }
   | { kind: "button" }
   | { kind: "divider" }
+  | { kind: "support" }
   | { kind: "file" };
 
 const blankCard = (): ArticleLinkCard => ({ slug: "", title: "", description: "", tag: null });
@@ -174,6 +177,8 @@ function blankBlock(pick: AddKind): ArticleBlock {
       return { type: "table", head: ["Feld", "Bedeutung"], rows: [["", ""]] };
     case "accordion":
       return { type: "accordion", title: "", text: "" };
+    case "support":
+      return { type: "support", text: "", meetingId: null };
     case "button":
       return { type: "button", label: "", href: "" };
     case "divider":
@@ -551,8 +556,10 @@ export function ArticleBlocksEditor({
   onFilesChange,
   articleId,
   videoPlayLabel,
+  meetingLinks = [],
 }: {
   locale: Locale;
+  meetingLinks?: MeetingLink[];
   value: EditorBlock[];
   onChange: (next: EditorBlock[]) => void;
   images: ArticleImage[];
@@ -603,6 +610,7 @@ export function ArticleBlocksEditor({
     if (b.type === "video") return t("editor.blocks.type.video");
     if (b.type === "table") return t("editor.blocks.type.table");
     if (b.type === "accordion") return t("editor.blocks.type.accordion");
+    if (b.type === "support") return t("editor.blocks.type.support");
     if (b.type === "button") return t("editor.blocks.type.button");
     if (b.type === "divider") return t("editor.blocks.type.divider");
     if (b.type === "file") return t("editor.blocks.type.file");
@@ -646,6 +654,9 @@ export function ArticleBlocksEditor({
           </Button>
           <Button variant="cream" size="sm" onClick={() => pickAt(index, { kind: "cardGrid" })}>
             {t("editor.blocks.type.cardGrid")}
+          </Button>
+          <Button variant="cream" size="sm" onClick={() => pickAt(index, { kind: "support" })}>
+            {t("editor.blocks.type.support")}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setMenuAt(null)}>
             {t("editor.cancel")}
@@ -834,6 +845,36 @@ export function ArticleBlocksEditor({
                         setEditingUid(null);
                       }}
                     />
+                  ) : b.type === "support" ? (
+                    <div className="flex flex-col gap-3">
+                      <p className="text-xs text-ink-muted">{t("editor.blocks.supportHint")}</p>
+                      <Textarea
+                        label={t("editor.blocks.supportText")}
+                        value={b.text}
+                        onChange={(e) => update(i, { ...b, text: e.target.value })}
+                        placeholder={t("editor.blocks.supportTextPlaceholder")}
+                        rows={2}
+                      />
+                      <div>
+                        <span className="mb-1 block text-xs text-ink-muted">
+                          {t("editor.blocks.supportMeeting")}
+                        </span>
+                        <Select
+                          options={[
+                            { value: "", label: t("editor.blocks.supportMeetingDefault") },
+                            ...meetingLinks.map((m) => ({ value: m.id, label: m.title })),
+                          ]}
+                          value={b.meetingId ?? ""}
+                          onValueChange={(v) => update(i, { ...b, meetingId: v || null })}
+                          aria-label={t("editor.blocks.supportMeeting")}
+                        />
+                        {meetingLinks.length === 0 ? (
+                          <p className="mt-1 text-xs text-warn">
+                            {t("editor.blocks.supportNoMeetings")}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
                   ) : b.type === "articleLinks" ? (
                     <div className="flex flex-col gap-3">
                       <p className="text-xs text-ink-muted">{t("editor.blocks.cardGridHint")}</p>

@@ -5,25 +5,31 @@ import type { Locale } from "@/lib/tenant/types";
 import type { MessageKey } from "@/i18n/messages/de";
 import { getT } from "@/i18n/t";
 import {
+  MAX_MEETING_LINKS,
   MEETING_PLACEMENTS,
   parseMeetingInput,
   type MeetingConfig,
+  type MeetingLink,
   type MeetingPlacement,
 } from "@/lib/content/meeting";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { IconButton } from "@/components/ui/icon-button";
+import { CloseIcon, PlusIcon } from "@/components/ui/icons";
 
 /**
- * BUCHUNGSLINK pflegen (0048).
+ * BUCHUNGSLINKS pflegen (0048).
  *
- * Adresse, Beschriftung und Überschrift stehen EINMAL — die vier Schalter
- * darunter entscheiden, wo das erscheint. Das ist der Grund, warum der Link
- * nicht als vierter Kontaktweg gespeichert wird: Dort läge die Adresse an
- * einer Stelle und die Schalter für die anderen drei Flächen woanders.
+ * MEHRERE Kalender, EINE Stelle: Ein allgemeines Erstgespräch und daneben
+ * spezielle Termine („Telefonanlage einrichten"). Die vier automatischen
+ * Platzierungen zeigen immer denselben — die speziellen erreicht man gezielt
+ * über den Support-Baustein im Artikel.
  *
- * Geprüft wird vor dem Senden mit derselben Funktion wie auf dem Server und
- * im MCP-Werkzeug.
+ * Die KENNUNG ist sprechend und vom Betreiber vergeben (`telefonanlage`), weil
+ * sie im Baustein und im MCP-Aufruf auftaucht. Eine Zufallskennung wäre dort
+ * eine Rätselaufgabe.
  */
 
 const PLACEMENT_LABELS: Record<MeetingPlacement, MessageKey> = {
@@ -34,21 +40,25 @@ const PLACEMENT_LABELS: Record<MeetingPlacement, MessageKey> = {
 };
 
 const ERROR_KEYS: Record<string, MessageKey> = {
+  links_required: "admin.meeting.error.links_required",
+  too_many_links: "admin.meeting.error.too_many",
+  invalid_id: "admin.meeting.error.invalid_id",
+  duplicate_id: "admin.meeting.error.duplicate_id",
   invalid_url: "admin.meeting.error.invalid_url",
   label_required: "admin.meeting.error.label_required",
-  label_too_long: "admin.meeting.error.too_long",
   title_required: "admin.meeting.error.title_required",
+  label_too_long: "admin.meeting.error.too_long",
   title_too_long: "admin.meeting.error.too_long",
   description_too_long: "admin.meeting.error.too_long",
 };
 
-const EMPTY = {
-  url: "",
-  label: "",
+const blankLink = (n: number): MeetingLink => ({
+  id: n === 1 ? "beratung" : `termin-${n}`,
   title: "",
+  label: "",
   description: "",
-  placements: { article: false, noHelp: false, contact: false, home: false },
-};
+  url: "",
+});
 
 export function MeetingManager({
   locale,
@@ -58,19 +68,23 @@ export function MeetingManager({
   initial: MeetingConfig | null;
 }) {
   const t = getT(locale);
-  const [draft, setDraft] = useState<MeetingConfig>(initial ?? EMPTY);
+  const [links, setLinks] = useState<MeetingLink[]>(initial?.links ?? [blankLink(1)]);
+  const [placements, setPlacements] = useState(
+    initial?.placements ?? { article: false, noHelp: false, contact: false, home: false },
+  );
+  const [placementLinkId, setPlacementLinkId] = useState(initial?.placementLinkId ?? "");
   const [active, setActive] = useState(initial !== null);
   const [state, setState] = useState<"idle" | "saving" | "done" | "error">("idle");
   const [errorKey, setErrorKey] = useState<MessageKey | null>(null);
 
-  function patch(change: Partial<MeetingConfig>) {
-    setDraft((d) => ({ ...d, ...change }));
+  function patchLink(index: number, change: Partial<MeetingLink>) {
+    setLinks((ls) => ls.map((l, i) => (i === index ? { ...l, ...change } : l)));
     setState("idle");
     setErrorKey(null);
   }
 
   async function save() {
-    const parsed = parseMeetingInput(draft);
+    const parsed = parseMeetingInput({ links, placements, placementLinkId });
     if (!parsed.ok) {
       setErrorKey(ERROR_KEYS[parsed.error] ?? "admin.meeting.error.generic");
       return;
@@ -84,6 +98,7 @@ export function MeetingManager({
         body: JSON.stringify(parsed.config),
       });
       if (!res.ok) throw new Error("save");
+      setPlacementLinkId(parsed.config.placementLinkId);
       setActive(true);
       setState("done");
     } catch {
@@ -96,7 +111,8 @@ export function MeetingManager({
     try {
       const res = await fetch("/api/v1/admin/settings/meeting", { method: "DELETE" });
       if (!res.ok) throw new Error("remove");
-      setDraft(EMPTY);
+      setLinks([blankLink(1)]);
+      setPlacements({ article: false, noHelp: false, contact: false, home: false });
       setActive(false);
       setState("idle");
     } catch {
@@ -104,59 +120,119 @@ export function MeetingManager({
     }
   }
 
-  const noPlacement = active && !Object.values(draft.placements).some(Boolean);
+  const noPlacement = active && !Object.values(placements).some(Boolean);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <p className="text-xs text-ink-muted">{t("admin.meeting.hint")}</p>
 
-      <Input
-        label={t("admin.meeting.url")}
-        type="url"
-        value={draft.url}
-        onChange={(e) => patch({ url: e.target.value })}
-        placeholder={t("admin.meeting.urlPlaceholder")}
-        className="max-w-xl"
-      />
-      <div className="flex flex-wrap gap-3">
-        <Input
-          label={t("admin.meeting.title")}
-          value={draft.title}
-          onChange={(e) => patch({ title: e.target.value })}
-          placeholder={t("admin.meeting.titlePlaceholder")}
-          className="min-w-[14rem] flex-1"
-        />
-        <Input
-          label={t("admin.meeting.label")}
-          value={draft.label}
-          onChange={(e) => patch({ label: e.target.value })}
-          placeholder={t("admin.meeting.labelPlaceholder")}
-          className="min-w-[12rem] flex-1"
-        />
+      <ul className="flex flex-col gap-4">
+        {links.map((link, i) => (
+          <li key={i} className="flex flex-col gap-3 rounded-card border border-hairline p-4">
+            <div className="flex flex-wrap items-end gap-3">
+              <Input
+                label={t("admin.meeting.id")}
+                value={link.id}
+                onChange={(e) => patchLink(i, { id: e.target.value })}
+                placeholder="telefonanlage"
+                className="min-w-[10rem] flex-1"
+              />
+              <Input
+                label={t("admin.meeting.title")}
+                value={link.title}
+                onChange={(e) => patchLink(i, { title: e.target.value })}
+                placeholder={t("admin.meeting.titlePlaceholder")}
+                className="min-w-[12rem] flex-[2]"
+              />
+              {links.length > 1 ? (
+                <IconButton
+                  aria-label={t("admin.meeting.removeLink")}
+                  onClick={() => {
+                    setLinks((ls) => ls.filter((_, x) => x !== i));
+                    setState("idle");
+                  }}
+                >
+                  <CloseIcon width={16} height={16} />
+                </IconButton>
+              ) : null}
+            </div>
+            <Input
+              label={t("admin.meeting.url")}
+              type="url"
+              value={link.url}
+              onChange={(e) => patchLink(i, { url: e.target.value })}
+              placeholder={t("admin.meeting.urlPlaceholder")}
+            />
+            <div className="flex flex-wrap gap-3">
+              <Input
+                label={t("admin.meeting.label")}
+                value={link.label}
+                onChange={(e) => patchLink(i, { label: e.target.value })}
+                placeholder={t("admin.meeting.labelPlaceholder")}
+                className="min-w-[11rem] flex-1"
+              />
+              <Input
+                label={t("admin.meeting.description")}
+                value={link.description}
+                onChange={(e) => patchLink(i, { description: e.target.value })}
+                placeholder={t("admin.meeting.descriptionPlaceholder")}
+                className="min-w-[13rem] flex-[2]"
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <div>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            setLinks((ls) => [...ls, blankLink(ls.length + 1)]);
+            setState("idle");
+          }}
+          disabled={links.length >= MAX_MEETING_LINKS}
+        >
+          <PlusIcon width={16} height={16} />
+          {t("admin.meeting.addLink")}
+        </Button>
       </div>
-      <Input
-        label={t("admin.meeting.description")}
-        value={draft.description}
-        onChange={(e) => patch({ description: e.target.value })}
-        placeholder={t("admin.meeting.descriptionPlaceholder")}
-        className="max-w-xl"
-      />
 
       <div className="border-t border-hairline pt-4">
         <h3 className="text-sm font-medium">{t("admin.meeting.placementsHeading")}</h3>
         <p className="mt-1 text-xs text-ink-muted">{t("admin.meeting.placementsHint")}</p>
+
+        {/* Welcher Kalender an den automatischen Stellen steht — erst ab zwei
+            eine Frage; bei einem einzigen wäre die Auswahl eine Attrappe. */}
+        {links.length > 1 ? (
+          <div className="mt-3 max-w-sm">
+            <span className="mb-1 block text-xs text-ink-muted">
+              {t("admin.meeting.placementLink")}
+            </span>
+            <Select
+              options={links.map((l) => ({ value: l.id, label: l.title || l.id }))}
+              value={placementLinkId || links[0].id}
+              onValueChange={(v) => {
+                setPlacementLinkId(v);
+                setState("idle");
+              }}
+              aria-label={t("admin.meeting.placementLink")}
+            />
+          </div>
+        ) : null}
+
         <div className="mt-3 flex flex-col gap-2">
           {MEETING_PLACEMENTS.map((key) => (
             <Switch
               key={key}
-              checked={draft.placements[key]}
-              onCheckedChange={(v) => patch({ placements: { ...draft.placements, [key]: v } })}
+              checked={placements[key]}
+              onCheckedChange={(v) => {
+                setPlacements((p) => ({ ...p, [key]: v }));
+                setState("idle");
+              }}
               label={t(PLACEMENT_LABELS[key])}
             />
           ))}
         </div>
-        {/* Gespeichert, aber nirgends an: ein stiller Zustand, den man sonst
-            erst merkt, wenn sich niemand meldet. */}
         {noPlacement ? (
           <p className="mt-2 text-xs text-warn">{t("admin.meeting.noPlacementWarning")}</p>
         ) : null}

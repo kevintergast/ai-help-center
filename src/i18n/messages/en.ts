@@ -101,6 +101,8 @@ export const en: Record<MessageKey, string> = {
     "Your question has arrived. If you left an address, we will get back to you.",
   "hc.unanswered.error.email": "That is not a valid email address.",
   "hc.unanswered.error.failed": "That did not work. Please try again.",
+  "hc.support.blockTitle": "Stuck at this step?",
+  "hc.support.blockContact": "Contact support",
   "hc.support.trigger": "Something wrong? Contact support",
   "hc.support.title": "Contact support",
   "hc.support.messageLabel": "Describe your issue",
@@ -202,9 +204,18 @@ export const en: Record<MessageKey, string> = {
   "hc.meeting.opensExternally": "opens the booking calendar in a new tab",
   "hc.contact.emailHint": "Opens your email app.",
   "hc.contact.phoneHint": "Dials the number.",
-  "admin.meeting.title2": "Booking link",
+  "admin.meeting.title2": "Booking links",
   "admin.meeting.hint":
-    "A calendar link so people can book a slot themselves instead of writing and waiting. Maintain it once and decide below where it shows up.",
+    "Calendar links so people can book a slot themselves instead of writing and waiting. You can keep several: a general one and more specific ones, for example for setting up a phone system. The four automatic spots always show the same one; the specific ones you place deliberately as a support block inside an article.",
+  "admin.meeting.id": "Key",
+  "admin.meeting.addLink": "Add another calendar",
+  "admin.meeting.removeLink": "Remove calendar",
+  "admin.meeting.placementLink": "Which calendar goes in the automatic spots?",
+  "admin.meeting.error.links_required": "At least one calendar is required.",
+  "admin.meeting.error.too_many": "Five calendars at most.",
+  "admin.meeting.error.invalid_id":
+    "The key may only contain lowercase letters, digits and hyphens (e.g. \u201ctelefonanlage\u201d).",
+  "admin.meeting.error.duplicate_id": "Two calendars share the same key.",
   "admin.meeting.url": "Link to your booking calendar (https)",
   "admin.meeting.urlPlaceholder": "https://cal.com/your-team/intro",
   "admin.meeting.title": "Heading",
@@ -223,8 +234,8 @@ export const en: Record<MessageKey, string> = {
   "admin.meeting.placement.home": "As an entry card on the start page",
   "admin.meeting.noPlacementWarning":
     "No placement selected — the link is saved but nobody can see it.",
-  "admin.meeting.save": "Save booking link",
-  "admin.meeting.saved": "Booking link saved.",
+  "admin.meeting.save": "Save booking links",
+  "admin.meeting.saved": "Booking links saved.",
   "admin.meeting.remove": "Remove",
   "admin.meeting.error.invalid_url":
     "The link must be a full https address (e.g. https://cal.com/…).",
@@ -915,6 +926,16 @@ export const en: Record<MessageKey, string> = {
   "editor.blocks.type.card": "Link article",
   "editor.blocks.type.table": "Table",
   "editor.blocks.type.accordion": "Collapsible",
+  "editor.blocks.type.support": "Support block",
+  "editor.blocks.supportHint":
+    "Two ways out, right inside the article: contact support and book a meeting. The targets come from your contact options and booking links — you do not maintain them again here.",
+  "editor.blocks.supportText": "Text (optional)",
+  "editor.blocks.supportTextPlaceholder":
+    "e.g. \u201cStuck on the connection? That is often down to the provider.\u201d",
+  "editor.blocks.supportMeeting": "Which meeting?",
+  "editor.blocks.supportMeetingDefault": "General meeting",
+  "editor.blocks.supportNoMeetings":
+    "No booking link yet — the block then only shows the way to support. Add one under Settings → Booking links.",
   "editor.blocks.type.button": "Button",
   "editor.blocks.type.divider": "Divider",
   "editor.blocks.type.file": "File",

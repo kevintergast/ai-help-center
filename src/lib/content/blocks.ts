@@ -96,6 +96,31 @@ export type ArticleBlock =
        */
       type: "articleLinks";
       items: ArticleLinkCard[];
+    }
+  | {
+      /**
+       * SUPPORT-BAUSTEIN (0048): „Kommst du hier nicht weiter?" — ein Kasten
+       * mit zwei Auswegen, frei zwischen den Abschnitten platzierbar.
+       *
+       * WARUM ZWISCHEN den Abschnitten und nicht nur am Artikelende: Nach
+       * einem komplexen Einrichtungsschritt ist die Hürde GENAU DORT, nicht
+       * zwanzig Absätze später. Die allgemeine Hilfe am Artikelende bleibt
+       * davon unberührt und erscheint weiterhin automatisch.
+       *
+       * ZIELE KOMMEN ZENTRAL, nicht aus dem Block: `Support kontaktieren`
+       * führt auf die Kontaktseite, `meetingId` wählt einen der gepflegten
+       * Kalender (lib/content/meeting.ts). Stünden Adressen im Block, hätte
+       * jede Instanz sie über hundert Artikel verteilt — und eine neue
+       * Support-Adresse hieße hundert Artikel bearbeiten.
+       *
+       * `text` ist optional und gehört zum ABSCHNITT, nicht zum Produkt:
+       * „Klappt die Anbindung der Telefonanlage nicht? Das hängt oft am
+       * Anbieter." Leer = nur die Knöpfe.
+       */
+      type: "support";
+      text: string;
+      /** Kennung eines Kalenders; null/unbekannt ⇒ der allgemeine Termin. */
+      meetingId: string | null;
     };
 
 /** Eine Verweis-Karte: Ziel-Slug + eigener Text (nicht der des Zielartikels). */
@@ -187,6 +212,17 @@ export function parseArticleBody(raw: unknown): ArticleBlock[] {
       isAllowedButtonHref(o.href)
     ) {
       out.push({ type: "button", label: o.label, href: o.href.trim() });
+    } else if (o.type === "support") {
+      // Bewusst nachsichtig wie die übrigen Bausteine: Ein Baustein ohne Text
+      // und ohne Kalender ist gültig — dann zeigt er nur den Weg zum Support.
+      out.push({
+        type: "support",
+        text: typeof o.text === "string" ? o.text.trim() : "",
+        meetingId:
+          typeof o.meetingId === "string" && o.meetingId.trim().length > 0
+            ? o.meetingId.trim().toLowerCase()
+            : null,
+      });
     } else if (o.type === "divider") {
       out.push({ type: "divider" });
     } else if (o.type === "file" && typeof o.fileId === "string") {

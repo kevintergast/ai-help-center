@@ -100,6 +100,8 @@ export const de = {
     "Deine Frage ist angekommen. Wenn du eine Adresse hinterlassen hast, melden wir uns.",
   "hc.unanswered.error.email": "Das ist keine gültige E-Mail-Adresse.",
   "hc.unanswered.error.failed": "Das hat nicht geklappt. Bitte noch einmal versuchen.",
+  "hc.support.blockTitle": "Kommst du hier nicht weiter?",
+  "hc.support.blockContact": "Support kontaktieren",
   "hc.support.trigger": "Etwas stimmt nicht? Support kontaktieren",
   "hc.support.title": "Support kontaktieren",
   "hc.support.messageLabel": "Beschreibe dein Anliegen",
@@ -202,9 +204,18 @@ export const de = {
   "hc.meeting.opensExternally": "öffnet den Buchungskalender in einem neuen Tab",
   "hc.contact.emailHint": "Öffnet dein E-Mail-Programm.",
   "hc.contact.phoneHint": "Wählt die Nummer.",
-  "admin.meeting.title2": "Buchungslink",
+  "admin.meeting.title2": "Buchungslinks",
   "admin.meeting.hint":
-    "Ein Kalender-Link, über den Nutzer selbst einen Termin buchen — statt zu schreiben und zu warten. Du pflegst ihn einmal und entscheidest darunter, wo er erscheint.",
+    "Kalender-Links, über die Nutzer selbst einen Termin buchen — statt zu schreiben und zu warten. Du kannst mehrere pflegen: einen allgemeinen und speziellere, etwa für die Einrichtung einer Telefonanlage. Die vier automatischen Plätze zeigen immer denselben; die speziellen setzt du gezielt als Support-Baustein in einen Artikel.",
+  "admin.meeting.id": "Kennung",
+  "admin.meeting.addLink": "Weiteren Kalender hinzufügen",
+  "admin.meeting.removeLink": "Kalender entfernen",
+  "admin.meeting.placementLink": "Welcher Kalender steht an den automatischen Stellen?",
+  "admin.meeting.error.links_required": "Mindestens ein Kalender wird gebraucht.",
+  "admin.meeting.error.too_many": "Höchstens fünf Kalender.",
+  "admin.meeting.error.invalid_id":
+    "Die Kennung darf nur Kleinbuchstaben, Ziffern und Bindestriche enthalten (z. B. „telefonanlage“).",
+  "admin.meeting.error.duplicate_id": "Zwei Kalender haben dieselbe Kennung.",
   "admin.meeting.url": "Link zum Buchungskalender (https)",
   "admin.meeting.urlPlaceholder": "https://cal.com/dein-team/erstgespraech",
   "admin.meeting.title": "Überschrift",
@@ -223,8 +234,8 @@ export const de = {
   "admin.meeting.placement.home": "Als Einstiegskarte auf der Startseite",
   "admin.meeting.noPlacementWarning":
     "Kein Platz ausgewählt — der Link ist gespeichert, aber für niemanden sichtbar.",
-  "admin.meeting.save": "Buchungslink speichern",
-  "admin.meeting.saved": "Buchungslink gespeichert.",
+  "admin.meeting.save": "Buchungslinks speichern",
+  "admin.meeting.saved": "Buchungslinks gespeichert.",
   "admin.meeting.remove": "Entfernen",
   "admin.meeting.error.invalid_url":
     "Der Link muss eine vollständige https-Adresse sein (z. B. https://cal.com/…).",
@@ -918,6 +929,16 @@ export const de = {
   "editor.blocks.type.card": "Artikel verlinken",
   "editor.blocks.type.table": "Tabelle",
   "editor.blocks.type.accordion": "Aufklappbar",
+  "editor.blocks.type.support": "Support-Baustein",
+  "editor.blocks.supportHint":
+    "Zwei Auswege mitten im Artikel: Support kontaktieren und Termin buchen. Die Ziele kommen zentral aus deinen Kontaktwegen und Buchungslinks — du pflegst sie hier nicht erneut.",
+  "editor.blocks.supportText": "Text (optional)",
+  "editor.blocks.supportTextPlaceholder":
+    "z. B. „Klappt die Anbindung nicht? Das hängt oft am Anbieter.“",
+  "editor.blocks.supportMeeting": "Welcher Termin?",
+  "editor.blocks.supportMeetingDefault": "Allgemeiner Termin",
+  "editor.blocks.supportNoMeetings":
+    "Noch kein Buchungslink gepflegt — der Baustein zeigt dann nur den Weg zum Support. Anlegen unter Einstellungen → Buchungslinks.",
   "editor.blocks.type.button": "Button",
   "editor.blocks.type.divider": "Trennlinie",
   "editor.blocks.type.file": "Datei",

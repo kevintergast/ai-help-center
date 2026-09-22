@@ -455,11 +455,17 @@ describe("PUT/DELETE /api/v1/admin/settings/theme (0045)", () => {
  */
 describe("PUT/DELETE /api/v1/admin/settings/meeting (0048)", () => {
   const VALID = {
-    url: "https://cal.com/team/intro",
-    label: "Termin buchen",
-    title: "Noch Fragen?",
-    description: "",
+    links: [
+      {
+        id: "beratung",
+        url: "https://cal.com/team/intro",
+        label: "Termin buchen",
+        title: "Noch Fragen?",
+        description: "",
+      },
+    ],
     placements: { article: true, noHelp: false, contact: true, home: false },
+    placementLinkId: "beratung",
   };
 
   it("admin: speichert und entfernt wieder; niedrigere Rolle → 403", async () => {
@@ -508,7 +514,7 @@ describe("PUT/DELETE /api/v1/admin/settings/meeting (0048)", () => {
       const res = await f.app.request("/api/v1/admin/settings/meeting", {
         method: "PUT",
         headers: { host: HOST_DEMO, "content-type": "application/json", cookie },
-        body: JSON.stringify({ ...VALID, url }),
+        body: JSON.stringify({ ...VALID, links: [{ ...VALID.links[0], url }] }),
       });
       expect(res.status, url).toBe(400);
       expect(await res.json()).toMatchObject({ error: "invalid_url" });

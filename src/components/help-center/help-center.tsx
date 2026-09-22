@@ -29,7 +29,7 @@ import { HelpShell } from "./help-shell";
 import { SupportTicketForm } from "./support-ticket-form";
 import { UnansweredReport } from "./unanswered-report";
 import { MeetingCta } from "./meeting-cta";
-import { showsAt, type MeetingConfig } from "@/lib/content/meeting";
+import { placementLink, showsAt, type MeetingLink } from "@/lib/content/meeting";
 import { sendFeedback } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -205,7 +205,7 @@ export function HelpCenter({
           t={t}
           locale={locale}
           entryCards={data.entryCards}
-          meeting={showsAt(data.meeting, "home") ? data.meeting : null}
+          meeting={showsAt(data.meeting, "home") ? placementLink(data.meeting) : null}
           suggestions={data.suggestions}
           labels={promptLabels}
           onAsk={(text) => void ask(text)}
@@ -227,7 +227,7 @@ export function HelpCenter({
             t={t}
             locale={locale}
             answer={view.answer}
-            meeting={showsAt(data.meeting, "noHelp") ? data.meeting : null}
+            meeting={showsAt(data.meeting, "noHelp") ? placementLink(data.meeting) : null}
             getArticle={getArticle}
             onOpen={openArticle}
             onBack={goHome}
@@ -272,7 +272,7 @@ function WelcomeView({
   t: T;
   locale: Locale;
   entryCards: EntryCard[];
-  meeting: MeetingConfig | null;
+  meeting: MeetingLink | null;
   suggestions: string[];
   labels: { send: string; mic: string };
   onAsk: (text: string) => void;
@@ -299,7 +299,7 @@ function WelcomeView({
             Einstiegs-Karten — die Selbstbedienung kommt zuerst. */}
         {meeting ? (
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <MeetingCta locale={locale} meeting={meeting} variant="card" />
+            <MeetingCta locale={locale} link={meeting} variant="card" />
           </div>
         ) : null}
       </div>
@@ -387,7 +387,7 @@ function AnswerView({
   onRegenerate: () => void;
   onKeepStale?: () => void;
   onDeleteSaved?: () => void;
-  meeting: MeetingConfig | null;
+  meeting: MeetingLink | null;
 }) {
   // „Nicht hilfreich" gedrückt? Dann ist die Selbstbedienung gescheitert und
   // der Buchungslink wird zum nächsten Schritt (0048, Platzierung 2).
@@ -510,7 +510,7 @@ function AnswerView({
       {meeting && (answer.body.length === 0 || unhelpful) ? (
         <MeetingCta
           locale={locale}
-          meeting={meeting}
+          link={meeting}
           context={answer.question}
           className="mt-4"
         />
