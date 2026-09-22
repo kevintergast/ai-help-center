@@ -22,6 +22,7 @@ const RELEASE_0_5_0 = 1789740000; // 2026-09-18
 const RELEASE_0_5_1 = 1789750000; // 2026-09-18
 const RELEASE_0_6_0 = 1789984800; // 2026-09-21
 const RELEASE_0_7_0 = 1790071200; // 2026-09-22
+const RELEASE_0_8_0 = 1790100000; // 2026-09-22
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -617,6 +618,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Termine anbieten — allgemein und genau dort, wo es hakt",
+    description:
+      "Manche Anliegen klärt kein Artikel, sondern ein Gespräch. Unter „Einstellungen → Buchungslinks“ hinterlegst du jetzt deine Buchungskalender — bis zu fünf, etwa einen für Beratung und einen für die Einrichtung einer Telefonanlage. Du entscheidest, wo der allgemeine Termin automatisch erscheint: am Ende jedes Artikels, nach einem „Nicht hilfreich“, auf der Kontaktseite, als Einstiegskarte. Alles einzeln schaltbar und anfangs aus. Neu ist außerdem der Support-Baustein für den Artikel-Editor: zwei Knöpfe — Support kontaktieren und Termin buchen — die du direkt hinter einen kniffligen Einrichtungsschritt setzt, statt den Leser bis ans Artikelende warten zu lassen. Die Ziele kommen dabei zentral aus deinen Einstellungen; ändert sich deine Support-Adresse, änderst du sie an einer Stelle. Und wo jemand aus einer gescheiterten Hilfe heraus bucht, reist seine Frage als Notiz in den Termin mit.",
+    at: RELEASE_0_8_0,
+    version: "0.8.0",
+    level: "minor",
+  },
   {
     title: "Du siehst jetzt, woran deine KI scheitert",
     description:
