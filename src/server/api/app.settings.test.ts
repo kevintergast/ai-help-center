@@ -34,7 +34,7 @@ type Row = Record<string, unknown>;
 function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
   const { settingsAvailable = true } = opts;
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql", "0045_theme_palette.sql", "0046_footer.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql", "0045_theme_palette.sql", "0046_footer.sql", "0048_meeting_link.sql"]);
   const repo = new D1TenantRepository(d1FromSqlite(sqlite));
 
   const authDb: Record<string, Row[]> = {
@@ -69,6 +69,7 @@ function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
               repo.setWidgetAppearance(tenantId, variant, label),
             setTheme: (tenantId, config) => repo.setTheme(tenantId, config),
             setFooterFlags: (tenantId, flags) => repo.setFooterFlags(tenantId, flags),
+            setMeeting: (tenantId, config) => repo.setMeeting(tenantId, config),
           }
         : null,
   };
@@ -442,5 +443,80 @@ describe("PUT/DELETE /api/v1/admin/settings/theme (0045)", () => {
     const admin = await session(noDeps, "admin-t6@example.com", "admin");
     expect((await putTheme(noDeps, body, admin)).status).toBe(503);
     expect((await deleteTheme(noDeps, admin)).status).toBe(503);
+  });
+});
+
+/**
+ * BUCHUNGSLINK (0048) über die Einstellungen. Verhinderte Fehlerfälle:
+ *  - Ein unsicheres Ziel wird gespeichert und steht dann an bis zu vier
+ *    öffentlichen Stellen, darunter eine, an der jemand Daten einträgt.
+ *  - Redakteure (content) können den Link setzen — er wirkt sofort öffentlich.
+ *  - Entfernen lässt Reste stehen, der Link erscheint weiter.
+ */
+describe("PUT/DELETE /api/v1/admin/settings/meeting (0048)", () => {
+  const VALID = {
+    url: "https://cal.com/team/intro",
+    label: "Termin buchen",
+    title: "Noch Fragen?",
+    description: "",
+    placements: { article: true, noHelp: false, contact: true, home: false },
+  };
+
+  it("admin: speichert und entfernt wieder; niedrigere Rolle → 403", async () => {
+    const f = makeFixture();
+    // Der Link wirkt SOFORT öffentlich — unterhalb von admin darf ihn niemand setzen.
+    const contentCookie = await session(f, "leser@example.com", "user");
+    expect(
+      (
+        await f.app.request("/api/v1/admin/settings/meeting", {
+          method: "PUT",
+          headers: { host: HOST_DEMO, "content-type": "application/json", cookie: contentCookie },
+          body: JSON.stringify(VALID),
+        })
+      ).status,
+    ).toBe(403);
+
+    const cookie = await session(f, "admin@example.com", "admin");
+    const saved = await f.app.request("/api/v1/admin/settings/meeting", {
+      method: "PUT",
+      headers: { host: HOST_DEMO, "content-type": "application/json", cookie },
+      body: JSON.stringify(VALID),
+    });
+    expect(saved.status).toBe(200);
+    expect(
+      (f.sqlite.prepare("SELECT meeting FROM tenants WHERE id = 't_demo'").get() as {
+        meeting: string | null;
+      }).meeting,
+    ).toContain("cal.com");
+
+    const removed = await f.app.request("/api/v1/admin/settings/meeting", {
+      method: "DELETE",
+      headers: { host: HOST_DEMO, cookie },
+    });
+    expect(removed.status).toBe(200);
+    expect(
+      (f.sqlite.prepare("SELECT meeting FROM tenants WHERE id = 't_demo'").get() as {
+        meeting: string | null;
+      }).meeting,
+    ).toBeNull();
+  });
+
+  it("lehnt unsichere Ziele ab, ohne etwas zu schreiben", async () => {
+    const f = makeFixture();
+    const cookie = await session(f, "admin@example.com", "admin");
+    for (const url of ["javascript:alert(1)", "http://cal.com/team", "/termin"]) {
+      const res = await f.app.request("/api/v1/admin/settings/meeting", {
+        method: "PUT",
+        headers: { host: HOST_DEMO, "content-type": "application/json", cookie },
+        body: JSON.stringify({ ...VALID, url }),
+      });
+      expect(res.status, url).toBe(400);
+      expect(await res.json()).toMatchObject({ error: "invalid_url" });
+    }
+    expect(
+      (f.sqlite.prepare("SELECT meeting FROM tenants WHERE id = 't_demo'").get() as {
+        meeting: string | null;
+      }).meeting,
+    ).toBeNull();
   });
 });

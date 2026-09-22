@@ -31,6 +31,12 @@ import {
   MIN_AI_REVIEW_SUGGESTION,
   parseAiReviewInput,
 } from "@/lib/content/ai-review";
+import {
+  MAX_MEETING_DESCRIPTION,
+  MAX_MEETING_LABEL,
+  MAX_MEETING_TITLE,
+  parseMeetingInput,
+} from "@/lib/content/meeting";
 import { fail, ok, type McpTool, type ToolContext } from "./types";
 import { frozen } from "./guards";
 
@@ -654,7 +660,86 @@ export const setPromptSuggestions: McpTool = {
   },
 };
 
+
+/**
+ * BUCHUNGSLINK setzen (0048).
+ *
+ * `updates:write` wie Kontaktwege und Einstiegs-Karten: Der Link wirkt SOFORT
+ * öffentlich, es gibt keinen Entwurfszustand. Deshalb hängt er nicht am reinen
+ * Schreibrecht für Artikel.
+ */
+export const setMeeting: McpTool = {
+  name: "set_meeting",
+  title: "Buchungslink setzen",
+  description:
+    "Set (or remove) the help center's booking link — 'book personal support'. It can appear in up to four places, each switched separately: at the end of every article, after a reader votes an article or AI answer 'not helpful' (or the AI found no answer), as a card on the contact page, and as an extra entry card on the start page. All four default to off. Pass `remove: true` to delete the link everywhere. The URL must be https. IMPORTANT: only use a booking address the operator actually gave you — a wrong one sends people who are already stuck into an empty calendar.",
+  scope: "updates:write",
+  annotations: PUBLIC_HINTS,
+  inputSchema: {
+    type: "object",
+    properties: {
+      remove: {
+        type: "boolean",
+        description: "true removes the booking link from all four places. Ignores all other fields.",
+      },
+      url: { type: "string", description: "https address of the booking calendar (cal.com, Calendly, Microsoft Bookings …)." },
+      label: { type: "string", description: `Button text, max ${MAX_MEETING_LABEL} characters, e.g. "Book a meeting".` },
+      title: { type: "string", description: `Heading above the button, max ${MAX_MEETING_TITLE} characters, e.g. "Still have questions?".` },
+      description: {
+        type: "string",
+        description: `One short line under the heading, max ${MAX_MEETING_DESCRIPTION} characters. Optional.`,
+      },
+      placements: {
+        type: "object",
+        description: "Where the link appears. Anything you leave out is OFF.",
+        properties: {
+          article: { type: "boolean", description: "At the end of every article." },
+          noHelp: {
+            type: "boolean",
+            description:
+              "After a 'not helpful' vote, and under an AI answer that found no sources. The reader's question or the article title travels along as a note in the booking.",
+          },
+          contact: { type: "boolean", description: "As a card on the contact page." },
+          home: { type: "boolean", description: "As an extra entry card on the start page." },
+        },
+      },
+    },
+  },
+  async handler(args, ctx) {
+    const settings = await ctx.deps.getSettingsDeps?.();
+    if (!settings) return fail("settings_unavailable", "Settings storage is not available.");
+
+    if (args.remove === true) {
+      await settings.setMeeting(ctx.tenant.id, null);
+      return ok({ meeting: null, note: "The booking link is removed everywhere." });
+    }
+
+    const parsed = parseMeetingInput(args);
+    if (!parsed.ok) {
+      return fail(
+        parsed.error,
+        parsed.error === "invalid_url"
+          ? "`url` must be a full https address, e.g. https://cal.com/team/intro."
+          : `The field is missing or too long (${parsed.error}).`,
+      );
+    }
+
+    await settings.setMeeting(ctx.tenant.id, parsed.config);
+    const shown = Object.entries(parsed.config.placements)
+      .filter(([, on]) => on)
+      .map(([key]) => key);
+    return ok({
+      meeting: parsed.config,
+      note:
+        shown.length > 0
+          ? `The booking link is live at: ${shown.join(", ")}.`
+          : "Saved, but no placement is switched on — the link is nowhere to be seen. Turn on at least one of article, noHelp, contact, home.",
+    });
+  },
+};
+
 export const NAVIGATION_TOOLS: McpTool[] = [
+  setMeeting,
   reorderArticles,
   listEntryCards,
   setEntryCards,

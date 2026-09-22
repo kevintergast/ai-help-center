@@ -199,8 +199,39 @@ export const de = {
   "hc.contact.title": "Kontakt",
   "hc.contact.intro":
     "Wenn dir die Artikel und die KI-Antworten nicht weiterhelfen, erreichst du uns hier.",
+  "hc.meeting.opensExternally": "öffnet den Buchungskalender in einem neuen Tab",
   "hc.contact.emailHint": "Öffnet dein E-Mail-Programm.",
   "hc.contact.phoneHint": "Wählt die Nummer.",
+  "admin.meeting.title2": "Buchungslink",
+  "admin.meeting.hint":
+    "Ein Kalender-Link, über den Nutzer selbst einen Termin buchen — statt zu schreiben und zu warten. Du pflegst ihn einmal und entscheidest darunter, wo er erscheint.",
+  "admin.meeting.url": "Link zum Buchungskalender (https)",
+  "admin.meeting.urlPlaceholder": "https://cal.com/dein-team/erstgespraech",
+  "admin.meeting.title": "Überschrift",
+  "admin.meeting.titlePlaceholder": "z. B. „Noch Fragen?“",
+  "admin.meeting.label": "Knopf-Beschriftung",
+  "admin.meeting.labelPlaceholder": "z. B. „Termin buchen“",
+  "admin.meeting.description": "Kurze Zeile darunter (optional)",
+  "admin.meeting.descriptionPlaceholder": "z. B. „15 Minuten, unverbindlich“",
+  "admin.meeting.placementsHeading": "Wo soll er erscheinen?",
+  "admin.meeting.placementsHint":
+    "Standardmäßig nirgends — schalte gezielt frei, was zu deinem Hilfezentrum passt.",
+  "admin.meeting.placement.article": "Am Ende jedes Artikels",
+  "admin.meeting.placement.noHelp":
+    "Nach „Nicht hilfreich“ und unter KI-Antworten ohne Treffer (Frage bzw. Artikel reist als Notiz mit)",
+  "admin.meeting.placement.contact": "Als Karte auf der Kontaktseite",
+  "admin.meeting.placement.home": "Als Einstiegskarte auf der Startseite",
+  "admin.meeting.noPlacementWarning":
+    "Kein Platz ausgewählt — der Link ist gespeichert, aber für niemanden sichtbar.",
+  "admin.meeting.save": "Buchungslink speichern",
+  "admin.meeting.saved": "Buchungslink gespeichert.",
+  "admin.meeting.remove": "Entfernen",
+  "admin.meeting.error.invalid_url":
+    "Der Link muss eine vollständige https-Adresse sein (z. B. https://cal.com/…).",
+  "admin.meeting.error.label_required": "Der Knopf braucht eine Beschriftung.",
+  "admin.meeting.error.title_required": "Es fehlt die Überschrift.",
+  "admin.meeting.error.too_long": "Ein Feld ist zu lang.",
+  "admin.meeting.error.generic": "Speichern fehlgeschlagen. Bitte noch einmal versuchen.",
   "admin.contact.title": "Kontaktwege",
   "admin.contact.hint":
     "Erscheinen SOFORT auf der Kontaktseite. Der Eintrag »Kontakt« unten in der Navigation und die Seite selbst erscheinen genau dann, wenn mindestens ein Weg gepflegt ist. Höchstens {max}.",

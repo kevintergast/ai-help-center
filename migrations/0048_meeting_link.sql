@@ -1,0 +1,27 @@
+-- 0048 — MEETING-LINK: „Persönliche Unterstützung buchen".
+--
+-- WARUM: Die Kontaktseite kannte drei Wege — Adresse, Telefon, Formular. Alle
+-- drei enden damit, dass jemand SCHREIBT und dann wartet. Für Beratung, Demo
+-- oder Onboarding ist der direkte Weg ein Kalender-Link: Der Nutzer sucht sich
+-- selbst einen freien Termin, niemand muss zurückrufen.
+--
+-- EINE SPALTE, VIER PLATZIERUNGEN. Der Link soll an vier Stellen erscheinen
+-- können (Artikelende, nach erfolgloser Hilfe, Kontaktseite, Startseite) —
+-- jede einzeln abschaltbar. Deshalb steht er NICHT als vierter Kontaktweg in
+-- `contact_methods`: Dann läge die Buchungsadresse an einer Stelle und die
+-- Schalter für die anderen drei woanders, und wer den Kontaktweg löscht, risse
+-- die Artikel-Platzierung stumm mit weg. Eine zweite Wahrheit, die garantiert
+-- irgendwann auseinanderläuft.
+--
+-- JSON statt sieben Spalten (Muster 0045/theme): Adresse, Beschriftung,
+-- Überschrift, Beschreibung und vier Schalter sind EIN Sachverhalt, der immer
+-- zusammen gelesen und zusammen geschrieben wird. Sieben Spalten dafür wären
+-- sieben Gelegenheiten, die Hälfte zu vergessen. Gelesen wird über
+-- `readMeetingConfig` (lib/content/meeting.ts) — kaputtes JSON ergibt bewusst
+-- `null` (kein Buchungslink) statt eines Fehlers, denn eine unlesbare Zeile
+-- darf ein Hilfezentrum nicht abschalten.
+--
+-- NULL = nicht eingerichtet. Alle Platzierungen starten AUS: Eine Fläche, die
+-- dem Endnutzer etwas anbietet, darf auf einer laufenden Kundeninstanz nicht
+-- unangekündigt erscheinen.
+ALTER TABLE tenants ADD COLUMN meeting TEXT;

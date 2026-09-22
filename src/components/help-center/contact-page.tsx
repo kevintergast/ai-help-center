@@ -7,6 +7,8 @@ import { contactMethodHref, type ContactMethod } from "@/lib/content/contact-met
 import { getT } from "@/i18n/t";
 import { HelpShell } from "./help-shell";
 import { SupportTicketForm } from "./support-ticket-form";
+import { MeetingCta } from "./meeting-cta";
+import { showsAt } from "@/lib/content/meeting";
 import { InboxIcon, PhoneIcon, SendIcon } from "@/components/ui/icons";
 
 /**
@@ -71,6 +73,15 @@ export function ContactPage({
                 <MethodCard method={method} locale={locale} t={t} />
               </li>
             ))}
+            {/* BUCHUNGSLINK als eigene Karte (0048, Platzierung 3), neben
+                E-Mail und Telefon. Steht am ENDE: Die gepflegten Kontaktwege
+                behalten ihre Reihenfolge, und ein Termin ist der Weg mit der
+                größten Hürde — er gehört nicht vor die schnelle Mail. */}
+            {showsAt(data.meeting, "contact") ? (
+              <li>
+                <MeetingCta locale={locale} meeting={data.meeting!} variant="card" />
+              </li>
+            ) : null}
           </ul>
         </div>
       </div>

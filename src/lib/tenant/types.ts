@@ -1,5 +1,6 @@
 import type { ActionVariant } from "@/lib/content/action-buttons";
 import type { ThemeConfig } from "@/lib/theme/palette";
+import type { MeetingConfig } from "@/lib/content/meeting";
 export type Locale = "de" | "en";
 
 /** Pro-Mandant anpassbares Erscheinungsbild (White-Label). */
@@ -82,6 +83,11 @@ export interface Tenant {
     terms: boolean;
     poweredBy: boolean;
   };
+  /**
+   * Buchungslink „Persönliche Unterstützung" (0048). FEHLEND/null = nicht
+   * eingerichtet → erscheint nirgends.
+   */
+  meeting?: MeetingConfig | null;
   /** Erscheinungsbild des Widgets (0041). */
   widget?: {
     variant: ActionVariant;

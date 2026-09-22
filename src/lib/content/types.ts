@@ -3,6 +3,7 @@ import type { EntryCard } from "./entry-cards";
 import type { ContactMethod } from "./contact-methods";
 import type { ActionButton } from "./action-buttons";
 import type { FooterLink, LegalFooterVisibility } from "./footer-links";
+import type { MeetingConfig } from "./meeting";
 import type { ArticleIcon } from "./article-icons";
 
 /**
@@ -228,4 +229,10 @@ export interface HelpCenterData {
    * Komponenten und vier Seiten gereicht werden, nur um unten anzukommen.
    */
   footer: LegalFooterVisibility & { poweredBy: boolean };
+  /**
+   * Buchungslink der Instanz (0048) oder `null`. Reist wie die
+   * Fuß-Einstellungen im Lese-Bundle, weil ihn VIER Ansichten brauchen —
+   * als Prop müsste derselbe Wert durch jede einzelne gereicht werden.
+   */
+  meeting: MeetingConfig | null;
 }
