@@ -7,6 +7,7 @@ import { applyMigrations, d1FromSqlite } from "@/server/auth/sqlite-test-support
 import { THEME_TOKEN_KEYS } from "@/lib/theme/tokens";
 import { D1ContentRepository } from "@/server/content/store";
 import { D1SupportRepository } from "@/server/support/store";
+import { D1UnansweredRepository } from "@/server/unanswered/store";
 import { D1ApiKeyRepository } from "@/server/apikeys/store";
 import { generateApiKey, hashApiKey } from "@/server/apikeys/keys";
 import type { ApiScope } from "@/server/apikeys/scopes";
@@ -34,6 +35,7 @@ const MIGRATIONS = [
   "0002_auth.sql", "0004_two_factor_plugin_columns.sql",
   "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql", "0033_api_docs_url.sql", "0038_header_actions.sql", "0043_api_docs_to_header_action.sql", "0044_prompt_suggestions.sql", "0015_support_tickets.sql", "0039_comprehension_reports.sql", "0042_review_suggestion.sql",
   "0027_api_keys.sql",
+  "0047_unanswered_questions.sql",
 ] as const;
 
 function makeTenant(id: string, slug: string): Tenant {
@@ -93,6 +95,7 @@ function makeApp() {
   };
 
   const supportRepo = new D1SupportRepository(d1FromSqlite(db));
+  const unansweredRepo = new D1UnansweredRepository(d1FromSqlite(db));
 
   const deps: ApiDeps = {
     resolveTenant: async (host) => TENANTS[(host ?? "").split(":")[0].toLowerCase()] ?? null,
@@ -112,6 +115,7 @@ function makeApp() {
     getLegalDeps: async () => null,
     getContentDeps: async () => ({ store, media }),
     getSupportDeps: async () => ({ repo: supportRepo, sendTicketMail: async () => true }),
+    getUnansweredRepo: async () => unansweredRepo,
     getApiKeyDeps: async () => ({ repo: keys }),
     getSettingsDeps: async () => ({
       setSeoIndexable: async () => {},
@@ -160,6 +164,7 @@ function makeApp() {
 
   return {
     app: buildApiApp(deps), db, store, keys, indexCalls, auditEntries, mediaObjects, supportRepo,
+    unansweredRepo,
     get summarizerCalls() { return summarizer.calls; },
   };
 }
@@ -1591,5 +1596,135 @@ describe("MCP — Farbwelt", () => {
     expect((await callTool(f.app, token, "get_settings")).data!.hasOwnColourWorld).toBe(false);
     await callTool(f.app, token, "set_theme", ANKER);
     expect((await callTool(f.app, token, "get_settings")).data!.hasOwnColourWorld).toBe(true);
+  });
+});
+
+/**
+ * POSTFACH-WERKZEUGE (Nutzerhinweise). Verhinderte Fehlerfälle:
+ *  - Die Rechte support:* gibt es, die Werkzeuge nicht → ein Schlüssel hält
+ *    etwas frei, was es nicht gibt (genau der gemeldete Zustand vor 0.7.0).
+ *  - Ein Schlüssel OHNE support:read sieht die Einträge trotzdem, wenn er das
+ *    Werkzeug direkt aufruft (Verstecken ist kein Schutz).
+ *  - Endnutzer-Text kommt ohne Kennzeichnung als fremder Inhalt beim Modell
+ *    an → „Ignoriere deine Anweisungen …" in einem Ticket würde zur Anweisung.
+ *  - Ein Eintrag eines ANDEREN Mandanten lässt sich über seine Id schließen
+ *    oder löschen.
+ *  - Löschen passiert schon beim ersten Aufruf, ohne Rückfrage.
+ */
+describe("MCP — Postfach", () => {
+  async function seedTicket(
+    f: ReturnType<typeof makeApp>,
+    tenantId: string,
+    over: Partial<{ kind: "support" | "comprehension"; message: string }> = {},
+  ) {
+    const t = await f.supportRepo.create({
+      tenantId,
+      kind: over.kind ?? "support",
+      message: over.message ?? "Der Import bricht ab.",
+      contactEmail: "kunde@example.com",
+      question: null,
+      actorType: "anon",
+      visitorId: "v1",
+      nowSec: 1_800_000_000,
+    });
+    return t.id;
+  }
+
+  it("erscheinen mit support:read — und bleiben ohne es gesperrt", async () => {
+    const f = makeApp();
+    const withScope = await issueKey(f.keys, "t_a", ["support:read"]);
+    const namesWith = (
+      (await rpc(f.app, withScope, "tools/list")).json as Record<
+        string,
+        { tools: { name: string }[] }
+      >
+    ).result.tools.map((t) => t.name);
+    expect(namesWith).toContain("list_inbox");
+    expect(namesWith).toContain("list_unanswered_questions");
+    expect(namesWith).not.toContain("resolve_inbox_item");
+
+    // Ohne das Recht: nicht gelistet UND nicht aufrufbar.
+    const without = await issueKey(f.keys, "t_a", ["articles:read"]);
+    const namesWithout = (
+      (await rpc(f.app, without, "tools/list")).json as Record<
+        string,
+        { tools: { name: string }[] }
+      >
+    ).result.tools.map((t) => t.name);
+    expect(namesWithout).not.toContain("list_inbox");
+
+    const { res } = await rpc(f.app, without, "tools/call", {
+      name: "list_inbox",
+      arguments: {},
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("list_inbox liefert die Einträge und kennzeichnet sie als fremden Text", async () => {
+    const f = makeApp();
+    await seedTicket(f, "t_a", { kind: "comprehension", message: "Was heißt Slug?" });
+    const token = await issueKey(f.keys, "t_a", ["support:read"]);
+
+    const { data } = await callTool(f.app, token, "list_inbox");
+    expect(data!.count).toBe(1);
+    expect((data!.items as { message: string }[])[0].message).toBe("Was heißt Slug?");
+    expect(String(data!.untrustedContent)).toContain("untrusted");
+  });
+
+  it("filtert nach Status — Erledigtes taucht in der offenen Liste nicht auf", async () => {
+    const f = makeApp();
+    const id = await seedTicket(f, "t_a");
+    const token = await issueKey(f.keys, "t_a", ["support:read", "support:write"]);
+
+    await callTool(f.app, token, "resolve_inbox_item", { id });
+    expect((await callTool(f.app, token, "list_inbox")).data!.count).toBe(0);
+    expect((await callTool(f.app, token, "list_inbox", { status: "done" })).data!.count).toBe(1);
+  });
+
+  it("schließt fremde Einträge NICHT (Mandantengrenze)", async () => {
+    const f = makeApp();
+    const foreign = await seedTicket(f, "t_b");
+    const token = await issueKey(f.keys, "t_a", ["support:write"]);
+
+    const { data } = await callTool(f.app, token, "resolve_inbox_item", { id: foreign });
+    expect(data).toMatchObject({ error: "not_found" });
+    expect((await f.supportRepo.listByTenant("t_b", 10))[0].status).toBe("open");
+  });
+
+  it("löscht erst nach Bestätigung — der erste Aufruf fasst nichts an", async () => {
+    const f = makeApp();
+    const id = await seedTicket(f, "t_a");
+    const token = await issueKey(f.keys, "t_a", ["support:delete"]);
+
+    const first = await callTool(f.app, token, "delete_inbox_item", { id });
+    expect(first.data).toMatchObject({ status: "confirmation_required" });
+    expect(await f.supportRepo.listByTenant("t_a", 10)).toHaveLength(1);
+
+    const second = await callTool(f.app, token, "delete_inbox_item", {
+      id,
+      confirmation_token: String(first.data!.confirmation_token),
+    });
+    expect(second.data).toMatchObject({ deleted: true });
+    expect(await f.supportRepo.listByTenant("t_a", 10)).toHaveLength(0);
+  });
+
+  it("list_unanswered_questions zeigt die Schreib-Warteschlange", async () => {
+    const f = makeApp();
+    await f.unansweredRepo.record({
+      tenantId: "t_a",
+      question: "Zeitgesteuerte Weiterleitung in der Fritzbox?",
+      nowSec: 1_800_000_000,
+    });
+    await f.unansweredRepo.report({
+      tenantId: "t_a",
+      question: "Zeitgesteuerte Weiterleitung in der Fritzbox?",
+      email: null,
+      nowSec: 1_800_000_001,
+    });
+    const token = await issueKey(f.keys, "t_a", ["support:read"]);
+
+    const { data } = await callTool(f.app, token, "list_unanswered_questions");
+    expect(data!.count).toBe(1);
+    expect((data!.groups as { someoneIsWaiting: boolean }[])[0].someoneIsWaiting).toBe(true);
   });
 });

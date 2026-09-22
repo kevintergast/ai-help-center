@@ -5,6 +5,7 @@ import { NAVIGATION_TOOLS } from "./navigation";
 import { THEME_TOOLS } from "./theme";
 import { UPDATE_TOOLS } from "./updates";
 import { DESTRUCTIVE_TOOLS } from "./destructive";
+import { INBOX_TOOLS } from "./inbox";
 import { hasScope } from "@/server/apikeys/scopes";
 import type { ApiKeyPrincipal } from "@/server/apikeys/keys";
 import type { McpTool } from "./types";
@@ -23,6 +24,7 @@ export const ALL_TOOLS: McpTool[] = [
   ...NAVIGATION_TOOLS,
   ...THEME_TOOLS,
   ...UPDATE_TOOLS,
+  ...INBOX_TOOLS,
   ...DESTRUCTIVE_TOOLS,
 ];
 

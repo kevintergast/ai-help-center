@@ -21,6 +21,7 @@ const RELEASE_0_4_1 = 1789567200; // 2026-09-17
 const RELEASE_0_5_0 = 1789740000; // 2026-09-18
 const RELEASE_0_5_1 = 1789750000; // 2026-09-18
 const RELEASE_0_6_0 = 1789984800; // 2026-09-21
+const RELEASE_0_7_0 = 1790071200; // 2026-09-22
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -474,6 +475,11 @@ const ARTICLES = [
       "Nicht per MCP erreichbar sind bewusst: Team und Rollen, Eigentümerschaft, Rechtstexte, eigene Domain, Plan und Bezahlung sowie die Schlüsselverwaltung selbst. Diese Flächen bleiben Mensch, Anmeldung und Zwei-Faktor-Authentifizierung vorbehalten — ein geleakter Schlüssel soll Inhalte gefährden können, niemals dein Konto.",
       "Die KI kann außerdem die Navigation ordnen, die Einstiegs-Karten der Startseite setzen und die Kontaktwege pflegen — alles drei wirkt sofort öffentlich und hängt deshalb an den entsprechenden Rechten, nicht am reinen Schreibrecht. Beim Ordnen genügt eine Teil-Liste: Genannte Artikel rücken nach vorn, alle übrigen behalten ihre bisherige Reihenfolge dahinter.",
       "Bei Kontaktwegen gilt eine Regel, die keine Technik erzwingen kann: Trage nur Adressen und Rufnummern ein, die du der KI wirklich genannt hast. Eine falsche Support-Adresse steht ausgerechnet dort, wo jemand landet, der schon nicht weiterkommt.",
+      "## Nutzerhinweise von der KI abarbeiten lassen",
+      "Mit dem Recht »Nutzerhinweise lesen« sieht dein KI-Client dein Postfach: Support-Anfragen, markierte unklare Stellen aus Artikeln und die unbeantworteten KI-Fragen. Das ist die eigentliche Schleife — der Client liest, was Leser nicht verstanden haben, korrigiert den Artikel, veröffentlicht ihn und schließt den Hinweis mit dem Recht »Nutzerhinweise bearbeiten« ab.",
+      "Bei einer markierten Stelle bekommt er den Artikel UND das angeklickte Zitat mitgeliefert. Er weiß also genau, welcher Absatz gemeint war, statt raten zu müssen.",
+      "Zwei Dinge dabei im Blick behalten: Diese Einträge enthalten personenbezogene Daten deiner Endnutzer — freien Text und teils E-Mail-Adressen. Das Recht ist deshalb eigens als solches gekennzeichnet, und du entscheidest bewusst, ob dein KI-Anbieter das sehen soll. Und: Der Text stammt von Fremden, nicht von dir. Er wird der KI ausdrücklich als Fremdinhalt übergeben, damit eine als Anweisung getarnte Nachricht im Ticket die KI nicht steuern kann.",
+      "Schließe einen Hinweis erst, wenn das Problem wirklich behoben ist — nicht schon, wenn er gelesen wurde. Löschen geht auch, verlangt aber dieselbe zweistufige Bestätigung wie das Löschen eines Artikels.",
       "Tipp: Lege lieber zwei enge Schlüssel an als einen Generalschlüssel — etwa einen reinen Lese-Schlüssel für Recherche und Auswertungen und einen Schreib-Schlüssel ohne Veröffentlichen für die Redaktion.",
     ],
     related: ["inhalte-importieren-exportieren", "artikel-veroeffentlichen", "navigation-und-einstieg"],
@@ -572,6 +578,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Du siehst jetzt, woran deine KI scheitert",
+    description:
+      "Wenn die KI in deinen Artikeln keine belastbare Antwort findet, war das bisher eine Sackgasse: Der Fragende bekam „formuliere es anders“ zu lesen, und du hast nie erfahren, dass er überhaupt gefragt hat. Ab sofort kann er stattdessen sagen „Ich brauche dazu eine Antwort“ und freiwillig eine Adresse hinterlassen. Alle unbeantworteten Fragen sammeln sich unter „Statistik“ in einer nach Häufigkeit sortierten Liste — Gemeldete ganz oben. Das ist deine Schreib-Warteschlange: Was dort oft steht, fehlt als Artikel. Einträge werden nach 90 Tagen automatisch gelöscht. Dein angebundener KI-Client kann diese Liste jetzt ebenfalls lesen — zusammen mit deinem Postfach: Er sieht die markierten unklaren Stellen samt zitiertem Absatz, bessert den Artikel nach und schließt den Hinweis ab. Die Rechte dafür gab es schon, die Werkzeuge fehlten. Außerdem: Der Knopf „Ich verstehe etwas nicht“ wartet nicht mehr am Artikelende, sondern läuft beim Lesen oben mit — dort, wo man stutzt.",
+    at: RELEASE_0_7_0,
+    version: "0.7.0",
+    level: "minor",
+  },
   {
     title: "Eigene Farbwelt, eigene Einstiegsfragen, eigener Fuß",
     description:
