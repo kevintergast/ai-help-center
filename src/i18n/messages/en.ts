@@ -90,6 +90,17 @@ export const en: Record<MessageKey, string> = {
   "widget.send": "Send question",
   "widget.close": "Close help",
 
+  "hc.unanswered.cta": "I need an answer to this",
+  "hc.unanswered.formTitle":
+    "Thanks — we record your question and will write an article if it comes up more often.",
+  "hc.unanswered.emailLabel": "Email for a reply (optional)",
+  "hc.unanswered.emailPlaceholder": "you@example.com",
+  "hc.unanswered.send": "Report question",
+  "hc.unanswered.cancel": "Cancel",
+  "hc.unanswered.thanks":
+    "Your question has arrived. If you left an address, we will get back to you.",
+  "hc.unanswered.error.email": "That is not a valid email address.",
+  "hc.unanswered.error.failed": "That did not work. Please try again.",
   "hc.support.trigger": "Something wrong? Contact support",
   "hc.support.title": "Contact support",
   "hc.support.messageLabel": "Describe your issue",
@@ -605,6 +616,16 @@ export const en: Record<MessageKey, string> = {
   "admin.stats.period30": "30 days",
   "admin.stats.period90": "90 days",
   "admin.stats.grounded": "grounded",
+  "admin.stats.unanswered": "Unanswered questions",
+  "admin.stats.unansweredHint":
+    "Questions the AI found no solid answer for in your articles — sorted by frequency. This is your writing queue: what shows up often here is a missing article.",
+  "admin.stats.unansweredRetention": "Deleted after {days} days",
+  "admin.stats.unansweredEmpty":
+    "No unanswered questions yet. Either your help centre covers what people ask — or nobody is asking yet.",
+  "admin.stats.unansweredQuestion": "Question",
+  "admin.stats.unansweredCount": "How often",
+  "admin.stats.unansweredLast": "Last asked",
+  "admin.stats.unansweredReported": "Someone is waiting",
   "admin.stats.notGrounded": "no source",
   "admin.stats.viewsOverTime": "Article views over time (30 days)",
   "admin.stats.total": "{n} total",

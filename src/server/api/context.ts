@@ -21,6 +21,7 @@ import type { TranslateArticleInput, TranslateArticleResult } from "@/server/con
 import type { SavedAnswersRepository } from "@/server/answers/store";
 import type { CustomHostnameProvisioner } from "@/server/domains/provisioner";
 import type { VisitorIdCodec } from "@/server/security/visitor-id";
+import type { UnansweredRepository } from "@/server/unanswered/store";
 import type { ApiKeyDeps } from "@/server/apikeys/store";
 import type { ApiKeyPrincipal } from "@/server/apikeys/keys";
 import type { ConfirmationCodec } from "@/server/mcp/tools/types";
@@ -122,6 +123,12 @@ export interface ApiDeps {
    * `null`/fehlend ⇒ 503 (keine D1-Bindings). Tests injizieren Fakes.
    */
   getSettingsDeps?(): Promise<SettingsDeps | null>;
+  /**
+   * Unbeantwortete Fragen (0047): Mitschreiben beim Ausbleiben einer Antwort
+   * + Redaktions-Warteschlange. `null`/fehlend ⇒ der Melde-Endpunkt antwortet
+   * 503 und die Pipeline schreibt einfach nichts mit.
+   */
+  getUnansweredRepo?(): Promise<UnansweredRepository | null>;
   /** Changelog-/Roadmap-Pflege (api/updates.ts + MCP). `null`/fehlend ⇒ 503. */
   getUpdatesStore?(): Promise<UpdatesStore | null>;
   /**

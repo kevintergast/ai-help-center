@@ -89,6 +89,17 @@ export const de = {
   "widget.send": "Frage senden",
   "widget.close": "Hilfe schließen",
 
+  "hc.unanswered.cta": "Ich brauche dazu eine Antwort",
+  "hc.unanswered.formTitle":
+    "Danke — wir nehmen deine Frage auf und schreiben einen Artikel dazu, wenn sie öfter kommt.",
+  "hc.unanswered.emailLabel": "E-Mail für eine Rückmeldung (freiwillig)",
+  "hc.unanswered.emailPlaceholder": "du@beispiel.de",
+  "hc.unanswered.send": "Frage melden",
+  "hc.unanswered.cancel": "Abbrechen",
+  "hc.unanswered.thanks":
+    "Deine Frage ist angekommen. Wenn du eine Adresse hinterlassen hast, melden wir uns.",
+  "hc.unanswered.error.email": "Das ist keine gültige E-Mail-Adresse.",
+  "hc.unanswered.error.failed": "Das hat nicht geklappt. Bitte noch einmal versuchen.",
   "hc.support.trigger": "Etwas stimmt nicht? Support kontaktieren",
   "hc.support.title": "Support kontaktieren",
   "hc.support.messageLabel": "Beschreibe dein Anliegen",
@@ -608,6 +619,16 @@ export const de = {
   "admin.stats.period30": "30 Tage",
   "admin.stats.period90": "90 Tage",
   "admin.stats.grounded": "geerdet",
+  "admin.stats.unanswered": "Unbeantwortete Fragen",
+  "admin.stats.unansweredHint":
+    "Fragen, auf die die KI in deinen Artikeln keine belastbare Antwort gefunden hat — nach Häufigkeit sortiert. Das ist deine Schreib-Warteschlange: Was hier oft steht, fehlt als Artikel.",
+  "admin.stats.unansweredRetention": "Wird nach {days} Tagen gelöscht",
+  "admin.stats.unansweredEmpty":
+    "Noch keine unbeantworteten Fragen. Entweder deckt dein Hilfezentrum ab, was gefragt wird — oder es wird noch nicht gefragt.",
+  "admin.stats.unansweredQuestion": "Frage",
+  "admin.stats.unansweredCount": "Wie oft",
+  "admin.stats.unansweredLast": "Zuletzt",
+  "admin.stats.unansweredReported": "Jemand wartet",
   "admin.stats.notGrounded": "keine Quelle",
   "admin.stats.viewsOverTime": "Artikel-Aufrufe im Zeitverlauf (30 Tage)",
   "admin.stats.total": "{n} gesamt",

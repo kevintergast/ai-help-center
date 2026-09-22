@@ -398,6 +398,8 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
     // derselbe anonyme Eskalationsweg wie /support/tickets, nur mit Artikel-
     // statt Antwort-Bezug; gleiche Schichten, zusätzlich je Instanz
     // abschaltbar → dann 404).
+    // 2026-09-22: + /unanswered/report („Ich brauche dazu eine Antwort" —
+    // Melde-Weg direkt unter der Nicht-Antwort; Begründung public-routes.ts).
     // 2026-09-21: − /widget/session. Der Bootstrap vergab dem iframe eine
     // signierte Besucher-ID; seit die ID serverseitig abgeleitet wird
     // (security/visitor-id.ts), gibt es nichts mehr zu vergeben. Eine
@@ -424,6 +426,7 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
           "/api/v1/events/view",
           "/api/v1/events/feedback",
           "/api/v1/ask",
+          "/api/v1/unanswered/report",
           "/api/v1/support/tickets",
           "/api/v1/support/comprehension",
           "/api/v1/widget/config",

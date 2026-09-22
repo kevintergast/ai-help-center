@@ -164,8 +164,11 @@ export interface BillingRepository {
   getArticleUsageStats(tenantId: string): Promise<Record<string, ArticleUsageStats>>;
   /**
    * „Häufigste Quellen": meistzitierte Artikel in KI-Antworten (ai_source-
-   * Events) im Zeitfenster — ersetzt die frühere „Häufigste Fragen"-Karte
-   * (Fragetexte werden bewusst NICHT gespeichert).
+   * Events) im Zeitfenster — ersetzt die frühere „Häufigste Fragen"-Karte.
+   * Der Wortlaut BEANTWORTETER Fragen wird weiterhin bewusst NICHT
+   * gespeichert; die einzige Ausnahme sind Fragen OHNE Antwort (0047,
+   * server/unanswered/store.ts), denn dort IST der Wortlaut die Information,
+   * die der Redaktion fehlt — befristet auf 90 Tage.
    */
   getTopSources(tenantId: string, window: StatsWindow, limit: number): Promise<TopArticleRow[]>;
   /** Verbrauch der Periode (Credits aus Aggregat, MAU als COUNT über usage_mau). */
