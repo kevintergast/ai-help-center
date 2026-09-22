@@ -109,3 +109,95 @@ describe("POST /api/v1/ask", () => {
     expect(await res.json()).toEqual({ error: "plan_frozen" });
   });
 });
+
+/**
+ * API-VERTRAG POST /api/v1/unanswered/report (0047).
+ *
+ * Verhinderte Fehlerfälle:
+ *  - Der Melde-Weg verlangt plötzlich eine Session → genau die Nutzer, die
+ *    gerade keine Antwort bekommen haben, könnten nichts mehr melden.
+ *  - Leere/riesige Fragen oder Unsinns-Adressen landen in der Warteschlange.
+ *  - Ein Tippfehler in der Adresse wird still verschluckt: Der Melder wartet
+ *    dann ewig auf eine Antwort, die nie kommen kann.
+ *  - Fehlende Bindings werden als Erfolg quittiert.
+ */
+describe("POST /api/v1/unanswered/report", () => {
+  function makeReportApp(available = true) {
+    const reports: { tenantId: string; question: string; email: string | null }[] = [];
+    const deps: ApiDeps = {
+      resolveTenant: async (host) =>
+        (host ?? "").split(":")[0].toLowerCase() === HOST ? TENANT : null,
+      createAuthForTenant: async () => {
+        throw new Error("nicht benötigt — der Melde-Weg ist public");
+      },
+      getBrandingDeps: async () => null,
+      getTeamDeps: async () => null,
+      getLegalDeps: async () => null,
+      getContentDeps: async () => null,
+      ...(available
+        ? {
+            getUnansweredRepo: async () => ({
+              record: async () => {},
+              report: async (input: { tenantId: string; question: string; email: string | null }) => {
+                reports.push({
+                  tenantId: input.tenantId,
+                  question: input.question,
+                  email: input.email,
+                });
+              },
+              list: async () => [],
+            }),
+          }
+        : {}),
+    };
+    return { app: buildApiApp(deps), reports };
+  }
+
+  const report = (app: ReturnType<typeof makeReportApp>["app"], body: unknown) =>
+    app.request("/api/v1/unanswered/report", {
+      method: "POST",
+      headers: { host: HOST, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+  it("anonym erlaubt; Frage und freiwillige Adresse kommen an", async () => {
+    const f = makeReportApp();
+    const res = await report(f.app, {
+      question: "Zeitgesteuerte Weiterleitung in der Fritzbox?",
+      email: "Kunde@Example.COM",
+    });
+    expect(res.status).toBe(200);
+    expect(f.reports).toEqual([
+      {
+        tenantId: "t_demo",
+        question: "Zeitgesteuerte Weiterleitung in der Fritzbox?",
+        // Kleingeschrieben gespeichert — sonst stünde dieselbe Adresse
+        // mehrfach in der Liste.
+        email: "kunde@example.com",
+      },
+    ]);
+  });
+
+  it("ohne Adresse ist in Ordnung (die Meldung zählt auch anonym)", async () => {
+    const f = makeReportApp();
+    expect((await report(f.app, { question: "Geht das auch ohne?" })).status).toBe(200);
+    expect(f.reports[0].email).toBeNull();
+  });
+
+  it("weist Leeres, Riesiges und kaputte Adressen ab — ohne etwas zu speichern", async () => {
+    const f = makeReportApp();
+    expect((await report(f.app, { question: "   " })).status).toBe(400);
+    expect((await report(f.app, { question: "x".repeat(401) })).status).toBe(400);
+
+    const badEmail = await report(f.app, { question: "Gültig?", email: "keine-adresse" });
+    expect(badEmail.status).toBe(400);
+    expect(await badEmail.json()).toMatchObject({ error: "invalid_email" });
+
+    expect(f.reports).toEqual([]);
+  });
+
+  it("ohne Bindings: 503 statt falschem Erfolg", async () => {
+    const f = makeReportApp(false);
+    expect((await report(f.app, { question: "Und jetzt?" })).status).toBe(503);
+  });
+});

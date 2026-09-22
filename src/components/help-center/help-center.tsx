@@ -27,6 +27,7 @@ import {
 import { cn } from "@/lib/ui/cn";
 import { HelpShell } from "./help-shell";
 import { SupportTicketForm } from "./support-ticket-form";
+import { UnansweredReport } from "./unanswered-report";
 import { sendFeedback } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -430,7 +431,13 @@ function AnswerView({
         }
       >
         {answer.body.length === 0 ? (
-          <p className="text-ink-muted">{t("hc.answer.noSources")}</p>
+          <>
+            <p className="text-ink-muted">{t("hc.answer.noSources")}</p>
+            {/* Angebot statt Sackgasse (0047): Wer keine Antwort bekommen hat,
+                soll sagen können, dass er eine braucht — sonst verlieren wir
+                genau die Information, die der Redaktion fehlt. */}
+            <UnansweredReport locale={locale} question={answer.question} />
+          </>
         ) : (
           answer.body.map((p, i) => (
             <p key={i} className={i > 0 ? "mt-3" : undefined}>

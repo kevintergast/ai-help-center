@@ -15,6 +15,7 @@ import { runWithTenant } from "@/server/auth/tenant-context";
 import { freezeGate } from "@/server/billing/enforcement";
 import { answersRouter } from "./answers";
 import { askPublicRouter } from "./ask";
+import { unansweredAdminRouter, unansweredPublicRouter } from "./unanswered";
 import { brandingAdminRouter, brandingPublicRouter } from "./branding";
 import {
   contentAdminRouter,
@@ -291,6 +292,7 @@ export function buildApiApp(deps: ApiDeps) {
   app.route("/admin/contact-methods", contactMethodsAdminRouter(deps));
   app.route("/admin/header-actions", headerActionsAdminRouter(deps));
   app.route("/admin/footer", footerAdminRouter(deps));
+  app.route("/admin/unanswered", unansweredAdminRouter(deps));
   app.route("/admin/prompt-suggestions", promptSuggestionsAdminRouter(deps));
 
   // Legal-Docs pro Instanz (Design h): owner-exklusive Pflege + admin-Lesen +
@@ -356,6 +358,7 @@ export function buildApiApp(deps: ApiDeps) {
   // Dynamischer KI-Artikel (RAG-Kern, Punkt 3): public Frage-Endpoint.
   // Pipeline/Invarianten (frozen-Gate, Grounding, Credits): server/rag/ask.ts
   app.route("/ask", askPublicRouter(deps));
+  app.route("/unanswered", unansweredPublicRouter(deps));
 
   // (5) 404 erst NACH Tenant- und Auth-Prüfung erreichbar (siehe Default-Deny).
   app.notFound((c) => c.json({ error: "not_found" }, 404));

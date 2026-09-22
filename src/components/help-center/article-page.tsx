@@ -108,6 +108,21 @@ export function ArticlePage({
 
         <div className="flex flex-col gap-8 lg:flex-row">
           <article className="min-w-0 max-w-4xl flex-1">
+            {/* „Ich verstehe etwas nicht" (0039) — MITLAUFEND ganz oben.
+                Vorher stand der Knopf am Artikelende, neben der
+                Hilfreich-Frage. Das passte zur Logik („war der Artikel gut,
+                und wenn nicht, wo?"), nicht aber zum Ablauf: Wer mitten im
+                Text hängenbleibt, müsste erst ans Ende scrollen, den Knopf
+                drücken und dann zur Stelle zurück. Genau die Stelle
+                anzuklicken ist aber der ganze Sinn des Modus.
+                `bg-surface` ist die Farbe des Inhaltsbereichs — die Zeile
+                fällt dadurch nicht auf, verdeckt den durchlaufenden Text
+                aber sauber. */}
+            {comprehensionMode ? (
+              <div className="sticky top-0 z-10 flex justify-end bg-surface pb-2 pt-1">
+                <ComprehensionMode locale={locale} articleId={article.id} />
+              </div>
+            ) : null}
             <span className="text-xs uppercase tracking-[0.04em] text-brand">{article.category}</span>
             <h1 className="mb-3 mt-1.5 text-[30px] font-semibold leading-tight tracking-[-0.6px] [text-wrap:balance]">
               {article.title}
@@ -194,15 +209,6 @@ export function ArticlePage({
                     </figcaption>
                   </figure>
                 ))}
-              </div>
-            ) : null}
-            {/* „Ich verstehe etwas nicht" (0039) — neben der Hilfreich-Frage,
-                weil beide dieselbe Frage von zwei Seiten stellen: War der
-                Artikel gut? Und wenn nicht, WO genau? Erscheint nur, wenn die
-                Instanz den Modus anhat. */}
-            {comprehensionMode ? (
-              <div className="mt-8 flex justify-start">
-                <ComprehensionMode locale={locale} articleId={article.id} />
               </div>
             ) : null}
             <div className="mt-8">

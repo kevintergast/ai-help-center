@@ -1,5 +1,6 @@
 import type { AskAnswer, SourceRef } from "@/lib/content/types";
 import { readPlanState, type BillingRepository, type UsageActorType } from "@/server/billing/store";
+import type { UnansweredRepository } from "@/server/unanswered/store";
 import { buildChunks } from "@/server/search/chunking";
 import type { SourceKind } from "@/server/search/indexer";
 import { buildAskMessages, splitAnswerParagraphs, type ChatMessage } from "./generate";
@@ -63,6 +64,12 @@ export interface AskPipelineDeps {
   generate(messages: ChatMessage[]): Promise<string>;
   /** Metering (null = keine D1-Bindings, dev → nichts verbuchen, nie gaten). */
   billing: BillingRepository | null;
+  /**
+   * Unbeantwortete Fragen sammeln (0047). `null`/fehlend ⇒ es wird nichts
+   * mitgeschrieben — genau wie beim Metering ist das Protokollieren nie ein
+   * Grund, eine Antwort zu verhindern.
+   */
+  unanswered?: UnansweredRepository | null;
 }
 
 export interface AskInput {
@@ -121,6 +128,21 @@ export async function answerQuestion(deps: AskPipelineDeps, input: AskInput): Pr
         .map((h) => `${h.docId}#${h.chunkIndex}:${h.score.toFixed(3)}`)
         .join(", ")}]`,
     );
+    // MITSCHREIBEN (0047): Ohne den Wortlaut weiß die Redaktion nicht, was
+    // fehlt — die Liste im Verwaltungsbereich IST die Antwort auf „was soll
+    // ich als Nächstes schreiben?". Best-Effort: Ein Fehler beim Speichern
+    // darf die (ehrliche) Nicht-Antwort nicht in einen Serverfehler drehen.
+    if (deps.unanswered) {
+      try {
+        await deps.unanswered.record({
+          tenantId: input.tenantId,
+          question: input.question,
+          nowSec: input.nowSec,
+        });
+      } catch {
+        /* Protokoll ist nie wichtiger als die Antwort */
+      }
+    }
     return { status: "ok", answer: noAnswer };
   }
 

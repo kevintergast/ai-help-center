@@ -147,9 +147,12 @@ export function ComprehensionMode({
         aria-pressed={active}
         className={cn(
           "inline-flex items-center gap-1.5 rounded-std px-2.5 py-1.5 text-sm transition-colors",
+          // Umrandet statt nur gedämpfter Text: Der Knopf läuft jetzt mit und
+          // muss beim Überfliegen als Knopf erkennbar sein. Als reiner grauer
+          // Text verschwand er neben der Überschrift.
           active
             ? "bg-brand text-brand-fg"
-            : "text-ink-muted hover:bg-tint hover:text-ink",
+            : "border border-hairline bg-surface text-ink hover:border-hairline-strong hover:bg-tint",
           className,
         )}
       >

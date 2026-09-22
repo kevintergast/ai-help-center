@@ -94,6 +94,62 @@ describe("answerQuestion", () => {
     expect(event).toEqual({ type: "ai_generation", credits: 20 });
   });
 
+  /**
+   * Verhinderte Fehlerfälle (0047):
+   *  - Die unbeantwortete Frage wird NICHT mitgeschrieben → die Redaktion
+   *    erfährt nie, was fehlt, und die Warteschlange bleibt leer, obwohl
+   *    Nutzer vergeblich fragen.
+   *  - Eine BEANTWORTETE Frage landet dort → wir sammelten Fragetexte auch
+   *    da, wo wir ausdrücklich zugesagt haben, es nicht zu tun.
+   *  - Ein Fehler beim Mitschreiben dreht die ehrliche Nicht-Antwort in
+   *    einen Serverfehler.
+   */
+  it("ohne Antwort: Frage wird für die Redaktion mitgeschrieben", async () => {
+    const recorded: string[] = [];
+    f = makeFixture({
+      queryVectors: async () => [{ docId: "a1", kind: "article", chunkIndex: 0, score: 0.2 }],
+      unanswered: {
+        record: async ({ question }) => {
+          recorded.push(question);
+        },
+        report: async () => {},
+        list: async () => [],
+      },
+    });
+    await answerQuestion(f.deps, INPUT);
+    expect(recorded).toEqual(["Wie lade ich mein Team ein?"]);
+  });
+
+  it("MIT Antwort: nichts wird mitgeschrieben", async () => {
+    const recorded: string[] = [];
+    f = makeFixture({
+      unanswered: {
+        record: async ({ question }) => {
+          recorded.push(question);
+        },
+        report: async () => {},
+        list: async () => [],
+      },
+    });
+    await answerQuestion(f.deps, INPUT);
+    expect(recorded).toEqual([]);
+  });
+
+  it("Mitschreiben scheitert: die Nicht-Antwort kommt trotzdem", async () => {
+    f = makeFixture({
+      queryVectors: async () => [{ docId: "a1", kind: "article", chunkIndex: 0, score: 0.2 }],
+      unanswered: {
+        record: async () => {
+          throw new Error("d1 weg");
+        },
+        report: async () => {},
+        list: async () => [],
+      },
+    });
+    const outcome = await answerQuestion(f.deps, INPUT);
+    expect(outcome).toMatchObject({ status: "ok", answer: { grounded: false } });
+  });
+
   it("unter der Schwelle: KEINE Generierung, KEINE Credits, ehrliche No-Answer", async () => {
     f = makeFixture({
       queryVectors: async () => [{ docId: "a1", kind: "article", chunkIndex: 0, score: 0.2 }],
