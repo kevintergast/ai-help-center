@@ -43,6 +43,12 @@ export const PUBLIC_ROUTES = {
   // (sensitive), strikte Längen, Mail NUR an die konfigurierte Tenant-Adresse,
   // Postfach als verlustfreier Fallback. Zusätzlich abschaltbar je Instanz
   // (0040) — aus heißt 404, nicht nur „versteckt".
+  // /unanswered/report: BEWUSST public — die Fortsetzung einer KI-Antwort für
+  // genau den Menschen, der gerade keine bekommen hat. Ein Login davor würde
+  // das Signal bei denen abschneiden, die es am dringendsten abgeben. Gleiche
+  // Schichten wie die übrigen öffentlichen Schreibwege: events-Rate-Limit,
+  // harte Längen, freiwillige Adresse mit Plausibilitätsprüfung; kein
+  // privilegierter Effekt (es entsteht eine Redaktions-Notiz, sonst nichts).
   // /widget/config: BEWUSST public — Erscheinungsbild des Starters (Farbe,
   // Beschriftung, Symbol-Adressen). Genau das sieht ohnehin jeder, sobald das
   // Widget auf der Kundenseite steht; kein privilegierter Effekt, nur Lesen.
@@ -57,6 +63,7 @@ export const PUBLIC_ROUTES = {
     "/api/v1/events/view",
     "/api/v1/events/feedback",
     "/api/v1/ask",
+    "/api/v1/unanswered/report",
     "/api/v1/support/tickets",
     "/api/v1/support/comprehension",
     "/api/v1/widget/config",

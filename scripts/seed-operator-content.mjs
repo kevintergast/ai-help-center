@@ -21,6 +21,7 @@ const RELEASE_0_4_1 = 1789567200; // 2026-09-17
 const RELEASE_0_5_0 = 1789740000; // 2026-09-18
 const RELEASE_0_5_1 = 1789750000; // 2026-09-18
 const RELEASE_0_6_0 = 1789984800; // 2026-09-21
+const RELEASE_0_7_0 = 1790071200; // 2026-09-22
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -263,7 +264,7 @@ const ARTICLES = [
       "Für die Besucher deines Hilfezentrums bist du der Verantwortliche, wir verarbeiten in deinem Auftrag. Deshalb musst du in deiner Erklärung beschreiben, was hier passiert. Das ist wenig: Beim Aufruf fallen die üblichen Server-Daten an (Adresse, Browser, Zeitpunkt, aufgerufene Seite). Für die Statistik und die Nutzerzahl bilden wir daraus serverseitig ein Kürzel, das nur für den laufenden Monat und nur für deine Instanz gilt — Adresse und Browser selbst werden dafür nicht gespeichert.",
       "Was du NICHT erklären musst: Cookies zur Reichweitenmessung. Es gibt keine. Dein Hilfezentrum setzt nur dann ein Cookie, wenn sich jemand anmeldet — das ist für die Anmeldung technisch nötig und einwilligungsfrei. Ein Cookie-Banner brauchst du also nicht.",
       "Zwei Dinge bleiben trotzdem im Browser deines Besuchers liegen, weil er sie selbst ausgelöst hat: die gespeicherten KI-Antworten unter „Meine Artikel“ und die Wahl zwischen hellem und dunklem Modus. Beides verlässt sein Gerät nicht, solange er kein Konto hat, und ist einwilligungsfrei — er hat es ja verlangt. Erwähnen solltest du es trotzdem.",
-      "Stellt jemand der KI eine Frage, wird der Fragetext zur Beantwortung verarbeitet; die Frage selbst speichern wir nicht. Schickt jemand eine Support-Anfrage, gehen die eingegebenen Angaben an deine hinterlegte Adresse und in dein Postfach. Betten Artikel YouTube-Videos ein, lädt das Video erst auf Klick — vorher geht nichts an YouTube.",
+      "Stellt jemand der KI eine Frage, wird der Fragetext zur Beantwortung verarbeitet und danach verworfen. EINE Ausnahme: Findet die KI keine Antwort, speichern wir den Wortlaut der Frage bis zu 90 Tage, damit du siehst, welcher Artikel fehlt — ohne Bezug zur Person, es sei denn, jemand hinterlässt beim Melden freiwillig seine Adresse. Schickt jemand eine Support-Anfrage, gehen die eingegebenen Angaben an deine hinterlegte Adresse und in dein Postfach. Betten Artikel YouTube-Videos ein, lädt das Video erst auf Klick — vorher geht nichts an YouTube.",
       "Das ist eine Einordnung, keine Rechtsberatung — im Zweifel fragst du deine eigene.",
     ],
     related: ["rollen-und-rechte", "fuss-anpassen"],
@@ -292,6 +293,10 @@ const ARTICLES = [
       "Auf der Startseite deines Hilfezentrums können Nutzer der KI eine Frage stellen. Die Antwort wird live aus deinen veröffentlichten Artikeln zusammengestellt — als kompakter, dynamischer Hilfeartikel mit Quellenangaben zum Weiterlesen. Auch deine Roadmap- und Changelog-Einträge kann die KI dabei berücksichtigen.",
       "Die KI antwortet nur, wenn deine Artikel die Frage tatsächlich hergeben. Findet sie keine belastbare Grundlage, sagt sie das ehrlich, statt etwas zu erfinden — dann hilft es, die Frage anders zu formulieren oder den passenden Artikel zu ergänzen.",
       "Unter jeder Antwort können Nutzer mit »War das hilfreich?« Feedback geben und über »Etwas stimmt nicht?« direkt den Support kontaktieren. Beides siehst du im Admin-Bereich: die Hilfreich-Quote in der Statistik, Support-Anfragen in der Inbox.",
+      "## Wenn die KI nichts findet",
+      "Findet die KI keine belastbare Antwort, sagt sie das — und bietet dem Nutzer an, die Frage zu melden: »Ich brauche dazu eine Antwort«. Er kann freiwillig eine E-Mail-Adresse hinterlassen.",
+      "Jede unbeantwortete Frage landet unter »Statistik« in der Liste »Unbeantwortete Fragen«, nach Häufigkeit sortiert und mit Kennzeichnung, wenn jemand aktiv um eine Antwort gebeten hat. Das ist deine Schreib-Warteschlange: Was dort oft steht, fehlt als Artikel. Die Einträge werden nach 90 Tagen automatisch gelöscht.",
+      "Ein Hinweis zur Formulierung deiner Artikel: Die KI findet nur, was in deinen Worten steht. Fragen Kunden nach einem Gerät oder einem Fremdprodukt, das in keinem Artikel vorkommt, gibt es keinen Treffer — auch wenn du eigentlich einen Artikel hast, der zuständig wäre. Nimm die Begriffe deiner Kunden in den Text auf, nicht nur deine eigenen.",
       "Nutzer können generierte Antworten auf ihrem Gerät speichern und später wieder öffnen. Beantwortet wird in der Sprache, in der die Frage gestellt wurde.",
       "Neue oder geänderte Artikel stehen der KI kurz nach dem Veröffentlichen zur Verfügung — der Suchindex aktualisiert sich automatisch. In der Statistik zeigt dir »Häufigste Quellen«, welche Artikel deine KI-Antworten am meisten speisen.",
     ],
@@ -470,6 +475,11 @@ const ARTICLES = [
       "Nicht per MCP erreichbar sind bewusst: Team und Rollen, Eigentümerschaft, Rechtstexte, eigene Domain, Plan und Bezahlung sowie die Schlüsselverwaltung selbst. Diese Flächen bleiben Mensch, Anmeldung und Zwei-Faktor-Authentifizierung vorbehalten — ein geleakter Schlüssel soll Inhalte gefährden können, niemals dein Konto.",
       "Die KI kann außerdem die Navigation ordnen, die Einstiegs-Karten der Startseite setzen und die Kontaktwege pflegen — alles drei wirkt sofort öffentlich und hängt deshalb an den entsprechenden Rechten, nicht am reinen Schreibrecht. Beim Ordnen genügt eine Teil-Liste: Genannte Artikel rücken nach vorn, alle übrigen behalten ihre bisherige Reihenfolge dahinter.",
       "Bei Kontaktwegen gilt eine Regel, die keine Technik erzwingen kann: Trage nur Adressen und Rufnummern ein, die du der KI wirklich genannt hast. Eine falsche Support-Adresse steht ausgerechnet dort, wo jemand landet, der schon nicht weiterkommt.",
+      "## Nutzerhinweise von der KI abarbeiten lassen",
+      "Mit dem Recht »Nutzerhinweise lesen« sieht dein KI-Client dein Postfach: Support-Anfragen, markierte unklare Stellen aus Artikeln und die unbeantworteten KI-Fragen. Das ist die eigentliche Schleife — der Client liest, was Leser nicht verstanden haben, korrigiert den Artikel, veröffentlicht ihn und schließt den Hinweis mit dem Recht »Nutzerhinweise bearbeiten« ab.",
+      "Bei einer markierten Stelle bekommt er den Artikel UND das angeklickte Zitat mitgeliefert. Er weiß also genau, welcher Absatz gemeint war, statt raten zu müssen.",
+      "Zwei Dinge dabei im Blick behalten: Diese Einträge enthalten personenbezogene Daten deiner Endnutzer — freien Text und teils E-Mail-Adressen. Das Recht ist deshalb eigens als solches gekennzeichnet, und du entscheidest bewusst, ob dein KI-Anbieter das sehen soll. Und: Der Text stammt von Fremden, nicht von dir. Er wird der KI ausdrücklich als Fremdinhalt übergeben, damit eine als Anweisung getarnte Nachricht im Ticket die KI nicht steuern kann.",
+      "Schließe einen Hinweis erst, wenn das Problem wirklich behoben ist — nicht schon, wenn er gelesen wurde. Löschen geht auch, verlangt aber dieselbe zweistufige Bestätigung wie das Löschen eines Artikels.",
       "Tipp: Lege lieber zwei enge Schlüssel an als einen Generalschlüssel — etwa einen reinen Lese-Schlüssel für Recherche und Auswertungen und einen Schreib-Schlüssel ohne Veröffentlichen für die Redaktion.",
     ],
     related: ["inhalte-importieren-exportieren", "artikel-veroeffentlichen", "navigation-und-einstieg"],
@@ -568,6 +578,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Du siehst jetzt, woran deine KI scheitert",
+    description:
+      "Wenn die KI in deinen Artikeln keine belastbare Antwort findet, war das bisher eine Sackgasse: Der Fragende bekam „formuliere es anders“ zu lesen, und du hast nie erfahren, dass er überhaupt gefragt hat. Ab sofort kann er stattdessen sagen „Ich brauche dazu eine Antwort“ und freiwillig eine Adresse hinterlassen. Alle unbeantworteten Fragen sammeln sich unter „Statistik“ in einer nach Häufigkeit sortierten Liste — Gemeldete ganz oben. Das ist deine Schreib-Warteschlange: Was dort oft steht, fehlt als Artikel. Einträge werden nach 90 Tagen automatisch gelöscht. Dein angebundener KI-Client kann diese Liste jetzt ebenfalls lesen — zusammen mit deinem Postfach: Er sieht die markierten unklaren Stellen samt zitiertem Absatz, bessert den Artikel nach und schließt den Hinweis ab. Die Rechte dafür gab es schon, die Werkzeuge fehlten. Außerdem: Der Knopf „Ich verstehe etwas nicht“ wartet nicht mehr am Artikelende, sondern läuft beim Lesen oben mit — dort, wo man stutzt.",
+    at: RELEASE_0_7_0,
+    version: "0.7.0",
+    level: "minor",
+  },
   {
     title: "Eigene Farbwelt, eigene Einstiegsfragen, eigener Fuß",
     description:

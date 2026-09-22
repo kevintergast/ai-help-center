@@ -26,6 +26,17 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.7.0] – 2026-09-22
+
+_Neue Fähigkeiten: unbeantwortete KI-Fragen werden gesammelt und sind vom Nutzer meldbar; der MCP-Server bekommt die Postfach-Werkzeuge, für die es die Rechte schon gab._
+
+### Hinzugefügt
+- **mcp:** Postfach-Werkzeuge — die Rechte gab es, die Werkzeuge nicht (bb2230e)
+- **hc:** unbeantwortete Fragen sammeln statt verfallen lassen (0a45773)
+
+### Behoben
+- **hc:** „Ich verstehe etwas nicht" läuft mit statt am Artikelende zu warten (5984d82)
+
 ## [0.6.0] – 2026-09-21
 
 _Vier neue pflegbare Fähigkeiten: Farbwelt je Instanz (Hell/Dunkel, inkl. MCP), eigene Frage-Vorschläge, konfigurierbarer Fuß mit eigenen Links — dazu die Umstellung der Besucherzählung auf ein cookiefreies Verfahren._

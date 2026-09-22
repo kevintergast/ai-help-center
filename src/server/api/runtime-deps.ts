@@ -44,6 +44,10 @@ import {
   type TurnstileVerdict,
 } from "@/server/security/turnstile";
 import { makeVisitorIdCodec, type VisitorIdCodec } from "@/server/security/visitor-id";
+import {
+  D1UnansweredRepository,
+  type UnansweredRepository,
+} from "@/server/unanswered/store";
 import { D1TenantRepository } from "@/server/tenant/repository";
 import { resolveWithSourceStrict } from "@/server/tenant/resolve-tenant";
 import type {
@@ -400,6 +404,12 @@ async function getTranslatorRuntime(): Promise<ArticleTranslator | null> {
   return (input) => translateArticle(generate, input);
 }
 
+/** Redaktions-Warteschlange (0047); ohne D1-Bindung gibt es nichts zu sammeln. */
+async function getUnansweredRepoRuntime(): Promise<UnansweredRepository | null> {
+  const env = await getEnvSafe();
+  return env?.DB ? new D1UnansweredRepository(env.DB) : null;
+}
+
 async function getAskDepsRuntime(): Promise<AskRuntime | null> {
   const env = await getEnvSafe();
   if (!env?.DB || !env.VECTORIZE || !env.AI) return null;
@@ -481,6 +491,8 @@ async function getAskDepsRuntime(): Promise<AskRuntime | null> {
     },
     generate: makeGatewayChat(env.AI),
     billing: new D1BillingRepository(db),
+    // Unbeantwortete Fragen mitschreiben (0047).
+    unanswered: new D1UnansweredRepository(db),
   };
 
   return { answer: (input) => answerQuestion(deps, input) };
@@ -628,6 +640,7 @@ export const runtimeDeps: ApiDeps = {
   getVideoSummarizer: getVideoSummarizerRuntime,
   getSettingsDeps: getSettingsDepsRuntime,
   getSupportDeps: getSupportDepsRuntime,
+  getUnansweredRepo: getUnansweredRepoRuntime,
   getAnswersDeps: getAnswersDepsRuntime,
   getApiKeyDeps: getApiKeyDepsRuntime,
   getConfirmations: getConfirmationsRuntime,

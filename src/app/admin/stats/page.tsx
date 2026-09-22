@@ -2,6 +2,9 @@ import Link from "next/link";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { getT } from "@/i18n/t";
 import { getStatsOverview } from "@/server/billing/runtime";
+import { listUnanswered } from "@/server/unanswered/runtime";
+import { RETENTION_DAYS } from "@/server/unanswered/store";
+import { Badge } from "@/components/ui/badge";
 import { AdminPageHeader } from "@/components/admin/admin-shell";
 import { BarChart } from "@/components/admin/charts";
 
@@ -26,6 +29,8 @@ export default async function AdminStatsPage({
   // Änderung — interne Nutzung kostet NIE Credits (Architektur-Entscheidung).
   const includeInternal = (await searchParams).internal === "1";
   const stats = await getStatsOverview(tenant, { includeInternal });
+  // Redaktions-Warteschlange (0047): was Nutzer vergeblich gefragt haben.
+  const unanswered = await listUnanswered(tenant);
   const series = stats?.series ?? [];
   const topArticles = stats?.topArticles ?? [];
   const topSources = stats?.topSources ?? [];
@@ -72,8 +77,11 @@ export default async function AdminStatsPage({
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="rounded-card border border-hairline bg-surface p-5">
           {/* „Häufigste Quellen" statt „Häufigste Fragen" (Entscheidung 2026-07-17):
-              Fragetexte werden bewusst NICHT gespeichert — gezählt wird, welche
-              Artikel die KI-Antworten speisen (ai_source-Events). */}
+              Bei BEANTWORTETEN Fragen wird der Wortlaut weiterhin bewusst NICHT
+              gespeichert — gezählt wird, welche Artikel die KI-Antworten speisen
+              (ai_source-Events). Die Ausnahme sind Fragen OHNE Antwort (0047):
+              dort IST der Wortlaut die Information, sonst weiß die Redaktion
+              nicht, was fehlt. Siehe Abschnitt „Unbeantwortete Fragen". */}
           <h2 className="mb-4 font-semibold tracking-[-0.3px]">{t("admin.stats.topSources")}</h2>
           {topSources.length === 0 ? (
             <p className="py-6 text-sm text-ink-muted">{t("admin.stats.sourcesEmpty")}</p>
@@ -159,6 +167,65 @@ export default async function AdminStatsPage({
           )}
         </section>
       </div>
+
+      {/* UNBEANTWORTETE FRAGEN (0047) — die Redaktions-Warteschlange. Steht
+          BEWUSST unter den Erfolgszahlen: Erst sieht man, was läuft, dann was
+          fehlt. Gemeldete zuerst, denn dort wartet ein Mensch auf Antwort. */}
+      <section className="mt-6 rounded-card border border-hairline bg-surface p-5">
+        <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-semibold tracking-[-0.3px]">{t("admin.stats.unanswered")}</h2>
+          <span className="text-xs text-ink-muted">
+            {t("admin.stats.unansweredRetention", { days: RETENTION_DAYS })}
+          </span>
+        </div>
+        <p className="mb-4 text-xs text-ink-muted">{t("admin.stats.unansweredHint")}</p>
+        {unanswered.length === 0 ? (
+          <p className="py-6 text-sm text-ink-muted">{t("admin.stats.unansweredEmpty")}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-hairline text-left text-xs uppercase tracking-[0.04em] text-ink-muted">
+                  <th className="py-2 pr-3 font-medium">{t("admin.stats.unansweredQuestion")}</th>
+                  <th className="py-2 pr-3 text-right font-medium">
+                    {t("admin.stats.unansweredCount")}
+                  </th>
+                  <th className="py-2 text-right font-medium">{t("admin.stats.unansweredLast")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {unanswered.map((g) => (
+                  <tr key={g.question} className="border-b border-hairline last:border-b-0">
+                    <td className="py-2.5 pr-3 text-ink">
+                      <span className="flex flex-wrap items-center gap-2">
+                        {g.question}
+                        {/* „Jemand wartet darauf" — der Unterschied zwischen
+                            Protokoll und Warteschlange. */}
+                        {g.reported ? (
+                          <Badge tone="warn">{t("admin.stats.unansweredReported")}</Badge>
+                        ) : null}
+                      </span>
+                      {g.emails.length > 0 ? (
+                        <span className="mt-1 block text-xs text-ink-muted">
+                          {g.emails.join(", ")}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="py-2.5 pr-3 text-right tabular-nums text-ink-muted">
+                      {nf.format(g.count)}
+                    </td>
+                    <td className="py-2.5 text-right text-ink-muted">
+                      {new Intl.DateTimeFormat(tenant.defaultLocale === "de" ? "de-DE" : "en-US", {
+                        dateStyle: "medium",
+                      }).format(new Date(g.lastAskedAt * 1000))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
