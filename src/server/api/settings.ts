@@ -1,5 +1,6 @@
 import { isActionVariant, MAX_ACTION_LABEL } from "@/lib/content/action-buttons";
 import { parseThemeInput } from "@/lib/theme/palette";
+import { parseMeetingInput } from "@/lib/content/meeting";
 import { Hono } from "hono";
 import { requireOwner, requireTeam } from "@/server/auth/guards";
 import type { ApiDeps, ApiEnv } from "./context";
@@ -196,6 +197,37 @@ export function settingsAdminRouter(deps: ApiDeps) {
 
     await settings.setTheme(c.get("tenant").id, null);
     return c.json({ ok: true, theme: null });
+  });
+
+  /**
+   * BUCHUNGSLINK (0048). admin-Gate wie Widget/Theme: Der Link wirkt nach
+   * außen, ist aber eine Darstellungs-Entscheidung, keine Instanz-Grundsatz-
+   * frage wie SEO oder Domain.
+   */
+  r.put("/meeting", requireTeam("admin"), async (c) => {
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "invalid_json" }, 400);
+    }
+    const parsed = parseMeetingInput(body);
+    if (!parsed.ok) return c.json({ error: parsed.error }, 400);
+
+    const settings = await deps.getSettingsDeps?.();
+    if (!settings) return c.json({ error: "settings_unavailable" }, 503);
+
+    await settings.setMeeting(c.get("tenant").id, parsed.config);
+    return c.json({ ok: true, meeting: parsed.config });
+  });
+
+  /** Buchungslink entfernen → verschwindet an allen vier Stellen. */
+  r.delete("/meeting", requireTeam("admin"), async (c) => {
+    const settings = await deps.getSettingsDeps?.();
+    if (!settings) return c.json({ error: "settings_unavailable" }, 503);
+
+    await settings.setMeeting(c.get("tenant").id, null);
+    return c.json({ ok: true, meeting: null });
   });
 
   // Standardsprache der Instanz (Endnutzer-UI, Meta, Mails) — OWNER wie SEO:

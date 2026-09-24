@@ -31,6 +31,14 @@ export default async function AdminArticleEditPage({
   const translations = await listArticleTranslations(tenant, article);
 
   return (
-    <ArticleEditor locale={tenant.defaultLocale} article={article} translations={translations} />
+    <ArticleEditor
+      locale={tenant.defaultLocale}
+      article={article}
+      translations={translations}
+      /* Für den Support-Baustein (0048): die gepflegten Kalender zur Auswahl.
+         Kommt serverseitig mit, statt im Editor nachgeladen zu werden — der
+         Tenant steht hier ohnehin schon offen. */
+      meetingLinks={tenant.meeting?.links ?? []}
+    />
   );
 }

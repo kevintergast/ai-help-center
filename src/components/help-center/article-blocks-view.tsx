@@ -5,7 +5,18 @@ import { formatFileSize } from "@/lib/content/file-size";
 import type { ArticleFile, ArticleImage, ArticleVideo } from "@/lib/content/types";
 import type { Locale } from "@/lib/tenant/types";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRightIcon, DownloadIcon, ExternalLinkIcon } from "@/components/ui/icons";
+import { getT } from "@/i18n/t";
+import {
+  meetingHref,
+  meetingLinkById,
+  type MeetingConfig,
+} from "@/lib/content/meeting";
+import {
+  ChevronRightIcon,
+  DownloadIcon,
+  ExternalLinkIcon,
+  HelpCircleIcon,
+} from "@/components/ui/icons";
 import { ArticleVideos } from "./article-videos";
 import { RichTextView } from "./rich-text-view";
 
@@ -48,6 +59,14 @@ export interface BlockViewContext {
    * den ungespeicherten Entwurf verlieren (Live-Fund 2026-08-22).
    */
   linksActive?: boolean;
+  /**
+   * Buchungslinks der Instanz — Ziele des Support-Bausteins (0048). Fehlend =
+   * der Baustein zeigt nur den Weg zum Support. BEWUSST zentral: Stünden
+   * Adressen im Block, hätte eine Instanz sie über hundert Artikel verteilt.
+   */
+  meeting?: MeetingConfig | null;
+  /** Sprache der Baustein-Beschriftungen. */
+  uiLocale?: Locale;
 }
 
 /** Genau EIN Block, exakt wie im veröffentlichten Artikel. `null` = nichts zu zeigen. */
@@ -156,6 +175,10 @@ export function SingleBlockView({ block, ctx }: { block: ArticleBlock; ctx: Bloc
     return <hr className="my-2 border-0 border-t border-hairline" />;
   }
 
+  if (block.type === "support") {
+    return <SupportBlock block={block} ctx={ctx} />;
+  }
+
   if (block.type === "button") {
     const external = /^https?:\/\//i.test(block.href);
     const cls =
@@ -227,6 +250,68 @@ export function SingleBlockView({ block, ctx }: { block: ArticleBlock; ctx: Bloc
 }
 
 /** Verweis-Karte — identisch für Einzelkarte und Gitter. */
+/**
+ * SUPPORT-BAUSTEIN (0048): zwei Auswege mitten im Artikel.
+ *
+ * Die Ziele kommen ZENTRAL — „Support kontaktieren" führt auf die
+ * Kontaktseite (die E-Mail, Telefon und Formular ohnehin zusammenführt), der
+ * Termin auf einen der gepflegten Kalender. Der Block selbst trägt nur, was
+ * zum ABSCHNITT gehört: den optionalen Text und die Wahl des Kalenders.
+ *
+ * Ist gar kein Kalender gepflegt, bleibt der Support-Weg übrig — ein Baustein
+ * ohne jedes Angebot wäre schlimmer als keiner.
+ */
+function SupportBlock({
+  block,
+  ctx,
+}: {
+  block: Extract<ArticleBlock, { type: "support" }>;
+  ctx: BlockViewContext;
+}) {
+  const locale = ctx.uiLocale ?? "de";
+  const t = getT(locale);
+  const link = meetingLinkById(ctx.meeting ?? null, block.meetingId);
+  const active = ctx.linksActive !== false;
+
+  const btn =
+    "inline-flex items-center gap-1.5 rounded-std px-3 py-2 text-sm transition-colors";
+  const primary = `${btn} bg-brand text-brand-fg hover:opacity-90`;
+  const secondary = `${btn} border border-hairline text-ink hover:bg-tint`;
+
+  return (
+    <aside className="my-2 rounded-card border border-hairline bg-surface-raised p-5">
+      <p className="flex items-center gap-2 text-sm font-medium text-ink">
+        <HelpCircleIcon width={16} height={16} className="shrink-0 opacity-70" />
+        {t("hc.support.blockTitle")}
+      </p>
+      {block.text.length > 0 ? (
+        <p className="mt-1 text-[13px] leading-snug text-ink-muted">{block.text}</p>
+      ) : null}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {link ? (
+          active ? (
+            <a href={meetingHref(link)} target="_blank" rel="noopener noreferrer" className={primary}>
+              {link.label}
+              <ExternalLinkIcon width={13} height={13} aria-hidden />
+            </a>
+          ) : (
+            <span className={primary}>{link.label}</span>
+          )
+        ) : null}
+        {/* Im Editor bewusst KEIN Link (wie die Cards) — kein Wegnavigieren
+            mit ungespeichertem Entwurf. */}
+        {active ? (
+          <Link href="/contact" className={link ? secondary : primary}>
+            {t("hc.support.blockContact")}
+          </Link>
+        ) : (
+          <span className={link ? secondary : primary}>{t("hc.support.blockContact")}</span>
+        )}
+      </div>
+    </aside>
+  );
+}
+
 function LinkCard({ card, linksActive }: { card: ArticleLinkCard; linksActive?: boolean }) {
   const cardClass =
     "group flex h-full items-start gap-3 rounded-comfy border border-hairline bg-surface px-4 py-3 transition-colors hover:border-hairline-strong hover:bg-tint";
@@ -267,6 +352,7 @@ export function ArticleBlocksView({
   linksActive,
   anchorLocale,
   locale,
+  meeting = null,
 }: {
   blocks: ArticleBlock[];
   images: ArticleImage[];
@@ -288,8 +374,12 @@ export function ArticleBlocksView({
   linksActive?: boolean;
   /** Locale für die Anker-Buttons; fehlt = keine Anker (Editor-Vorschau). */
   anchorLocale?: Locale;
+  /** Buchungslinks für den Support-Baustein (0048). */
+  meeting?: MeetingConfig | null;
 }) {
   const ctx: BlockViewContext = {
+    meeting,
+    uiLocale: anchorLocale,
     images,
     videos,
     files,

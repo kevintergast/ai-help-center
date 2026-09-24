@@ -278,6 +278,11 @@ export const getContentConventions: McpTool = {
             },
             note: `A grid of link cards side by side — use this for sections that are pure navigation ("More features", "Related integrations"), which is how most help centers end an article. 1 to ${MAX_LINK_CARDS} items; every slug must be an article that exists in this help center.`,
           },
+          {
+            type: "support",
+            shape: { type: "support", text: "...", meetingId: "telefonanlage" },
+            note: "A way out in the middle of an article: one button to the contact page, one to a booking calendar. Place it right AFTER a step people get stuck on (a complex integration, a setup that depends on a third party) — that is where the need is, not twenty paragraphs later. `text` is optional and should fit that step, e.g. \"Stuck on the connection? That is often down to the provider.\" `meetingId` picks one of the help center's booking calendars (read them with get_settings → meeting.links); null or an unknown id falls back to the general one. NEVER put addresses or URLs in this block — the targets come from the help center's central settings, so a changed support address does not mean editing a hundred articles. Use it sparingly: a help center where every section shouts for support reads like one that does not explain anything.",
+          },
         ],
       },
       flag: {

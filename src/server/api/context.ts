@@ -1,4 +1,5 @@
 import type { ThemeConfig } from "@/lib/theme/palette";
+import type { MeetingConfig } from "@/lib/content/meeting";
 import type { UpdatesStore } from "@/server/content/updates";
 import type { betterAuth } from "better-auth";
 import type { Tenant } from "@/lib/tenant/types";
@@ -212,6 +213,8 @@ export interface SettingsDeps {
   setWidgetAppearance(tenantId: string, variant: string, label: string | null): Promise<void>;
   /** Eigene Farbwelt (0045); `null` entfernt sie wieder. */
   setTheme(tenantId: string, config: ThemeConfig | null): Promise<void>;
+  /** Buchungslink (0048); `null` entfernt ihn. */
+  setMeeting(tenantId: string, config: MeetingConfig | null): Promise<void>;
   /** Schalter im Fuß (0046): Rechtstext-Links + „Powered by". */
   setFooterFlags(
     tenantId: string,

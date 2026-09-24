@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { readPageViewer } from "@/server/auth/page-guard";
 import { getHelpCenterData } from "@/server/content/runtime";
+import { showsAt } from "@/lib/content/meeting";
 import { getT } from "@/i18n/t";
 import { ContactPage } from "@/components/help-center/contact-page";
 
@@ -27,7 +28,10 @@ export default async function ContactRoute() {
   if (!tenant) notFound();
 
   const data = await getHelpCenterData(tenant);
-  if (data.contactMethods.length === 0) notFound();
+  // Die Seite existiert, sobald es IRGENDEINEN Weg gibt — auch wenn das nur
+  // der Buchungslink ist (0048). Ohne diese Ergänzung hätte eine Instanz, die
+  // ausschließlich Termine anbietet, eine 404-Seite statt eines Angebots.
+  if (data.contactMethods.length === 0 && !showsAt(data.meeting, "contact")) notFound();
 
   return (
     <ContactPage

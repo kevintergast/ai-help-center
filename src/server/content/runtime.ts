@@ -91,6 +91,7 @@ export async function getHelpCenterData(tenant: Tenant): Promise<HelpCenterData>
     headerActions,
     footerLinks,
     footer: { ...(tenant.footer ?? DEFAULT_LEGAL_FOOTER), poweredBy: tenant.footer?.poweredBy === true },
+    meeting: tenant.meeting ?? null,
   };
 }
 

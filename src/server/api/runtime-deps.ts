@@ -542,6 +542,7 @@ async function getSettingsDepsRuntime(): Promise<SettingsDeps | null> {
       repo.setWidgetAppearance(tenantId, variant, label),
     setTheme: (tenantId, config) => repo.setTheme(tenantId, config),
     setFooterFlags: (tenantId, flags) => repo.setFooterFlags(tenantId, flags),
+    setMeeting: (tenantId, config) => repo.setMeeting(tenantId, config),
   };
 }
 

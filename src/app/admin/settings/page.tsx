@@ -4,6 +4,7 @@ import { AdminPageHeader } from "@/components/admin/admin-shell";
 import { BrandingManager } from "@/components/admin/branding-manager";
 import { CustomDomainManager } from "@/components/admin/custom-domain-manager";
 import { LegalDocsManager } from "@/components/admin/legal-docs-manager";
+import { MeetingManager } from "@/components/admin/meeting-manager";
 import { SearchIndexManager } from "@/components/admin/search-index-manager";
 import { SeoIndexingManager } from "@/components/admin/seo-indexing-manager";
 import { SupportEmailManager } from "@/components/admin/support-email-manager";
@@ -78,6 +79,13 @@ export default async function AdminSettingsPage() {
           </div>
           {/* Funktionaler Verify-Flow (Infra-Plan Schritt 5): TXT-Challenge → verified. */}
           <CustomDomainManager locale={tenant.defaultLocale} />
+        </SettingsCard>
+
+        {/* Buchungslink (0048): eine Adresse, vier Platzierungen. Gehört zu
+            den Einstellungen, nicht zur Navigation — es ist eine Aussage
+            darüber, wie die Instanz Hilfe anbietet, kein Wegweiser. */}
+        <SettingsCard title={t("admin.meeting.title2")}>
+          <MeetingManager locale={tenant.defaultLocale} initial={tenant.meeting ?? null} />
         </SettingsCard>
 
         <SettingsCard title={t("admin.legal.title")}>

@@ -20,6 +20,7 @@ import { HelpDrillContext } from "./entry-cards";
 import { ArticleIconGlyph } from "@/components/ui/article-icon";
 import { ACTION_VARIANT_CLASSES, isExternalHref } from "@/lib/content/action-buttons";
 import { LEGAL_FOOTER_HREF } from "@/lib/content/footer-links";
+import { showsAt } from "@/lib/content/meeting";
 
 /**
  * CHANGELOG-STUFEN (0030) für Endnutzer: Die technischen Wörter major/minor/patch
@@ -282,7 +283,7 @@ export function HelpShell({
         {/* KONTAKT (0037) ganz unten: der letzte Ausweg gehört ans Ende des
             Weges, nicht neben die Artikel. Erscheint NUR, wenn mindestens ein
             Weg gepflegt ist — ohne Wege gibt es die Seite gar nicht. */}
-        {data.contactMethods.length > 0 ? (
+        {data.contactMethods.length > 0 || showsAt(data.meeting, "contact") ? (
           <div className="mt-auto border-t border-hairline pt-4">
             <Link
               href="/contact"
