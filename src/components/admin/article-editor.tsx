@@ -14,6 +14,7 @@ import type {
   ArticleVideo,
 } from "@/lib/content/types";
 import { getT } from "@/i18n/t";
+import type { MeetingLink } from "@/lib/content/meeting";
 import { cn } from "@/lib/ui/cn";
 import { wrapBlocks, type EditorBlock } from "@/lib/admin/block-draft";
 import { shouldGuardNavigation } from "@/lib/admin/nav-guard";
@@ -56,10 +57,13 @@ export function ArticleEditor({
   locale,
   article,
   translations = [],
+  meetingLinks = [],
 }: {
   locale: Locale;
   article: Article;
   translations?: ArticleTranslationInfo[];
+  /** Gepflegte Buchungskalender — Auswahl im Support-Baustein (0048). */
+  meetingLinks?: MeetingLink[];
 }) {
   const t = getT(locale);
   const router = useRouter();
@@ -435,6 +439,7 @@ export function ArticleEditor({
               onImagesChange={setImages}
               videos={draft.videos}
               onVideosChange={(videos) => setDraft((d) => ({ ...d, videos }))}
+              meetingLinks={meetingLinks}
               files={files}
               onFilesChange={setFiles}
               articleId={article.id}
@@ -483,6 +488,10 @@ export function ArticleEditor({
             videos={view.videos}
             files={files}
             articleSlug={article.slug}
+            /* Vorschau zeigt denselben Baustein wie später öffentlich — mit
+               echten Kalendern, sonst prüft man etwas anderes als das, was
+               veröffentlicht wird. */
+            meeting={meetingLinks.length > 0 ? { links: meetingLinks, placements: { article: false, noHelp: false, contact: false, home: false }, placementLinkId: meetingLinks[0].id } : null}
             videoPlayLabel={t("hc.videoPlay")}
             fileDownloadLabel={t("hc.fileDownload")}
             locale={locale}

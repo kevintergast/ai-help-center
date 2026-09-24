@@ -28,6 +28,8 @@ import { cn } from "@/lib/ui/cn";
 import { HelpShell } from "./help-shell";
 import { SupportTicketForm } from "./support-ticket-form";
 import { UnansweredReport } from "./unanswered-report";
+import { MeetingCta } from "./meeting-cta";
+import { placementLink, showsAt, type MeetingLink } from "@/lib/content/meeting";
 import { sendFeedback } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -203,6 +205,7 @@ export function HelpCenter({
           t={t}
           locale={locale}
           entryCards={data.entryCards}
+          meeting={showsAt(data.meeting, "home") ? placementLink(data.meeting) : null}
           suggestions={data.suggestions}
           labels={promptLabels}
           onAsk={(text) => void ask(text)}
@@ -224,6 +227,7 @@ export function HelpCenter({
             t={t}
             locale={locale}
             answer={view.answer}
+            meeting={showsAt(data.meeting, "noHelp") ? placementLink(data.meeting) : null}
             getArticle={getArticle}
             onOpen={openArticle}
             onBack={goHome}
@@ -260,6 +264,7 @@ function WelcomeView({
   t,
   locale,
   entryCards,
+  meeting,
   suggestions,
   labels,
   onAsk,
@@ -267,6 +272,7 @@ function WelcomeView({
   t: T;
   locale: Locale;
   entryCards: EntryCard[];
+  meeting: MeetingLink | null;
   suggestions: string[];
   labels: { send: string; mic: string };
   onAsk: (text: string) => void;
@@ -288,6 +294,14 @@ function WelcomeView({
         {/* Einstiegs-Karten (0035): der gesetzte erste Schritt für alle, die
             noch nicht wissen, wonach sie fragen sollen. */}
         <EntryCards cards={entryCards} locale={locale} />
+        {/* BUCHUNGSLINK auf der Startseite (0048, Platzierung 4): für alle,
+            die gezielt Unterstützung suchen statt zu lesen. Steht UNTER den
+            Einstiegs-Karten — die Selbstbedienung kommt zuerst. */}
+        {meeting ? (
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <MeetingCta locale={locale} link={meeting} variant="card" />
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -360,6 +374,7 @@ function AnswerView({
   onRegenerate,
   onKeepStale,
   onDeleteSaved,
+  meeting,
 }: {
   t: T;
   locale: Locale;
@@ -372,7 +387,11 @@ function AnswerView({
   onRegenerate: () => void;
   onKeepStale?: () => void;
   onDeleteSaved?: () => void;
+  meeting: MeetingLink | null;
 }) {
+  // „Nicht hilfreich" gedrückt? Dann ist die Selbstbedienung gescheitert und
+  // der Buchungslink wird zum nächsten Schritt (0048, Platzierung 2).
+  const [unhelpful, setUnhelpful] = useState(false);
   // Artikel-Zitate sind klickbar (öffnen den Artikel); Roadmap-/Changelog-
   // Zitate werden gekennzeichnet gelistet (keine eigenen Seiten).
   const sources = answer.citations
@@ -478,9 +497,24 @@ function AnswerView({
             no: t("hc.feedbackNo"),
             thanks: t("hc.feedbackThanks"),
           }}
-          onVote={(v) => sendFeedback(null, v === "up")}
+          onVote={(v) => {
+            setUnhelpful(v === "down");
+            sendFeedback(null, v === "up");
+          }}
         />
       </div>
+      {/* BUCHUNGSLINK nach gescheiterter Hilfe (0048, Platzierung 2). Die
+          Nicht-Antwort trägt ihn sofort — dort IST die Selbstbedienung schon
+          gescheitert; nach einer Antwort erst, wenn der Leser sie als nicht
+          hilfreich bewertet. Die Frage reist als Notiz in die Buchung mit. */}
+      {meeting && (answer.body.length === 0 || unhelpful) ? (
+        <MeetingCta
+          locale={locale}
+          link={meeting}
+          context={answer.question}
+          className="mt-4"
+        />
+      ) : null}
       {/* Support-Eskalation NACH der KI-Triage (grounded UND no-answer). */}
       <div className="mt-4">
         <SupportTicketForm locale={locale} question={answer.question} />

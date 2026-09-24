@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, type ReactNode } from "react";
 import { FeedbackBar } from "@/components/ui/feedback-bar";
 import { sendFeedback } from "./view-beacon";
 
@@ -11,9 +12,28 @@ import { sendFeedback } from "./view-beacon";
 export function ArticleFeedback({
   slug,
   labels,
+  unhelpfulSlot = null,
 }: {
   slug: string;
   labels: { question: string; yes: string; no: string; thanks: string };
+  /**
+   * Erscheint NACH einem Daumen runter (0048, Platzierung 2). Kommt fertig
+   * gerendert von der Serverseite herein — diese Hülle entscheidet nur, OB
+   * gezeigt wird, nicht was.
+   */
+  unhelpfulSlot?: ReactNode;
 }) {
-  return <FeedbackBar labels={labels} onVote={(v) => sendFeedback(slug, v === "up")} />;
+  const [unhelpful, setUnhelpful] = useState(false);
+  return (
+    <>
+      <FeedbackBar
+        labels={labels}
+        onVote={(v) => {
+          setUnhelpful(v === "down");
+          sendFeedback(slug, v === "up");
+        }}
+      />
+      {unhelpful ? unhelpfulSlot : null}
+    </>
+  );
 }

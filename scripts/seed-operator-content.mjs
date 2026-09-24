@@ -22,6 +22,7 @@ const RELEASE_0_5_0 = 1789740000; // 2026-09-18
 const RELEASE_0_5_1 = 1789750000; // 2026-09-18
 const RELEASE_0_6_0 = 1789984800; // 2026-09-21
 const RELEASE_0_7_0 = 1790071200; // 2026-09-22
+const RELEASE_0_8_0 = 1790100000; // 2026-09-22
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -354,7 +355,46 @@ const ARTICLES = [
       "Die Kontaktwege lassen sich auch über einen angebundenen KI-Client pflegen — lesen und setzen. Gesetzt wird dabei immer der GANZE Satz: Was die KI übergibt, ersetzt den bisherigen Stand, und eine leere Liste entfernt Seite und Navigations-Eintrag wieder. Welche Werkzeuge es dafür gibt, liest dein Client selbst aus dem Hilfezentrum aus; du musst ihm nichts davon nennen.",
       "Weil die Wege sofort öffentlich sind, hängt das Schreiben am Recht »Changelog und Roadmap pflegen«, nicht am reinen Schreibrecht für Artikel. Siehe »Eigenen KI-Client verbinden (MCP)«.",
     ],
-    related: ["navigation-und-einstieg", "support-tickets"],
+    related: ["navigation-und-einstieg", "support-tickets", "termin-buchen-anbieten"],
+  },
+  {
+    slug: "termin-buchen-anbieten",
+    icon: "inbox",
+    title: "Termin buchen anbieten",
+    category: "Support",
+    min: 4,
+    body: [
+      "Manche Anliegen klärt kein Artikel, sondern ein Gespräch. Unter „Einstellungen → Buchungslinks“ hinterlegst du die Adresse deines Buchungskalenders — cal.com, Calendly, Microsoft Bookings, was du nutzt. Dazu eine Überschrift („Noch Fragen?“), die Beschriftung des Knopfes („Termin buchen“) und optional eine kurze Zeile darunter („15 Minuten, unverbindlich“).",
+      "Die Adresse muss mit https:// beginnen. Ein interner Pfad wird nicht angenommen: Ein Buchungskalender liegt immer woanders, und ein toter Link fiele ausgerechnet dort auf, wo jemand schon nicht weiterkommt.",
+      "## Vier Plätze, einzeln schaltbar",
+      "Du pflegst den Link EINMAL und entscheidest darunter, wo er erscheint. Alle vier stehen anfangs auf aus:",
+      {
+        type: "table",
+        head: ["Platz", "Wann er sinnvoll ist"],
+        rows: [
+          ["Am Ende jedes Artikels", "Direkt nach dem Lesen ist der Bedarf am klarsten."],
+          [
+            "Nach „Nicht hilfreich“ und unter KI-Antworten ohne Treffer",
+            "Der Moment, in dem die Selbstbedienung nachweislich gescheitert ist.",
+          ],
+          ["Als Karte auf der Kontaktseite", "Neben E-Mail und Telefon, als dritter Weg."],
+          ["Als Einstiegskarte auf der Startseite", "Für alle, die gezielt Unterstützung suchen statt zu lesen."],
+        ],
+      },
+      "Am zweiten Platz passiert etwas Zusätzliches: Die Frage des Nutzers beziehungsweise der Artikeltitel reist als Notiz mit in die Buchung. Wer den Termin annimmt, weiß also vorher, worum es geht. Bei cal.com erscheint das im Notizfeld; andere Dienste ignorieren den Zusatz einfach.",
+      "Ist gar kein Platz angehakt, weist die Oberfläche darauf hin — ein gespeicherter Link, den niemand sieht, wäre sonst ein Fehler, den du erst bemerkst, wenn sich nie jemand meldet.",
+      "Bietest du ausschließlich Termine an und keine weiteren Kontaktwege, entsteht die Kontaktseite trotzdem: Der Buchungslink allein genügt, damit sie und ihr Navigations-Eintrag erscheinen.",
+      "## Mehrere Kalender",
+      "Ein allgemeines Erstgespräch reicht selten. Du kannst bis zu fünf Kalender pflegen — etwa einen für Beratung und einen für die Einrichtung einer Telefonanlage. Jeder bekommt eine kurze, sprechende Kennung wie „telefonanlage“; sie taucht später im Support-Baustein auf, deshalb ist sie lesbar und nicht zufällig.",
+      "Die vier automatischen Plätze zeigen immer DENSELBEN Kalender — den, den du als allgemeinen auswählst. Die speziellen setzt du gezielt dort ein, wo sie hingehören: als Support-Baustein im Artikel.",
+      "## Der Support-Baustein",
+      "Im Artikel-Editor findest du unter den Bausteinen „Support-Baustein“. Er zeigt zwei Auswege: einen Knopf zur Kontaktseite und einen zum Termin. Dazu kannst du einen kurzen Text schreiben, der zum ABSCHNITT passt — „Klappt die Anbindung nicht? Das hängt oft am Anbieter.“",
+      "Setze ihn direkt NACH einem Schritt, an dem Leser hängenbleiben, nicht ans Ende. Nach einer komplexen Integration ist die Hürde genau dort, nicht zwanzig Absätze später. Die allgemeine Hilfe am Artikelende bleibt davon unberührt und erscheint weiterhin automatisch.",
+      "Wichtig: Der Baustein enthält KEINE Adressen. Er verweist auf deine zentral gepflegten Kontaktwege und Kalender. Ändert sich deine Support-Adresse, änderst du sie an einer Stelle — nicht in hundert Artikeln.",
+      "Sparsam einsetzen. Ein Hilfezentrum, in dem jeder Abschnitt nach Support ruft, liest sich wie eines, das nichts erklärt.",
+      "Auch das lässt sich über einen angebundenen KI-Client setzen: die Kalender selbst und den Baustein im Artikel. Weil die Links sofort öffentlich wirken, hängt das am Recht »Changelog und Roadmap pflegen«, nicht am reinen Schreibrecht für Artikel.",
+    ],
+    related: ["kontaktseite-einrichten", "ki-client-verbinden"],
   },
   {
     slug: "kopf-knoepfe-und-widget",
@@ -578,6 +618,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Termine anbieten — allgemein und genau dort, wo es hakt",
+    description:
+      "Manche Anliegen klärt kein Artikel, sondern ein Gespräch. Unter „Einstellungen → Buchungslinks“ hinterlegst du jetzt deine Buchungskalender — bis zu fünf, etwa einen für Beratung und einen für die Einrichtung einer Telefonanlage. Du entscheidest, wo der allgemeine Termin automatisch erscheint: am Ende jedes Artikels, nach einem „Nicht hilfreich“, auf der Kontaktseite, als Einstiegskarte. Alles einzeln schaltbar und anfangs aus. Neu ist außerdem der Support-Baustein für den Artikel-Editor: zwei Knöpfe — Support kontaktieren und Termin buchen — die du direkt hinter einen kniffligen Einrichtungsschritt setzt, statt den Leser bis ans Artikelende warten zu lassen. Die Ziele kommen dabei zentral aus deinen Einstellungen; ändert sich deine Support-Adresse, änderst du sie an einer Stelle. Und wo jemand aus einer gescheiterten Hilfe heraus bucht, reist seine Frage als Notiz in den Termin mit.",
+    at: RELEASE_0_8_0,
+    version: "0.8.0",
+    level: "minor",
+  },
   {
     title: "Du siehst jetzt, woran deine KI scheitert",
     description:

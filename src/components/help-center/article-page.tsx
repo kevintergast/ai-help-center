@@ -11,6 +11,8 @@ import { ArticleToc, hasToc } from "./article-toc";
 import { ViewBeacon } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
 import { ArticleFeedback } from "./article-feedback";
+import { MeetingCta } from "./meeting-cta";
+import { placementLink, showsAt } from "@/lib/content/meeting";
 import { ComprehensionMode } from "./comprehension-mode";
 import { ArticleFindBar } from "./article-find-bar";
 import { ArticleVideos } from "./article-videos";
@@ -186,6 +188,8 @@ export function ArticlePage({
               videos={article.videos}
               files={article.files ?? []}
               articleSlug={article.slug}
+              /* Ziele des Support-Bausteins (0048) — zentral, nicht im Block. */
+              meeting={data.meeting}
               videoPlayLabel={t("hc.videoPlay")}
               fileDownloadLabel={t("hc.fileDownload")}
               locale={locale}
@@ -220,8 +224,33 @@ export function ArticlePage({
                   no: t("hc.feedbackNo"),
                   thanks: t("hc.feedbackThanks"),
                 }}
+                /* Nach „Nicht hilfreich" (0048, Platzierung 2) — aber NUR,
+                   wenn der Link nicht ohnehin schon unter dem Artikel steht.
+                   Sonst stünde derselbe Knopf zweimal untereinander. */
+                unhelpfulSlot={
+                  showsAt(data.meeting, "noHelp") && !showsAt(data.meeting, "article") ? (
+                    <MeetingCta
+                      locale={locale}
+                      link={placementLink(data.meeting)!}
+                      context={article.title}
+                      className="mt-4"
+                    />
+                  ) : null
+                }
               />
             </div>
+            {/* BUCHUNGSLINK am Artikelende (0048, Platzierung 1): Direkt nach
+                dem Lesen ist der Bedarf am klarsten. Der Artikeltitel reist
+                als Notiz in die Buchung — der Berater weiß dann vorher,
+                worum es geht. */}
+            {showsAt(data.meeting, "article") ? (
+              <MeetingCta
+                locale={locale}
+                link={placementLink(data.meeting)!}
+                context={article.title}
+                className="mt-4"
+              />
+            ) : null}
 
             {/* Fundstellen-Leiste (?q=) — schwebt unten, deshalb hier egal wo. */}
             <ArticleFindBar locale={locale} />

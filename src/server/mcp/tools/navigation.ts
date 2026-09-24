@@ -31,6 +31,13 @@ import {
   MIN_AI_REVIEW_SUGGESTION,
   parseAiReviewInput,
 } from "@/lib/content/ai-review";
+import {
+  MAX_MEETING_DESCRIPTION,
+  MAX_MEETING_LABEL,
+  MAX_MEETING_LINKS,
+  MAX_MEETING_TITLE,
+  parseMeetingInput,
+} from "@/lib/content/meeting";
 import { fail, ok, type McpTool, type ToolContext } from "./types";
 import { frozen } from "./guards";
 
@@ -654,7 +661,108 @@ export const setPromptSuggestions: McpTool = {
   },
 };
 
+
+/**
+ * BUCHUNGSLINK setzen (0048).
+ *
+ * `updates:write` wie Kontaktwege und Einstiegs-Karten: Der Link wirkt SOFORT
+ * öffentlich, es gibt keinen Entwurfszustand. Deshalb hängt er nicht am reinen
+ * Schreibrecht für Artikel.
+ */
+export const setMeeting: McpTool = {
+  name: "set_meeting",
+  title: "Buchungslinks setzen",
+  description:
+    "REPLACES the help center's booking links — 'book personal support'. You can keep several calendars: a general one and more specific ones (e.g. one for setting up a phone system). Each needs a short, speaking `id` (lowercase, digits, hyphens) because articles refer to it from their support blocks. `placements` decides where the GENERAL link appears automatically (end of every article, after a 'not helpful' vote or an AI answer with no sources, contact page, start page) — all default to off, and `placementLinkId` picks which calendar goes there. Specific calendars are placed deliberately inside articles via the `support` block. Pass `remove: true` to delete everything. URLs must be https. IMPORTANT: only use booking addresses the operator actually gave you.",
+  scope: "updates:write",
+  annotations: PUBLIC_HINTS,
+  inputSchema: {
+    type: "object",
+    properties: {
+      remove: {
+        type: "boolean",
+        description: "true removes all booking links everywhere. Ignores the other fields.",
+      },
+      links: {
+        type: "array",
+        maxItems: MAX_MEETING_LINKS,
+        description: "The complete new set of calendars. Replaces what is there.",
+        items: {
+          type: "object",
+          properties: {
+            id: {
+              type: "string",
+              description:
+                "Short speaking key, lowercase letters, digits and hyphens, e.g. 'telefonanlage'. Support blocks in articles refer to this.",
+            },
+            url: { type: "string", description: "https address of the booking calendar." },
+            title: { type: "string", description: `Heading, max ${MAX_MEETING_TITLE} characters, e.g. "Still have questions?".` },
+            label: { type: "string", description: `Button text, max ${MAX_MEETING_LABEL} characters, e.g. "Book a meeting".` },
+            description: {
+              type: "string",
+              description: `One short line under the heading, max ${MAX_MEETING_DESCRIPTION} characters. Optional.`,
+            },
+          },
+          required: ["id", "url", "title", "label"],
+        },
+      },
+      placementLinkId: {
+        type: "string",
+        description: "Which calendar appears in the automatic spots. Defaults to the first one.",
+      },
+      placements: {
+        type: "object",
+        description: "Where the general link appears. Anything you leave out is OFF.",
+        properties: {
+          article: { type: "boolean", description: "At the end of every article." },
+          noHelp: {
+            type: "boolean",
+            description:
+              "After a 'not helpful' vote, and under an AI answer that found no sources. The reader's question or the article title travels along as a note in the booking.",
+          },
+          contact: { type: "boolean", description: "As a card on the contact page." },
+          home: { type: "boolean", description: "As an extra entry card on the start page." },
+        },
+      },
+    },
+  },
+  async handler(args, ctx) {
+    const settings = await ctx.deps.getSettingsDeps?.();
+    if (!settings) return fail("settings_unavailable", "Settings storage is not available.");
+
+    if (args.remove === true) {
+      await settings.setMeeting(ctx.tenant.id, null);
+      return ok({ meeting: null, note: "All booking links are removed." });
+    }
+
+    const parsed = parseMeetingInput(args);
+    if (!parsed.ok) {
+      return fail(
+        parsed.error,
+        parsed.error === "invalid_url"
+          ? "Every `url` must be a full https address, e.g. https://cal.com/team/intro."
+          : parsed.error === "invalid_id"
+            ? "Every `id` must be lowercase letters, digits and hyphens, e.g. 'telefonanlage'."
+            : `The input is not valid (${parsed.error}).`,
+      );
+    }
+
+    await settings.setMeeting(ctx.tenant.id, parsed.config);
+    const shown = Object.entries(parsed.config.placements)
+      .filter(([, on]) => on)
+      .map(([key]) => key);
+    return ok({
+      meeting: parsed.config,
+      note:
+        shown.length > 0
+          ? `Saved. The calendar '${parsed.config.placementLinkId}' is live at: ${shown.join(", ")}. Other calendars only appear where an article places a support block.`
+          : "Saved, but no automatic placement is switched on — the links only appear where an article places a support block. Turn on at least one of article, noHelp, contact, home if you want them shown automatically.",
+    });
+  },
+};
+
 export const NAVIGATION_TOOLS: McpTool[] = [
+  setMeeting,
   reorderArticles,
   listEntryCards,
   setEntryCards,

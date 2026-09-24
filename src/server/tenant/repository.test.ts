@@ -30,6 +30,7 @@ const row = {
   widget_variant: "colored", widget_label: null,
   widget_icon_r2_key: null, widget_icon_open_r2_key: null,
   theme: null,
+  meeting: null,
   footer_imprint: 1, footer_privacy: 1, footer_terms: 1, footer_powered_by: 0,
 };
 
@@ -115,7 +116,7 @@ describe("D1TenantRepository", () => {
       "0002_auth.sql",
       "0003_branding.sql",
       "0004_two_factor_plugin_columns.sql",
-      "0013_seo_indexable.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql", "0045_theme_palette.sql", "0046_footer.sql",
+      "0013_seo_indexable.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql", "0045_theme_palette.sql", "0046_footer.sql", "0048_meeting_link.sql",
       "0014_support_email.sql",
     ]);
     db.prepare(
@@ -153,7 +154,7 @@ describe("Instanz-Sperre (0021, Ops)", () => {
       "0002_auth.sql",
       "0003_branding.sql",
       "0004_two_factor_plugin_columns.sql",
-      "0013_seo_indexable.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql", "0045_theme_palette.sql", "0046_footer.sql",
+      "0013_seo_indexable.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql", "0045_theme_palette.sql", "0046_footer.sql", "0048_meeting_link.sql",
       "0014_support_email.sql",
     ]);
     // Migration 0001 seedet 'demo'; Custom-Domain verified dazu:

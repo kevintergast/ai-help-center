@@ -126,6 +126,7 @@ function makeApp() {
       setComprehensionMode: async () => {},
       setWidgetAppearance: async () => {},
       setFooterFlags: async () => {},
+      setMeeting: async () => {},
       // Schreibt dorthin, wo die NÄCHSTE Anfrage liest: In Produktion löst
       // jeder Request den Tenant neu aus D1 auf, hier steht er im Objekt.
       setTheme: async (tenantId, config) => {
@@ -1726,5 +1727,64 @@ describe("MCP — Postfach", () => {
     const { data } = await callTool(f.app, token, "list_unanswered_questions");
     expect(data!.count).toBe(1);
     expect((data!.groups as { someoneIsWaiting: boolean }[])[0].someoneIsWaiting).toBe(true);
+  });
+});
+
+/**
+ * BUCHUNGSLINK per MCP (0048). Verhinderte Fehlerfälle:
+ *  - Das Werkzeug hängt am reinen Schreibrecht → ein Redaktions-Schlüssel
+ *    könnte etwas sofort Öffentliches setzen.
+ *  - Ein unsicheres Ziel geht durch, weil die KI-Tür anders prüft als die
+ *    Oberfläche.
+ *  - Gespeichert ohne Platzierung, ohne dass es jemand erfährt.
+ */
+describe("MCP — Buchungslink", () => {
+  const VALID = {
+    links: [
+      {
+        id: "beratung",
+        url: "https://cal.com/team/intro",
+        label: "Termin buchen",
+        title: "Noch Fragen?",
+      },
+    ],
+    placements: { article: true },
+  };
+
+  it("braucht updates:write, nicht articles:write", async () => {
+    const f = makeApp();
+    const writeOnly = await issueKey(f.keys, "t_a", ["articles:write"]);
+    const { res } = await rpc(f.app, writeOnly, "tools/call", {
+      name: "set_meeting",
+      arguments: VALID,
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("setzt den Link und nennt die aktiven Platzierungen", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["updates:write"]);
+    const { data } = await callTool(f.app, token, "set_meeting", VALID);
+    expect((data!.meeting as { links: { url: string }[] }).links[0].url).toBe(VALID.links[0].url);
+    expect(String(data!.note)).toContain("article");
+  });
+
+  it("prüft das Ziel wie die Oberfläche", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["updates:write"]);
+    for (const url of ["javascript:alert(1)", "http://cal.com/team", "/termin"]) {
+      const { data } = await callTool(f.app, token, "set_meeting", {
+        ...VALID,
+        links: [{ ...VALID.links[0], url }],
+      });
+      expect(data, url).toMatchObject({ error: "invalid_url" });
+    }
+  });
+
+  it("warnt, wenn keine Platzierung an ist", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["updates:write"]);
+    const { data } = await callTool(f.app, token, "set_meeting", { ...VALID, placements: {} });
+    expect(String(data!.note)).toContain("no automatic placement");
   });
 });

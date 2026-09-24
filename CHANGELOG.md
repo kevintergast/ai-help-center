@@ -26,6 +26,14 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.8.0] – 2026-09-22
+
+_Neue Fähigkeiten: mehrere Buchungskalender je Instanz mit vier schaltbaren Platzierungen, dazu ein Support-Baustein, der Kontakt und Termin frei zwischen den Artikelabschnitten anbietet._
+
+### Hinzugefügt
+- **hc:** mehrere Buchungskalender + Support-Baustein im Artikel (9b1bc30)
+- **hc:** Buchungslink „Persönliche Unterstützung" an vier Stellen (99dbb66)
+
 ## [0.7.0] – 2026-09-22
 
 _Neue Fähigkeiten: unbeantwortete KI-Fragen werden gesammelt und sind vom Nutzer meldbar; der MCP-Server bekommt die Postfach-Werkzeuge, für die es die Rechte schon gab._

@@ -87,12 +87,15 @@ describe("Registrierung & Scope", () => {
       "set_header_actions",
       // Frage-Vorschläge (0044) stehen ebenfalls sofort auf der Startseite.
       "set_prompt_suggestions",
+      // Buchungslink (0048): erscheint sofort an bis zu vier Stellen im
+      // Hilfezentrum — dieselbe Sofort-Wirkung wie Karten und Kontaktwege.
+      "set_meeting",
     ]) {
       const tool = findTool(name);
       expect(tool, name).toBeDefined();
       expect(tool!.scope).toBe("updates:write");
     }
-    expect(ALL_TOOLS.filter((t) => t.scope === "updates:write")).toHaveLength(9);
+    expect(ALL_TOOLS.filter((t) => t.scope === "updates:write")).toHaveLength(10);
   });
 
   it("ein Schlüssel mit articles:write sieht sie NICHT (kein Veröffentlichen durch die Hintertür)", () => {
