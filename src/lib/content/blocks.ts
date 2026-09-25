@@ -362,6 +362,29 @@ export function validateBodyInput(raw: unknown): { ok: true; value: ArticleBlock
         out.push({ type: "divider" });
         break;
       }
+      /**
+       * SUPPORT-BAUSTEIN (0048). Beide Felder sind FREIWILLIG: Ein Baustein
+       * ohne Text und ohne Kalender ist gültig — er zeigt dann den Weg zum
+       * Support, und genau so steht es in den Konventionen, die die KI liest.
+       *
+       * Die Kennung wird NICHT gegen die gepflegten Kalender geprüft. Sie
+       * kann sich später ändern oder gelöscht werden, und ein Artikel darf
+       * davon nicht unspeicherbar werden — der Renderer fällt in dem Fall auf
+       * den allgemeinen Termin zurück (meetingLinkById).
+       *
+       * Aus demselben Grund nur ein grober Längen-Deckel statt der exakten
+       * Regel aus meeting.ts: Dieses Modul ist bewusst importfrei, und eine
+       * kopierte Zahl wäre eine zweite Wahrheit, die irgendwann abweicht. Eine
+       * zu lange Kennung trifft ohnehin keinen Kalender und fällt zurück.
+       */
+      case "support": {
+        const text = typeof o.text === "string" ? o.text.trim() : "";
+        if (text.length > MAX_TEXT_CHARS) return { ok: false, error: "body_block_too_large" };
+        const rawId = typeof o.meetingId === "string" ? o.meetingId.trim().toLowerCase() : "";
+        if (rawId.length > 80) return { ok: false, error: "invalid_meeting_id" };
+        out.push({ type: "support", text, meetingId: rawId.length > 0 ? rawId : null });
+        break;
+      }
       case "file": {
         if (typeof o.fileId !== "string" || o.fileId.length === 0 || o.fileId.length > 80) {
           return { ok: false, error: "invalid_file_block" };
