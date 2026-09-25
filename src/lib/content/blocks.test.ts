@@ -56,6 +56,36 @@ describe("parseArticleBody (Lesepfad, tolerant)", () => {
 });
 
 describe("validateBodyInput (Schreibpfad, streng)", () => {
+  /**
+   * REGRESSION (gemeldet 2026-09-25): `get_content_conventions` beschrieb den
+   * Support-Baustein, `update_article` lehnte ihn mit `invalid_body` ab — die
+   * Block-Art war nur im LESE-Parser ergänzt, nicht im strengen Schreibpfad.
+   * 21 vorbereitete Artikel eines Kunden blieben dadurch unspeicherbar.
+   *
+   * Der Test scheitert ohne den Fix, weil `support` im switch fehlte und in
+   * den default-Zweig (invalid_body) lief.
+   */
+  it("nimmt den Support-Baustein an — auch minimal", () => {
+    expect(validateBodyInput([{ type: "support", meetingId: "smao-pro" }])).toEqual({
+      ok: true,
+      value: [{ type: "support", text: "", meetingId: "smao-pro" }],
+    });
+    // Ganz ohne Felder: gültig, zeigt dann nur den Weg zum Support.
+    expect(validateBodyInput([{ type: "support" }])).toEqual({
+      ok: true,
+      value: [{ type: "support", text: "", meetingId: null }],
+    });
+  });
+
+  it("nimmt Text und Kennung mit, normalisiert die Kennung", () => {
+    expect(
+      validateBodyInput([{ type: "support", text: "  Hängt am Anbieter.  ", meetingId: "Smao-Pro" }]),
+    ).toEqual({
+      ok: true,
+      value: [{ type: "support", text: "Hängt am Anbieter.", meetingId: "smao-pro" }],
+    });
+  });
+
   it("lehnt freie Varianten/Farben/Slugs ab", () => {
     expect(validateBodyInput([{ type: "text", variant: "fancy", text: "x" }])).toMatchObject({
       ok: false,

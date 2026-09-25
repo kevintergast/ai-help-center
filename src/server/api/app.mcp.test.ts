@@ -1788,3 +1788,47 @@ describe("MCP — Buchungslink", () => {
     expect(String(data!.note)).toContain("no automatic placement");
   });
 });
+
+/**
+ * REGRESSION (gemeldet 2026-09-25, Kunde mit 21 vorbereiteten Artikeln):
+ * `get_content_conventions` beschrieb den Support-Baustein, `update_article`
+ * lehnte ihn mit `invalid_body` ab. Ursache: Die Block-Art war nur im
+ * nachsichtigen LESE-Parser ergänzt, nicht im strengen Schreibpfad.
+ *
+ * Dieser Test geht den GEMELDETEN Weg — über MCP, nicht über die Funktion —
+ * weil genau dort der Unterschied zwischen „dokumentiert" und „akzeptiert"
+ * sichtbar wurde.
+ */
+describe("MCP — Support-Baustein schreiben", () => {
+  it("update_article nimmt den minimalen Baustein an", async () => {
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const id = await seedArticle(f.app, token, "integration-einrichten");
+
+    const { data } = await callTool(f.app, token, "update_article", {
+      id,
+      body: [
+        { type: "text", variant: "standard", text: "Schritt 1: Zugang anlegen." },
+        { type: "support", meetingId: "smao-pro" },
+      ],
+    });
+    expect(data).not.toMatchObject({ error: "invalid_body" });
+
+    const article = await f.store.getForEdit("t_a", id, "de");
+    expect(article!.body).toContainEqual({ type: "support", text: "", meetingId: "smao-pro" });
+  });
+
+  it("was die Konventionen zeigen, ist auch schreibbar", async () => {
+    // Die Form aus get_content_conventions muss durchgehen — sonst
+    // dokumentieren wir etwas, das der Server ablehnt.
+    const f = makeApp();
+    const token = await issueKey(f.keys, "t_a", ["articles:read", "articles:write"]);
+    const id = await seedArticle(f.app, token, "zweiter-artikel");
+
+    const { data } = await callTool(f.app, token, "update_article", {
+      id,
+      body: [{ type: "support", text: "Hängt oft am Anbieter.", meetingId: "telefonanlage" }],
+    });
+    expect(data).not.toMatchObject({ error: "invalid_body" });
+  });
+});
