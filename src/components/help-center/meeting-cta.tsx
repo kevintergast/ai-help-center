@@ -41,8 +41,13 @@ export function MeetingCta({
       rel="noopener noreferrer"
       aria-label={`${link.label} — ${t("hc.meeting.opensExternally")}`}
       className={cn(
-        "flex h-full flex-col gap-1 rounded-card border border-hairline bg-surface p-5 transition-colors hover:border-brand/40 hover:bg-tint",
-        variant === "inline" && "bg-surface-raised",
+        "flex flex-col gap-1 rounded-card border border-hairline bg-surface p-5 transition-colors hover:border-brand/40 hover:bg-tint",
+        // `h-full` NUR im Kachel-Gitter: Dort sollen nebeneinander stehende
+        // Karten gleich hoch sein. Im Lesefluss ist die Artikelspalte ein
+        // Flex-Element mit fester Höhe — `height: 100%` ging dort gegen die
+        // GANZE Spalte auf und blähte die Karte auf knapp 1000 Pixel, mit
+        // einem entsprechend riesigen leeren Feld darin (gemeldet 2026-09-25).
+        variant === "card" ? "h-full" : "bg-surface-raised",
         className,
       )}
     >
