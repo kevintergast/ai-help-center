@@ -26,6 +26,13 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.8.1] – 2026-09-25
+
+_Bugfix: Der Support-Baustein war dokumentiert, wurde vom Schreibpfad aber abgelehnt._
+
+### Behoben
+- **hc:** Support-Baustein wurde beim Speichern abgelehnt (d700b6a)
+
 ## [0.8.0] – 2026-09-22
 
 _Neue Fähigkeiten: mehrere Buchungskalender je Instanz mit vier schaltbaren Platzierungen, dazu ein Support-Baustein, der Kontakt und Termin frei zwischen den Artikelabschnitten anbietet._
