@@ -26,6 +26,13 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.8.2] – 2026-09-25
+
+_Darstellungsfehler: Die Buchungs-Karte im Artikel nahm die Höhe der ganzen Spalte ein._
+
+### Behoben
+- **hc:** Buchungs-Karte im Artikel war knapp 1000 Pixel hoch (df12ced)
+
 ## [0.8.1] – 2026-09-25
 
 _Bugfix: Der Support-Baustein war dokumentiert, wurde vom Schreibpfad aber abgelehnt._
