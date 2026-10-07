@@ -45,8 +45,37 @@ export interface TeamUserRow {
   banned: boolean;
 }
 
+export interface TeamMember {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  /** Geparkte Zielrolle — gesetzt heißt: wartet noch auf das TOTP-Enrollment. */
+  pendingRole: string | null;
+  twoFactorEnabled: boolean;
+  createdAt: number;
+}
+
 export interface TeamUserRepository {
   findById(tenantId: string, userId: string): Promise<TeamUserRow | null>;
+  /** Alle Konten der Instanz, Owner zuerst, dann absteigend nach Rolle. */
+  listMembers(tenantId: string): Promise<TeamMember[]>;
+  /**
+   * Rolle setzen. ABSTUFEN schreibt direkt auf `role`; HERAUFSTUFEN auf eine
+   * Team-Rolle schreibt in `pending_role` — die eigentliche Vergabe passiert
+   * erst nach bestandenem TOTP-Enrollment (roles.ts/mfa-policy.ts). Diese
+   * Trennung ist der Kern der Härtung und wird hier NICHT umgangen.
+   *
+   * Der Owner ist ausgenommen: `WHERE role <> 'owner'` sorgt dafür, dass auch
+   * ein fehlerhafter Aufruf ihn nicht abstufen kann.
+   */
+  setRole(tenantId: string, userId: string, role: "user" | "content" | "admin"): Promise<boolean>;
+  /**
+   * Konto aus der Instanz entfernen. Der Owner ist geschützt — er ist der
+   * einzige, der die Instanz nicht verlieren darf, sonst steht sie ohne
+   * Verantwortlichen da. `WHERE role <> 'owner'` ist die Durchsetzung.
+   */
+  remove(tenantId: string, userId: string): Promise<boolean>;
   /** Atomarer Owner-Wechsel (siehe Kopfkommentar). true = vollständig vollzogen. */
   transferOwnership(tenantId: string, actorId: string, targetId: string): Promise<boolean>;
   /** ALLE Sessions des Users im Tenant widerrufen (§e: Transfer revoked beide). */
@@ -64,6 +93,66 @@ interface UserRow {
 
 export class D1TeamUserRepository implements TeamUserRepository {
   constructor(private readonly db: D1Database) {}
+
+  async listMembers(tenantId: string): Promise<TeamMember[]> {
+    const { results } = await this.db
+      .prepare(
+        `SELECT id, email, name, role, pending_role, two_factor_enabled, created_at
+           FROM auth_user
+          WHERE tenant_id = ?
+          ORDER BY CASE role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1
+                             WHEN 'content' THEN 2 ELSE 3 END,
+                   created_at ASC`,
+      )
+      .bind(tenantId)
+      .all<{
+        id: string;
+        email: string;
+        name: string | null;
+        role: string;
+        pending_role: string | null;
+        two_factor_enabled: number;
+        created_at: number;
+      }>();
+    return results.map((r) => ({
+      id: r.id,
+      email: r.email,
+      name: r.name,
+      role: r.role,
+      pendingRole: r.pending_role,
+      twoFactorEnabled: r.two_factor_enabled !== 0,
+      createdAt: r.created_at,
+    }));
+  }
+
+  async setRole(
+    tenantId: string,
+    userId: string,
+    role: "user" | "content" | "admin",
+  ): Promise<boolean> {
+    // Abstufen auf `user`: direkt, und die geparkte Rolle muss mit weg —
+    // sonst würde ein späteres TOTP-Enrollment sie wieder hochziehen.
+    const sql =
+      role === "user"
+        ? `UPDATE auth_user SET role = 'user', pending_role = NULL, updated_at = unixepoch()
+            WHERE tenant_id = ? AND id = ? AND role <> 'owner'`
+        : `UPDATE auth_user SET pending_role = ?, updated_at = unixepoch()
+            WHERE tenant_id = ? AND id = ? AND role <> 'owner'`;
+    const stmt =
+      role === "user"
+        ? this.db.prepare(sql).bind(tenantId, userId)
+        : this.db.prepare(sql).bind(role, tenantId, userId);
+    const res = await stmt.run();
+    return (res.meta.changes ?? 0) > 0;
+  }
+
+  async remove(tenantId: string, userId: string): Promise<boolean> {
+    const res = await this.db
+      .prepare(`DELETE FROM auth_user WHERE tenant_id = ? AND id = ? AND role <> 'owner'`)
+      .bind(tenantId, userId)
+      .run();
+    return (res.meta.changes ?? 0) > 0;
+  }
 
   async findById(tenantId: string, userId: string): Promise<TeamUserRow | null> {
     const row = await this.db
