@@ -74,6 +74,12 @@ export function AccountMenu({
 
               <div className="my-2 h-px bg-hairline" aria-hidden />
 
+              {/* Eigenes Konto — für JEDE Rolle, auch für Nutzer, die nur
+                  ihre gespeicherten Antworten behalten wollen. Bis hierher
+                  führte vorher kein Weg. */}
+              <Link href="/account" className={linkRow} onClick={() => setOpen(false)}>
+                {t("hc.account.settings")}
+              </Link>
               {showAdminLink && isTeamRole(viewer.role) ? (
                 <Link href="/admin" className={linkRow} onClick={() => setOpen(false)}>
                   {t("hc.account.admin")}

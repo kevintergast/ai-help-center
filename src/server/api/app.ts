@@ -45,7 +45,12 @@ import { authenticateApiKey } from "@/server/apikeys/authenticate";
 import { apiKeysAdminRouter } from "./api-keys";
 import { mcpRouter } from "@/server/mcp/router";
 import { getEnvSafe, runtimeDeps } from "./runtime-deps";
-import { invitationsAcceptRouter, invitationsAdminRouter, ownershipRouter } from "./team";
+import {
+  invitationsAcceptRouter,
+  invitationsAdminRouter,
+  ownershipRouter,
+  teamMembersRouter,
+} from "./team";
 
 /**
  * Öffentliche, versionierte API (`/api/v1`) — das gemeinsame Backend für
@@ -323,6 +328,7 @@ export function buildApiApp(deps: ApiDeps) {
   // /invitations/accept ist BEWUSST nicht public (Session-Pflicht via
   // Default-Deny), aber ohne Team-Gate. Details: ./team.ts
   app.route("/admin/invitations", invitationsAdminRouter(deps));
+  app.route("/admin/team/members", teamMembersRouter(deps));
   app.route("/admin/ownership", ownershipRouter(deps));
   app.route("/invitations", invitationsAcceptRouter(deps));
 
