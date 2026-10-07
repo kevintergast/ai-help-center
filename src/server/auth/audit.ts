@@ -21,6 +21,10 @@ export type AuditAction =
   | "invitation.revoked"
   | "invitation.expired"
   | "ownership.transferred"
+  // Mitglieder-Verwaltung (Team-Seite): Rollenwechsel und Entfernen. Der
+  // Owner taucht hier nie als Ziel auf — er ist geschützt (api/team.ts).
+  | "member.role_changed"
+  | "member.removed"
   // Maschinen-Zugang (0027): wer wann welchen Schlüssel mit welchen Rechten
   // erzeugt/widerrufen hat. NIE der Schlüssel selbst — nur Name/Scopes/Ablauf.
   | "api_key.created"

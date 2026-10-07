@@ -80,6 +80,7 @@ export async function readPageViewer(tenant: Tenant): Promise<HelpViewer | null>
         name: data.user.name ?? null,
         email: data.user.email,
         role: data.user.role ?? "user",
+        twoFactorEnabled: data.user.twoFactorEnabled === true,
       };
     } catch {
       return null;

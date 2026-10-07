@@ -497,3 +497,133 @@ export function ownershipRouter(deps: ApiDeps) {
 
   return r;
 }
+
+/**
+ * MITGLIEDER der Instanz (`/admin/team/members`).
+ *
+ *   GET    /admin/team/members           requireTeam("admin")  — Liste
+ *   PUT    /admin/team/members/:id/role  requireTeam("admin")  — Rolle ändern
+ *   DELETE /admin/team/members/:id       requireTeam("admin")  — entfernen
+ *
+ * DER OWNER IST UNANTASTBAR. Er kann weder abgestuft noch entfernt werden —
+ * weder von einem Admin noch von sich selbst. Begründung: Er ist der einzige,
+ * der die Instanz nicht verlieren darf; ohne ihn stünde sie ohne
+ * Verantwortlichen da, und niemand könnte mehr Admins einladen (die sind
+ * owner-exklusiv). Wer den Besitz abgeben will, nimmt den Transfer-Weg — der
+ * verlangt frische Zwei-Faktor-Bestätigung und macht in einem Zug jemand
+ * anderen zum Owner. Durchgesetzt wird das ZWEIMAL: hier in der Route und
+ * zusätzlich per `WHERE role <> 'owner'` im Repository, damit auch ein
+ * fehlerhafter Aufruf nichts anrichtet.
+ *
+ * ROLLEN-DECKEL wie bei den Einladungen: rank(actor) MUSS STRIKT größer sein
+ * als die Zielrolle. Ein Admin kann also content vergeben und entziehen, aber
+ * niemanden zum Admin machen — das bleibt dem Owner vorbehalten. Dieselbe
+ * Schwelle gilt fürs Entfernen: Ein Admin entfernt keine anderen Admins.
+ *
+ * SICH SELBST kann niemand abstufen oder entfernen. Das ist kein
+ * Bevormunden, sondern verhindert den Fall, dass sich der letzte Admin aus
+ * Versehen aussperrt.
+ *
+ * HERAUFSTUFEN schreibt in `pending_role`, nicht in `role` — die Rolle wird
+ * erst nach bestandenem TOTP-Enrollment wirksam (roles.ts). Die Antwort sagt
+ * das ausdrücklich, sonst wundert sich der Admin, warum die Liste weiter
+ * „Nutzer" zeigt.
+ */
+export function teamMembersRouter(deps: ApiDeps) {
+  const r = new Hono<ApiEnv>();
+
+  r.get("/", requireTeam("admin"), async (c) => {
+    const team = await deps.getTeamDeps();
+    if (!team) return c.json({ error: "team_unavailable" }, 503);
+    return c.json({ members: await team.users.listMembers(c.get("tenant").id) });
+  });
+
+  r.put("/:id/role", requireTeam("admin"), async (c) => {
+    const team = await deps.getTeamDeps();
+    if (!team) return c.json({ error: "team_unavailable" }, 503);
+
+    const actor = await readSessionUser(c);
+    if (!actor) return c.json({ error: "unauthorized" }, 401);
+
+    const targetId = c.req.param("id") ?? "";
+    if (targetId.length === 0) return c.json({ error: "not_found" }, 404);
+    if (targetId === actor.id) return c.json({ error: "cannot_change_self" }, 409);
+
+    let role: unknown;
+    try {
+      role = ((await c.req.json()) as { role?: unknown }).role;
+    } catch {
+      return c.json({ error: "invalid_json" }, 400);
+    }
+    if (role !== "user" && role !== "content" && role !== "admin") {
+      return c.json({ error: "invalid_role" }, 400);
+    }
+    if (!(rank(actor.role ?? "") > rank(role))) {
+      return c.json({ error: "insufficient_rank" }, 403);
+    }
+
+    const tenantId = c.get("tenant").id;
+    const target = await team.users.findById(tenantId, targetId);
+    if (!target) return c.json({ error: "not_found" }, 404);
+    if (target.role === "owner") return c.json({ error: "owner_protected" }, 409);
+    // Auch die BISHERIGE Rolle muss unter dem Actor liegen — sonst stufte ein
+    // Admin einen anderen Admin ab.
+    if (!(rank(actor.role ?? "") > rank(target.role))) {
+      return c.json({ error: "insufficient_rank" }, 403);
+    }
+
+    const changed = await team.users.setRole(tenantId, targetId, role);
+    if (!changed) return c.json({ error: "not_found" }, 404);
+
+    await audit(team, c, {
+      actorId: actor.id,
+      action: "member.role_changed",
+      targetId,
+      metadata: { from: target.role, to: role },
+    });
+
+    return c.json({
+      ok: true,
+      role,
+      // Beim Heraufstufen ist die Rolle noch NICHT wirksam.
+      pending: role !== "user",
+    });
+  });
+
+  r.delete("/:id", requireTeam("admin"), async (c) => {
+    const team = await deps.getTeamDeps();
+    if (!team) return c.json({ error: "team_unavailable" }, 503);
+
+    const actor = await readSessionUser(c);
+    if (!actor) return c.json({ error: "unauthorized" }, 401);
+
+    const targetId = c.req.param("id") ?? "";
+    if (targetId.length === 0) return c.json({ error: "not_found" }, 404);
+    if (targetId === actor.id) return c.json({ error: "cannot_remove_self" }, 409);
+
+    const tenantId = c.get("tenant").id;
+    const target = await team.users.findById(tenantId, targetId);
+    if (!target) return c.json({ error: "not_found" }, 404);
+    if (target.role === "owner") return c.json({ error: "owner_protected" }, 409);
+    if (!(rank(actor.role ?? "") > rank(target.role))) {
+      return c.json({ error: "insufficient_rank" }, 403);
+    }
+
+    // Erst die Sitzungen, dann das Konto: Wer entfernt wird, soll nicht mit
+    // einer offenen Sitzung weiterarbeiten, falls das Löschen scheitert.
+    await team.users.revokeSessions(tenantId, targetId);
+    const removed = await team.users.remove(tenantId, targetId);
+    if (!removed) return c.json({ error: "not_found" }, 404);
+
+    await audit(team, c, {
+      actorId: actor.id,
+      action: "member.removed",
+      targetId,
+      metadata: { role: target.role },
+    });
+
+    return c.json({ ok: true });
+  });
+
+  return r;
+}

@@ -149,6 +149,42 @@ class FakeTeamUsers implements TeamUserRepository {
     return this.db.auth_user.find((u) => u.id === userId && u.tenant_id === tenantId);
   }
 
+  async listMembers(tenantId: string) {
+    const order: Record<string, number> = { owner: 0, admin: 1, content: 2, user: 3 };
+    return this.db.auth_user
+      .filter((u) => u.tenant_id === tenantId)
+      .map((u) => ({
+        id: String(u.id),
+        email: String(u.email),
+        name: (u.name as string | null) ?? null,
+        role: String(u.role ?? "user"),
+        pendingRole: (u.pendingRole as string | null) ?? null,
+        twoFactorEnabled: u.twoFactorEnabled === true || u.twoFactorEnabled === 1,
+        createdAt: Number(u.createdAt ?? 0),
+      }))
+      .sort((a, b) => (order[a.role] ?? 9) - (order[b.role] ?? 9));
+  }
+
+  async setRole(tenantId: string, userId: string, role: "user" | "content" | "admin") {
+    const row = this.find(tenantId, userId);
+    // Owner-Schutz wie im echten Repository (`WHERE role <> 'owner'`).
+    if (!row || row.role === "owner") return false;
+    if (role === "user") {
+      row.role = "user";
+      row.pendingRole = null;
+    } else {
+      row.pendingRole = role;
+    }
+    return true;
+  }
+
+  async remove(tenantId: string, userId: string) {
+    const row = this.find(tenantId, userId);
+    if (!row || row.role === "owner") return false;
+    this.db.auth_user = this.db.auth_user.filter((u) => u !== row);
+    return true;
+  }
+
   async findById(tenantId: string, userId: string): Promise<TeamUserRow | null> {
     const row = this.find(tenantId, userId);
     if (!row) return null;
@@ -732,5 +768,148 @@ describe("POST /api/v1/admin/ownership/transfer (§c.6: owner + frisches Step-up
     expect(await res.json()).toMatchObject({ error: "transfer_conflict" });
     expect(f.db.auth_session.some((s) => s.user_id === targetRow.id)).toBe(true);
     expect(f.audit.entries.some((e) => e.action === "ownership.transferred")).toBe(false);
+  });
+});
+
+/**
+ * MITGLIEDER-VERWALTUNG (Team-Seite). Verhinderte Fehlerfälle — alle davon
+ * würden eine Instanz unbrauchbar oder unsicher machen:
+ *  - Der OWNER lässt sich abstufen oder entfernen → die Instanz stünde ohne
+ *    Verantwortlichen da, und niemand könnte mehr Admins einladen (die sind
+ *    owner-exklusiv).
+ *  - Ein Admin stuft einen anderen Admin ab oder wirft ihn raus → der
+ *    Rollen-Deckel der Einladungen gälte hier nicht mehr.
+ *  - Jemand sperrt sich selbst aus.
+ *  - Heraufstufen setzt `role` DIREKT statt `pending_role` → eine Team-Rolle
+ *    ohne zweiten Faktor, also genau die Härtung ausgehebelt.
+ *  - Mandantengrenze: fremde Konten lassen sich über ihre Id ändern.
+ */
+describe("Team-Mitglieder (/admin/team/members)", () => {
+  it("listet Mitglieder; Redakteure dürfen das nicht", async () => {
+    const f = makeApp();
+    const owner = await ownerSession(f, HOST_A);
+    await createSession(f.app, f.db, HOST_A, "redaktion@example.com", {
+      role: "content",
+      mfa: true,
+    });
+
+    const res = await f.app.request("/api/v1/admin/team/members", {
+      headers: { host: HOST_A, cookie: owner },
+    });
+    expect(res.status).toBe(200);
+    const { members } = (await res.json()) as { members: { role: string }[] };
+    expect(members.some((m) => m.role === "owner")).toBe(true);
+    expect(members.some((m) => m.role === "content")).toBe(true);
+
+    const asContent = await createSession(f.app, f.db, HOST_A, "redaktion2@example.com", {
+      role: "content",
+      mfa: true,
+    });
+    expect(
+      (await f.app.request("/api/v1/admin/team/members", {
+        headers: { host: HOST_A, cookie: asContent },
+      })).status,
+    ).toBe(403);
+  });
+
+  it("OWNER ist unantastbar — weder abstufbar noch entfernbar", async () => {
+    const f = makeApp();
+    const owner = await ownerSession(f, HOST_A);
+    const admin = await adminSession(f, HOST_A);
+    const ownerRow = f.db.auth_user.find((u) => u.role === "owner")!;
+
+    const demote = await f.app.request(`/api/v1/admin/team/members/${ownerRow.id}/role`, {
+      method: "PUT",
+      headers: { host: HOST_A, "content-type": "application/json", cookie: admin },
+      body: JSON.stringify({ role: "content" }),
+    });
+    expect(demote.status).toBe(409);
+    expect(await demote.json()).toMatchObject({ error: "owner_protected" });
+
+    const remove = await f.app.request(`/api/v1/admin/team/members/${ownerRow.id}`, {
+      method: "DELETE",
+      headers: { host: HOST_A, cookie: admin },
+    });
+    expect(remove.status).toBe(409);
+
+    // Auch der Owner selbst kommt an sich nicht heran (Selbst-Sperre).
+    const self = await f.app.request(`/api/v1/admin/team/members/${ownerRow.id}`, {
+      method: "DELETE",
+      headers: { host: HOST_A, cookie: owner },
+    });
+    expect(self.status).toBe(409);
+
+    expect(f.db.auth_user.find((u) => u.id === ownerRow.id)!.role).toBe("owner");
+  });
+
+  it("Rollen-Deckel: ein Admin fasst andere Admins nicht an", async () => {
+    const f = makeApp();
+    const admin = await adminSession(f, HOST_A);
+    await createSession(f.app, f.db, HOST_A, "zweiter-admin@example.com", {
+      role: "admin",
+      mfa: true,
+    });
+    const other = f.db.auth_user.find((u) => u.email === "zweiter-admin@example.com")!;
+
+    const res = await f.app.request(`/api/v1/admin/team/members/${other.id}/role`, {
+      method: "PUT",
+      headers: { host: HOST_A, "content-type": "application/json", cookie: admin },
+      body: JSON.stringify({ role: "content" }),
+    });
+    expect(res.status).toBe(403);
+    expect(f.db.auth_user.find((u) => u.id === other.id)!.role).toBe("admin");
+  });
+
+  it("Heraufstufen PARKT die Rolle, bis der zweite Faktor steht", async () => {
+    const f = makeApp();
+    const owner = await ownerSession(f, HOST_A);
+    await createSession(f.app, f.db, HOST_A, "leser@example.com", {});
+    const target = f.db.auth_user.find((u) => u.email === "leser@example.com")!;
+
+    const res = await f.app.request(`/api/v1/admin/team/members/${target.id}/role`, {
+      method: "PUT",
+      headers: { host: HOST_A, "content-type": "application/json", cookie: owner },
+      body: JSON.stringify({ role: "content" }),
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ pending: true });
+
+    const row = f.db.auth_user.find((u) => u.id === target.id)!;
+    // Entscheidend: die WIRKSAME Rolle hat sich NICHT geändert.
+    expect(row.role).toBe("user");
+    expect(row.pendingRole).toBe("content");
+  });
+
+  it("Abstufen auf Nutzer räumt die geparkte Rolle mit weg", async () => {
+    const f = makeApp();
+    const owner = await ownerSession(f, HOST_A);
+    await createSession(f.app, f.db, HOST_A, "red@example.com", { role: "content", mfa: true });
+    const target = f.db.auth_user.find((u) => u.email === "red@example.com")!;
+    target.pendingRole = "admin";
+
+    await f.app.request(`/api/v1/admin/team/members/${target.id}/role`, {
+      method: "PUT",
+      headers: { host: HOST_A, "content-type": "application/json", cookie: owner },
+      body: JSON.stringify({ role: "user" }),
+    });
+
+    const row = f.db.auth_user.find((u) => u.id === target.id)!;
+    expect(row.role).toBe("user");
+    // Ohne das Leeren zöge ein späteres Enrollment die alte Rolle zurück.
+    expect(row.pendingRole).toBeNull();
+  });
+
+  it("fremde Mandanten bleiben unberührt", async () => {
+    const f = makeApp();
+    const owner = await ownerSession(f, HOST_A);
+    await createSession(f.app, f.db, HOST_B, "fremd@example.com", { role: "content", mfa: true });
+    const foreign = f.db.auth_user.find((u) => u.email === "fremd@example.com")!;
+
+    const res = await f.app.request(`/api/v1/admin/team/members/${foreign.id}`, {
+      method: "DELETE",
+      headers: { host: HOST_A, cookie: owner },
+    });
+    expect(res.status).toBe(404);
+    expect(f.db.auth_user.some((u) => u.id === foreign.id)).toBe(true);
   });
 });

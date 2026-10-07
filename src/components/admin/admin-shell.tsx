@@ -25,6 +25,7 @@ import {
   KeyIcon,
   PaletteIcon,
   MegaphoneIcon,
+  UserPlusIcon,
 } from "@/components/ui/icons";
 
 type IconType = typeof GridIcon;
@@ -46,6 +47,9 @@ const NAV: {
   { href: "/admin/updates", key: "admin.nav.updates", icon: MegaphoneIcon },
   { href: "/admin/inbox", key: "admin.nav.inbox", icon: InboxIcon, badge: true },
   // Schlüssel vergeben Rechte → wie die Seite selbst admin/owner-exklusiv.
+  // Team und Rollen: wie die Schlüssel admin/owner-exklusiv — hier werden
+  // Berechtigungen vergeben, nicht Inhalte gepflegt.
+  { href: "/admin/team", key: "admin.nav.team", icon: UserPlusIcon, roles: ["admin", "owner"] },
   { href: "/admin/api-keys", key: "admin.nav.apiKeys", icon: KeyIcon, roles: ["admin", "owner"] },
   { href: "/admin/design", key: "admin.nav.design", icon: PaletteIcon },
   { href: "/admin/settings", key: "admin.nav.settings", icon: SettingsIcon },
