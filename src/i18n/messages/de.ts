@@ -380,6 +380,9 @@ export const de = {
   "admin.guard.saving": "Speichert …",
   "admin.guard.discard": "Verwerfen und weiter",
   "admin.suggestions.title": "Frage-Vorschläge",
+  "admin.suggestions.promptText": "Text im Eingabefeld",
+  "admin.suggestions.promptTextHint":
+    "Steht grau im leeren Feld und sagt, welche Art Frage hier weiterhilft — z. B. „Wie konfiguriere ich …“. Leer lassen für unseren Standardtext.",
   "admin.suggestions.hint":
     "Stehen SOFORT unter der KI-Eingabe auf der Startseite. Höchstens {max}. Schreib sie so, wie ein Leser fragen würde — und nur, was dein Hilfezentrum wirklich beantworten kann.",
   "admin.suggestions.empty": "Keine Vorschläge. Die Eingabe steht dann schlicht da — auch das ist in Ordnung.",

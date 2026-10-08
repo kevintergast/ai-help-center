@@ -379,6 +379,9 @@ export const en: Record<MessageKey, string> = {
   "admin.guard.saving": "Saving \u2026",
   "admin.guard.discard": "Discard and continue",
   "admin.suggestions.title": "Question suggestions",
+  "admin.suggestions.promptText": "Text inside the input field",
+  "admin.suggestions.promptTextHint":
+    "Shown in grey in the empty field and tells people what kind of question works here — e.g. \u201cHow do I configure \u2026\u201d. Leave empty for our default text.",
   "admin.suggestions.hint":
     "These appear under the AI input on the start page IMMEDIATELY. At most {max}. Write them the way a reader would ask \u2014 and only what your help center can actually answer.",
   "admin.suggestions.empty": "No suggestions. The input then stands alone \u2014 that is fine too.",

@@ -1,0 +1,17 @@
+-- 0049 — EIGENER PLATZHALTER in der KI-Eingabe.
+--
+-- WARUM: Im Eingabefeld stand auf JEDER Instanz derselbe Satz („Frag die KI —
+-- oder beschreib dein Problem …"). Der ist nicht falsch, aber er verschenkt
+-- die wirksamste Zeile der Startseite: Ein Platzhalter sagt dem Besucher, WAS
+-- für Fragen hier Sinn ergeben. „Wie konfiguriere ich …" führt ihn näher an
+-- eine beantwortbare Frage als eine allgemeine Aufforderung.
+--
+-- Das ist aus demselben Grund pro Instanz pflegbar wie die Frage-Vorschläge
+-- (0044): Was den einen Kunden weiterbringt, ist beim nächsten Unsinn — ein
+-- fest eingebauter Satz wäre auf jeder zweiten Instanz der falsche.
+--
+-- NULL = unser Standardtext aus der Übersetzung. Damit ändert das Update
+-- nichts an laufenden Instanzen, und wer nichts pflegt, bekommt weiterhin
+-- einen sinnvollen Satz in seiner Sprache (ein leeres Feld wäre schlechter
+-- als ein allgemeiner Satz).
+ALTER TABLE tenants ADD COLUMN prompt_placeholder TEXT;

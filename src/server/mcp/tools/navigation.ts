@@ -13,6 +13,7 @@ import {
 } from "@/lib/content/action-buttons";
 import { ARTICLE_ICONS } from "@/lib/content/article-icons";
 import {
+  MAX_PROMPT_PLACEHOLDER,
   MAX_PROMPT_SUGGESTIONS,
   MAX_SUGGESTION_LENGTH,
   parsePromptSuggestions,
@@ -626,6 +627,11 @@ export const setPromptSuggestions: McpTool = {
   inputSchema: {
     type: "object",
     properties: {
+      placeholder: {
+        type: "string",
+        description:
+          "Optional: the grey text inside the empty AI input field. It should tell people what KIND of question works here, e.g. 'How do I configure …' — that gets them closer to an answerable question than a general prompt. Max 80 characters. Pass an empty string to fall back to the default text.",
+      },
       suggestions: {
         type: "array",
         maxItems: MAX_PROMPT_SUGGESTIONS,
@@ -650,9 +656,29 @@ export const setPromptSuggestions: McpTool = {
     if (!content) return fail("content_unavailable", "Content storage is not available.");
     if (await frozen(ctx)) return FROZEN_RESULT();
 
+    // Platzhalter nur anfassen, wenn er mitkommt (0049) — sonst löschte ein
+    // Aufruf, der bloß die Vorschläge setzt, stillschweigend den gepflegten
+    // Text aus dem Eingabefeld.
+    let placeholder: string | null | undefined;
+    if (typeof args.placeholder === "string") {
+      const raw = args.placeholder.trim();
+      if (raw.length > MAX_PROMPT_PLACEHOLDER) {
+        return fail(
+          "placeholder_too_long",
+          `The placeholder may be at most ${MAX_PROMPT_PLACEHOLDER} characters. Nothing was changed.`,
+        );
+      }
+      placeholder = raw.length > 0 ? raw : null;
+    }
+
     const written = await content.store.replacePromptSuggestions(ctx.tenant.id, parsed.suggestions);
+    if (placeholder !== undefined) {
+      const settings = await ctx.deps.getSettingsDeps?.();
+      await settings?.setPromptPlaceholder(ctx.tenant.id, placeholder);
+    }
     return ok({
       suggestions: written,
+      ...(placeholder !== undefined ? { placeholder } : {}),
       note:
         written > 0
           ? "The suggestions are live under the AI input now."

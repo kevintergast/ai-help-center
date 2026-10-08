@@ -14,9 +14,12 @@ import { PENDING_ASK_KEY } from "@/lib/content/handoff";
 export function ArticleAskPrompt({
   locale,
   suggestions,
+  placeholder,
 }: {
   locale: Locale;
   suggestions: string[];
+  /** Eigener Text der Instanz; leer → Standard (0049). */
+  placeholder?: string | null;
 }) {
   const t = getT(locale);
   const router = useRouter();
@@ -33,7 +36,7 @@ export function ArticleAskPrompt({
   return (
     <PromptBox
       expandable
-      placeholder={t("hc.promptPlaceholder")}
+      placeholder={placeholder || t("hc.promptPlaceholder")}
       suggestions={suggestions}
       labels={{ send: t("hc.promptSend"), mic: t("hc.promptMic") }}
       onSubmit={submit}

@@ -95,7 +95,13 @@ export function ArticlePage({
       isOperator={isOperator}
       viewer={viewer}
       activeSlug={article.slug}
-      footer={<ArticleAskPrompt locale={locale} suggestions={data.suggestions} />}
+      footer={
+        <ArticleAskPrompt
+          locale={locale}
+          suggestions={data.suggestions}
+          placeholder={data.promptPlaceholder}
+        />
+      }
     >
       <div className="px-5 py-8 md:px-10">
         {/* Nutzungs-Tracking (Infra-Plan Schritt 3): zählt den Aufruf serverseitig. */}
