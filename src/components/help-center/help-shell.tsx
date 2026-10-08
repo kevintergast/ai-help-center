@@ -540,7 +540,13 @@ function SiteFooter({
   }
 
   return (
-    <div className="flex items-center gap-3 border-t border-hairline bg-surface px-5 py-2 md:px-10">
+    // KEINE Trennlinie nach oben und dieselbe Spaltenbreite wie die
+    // Startansicht (max-w-3xl, zentriert): Der Fuß ist der leiseste Teil der
+    // Seite — eine durchgezogene Linie über die volle Breite machte daraus
+    // eine eigene Zone und schnitt den Inhalt optisch ab. Ohne sie und auf
+    // der Textbreite liest sich die Zeile als Ausklang statt als Leiste.
+    <div className="bg-surface px-5 pb-3 pt-2">
+      <div className="mx-auto flex w-full max-w-3xl items-center gap-3">
       {faviconUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={faviconUrl} alt={tenantName} className="h-4 w-4 shrink-0 rounded-[3px] object-contain" />
@@ -576,6 +582,7 @@ function SiteFooter({
         {footer.poweredBy ? (
           <span className="ml-auto">{t("hc.footer.poweredBy")}</span>
         ) : null}
+        </div>
       </div>
     </div>
   );

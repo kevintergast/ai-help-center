@@ -3,7 +3,11 @@ import { requireTeam } from "@/server/auth/guards";
 import { MAX_ENTRY_CARDS, parseEntryCardInput } from "@/lib/content/entry-cards";
 import { MAX_CONTACT_METHODS, parseContactMethodInput } from "@/lib/content/contact-methods";
 import { MAX_ACTION_BUTTONS, parseActionButtonInput } from "@/lib/content/action-buttons";
-import { MAX_PROMPT_SUGGESTIONS, parsePromptSuggestions } from "@/lib/content/prompt-suggestions";
+import {
+  MAX_PROMPT_PLACEHOLDER,
+  MAX_PROMPT_SUGGESTIONS,
+  parsePromptSuggestions,
+} from "@/lib/content/prompt-suggestions";
 import {
   DEFAULT_LEGAL_FOOTER,
   MAX_FOOTER_LINKS,
@@ -261,6 +265,9 @@ export function promptSuggestionsAdminRouter(deps: ApiDeps) {
     if (!content) return c.json({ error: "content_unavailable" }, 503);
     return c.json({
       suggestions: await content.store.listPromptSuggestions(c.get("tenant").id),
+      // Platzhalter (0049) liegt am Tenant, nicht in der Vorschlags-Tabelle —
+      // er wird aber in derselben Karte gepflegt und reist deshalb mit.
+      placeholder: c.get("tenant").promptPlaceholder ?? null,
       max: MAX_PROMPT_SUGGESTIONS,
     });
   });
@@ -269,7 +276,7 @@ export function promptSuggestionsAdminRouter(deps: ApiDeps) {
     const parsed = await readJson(c);
     if (!parsed.ok) return c.json({ error: "invalid_json" }, 400);
 
-    const body = parsed.body as { suggestions?: unknown };
+    const body = parsed.body as { suggestions?: unknown; placeholder?: unknown };
     const res = parsePromptSuggestions(body.suggestions);
     if (!res.ok) {
       return c.json(
@@ -282,6 +289,21 @@ export function promptSuggestionsAdminRouter(deps: ApiDeps) {
     if (!content) return c.json({ error: "content_unavailable" }, 503);
 
     await content.store.replacePromptSuggestions(c.get("tenant").id, res.suggestions);
+
+    // Platzhalter mitspeichern, wenn das Feld mitkommt. Leer/weggelassen ⇒
+    // zurück auf den Standardtext — ein leerer Platzhalter wäre schlechter
+    // als ein allgemeiner Satz.
+    if ("placeholder" in body) {
+      const settings = await deps.getSettingsDeps?.();
+      if (settings) {
+        const raw = typeof body.placeholder === "string" ? body.placeholder.trim() : "";
+        if (raw.length > MAX_PROMPT_PLACEHOLDER) {
+          return c.json({ error: "placeholder_too_long", max: MAX_PROMPT_PLACEHOLDER }, 400);
+        }
+        await settings.setPromptPlaceholder(c.get("tenant").id, raw.length > 0 ? raw : null);
+      }
+    }
+
     return c.json({ suggestions: await content.store.listPromptSuggestions(c.get("tenant").id) });
   });
 

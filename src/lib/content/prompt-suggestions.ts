@@ -10,6 +10,12 @@
 
 /** Vier passen in zwei Zeilen. Mehr liest sich als Menü statt als Anregung. */
 export const MAX_PROMPT_SUGGESTIONS = 4;
+
+/**
+ * Platzhalter der KI-Eingabe (0049). Kurz halten: Er steht IM Feld und wird
+ * auf schmalen Schirmen sonst abgeschnitten — ein halber Satz hilft niemandem.
+ */
+export const MAX_PROMPT_PLACEHOLDER = 80;
 export const MAX_SUGGESTION_LENGTH = 100;
 
 export type PromptSuggestionError = "too_many" | "empty" | "too_long";

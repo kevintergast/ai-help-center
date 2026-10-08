@@ -8,6 +8,7 @@ import {
   MAX_PROMPT_SUGGESTIONS,
   MAX_SUGGESTION_LENGTH,
   parsePromptSuggestions,
+  MAX_PROMPT_PLACEHOLDER,
 } from "@/lib/content/prompt-suggestions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,10 +32,12 @@ export function PromptSuggestionsManager({ locale }: { locale: Locale }) {
   const t = getT(locale);
   const [items, setItems] = useState<string[]>([]);
   const [pristine, setPristine] = useState("[]");
+  const [placeholder, setPlaceholder] = useState("");
+  const [pristinePlaceholder, setPristinePlaceholder] = useState("");
   const [state, setState] = useState<"loading" | "idle" | "saving" | "done" | "error">("loading");
   const [errorKey, setErrorKey] = useState<MessageKey | null>(null);
 
-  const dirty = JSON.stringify(items) !== pristine;
+  const dirty = JSON.stringify(items) !== pristine || placeholder !== pristinePlaceholder;
   const guard = useUnsavedGuard(dirty);
 
   useEffect(() => {
@@ -43,10 +46,12 @@ export function PromptSuggestionsManager({ locale }: { locale: Locale }) {
       try {
         const res = await fetch("/api/v1/admin/prompt-suggestions");
         if (!res.ok) throw new Error("load");
-        const data = (await res.json()) as { suggestions: string[] };
+        const data = (await res.json()) as { suggestions: string[]; placeholder: string | null };
         if (!alive) return;
         setItems(data.suggestions);
         setPristine(JSON.stringify(data.suggestions));
+        setPlaceholder(data.placeholder ?? "");
+        setPristinePlaceholder(data.placeholder ?? "");
         setState("idle");
       } catch {
         if (alive) setState("error");
@@ -74,12 +79,13 @@ export function PromptSuggestionsManager({ locale }: { locale: Locale }) {
       const res = await fetch("/api/v1/admin/prompt-suggestions", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ suggestions: parsed.suggestions }),
+        body: JSON.stringify({ suggestions: parsed.suggestions, placeholder }),
       });
       if (!res.ok) throw new Error("save");
       const fresh = (await res.json()) as { suggestions: string[] };
       setItems(fresh.suggestions);
       setPristine(JSON.stringify(fresh.suggestions));
+      setPristinePlaceholder(placeholder);
       setState("done");
       return true;
     } catch {
@@ -92,6 +98,20 @@ export function PromptSuggestionsManager({ locale }: { locale: Locale }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* PLATZHALTER (0049) steht VOR den Vorschlägen, weil er im Feld selbst
+          steht — er ist das Erste, was ein Besucher liest, und führt ihn näher
+          an eine beantwortbare Frage als eine allgemeine Aufforderung. */}
+      <div className="max-w-xl">
+        <Input
+          label={t("admin.suggestions.promptText")}
+          value={placeholder}
+          onChange={(e) => setPlaceholder(e.target.value)}
+          placeholder={t("hc.promptPlaceholder")}
+          maxLength={MAX_PROMPT_PLACEHOLDER}
+        />
+        <p className="mt-1 text-xs text-ink-muted">{t("admin.suggestions.promptTextHint")}</p>
+      </div>
+
       <p className="text-xs text-ink-muted">
         {t("admin.suggestions.hint", { max: MAX_PROMPT_SUGGESTIONS })}
       </p>

@@ -235,4 +235,10 @@ export interface HelpCenterData {
    * als Prop müsste derselbe Wert durch jede einzelne gereicht werden.
    */
   meeting: MeetingConfig | null;
+  /**
+   * Platzhalter der KI-Eingabe (0049) oder `null` → Standardtext aus der
+   * Übersetzung. Reist im Bündel, weil ihn Startansicht UND Artikelseite
+   * brauchen.
+   */
+  promptPlaceholder: string | null;
 }

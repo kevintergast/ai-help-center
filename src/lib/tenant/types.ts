@@ -88,6 +88,11 @@ export interface Tenant {
    * eingerichtet → erscheint nirgends.
    */
   meeting?: MeetingConfig | null;
+  /**
+   * Eigener Platzhalter in der KI-Eingabe (0049). FEHLEND/null = unser
+   * Standardtext aus der Übersetzung.
+   */
+  promptPlaceholder?: string | null;
   /** Erscheinungsbild des Widgets (0041). */
   widget?: {
     variant: ActionVariant;
