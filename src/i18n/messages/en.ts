@@ -232,6 +232,7 @@ export const en: Record<MessageKey, string> = {
     "After a \u201cnot helpful\u201d vote and under AI answers with no sources (question or article travels along as a note)",
   "admin.meeting.placement.contact": "As a card on the contact page",
   "admin.meeting.placement.home": "As an entry card on the start page",
+  "admin.meeting.homeWide": "Full width instead of a narrow tile",
   "admin.meeting.noPlacementWarning":
     "No placement selected — the link is saved but nobody can see it.",
   "admin.meeting.save": "Save booking links",

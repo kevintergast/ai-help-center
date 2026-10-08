@@ -73,6 +73,7 @@ export function MeetingManager({
     initial?.placements ?? { article: false, noHelp: false, contact: false, home: false },
   );
   const [placementLinkId, setPlacementLinkId] = useState(initial?.placementLinkId ?? "");
+  const [homeWide, setHomeWide] = useState(initial?.homeWide === true);
   const [active, setActive] = useState(initial !== null);
   const [state, setState] = useState<"idle" | "saving" | "done" | "error">("idle");
   const [errorKey, setErrorKey] = useState<MessageKey | null>(null);
@@ -84,7 +85,7 @@ export function MeetingManager({
   }
 
   async function save() {
-    const parsed = parseMeetingInput({ links, placements, placementLinkId });
+    const parsed = parseMeetingInput({ links, placements, placementLinkId, homeWide });
     if (!parsed.ok) {
       setErrorKey(ERROR_KEYS[parsed.error] ?? "admin.meeting.error.generic");
       return;
@@ -113,6 +114,7 @@ export function MeetingManager({
       if (!res.ok) throw new Error("remove");
       setLinks([blankLink(1)]);
       setPlacements({ article: false, noHelp: false, contact: false, home: false });
+      setHomeWide(false);
       setActive(false);
       setState("idle");
     } catch {
@@ -222,15 +224,31 @@ export function MeetingManager({
 
         <div className="mt-3 flex flex-col gap-2">
           {MEETING_PLACEMENTS.map((key) => (
-            <Switch
-              key={key}
-              checked={placements[key]}
-              onCheckedChange={(v) => {
-                setPlacements((p) => ({ ...p, [key]: v }));
-                setState("idle");
-              }}
-              label={t(PLACEMENT_LABELS[key])}
-            />
+            <div key={key} className="flex flex-col gap-2">
+              <Switch
+                checked={placements[key]}
+                onCheckedChange={(v) => {
+                  setPlacements((p) => ({ ...p, [key]: v }));
+                  setState("idle");
+                }}
+                label={t(PLACEMENT_LABELS[key])}
+              />
+              {/* Nur bei der Startseite und nur, wenn sie überhaupt an ist —
+                  ein Breiten-Schalter zu einer unsichtbaren Karte wäre eine
+                  Entscheidung über nichts. */}
+              {key === "home" && placements.home ? (
+                <div className="ml-6">
+                  <Switch
+                    checked={homeWide}
+                    onCheckedChange={(v) => {
+                      setHomeWide(v);
+                      setState("idle");
+                    }}
+                    label={t("admin.meeting.homeWide")}
+                  />
+                </div>
+              ) : null}
+            </div>
           ))}
         </div>
         {noPlacement ? (

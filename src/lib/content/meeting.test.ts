@@ -109,6 +109,15 @@ describe("parseMeetingInput", () => {
     expect(config.placements.home).toBe(false);
   });
 
+  it("Breite der Startseiten-Karte: fehlend = schmal", () => {
+    // Bestehende Konfigurationen kennen das Feld nicht und dürfen sich durch
+    // ein Update nicht verändern.
+    expect(parsed(VALID).homeWide).toBe(false);
+    expect(parsed({ ...VALID, homeWide: true }).homeWide).toBe(true);
+    // Nur echtes true zählt — sonst machte ein beliebiger Wert die Karte breit.
+    expect(parsed({ ...VALID, homeWide: "ja" }).homeWide).toBe(false);
+  });
+
   it("fällt auf den ersten Kalender zurück, wenn die Platzierungs-Kennung ins Leere zeigt", () => {
     // Sonst verschwänden die automatischen Stellen stumm, sobald jemand den
     // gewählten Kalender löscht.
