@@ -192,7 +192,7 @@ export function HelpCenter({
         view.kind !== "welcome" ? (
           <PromptBox
             expandable
-            placeholder={t("hc.promptPlaceholder")}
+            placeholder={data.promptPlaceholder || t("hc.promptPlaceholder")}
             suggestions={data.suggestions}
             labels={promptLabels}
             onSubmit={(text) => void ask(text)}
@@ -205,6 +205,7 @@ export function HelpCenter({
           t={t}
           locale={locale}
           entryCards={data.entryCards}
+          placeholder={data.promptPlaceholder || t("hc.promptPlaceholder")}
           meeting={showsAt(data.meeting, "home") ? placementLink(data.meeting) : null}
           meetingWide={data.meeting?.homeWide === true}
           suggestions={data.suggestions}
@@ -267,6 +268,7 @@ function WelcomeView({
   entryCards,
   meeting,
   meetingWide,
+  placeholder,
   suggestions,
   labels,
   onAsk,
@@ -277,6 +279,8 @@ function WelcomeView({
   meeting: MeetingLink | null;
   meetingWide: boolean;
   suggestions: string[];
+  /** Eigener Text der Instanz; leer → Standard aus der Übersetzung (0049). */
+  placeholder: string;
   labels: { send: string; mic: string };
   onAsk: (text: string) => void;
 }) {
@@ -289,7 +293,7 @@ function WelcomeView({
           {t("hc.welcomeTitle")}
         </h1>
         <PromptBox
-          placeholder={t("hc.promptPlaceholder")}
+          placeholder={placeholder}
           suggestions={suggestions}
           labels={labels}
           onSubmit={(text) => onAsk(text)}

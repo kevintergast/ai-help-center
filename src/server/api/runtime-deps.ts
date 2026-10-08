@@ -543,6 +543,7 @@ async function getSettingsDepsRuntime(): Promise<SettingsDeps | null> {
     setTheme: (tenantId, config) => repo.setTheme(tenantId, config),
     setFooterFlags: (tenantId, flags) => repo.setFooterFlags(tenantId, flags),
     setMeeting: (tenantId, config) => repo.setMeeting(tenantId, config),
+    setPromptPlaceholder: (tenantId, text) => repo.setPromptPlaceholder(tenantId, text),
   };
 }
 

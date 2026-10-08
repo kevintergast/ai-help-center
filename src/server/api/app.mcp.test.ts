@@ -127,6 +127,7 @@ function makeApp() {
       setWidgetAppearance: async () => {},
       setFooterFlags: async () => {},
       setMeeting: async () => {},
+      setPromptPlaceholder: async () => {},
       // Schreibt dorthin, wo die NÄCHSTE Anfrage liest: In Produktion löst
       // jeder Request den Tenant neu aus D1 auf, hier steht er im Objekt.
       setTheme: async (tenantId, config) => {

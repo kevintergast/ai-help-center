@@ -213,6 +213,8 @@ export interface SettingsDeps {
   setWidgetAppearance(tenantId: string, variant: string, label: string | null): Promise<void>;
   /** Eigene Farbwelt (0045); `null` entfernt sie wieder. */
   setTheme(tenantId: string, config: ThemeConfig | null): Promise<void>;
+  /** Eigener Platzhalter der KI-Eingabe (0049); `null` = Standardtext. */
+  setPromptPlaceholder(tenantId: string, text: string | null): Promise<void>;
   /** Buchungslink (0048); `null` entfernt ihn. */
   setMeeting(tenantId: string, config: MeetingConfig | null): Promise<void>;
   /** Schalter im Fuß (0046): Rechtstext-Links + „Powered by". */
