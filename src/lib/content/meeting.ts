@@ -62,6 +62,16 @@ export interface MeetingConfig {
   placements: Record<MeetingPlacement, boolean>;
   /** Welcher Link an den vier automatischen Stellen steht. */
   placementLinkId: string;
+  /**
+   * Startseite: Karte über die GANZE Breite statt als schmale vierte Kachel.
+   *
+   * Als einzelne Kachel in einem dreispaltigen Gitter steht sie sonst allein
+   * in einer neuen Zeile, mit zwei leeren Spalten daneben — optisch ein
+   * angefangener Satz. Wer den Termin bewusst herausstellen will, nimmt die
+   * volle Breite; wer ihn als eine Möglichkeit unter mehreren zeigen will,
+   * lässt es. Standard ist schmal, weil das die zurückhaltendere Form ist.
+   */
+  homeWide: boolean;
 }
 
 export type MeetingError =
@@ -160,7 +170,11 @@ export function parseMeetingInput(raw: unknown): MeetingParseResult {
   const wanted = typeof o.placementLinkId === "string" ? o.placementLinkId.trim().toLowerCase() : "";
   const placementLinkId = seen.has(wanted) ? wanted : links[0].id;
 
-  return { ok: true, config: { links, placements, placementLinkId } };
+  // Fehlend = schmal. Bestehende Konfigurationen kennen das Feld nicht und
+  // sollen sich durch ein Update nicht verändern.
+  const homeWide = o.homeWide === true;
+
+  return { ok: true, config: { links, placements, placementLinkId, homeWide } };
 }
 
 /** Liest die gespeicherte JSON-Spalte; unlesbar/leer ⇒ `null` (kein Termin). */

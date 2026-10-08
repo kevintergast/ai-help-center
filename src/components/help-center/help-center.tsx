@@ -206,6 +206,7 @@ export function HelpCenter({
           locale={locale}
           entryCards={data.entryCards}
           meeting={showsAt(data.meeting, "home") ? placementLink(data.meeting) : null}
+          meetingWide={data.meeting?.homeWide === true}
           suggestions={data.suggestions}
           labels={promptLabels}
           onAsk={(text) => void ask(text)}
@@ -265,6 +266,7 @@ function WelcomeView({
   locale,
   entryCards,
   meeting,
+  meetingWide,
   suggestions,
   labels,
   onAsk,
@@ -273,6 +275,7 @@ function WelcomeView({
   locale: Locale;
   entryCards: EntryCard[];
   meeting: MeetingLink | null;
+  meetingWide: boolean;
   suggestions: string[];
   labels: { send: string; mic: string };
   onAsk: (text: string) => void;
@@ -298,7 +301,16 @@ function WelcomeView({
             die gezielt Unterstützung suchen statt zu lesen. Steht UNTER den
             Einstiegs-Karten — die Selbstbedienung kommt zuerst. */}
         {meeting ? (
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          // Schmal steht sie als vierte Kachel im selben Raster wie die
+          // Einstiegs-Karten; breit nimmt sie die ganze Zeile. Ohne diese Wahl
+          // stünde sie allein in einer neuen Zeile mit zwei leeren Spalten
+          // daneben — optisch ein angefangener Satz.
+          <div
+            className={cn(
+              "mt-3",
+              !meetingWide && "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3",
+            )}
+          >
             <MeetingCta locale={locale} link={meeting} variant="card" />
           </div>
         ) : null}
