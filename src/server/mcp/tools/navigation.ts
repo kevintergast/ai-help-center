@@ -710,6 +710,11 @@ export const setMeeting: McpTool = {
         type: "string",
         description: "Which calendar appears in the automatic spots. Defaults to the first one.",
       },
+      homeWide: {
+        type: "boolean",
+        description:
+          "Start page only: show the card across the FULL width instead of as a narrow fourth tile next to the entry cards. Default false. Use it when the meeting should stand out; leave it off when it is one option among several.",
+      },
       placements: {
         type: "object",
         description: "Where the general link appears. Anything you leave out is OFF.",

@@ -382,6 +382,7 @@ const ARTICLES = [
         ],
       },
       "Am zweiten Platz passiert etwas Zusätzliches: Die Frage des Nutzers beziehungsweise der Artikeltitel reist als Notiz mit in die Buchung. Wer den Termin annimmt, weiß also vorher, worum es geht. Bei cal.com erscheint das im Notizfeld; andere Dienste ignorieren den Zusatz einfach.",
+      "Für die Startseite kannst du zusätzlich wählen, ob die Karte als schmale vierte Kachel neben den Einstiegs-Karten steht oder über die volle Breite läuft. Breit, wenn der Termin herausstechen soll; schmal, wenn er eine Möglichkeit unter mehreren ist. Als einzelne Kachel stünde er sonst allein in einer neuen Zeile mit leeren Spalten daneben.",
       "Ist gar kein Platz angehakt, weist die Oberfläche darauf hin — ein gespeicherter Link, den niemand sieht, wäre sonst ein Fehler, den du erst bemerkst, wenn sich nie jemand meldet.",
       "Bietest du ausschließlich Termine an und keine weiteren Kontaktwege, entsteht die Kontaktseite trotzdem: Der Buchungslink allein genügt, damit sie und ihr Navigations-Eintrag erscheinen.",
       "## Mehrere Kalender",

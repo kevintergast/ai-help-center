@@ -232,6 +232,7 @@ export const de = {
     "Nach „Nicht hilfreich“ und unter KI-Antworten ohne Treffer (Frage bzw. Artikel reist als Notiz mit)",
   "admin.meeting.placement.contact": "Als Karte auf der Kontaktseite",
   "admin.meeting.placement.home": "Als Einstiegskarte auf der Startseite",
+  "admin.meeting.homeWide": "Über die volle Breite statt als schmale Kachel",
   "admin.meeting.noPlacementWarning":
     "Kein Platz ausgewählt — der Link ist gespeichert, aber für niemanden sichtbar.",
   "admin.meeting.save": "Buchungslinks speichern",

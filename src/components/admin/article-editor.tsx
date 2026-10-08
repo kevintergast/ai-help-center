@@ -491,7 +491,7 @@ export function ArticleEditor({
             /* Vorschau zeigt denselben Baustein wie später öffentlich — mit
                echten Kalendern, sonst prüft man etwas anderes als das, was
                veröffentlicht wird. */
-            meeting={meetingLinks.length > 0 ? { links: meetingLinks, placements: { article: false, noHelp: false, contact: false, home: false }, placementLinkId: meetingLinks[0].id } : null}
+            meeting={meetingLinks.length > 0 ? { links: meetingLinks, placements: { article: false, noHelp: false, contact: false, home: false }, placementLinkId: meetingLinks[0].id, homeWide: false } : null}
             videoPlayLabel={t("hc.videoPlay")}
             fileDownloadLabel={t("hc.fileDownload")}
             locale={locale}
