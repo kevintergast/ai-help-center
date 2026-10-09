@@ -359,79 +359,160 @@ export function invitationsAcceptRouter(deps: ApiDeps) {
       return c.json(INVITATION_NOT_FOUND, 404);
     }
 
-    if (invitation.expiresAt <= nowEpochSec()) {
-      // Ablauf persistieren (pending → expired), dann 410.
-      await team.invitations.markExpired(tenantId, invitation.id);
-      await audit(team, c, {
-        actorId: user.id,
-        action: "invitation.expired",
-        targetId: invitation.id,
-        metadata: { role: invitation.role },
-      });
-      return c.json({ error: "invitation_expired" }, 410);
+    return redeemInvitation(c, team, user, invitation);
+  });
+
+  /**
+   * Offene Einladung FÜR MICH — Grundlage der Annahme im Konto.
+   *
+   * Gesucht wird ausschließlich über die kanonisierte Adresse der eigenen
+   * Session, also kann hier nichts Fremdes herauskommen; `uq_invitation_pending`
+   * garantiert höchstens eine offene je (Instanz, Adresse). Unbestätigte
+   * Adressen sehen nichts — sie könnten ohnehin nicht annehmen (A-5).
+   */
+  r.get("/mine", async (c) => {
+    const team = await deps.getTeamDeps();
+    if (!team) return c.json(TEAM_UNAVAILABLE, 503);
+
+    const user = await readSessionUser(c);
+    if (!user) return c.json(UNAUTHORIZED, 401);
+    if (user.emailVerified !== true) return c.json({ invitation: null });
+
+    const invitation = await team.invitations.findPendingByEmail(
+      c.get("tenant").id,
+      canonicalizeEmail(user.email),
+    );
+    // Abgelaufene gelten als nicht vorhanden: Die Frist zählt auf BEIDEN Wegen
+    // gleich (sonst wäre sie über das Konto umgehbar).
+    if (!invitation || invitation.expiresAt <= nowEpochSec()) {
+      return c.json({ invitation: null });
     }
-
-    // Identitäts-Invariante (A-5): verifizierte E-Mail UND kanonischer
-    // Gleichstand mit der eingeladenen Adresse — EIN Fehlercode für beide
-    // Fälle (kein Orakel, welcher Check scheiterte).
-    if (user.emailVerified !== true || canonicalizeEmail(user.email) !== invitation.email) {
-      return c.json({ error: "email_mismatch" }, 403);
-    }
-
-    // Gebannte Konten (Notbremse §b) können nichts annehmen — fail-closed,
-    // die Einladung bleibt unkonsumiert. Nach der E-Mail-Bindung geprüft
-    // (nur der legitime Adressat erreicht diesen Punkt, kein neues Orakel).
-    const acceptor = await team.users.findById(tenantId, user.id);
-    if (!acceptor || acceptor.banned) {
-      return c.json({ error: "forbidden" }, 403);
-    }
-
-    // Rollen-Deckel ERNEUT prüfen (P-2): Inviter existiert noch, ist nicht
-    // gebannt und steht STRIKT über der Invite-Rolle.
-    const inviter = await team.users.findById(tenantId, invitation.inviterId);
-    if (!inviter || inviter.banned || !(rank(inviter.role) > rank(invitation.role))) {
-      return c.json({ error: "invitation_role_conflict" }, 409);
-    }
-
-    // Raise-only (§c.4.3): aktive ODER geparkte Rolle >= Zielrolle → nie
-    // senken. Die Einladung wird dabei als accepted-noop KONSUMIERT
-    // (single-use; pending bliebe sonst ein Partial-Unique-Blocker).
-    const effectiveRank = Math.max(rank(user.role ?? ""), rank(user.pendingRole ?? ""));
-    if (effectiveRank >= rank(invitation.role)) {
-      const consumed = await team.invitations.markAccepted(tenantId, invitation.id, user.id);
-      if (consumed) {
-        await audit(team, c, {
-          actorId: user.id,
-          action: "invitation.accepted",
-          targetId: invitation.id,
-          metadata: { role: invitation.role, noop: true },
-        });
-      }
-      return c.json({ error: "already_team_member" }, 409);
-    }
-
-    // Single-use ATOMAR beanspruchen (bedingtes UPDATE, kein TOCTOU): schlägt
-    // das fehl, hat ein paralleler Accept gewonnen → wie „nicht (mehr) da".
-    const claimed = await team.invitations.markAccepted(tenantId, invitation.id, user.id);
-    if (!claimed) return c.json(INVITATION_NOT_FOUND, 404);
-
-    // Zielrolle PARKEN (M-2) — NIE role direkt. Die Promotion role=pending_role
-    // macht mfa-policy.ts nach vollständigem TOTP-Enrollment automatisch und
-    // widerruft DORT die anderen Sessions (§e) — deshalb hier KEIN Revoke.
-    const auth = await c.get("getAuth")();
-    await setPendingRole(auth, user.id, invitation.role);
-
-    await audit(team, c, {
-      actorId: user.id,
-      action: "invitation.accepted",
-      targetId: invitation.id,
-      metadata: { role: invitation.role },
+    return c.json({
+      invitation: {
+        id: invitation.id,
+        role: invitation.role,
+        expiresAt: invitation.expiresAt,
+      },
     });
+  });
 
-    return c.json({ ok: true, role: invitation.role, pendingMfaEnrollment: true });
+  /**
+   * Annahme OHNE Token — der zweite Weg, im Konto statt über den Mail-Link.
+   *
+   * Der Token beweist Zugriff aufs Postfach. Diesen Beweis erbringt hier die
+   * BESTÄTIGTE Adresse der Session, die der Einlöse-Pfad ohnehin zusätzlich
+   * zum Token verlangt (A-5) — die Sicherheitsschwelle sinkt also nicht, der
+   * Token entfällt lediglich als zweiter Ausweis desselben Postfachs. Alles
+   * Weitere (Frist, Sperren, Rollen-Deckel, raise-only, single-use) läuft durch
+   * exakt dieselbe Funktion wie beim Mail-Link.
+   */
+  r.post("/claim", async (c) => {
+    const team = await deps.getTeamDeps();
+    if (!team) return c.json(TEAM_UNAVAILABLE, 503);
+
+    const user = await readSessionUser(c);
+    if (!user) return c.json(UNAUTHORIZED, 401);
+    if (user.emailVerified !== true) return c.json({ error: "email_mismatch" }, 403);
+
+    const tenantId = c.get("tenant").id;
+    const invitation = await team.invitations.findPendingByEmail(
+      tenantId,
+      canonicalizeEmail(user.email),
+    );
+    if (!invitation) return c.json(INVITATION_NOT_FOUND, 404);
+
+    return redeemInvitation(c, team, user, invitation);
   });
 
   return r;
+}
+
+/**
+ * EINLÖSEN — gemeinsamer Pfad für beide Wege (Mail-Link und Konto).
+ *
+ * Bewusst EINE Funktion: Jede Invariante steht genau einmal da. Zwei Kopien
+ * wären die Stelle, an der später eine Prüfung nur auf einem Weg nachgezogen
+ * wird. Vorher unterscheiden sich die Wege nur darin, WIE die Einladung
+ * gefunden wurde (Token-Hash bzw. eigene Adresse).
+ */
+async function redeemInvitation(
+  c: Context<ApiEnv>,
+  team: TeamDeps,
+  user: SessionUser,
+  invitation: InvitationRecord,
+) {
+  const tenantId = c.get("tenant").id;
+
+  if (invitation.expiresAt <= nowEpochSec()) {
+    // Ablauf persistieren (pending → expired), dann 410.
+    await team.invitations.markExpired(tenantId, invitation.id);
+    await audit(team, c, {
+      actorId: user.id,
+      action: "invitation.expired",
+      targetId: invitation.id,
+      metadata: { role: invitation.role },
+    });
+    return c.json({ error: "invitation_expired" }, 410);
+  }
+
+  // Identitäts-Invariante (A-5): verifizierte E-Mail UND kanonischer
+  // Gleichstand mit der eingeladenen Adresse — EIN Fehlercode für beide
+  // Fälle (kein Orakel, welcher Check scheiterte).
+  if (user.emailVerified !== true || canonicalizeEmail(user.email) !== invitation.email) {
+    return c.json({ error: "email_mismatch" }, 403);
+  }
+
+  // Gebannte Konten (Notbremse §b) können nichts annehmen — fail-closed,
+  // die Einladung bleibt unkonsumiert. Nach der E-Mail-Bindung geprüft
+  // (nur der legitime Adressat erreicht diesen Punkt, kein neues Orakel).
+  const acceptor = await team.users.findById(tenantId, user.id);
+  if (!acceptor || acceptor.banned) {
+    return c.json({ error: "forbidden" }, 403);
+  }
+
+  // Rollen-Deckel ERNEUT prüfen (P-2): Inviter existiert noch, ist nicht
+  // gebannt und steht STRIKT über der Invite-Rolle.
+  const inviter = await team.users.findById(tenantId, invitation.inviterId);
+  if (!inviter || inviter.banned || !(rank(inviter.role) > rank(invitation.role))) {
+    return c.json({ error: "invitation_role_conflict" }, 409);
+  }
+
+  // Raise-only (§c.4.3): aktive ODER geparkte Rolle >= Zielrolle → nie
+  // senken. Die Einladung wird dabei als accepted-noop KONSUMIERT
+  // (single-use; pending bliebe sonst ein Partial-Unique-Blocker).
+  const effectiveRank = Math.max(rank(user.role ?? ""), rank(user.pendingRole ?? ""));
+  if (effectiveRank >= rank(invitation.role)) {
+    const consumed = await team.invitations.markAccepted(tenantId, invitation.id, user.id);
+    if (consumed) {
+      await audit(team, c, {
+        actorId: user.id,
+        action: "invitation.accepted",
+        targetId: invitation.id,
+        metadata: { role: invitation.role, noop: true },
+      });
+    }
+    return c.json({ error: "already_team_member" }, 409);
+  }
+
+  // Single-use ATOMAR beanspruchen (bedingtes UPDATE, kein TOCTOU): schlägt
+  // das fehl, hat ein paralleler Accept gewonnen → wie „nicht (mehr) da".
+  const claimed = await team.invitations.markAccepted(tenantId, invitation.id, user.id);
+  if (!claimed) return c.json(INVITATION_NOT_FOUND, 404);
+
+  // Zielrolle PARKEN (M-2) — NIE role direkt. Die Promotion role=pending_role
+  // macht mfa-policy.ts nach vollständigem TOTP-Enrollment automatisch und
+  // widerruft DORT die anderen Sessions (§e) — deshalb hier KEIN Revoke.
+  const auth = await c.get("getAuth")();
+  await setPendingRole(auth, user.id, invitation.role);
+
+  await audit(team, c, {
+    actorId: user.id,
+    action: "invitation.accepted",
+    targetId: invitation.id,
+    metadata: { role: invitation.role },
+  });
+
+  return c.json({ ok: true, role: invitation.role, pendingMfaEnrollment: true });
 }
 
 export function ownershipRouter(deps: ApiDeps) {

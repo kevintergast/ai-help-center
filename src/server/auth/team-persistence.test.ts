@@ -110,6 +110,28 @@ describe("Phase-D-Persistenz gegen die echten Migrationen (D1-Shim über better-
       ).rejects.toThrow();
     });
 
+    it("Abgelaufene Einladung lässt sich zurückziehen (sonst klebt sie für immer in der Liste)", async () => {
+      const repo = new D1InvitationRepository(d1);
+      await repo.create({
+        id: "inv1",
+        tenantId: T1,
+        email: "stale@one.test",
+        role: "admin",
+        tokenHash: "h-stale",
+        inviterId: "owner1",
+        // Längst vorbei — den Zustand setzt der Accept-Versuch (markExpired).
+        expiresAt: 1,
+      });
+      expect(await repo.markExpired(T1, "inv1")).toBe(true);
+      expect((await repo.findById(T1, "inv1"))?.status).toBe("expired");
+
+      // GENAU DER FALL AUS DER PRAXIS: Der Eingeladene klickt den toten Link,
+      // die Zeile steht auf `expired` — und das Zurückziehen im Team-Bereich
+      // lief ins Leere, weil es nur `pending` kannte.
+      expect(await repo.markRevoked(T1, "inv1")).toBe(true);
+      expect((await repo.findById(T1, "inv1"))?.status).toBe("revoked");
+    });
+
     it("markAccepted ist single-use (bedingtes UPDATE): erster Claim true, zweiter false; Revoke danach false", async () => {
       const repo = new D1InvitationRepository(d1);
       await repo.create({

@@ -1251,13 +1251,35 @@ export const de = {
   "account.mfa.manage": "Zwei-Faktor verwalten",
   "account.mfa.lockedTeam":
     "Abschalten würde dich aus dem Verwaltungsbereich aussperren. Wende dich an den Besitzer, wenn du die Rolle abgeben willst.",
+  "account.invite.heading": "Du wurdest ins Team eingeladen",
+  "account.invite.body":
+    "Für diese Adresse liegt eine Einladung als {role} vor. Nimm sie an, um die Rolle zu erhalten.",
+  "account.invite.accept": "Einladung annehmen",
+  "account.invite.cancel": "Nicht jetzt",
+  "account.invite.mfaHeading": "Noch ein Schritt: Zwei-Faktor-Anmeldung",
+  "account.invite.mfaBadge": "noch offen",
+  "account.invite.mfaBody":
+    "Die Rolle {role} ist vorgemerkt und wird wirksam, sobald deine Zwei-Faktor-Anmeldung eingerichtet ist. Ohne sie bleibt der Verwaltungsbereich verschlossen.",
+  "account.invite.mfaSetUp": "Jetzt einrichten",
+  "account.invite.later": "Später",
+  "account.invite.doneHeading": "Einladung angenommen",
+  "account.invite.doneBody":
+    "Du hast jetzt die Rolle {role}. Lade die Seite neu, wenn der Verwaltungsbereich noch nicht auftaucht.",
+  "account.invite.error.expired":
+    "Diese Einladung ist abgelaufen. Bitte dein Team, dich erneut einzuladen.",
+  "account.invite.error.mismatch":
+    "Dafür muss deine E-Mail-Adresse bestätigt sein und zur Einladung passen.",
+  "account.invite.error.alreadyMember": "Du hast diese Rolle bereits.",
+  "account.invite.error.conflict":
+    "Die Einladung ist nicht mehr gültig. Bitte dein Team, dich erneut einzuladen.",
+  "account.invite.error.generic": "Das hat nicht geklappt. Bitte noch einmal versuchen.",
   "hc.account.settings": "Mein Konto",
   "admin.nav.team": "Team & Rollen",
   "admin.team.title": "Team & Rollen",
   "admin.team.subtitle": "Wer darf dieses Hilfezentrum verwalten — und mit welchen Rechten.",
   "admin.team.inviteHeading": "Jemanden einladen",
   "admin.team.inviteHintOwner":
-    "Die Einladung geht per E-Mail und läuft nach sieben Tagen ab. Eine Team-Rolle wird erst wirksam, wenn die eingeladene Person die Zwei-Faktor-Anmeldung eingerichtet hat.",
+    "Die Einladung geht per E-Mail und läuft nach 48 Stunden ab. Eine Team-Rolle wird erst wirksam, wenn die eingeladene Person die Zwei-Faktor-Anmeldung eingerichtet hat.",
   "admin.team.inviteHintAdmin":
     "Als Admin kannst du Redaktions-Zugänge vergeben. Weitere Admins einzuladen bleibt dem Besitzer vorbehalten.",
   "admin.team.email": "E-Mail-Adresse",
@@ -1288,6 +1310,10 @@ export const de = {
   "admin.team.error.pending": "Für diese Adresse ist bereits eine Einladung offen.",
   "admin.team.error.alreadyMember": "Diese Person gehört schon zum Team.",
   "admin.team.error.generic": "Das hat nicht geklappt. Bitte noch einmal versuchen.",
+  "admin.team.error.notPending":
+    "Diese Einladung ist nicht mehr offen — sie wurde bereits angenommen oder zurückgezogen.",
+  "admin.team.error.notFound": "Diese Einladung gibt es nicht mehr.",
+  "admin.team.inviteExpired": "abgelaufen",
   "admin.nav.apiKeys": "Zugriffs-Schlüssel",
   "admin.apiKeys.title": "Zugriffs-Schlüssel",
   "admin.apiKeys.subtitle":
