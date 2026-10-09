@@ -23,6 +23,7 @@ const RELEASE_0_5_1 = 1789750000; // 2026-09-18
 const RELEASE_0_6_0 = 1789984800; // 2026-09-21
 const RELEASE_0_7_0 = 1790071200; // 2026-09-22
 const RELEASE_0_8_0 = 1790100000; // 2026-09-22
+const RELEASE_0_9_0 = 1791547200; // 2026-10-09
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -111,19 +112,39 @@ const ARTICLES = [
       "Administratoren und der Owner sichern ihr Konto mit einer Authenticator-App (TOTP, etwa 1Password, Google Authenticator oder Authy). Beim Einrichten scannst du einen QR-Code und bestätigst einmalig einen Code.",
       "Bewahre die angezeigten Backup-Codes sicher auf — mit ihnen kommst du auch dann hinein, wenn du keinen Zugriff auf die App hast.",
     ],
-    related: ["rollen-und-rechte", "konto-erstellen"],
+    related: ["rollen-und-rechte", "konto-erstellen", "mein-konto"],
+  },
+  {
+    slug: "mein-konto",
+    icon: "user",
+    title: "Mein Konto verwalten",
+    category: "Konto & Anmeldung",
+    min: 2,
+    body: [
+      "Unter »Mein Konto« pflegt jeder Angemeldete seine eigenen Daten — unabhängig davon, ob er eine Team-Rolle hat oder nur liest.",
+      "Anzeigename: So wirst du im Hilfezentrum und in der Mitgliederliste genannt. Du kannst ihn jederzeit ändern.",
+      "Passwort: Zum Ändern gibst du dein aktuelles und dein neues Passwort ein (mindestens 10 Zeichen). Dabei werden alle ANDEREN Sitzungen beendet — wer dein altes Passwort kannte, ist damit ausgesperrt.",
+      "Zwei-Faktor-Anmeldung: Der Status steht direkt daneben. Ist sie noch nicht eingerichtet, führt dich ein Knopf zur Einrichtung mit Authenticator-App.",
+      "Zwei Grenzen: Die E-Mail-Adresse lässt sich hier nicht ändern — sie ist deine Anmeldung. Und wer eine Team-Rolle hat, kann die Zwei-Faktor-Anmeldung nicht wieder abschalten; sie ist Voraussetzung für den Verwaltungsbereich.",
+    ],
+    related: ["zwei-faktor-authentifizierung", "passwort-zuruecksetzen", "rollen-und-rechte"],
   },
   {
     slug: "team-einladen",
+    icon: "userPlus",
     title: "Teammitglieder einladen",
     category: "Team & Rollen",
-    min: 2,
+    min: 3,
     body: [
-      "Als Administrator oder Owner lädst du Personen per E-Mail in dein Hilfezentrum ein und weist ihnen dabei eine Rolle zu.",
-      "Der Einladungslink ist nur einmal verwendbar, zeitlich begrenzt und fest an die E-Mail-Adresse und dieses Hilfezentrum gebunden — er lässt sich nicht weitergeben.",
-      "Beim Annehmen der Einladung richtet die eingeladene Person ihr Konto und die Zwei-Faktor-Authentifizierung ein und erhält anschließend die zugewiesene Rolle.",
+      "Dein Team verwaltest du im Verwaltungsbereich unter »Team & Rollen«. Dort lädst du ein, änderst Rollen und entfernst Mitglieder.",
+      "Zum Einladen trägst du die E-Mail-Adresse ein und wählst die Rolle. Als Besitzer kannst du auch Admins einladen; als Admin vergibst du Redaktions-Zugänge — weitere Admins bleiben dem Besitzer vorbehalten.",
+      "Der Einladungslink geht per E-Mail, läuft nach sieben Tagen ab und ist fest an die Adresse und dieses Hilfezentrum gebunden — er lässt sich nicht weitergeben. Noch offene Einladungen stehen darunter und lassen sich einzeln zurückziehen.",
+      "Beim Annehmen richtet die eingeladene Person ihr Konto und die Zwei-Faktor-Anmeldung ein und erhält anschließend die zugewiesene Rolle.",
+      "In der Mitgliederliste siehst du zu jedem Eintrag Name und Adresse, die Rolle und ob die Zwei-Faktor-Anmeldung steht. Über die Knöpfe daneben änderst du die Rolle oder entfernst jemanden.",
+      "Eine HÖHERE Rolle wird nicht sofort wirksam: Sie wird geparkt und greift erst, wenn die Person die Zwei-Faktor-Anmeldung eingerichtet hat. Bis dahin steht in der Liste »… ab Zwei-Faktor«. Ein Abstufen auf »Nutzer« wirkt dagegen sofort.",
+      "Drei Dinge gehen bewusst nicht: Der Besitzer lässt sich weder entfernen noch in der Rolle ändern, deine eigene Zeile kannst du nicht bearbeiten, und du kannst nur Mitglieder unterhalb deiner eigenen Rolle ändern.",
     ],
-    related: ["rollen-und-rechte", "zwei-faktor-authentifizierung"],
+    related: ["rollen-und-rechte", "zwei-faktor-authentifizierung", "mein-konto"],
   },
   {
     slug: "rollen-und-rechte",
@@ -132,10 +153,11 @@ const ARTICLES = [
     min: 2,
     body: [
       "Es gibt vier Rollen mit aufsteigenden Rechten:",
-      "• Nutzer: normale Leser des Hilfezentrums. • Redaktion (content): darf Artikel bearbeiten und veröffentlichen. • Admin: verwaltet zusätzlich Team, Einladungen und Einstellungen. • Owner: hat alle Rechte, inklusive Rechtstexte und der Übertragung der Eigentümerschaft.",
-      "Pro Hilfezentrum gibt es genau einen Owner. Der Owner kann die Eigentümerschaft an einen Administrator übertragen; das erfordert eine frische Bestätigung per Zwei-Faktor-Authentifizierung.",
+      "• Nutzer: normale Leser des Hilfezentrums. • Redaktion (content): darf Artikel bearbeiten und veröffentlichen. • Admin: verwaltet zusätzlich Team, Einladungen und Einstellungen. • Besitzer (Owner): hat alle Rechte, inklusive Rechtstexte und der Übertragung der Eigentümerschaft.",
+      "Pro Hilfezentrum gibt es genau einen Besitzer. Er kann die Eigentümerschaft an ein Mitglied mit der Rolle Admin oder Redaktion übergeben, sofern dessen Zwei-Faktor-Anmeldung eingerichtet ist; er selbst wird dabei zum Admin. Danach werden beide abgemeldet und müssen sich neu anmelden.",
+      "Diese Übergabe läuft derzeit nur über die API — auf der Seite »Team & Rollen« gibt es dafür noch keinen Knopf, und ein angebundener KI-Client kann sie nicht auslösen.",
     ],
-    related: ["team-einladen"],
+    related: ["team-einladen", "mein-konto"],
   },
   {
     slug: "artikel-veroeffentlichen",
@@ -622,6 +644,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Dein Team verwalten — und jeder sein eigenes Konto",
+    description:
+      "Bisher gab es Rollen und Rechte zwar im Hintergrund, aber keine Fläche dafür: Wer jemanden ins Hilfezentrum holen wollte, kam nicht weiter. Unter „Team“ lädst du jetzt selbst ein — E-Mail eintragen, Rolle wählen, fertig. Offene Einladungen stehen daneben und lassen sich zurückziehen. In der Mitgliederliste siehst du zu jedem, welche Rolle er hat und ob seine Zwei-Faktor-Anmeldung steht; Rollen änderst du dort, Mitglieder entfernst du dort. Zwei Dinge gehen bewusst nicht: Wer das Hilfezentrum angelegt hat, ist Inhaber und kann nicht entfernt werden — damit niemand aus Versehen die letzte Tür zuschließt — und dir selbst kannst du die Rechte nicht nehmen. Neu ist außerdem die Seite „Konto“ für jeden Angemeldeten: Name ändern, Passwort ändern, Zwei-Faktor-Anmeldung einrichten. Wer eine Team-Rolle hat, braucht sie weiterhin verpflichtend. Kleinigkeiten obendrauf: Der Text im KI-Eingabefeld ist jetzt deiner — statt „Frag die KI …“ schreibst du, wonach bei dir wirklich gefragt wird. Und die Termin-Karte auf der Startseite darf auf Wunsch die ganze Breite nehmen.",
+    at: RELEASE_0_9_0,
+    version: "0.9.0",
+    level: "minor",
+  },
   {
     title: "Termine anbieten — allgemein und genau dort, wo es hakt",
     description:

@@ -473,7 +473,14 @@ export function HelpShell({
             )}
           </div>
           {!drill && footer ? (
-            <div className="border-t border-hairline bg-surface px-4 py-3">{footer}</div>
+            // Dieselbe Spalte wie Startansicht und Fuß (max-w-3xl, zentriert):
+            // Über die volle Breite wirkte die Leiste wie ein Balken quer
+            // unter dem Inhalt. Auf der Textbreite liest sie sich als Teil
+            // der Seite. Die Trennlinie bleibt hier bewusst — anders als beim
+            // Fuß ist das ein BEDIENelement, das sich vom Text absetzen darf.
+            <div className="border-t border-hairline bg-surface px-4 py-3">
+              <div className="mx-auto w-full max-w-3xl">{footer}</div>
+            </div>
           ) : null}
           <SiteFooter
             t={t}
