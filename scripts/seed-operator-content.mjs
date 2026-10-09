@@ -23,6 +23,7 @@ const RELEASE_0_5_1 = 1789750000; // 2026-09-18
 const RELEASE_0_6_0 = 1789984800; // 2026-09-21
 const RELEASE_0_7_0 = 1790071200; // 2026-09-22
 const RELEASE_0_8_0 = 1790100000; // 2026-09-22
+const RELEASE_0_9_0 = 1791547200; // 2026-10-09
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -622,6 +623,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Dein Team verwalten — und jeder sein eigenes Konto",
+    description:
+      "Bisher gab es Rollen und Rechte zwar im Hintergrund, aber keine Fläche dafür: Wer jemanden ins Hilfezentrum holen wollte, kam nicht weiter. Unter „Team“ lädst du jetzt selbst ein — E-Mail eintragen, Rolle wählen, fertig. Offene Einladungen stehen daneben und lassen sich zurückziehen. In der Mitgliederliste siehst du zu jedem, welche Rolle er hat und ob seine Zwei-Faktor-Anmeldung steht; Rollen änderst du dort, Mitglieder entfernst du dort. Zwei Dinge gehen bewusst nicht: Wer das Hilfezentrum angelegt hat, ist Inhaber und kann nicht entfernt werden — damit niemand aus Versehen die letzte Tür zuschließt — und dir selbst kannst du die Rechte nicht nehmen. Neu ist außerdem die Seite „Konto“ für jeden Angemeldeten: Name ändern, Passwort ändern, Zwei-Faktor-Anmeldung einrichten. Wer eine Team-Rolle hat, braucht sie weiterhin verpflichtend. Kleinigkeiten obendrauf: Der Text im KI-Eingabefeld ist jetzt deiner — statt „Frag die KI …“ schreibst du, wonach bei dir wirklich gefragt wird. Und die Termin-Karte auf der Startseite darf auf Wunsch die ganze Breite nehmen.",
+    at: RELEASE_0_9_0,
+    version: "0.9.0",
+    level: "minor",
+  },
   {
     title: "Termine anbieten — allgemein und genau dort, wo es hakt",
     description:
