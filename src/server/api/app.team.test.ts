@@ -122,19 +122,24 @@ class FakeInvitations implements InvitationRepository {
     tenantId: string,
     id: string,
     to: InvitationRecord["status"],
+    from: readonly InvitationRecord["status"][],
     acceptedBy?: string,
   ): boolean {
     const r = this.rows.get(id);
-    if (!r || r.tenantId !== tenantId || r.status !== "pending") return false;
+    if (!r || r.tenantId !== tenantId || !from.includes(r.status)) return false;
     r.status = to;
     if (acceptedBy !== undefined) r.acceptedBy = acceptedBy;
     return true;
   }
 
   markAccepted = async (tenantId: string, id: string, acceptedBy: string) =>
-    this.transition(tenantId, id, "accepted", acceptedBy);
-  markRevoked = async (tenantId: string, id: string) => this.transition(tenantId, id, "revoked");
-  markExpired = async (tenantId: string, id: string) => this.transition(tenantId, id, "expired");
+    this.transition(tenantId, id, "accepted", ["pending"], acceptedBy);
+  // Revoke schließt ABGELAUFENE ein — exakt wie das echte SQL, sonst prüfte
+  // dieser Fake eine Semantik, die es nicht mehr gibt.
+  markRevoked = async (tenantId: string, id: string) =>
+    this.transition(tenantId, id, "revoked", ["pending", "expired"]);
+  markExpired = async (tenantId: string, id: string) =>
+    this.transition(tenantId, id, "expired", ["pending"]);
 }
 
 /**
@@ -911,5 +916,101 @@ describe("Team-Mitglieder (/admin/team/members)", () => {
     });
     expect(res.status).toBe(404);
     expect(f.db.auth_user.some((u) => u.id === foreign.id)).toBe(true);
+  });
+});
+
+/**
+ * ANNAHME IM KONTO (`/invitations/mine` + `/invitations/claim`) — der zweite
+ * Weg neben dem Mail-Link. Der Token lebt nur in der Mail; wer sie nicht
+ * findet, hatte vorher gar keinen Weg. Diese Tests sichern, dass der neue Weg
+ * NICHT die schwächere Tür ist: dieselbe Frist, dieselbe E-Mail-Bindung,
+ * dieselbe Mandantengrenze, dieselbe geparkte Rolle.
+ */
+describe("Einladung im Konto annehmen (/invitations/mine, /invitations/claim)", () => {
+  const mine = (f: Fixture, host: string, cookie?: string) =>
+    f.app.request("/api/v1/invitations/mine", {
+      headers: { host, ...(cookie ? { cookie } : {}) },
+    });
+  const claim = (f: Fixture, host: string, cookie?: string) =>
+    f.app.request("/api/v1/invitations/claim", {
+      method: "POST",
+      headers: { host, ...(cookie ? { cookie } : {}) },
+    });
+
+  it("zeigt die eigene offene Einladung und nimmt sie ohne Token an — Rolle wird GEPARKT", async () => {
+    const f = makeApp({ emailMode: "sent" });
+    const owner = await ownerSession(f, HOST_A);
+    const invitee = "jon@example.com";
+    await invite(f, HOST_A, owner, invitee, "admin");
+
+    const cookie = await createSession(f.app, f.db, HOST_A, invitee);
+    const seen = (await (await mine(f, HOST_A, cookie)).json()) as {
+      invitation: { role: string } | null;
+    };
+    expect(seen.invitation?.role).toBe("admin");
+
+    const res = await claim(f, HOST_A, cookie);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ role: "admin", pendingMfaEnrollment: true });
+
+    // Wirksam wird sie erst mit dem zweiten Faktor — bis dahin nur geparkt.
+    const user = f.db.auth_user.find((u) => u.email === invitee)!;
+    expect(user.role).toBe("user");
+    expect(user.pending_role).toBe("admin");
+
+    // Single-use: zweiter Versuch findet nichts mehr.
+    expect((await claim(f, HOST_A, cookie)).status).toBe(404);
+  });
+
+  it("Frist gilt hier genauso: abgelaufen → nicht sichtbar und nicht annehmbar", async () => {
+    const f = makeApp({ emailMode: "sent" });
+    const owner = await ownerSession(f, HOST_A);
+    const invitee = "late@example.com";
+    const res = await invite(f, HOST_A, owner, invitee, "content");
+    const { id } = (await res.json()) as { id: string };
+    f.invitations.rows.get(id)!.expiresAt = 1; // längst vorbei
+
+    const cookie = await createSession(f.app, f.db, HOST_A, invitee);
+    expect(((await (await mine(f, HOST_A, cookie)).json()) as { invitation: null }).invitation)
+      .toBeNull();
+    expect((await claim(f, HOST_A, cookie)).status).toBe(410);
+    expect(f.db.auth_user.find((u) => u.email === invitee)!.pending_role ?? null).toBeNull();
+  });
+
+  it("unbestätigte Adresse sieht nichts und kann nichts annehmen (E-Mail-Bindung A-5)", async () => {
+    const f = makeApp({ emailMode: "sent" });
+    const owner = await ownerSession(f, HOST_A);
+    const invitee = "unverified@example.com";
+    await invite(f, HOST_A, owner, invitee, "content");
+
+    const cookie = await createSession(f.app, f.db, HOST_A, invitee);
+    f.db.auth_user.find((u) => u.email === invitee)!.email_verified = false;
+
+    expect(((await (await mine(f, HOST_A, cookie)).json()) as { invitation: null }).invitation)
+      .toBeNull();
+    expect((await claim(f, HOST_A, cookie)).status).toBe(403);
+  });
+
+  it("Mandantengrenze: Einladung aus Instanz A ist in Instanz B unsichtbar und nicht einlösbar", async () => {
+    const f = makeApp({ emailMode: "sent" });
+    const owner = await ownerSession(f, HOST_A);
+    const invitee = "cross@example.com";
+    await invite(f, HOST_A, owner, invitee, "admin");
+
+    // Gleiche Adresse, eigenes Konto in der ANDEREN Instanz.
+    const cookieB = await createSession(f.app, f.db, HOST_B, invitee);
+    expect(((await (await mine(f, HOST_B, cookieB)).json()) as { invitation: null }).invitation)
+      .toBeNull();
+    expect((await claim(f, HOST_B, cookieB)).status).toBe(404);
+
+    // Die Einladung in A bleibt unberührt offen.
+    const rows = await f.invitations.listByTenant("t_a");
+    expect(rows[0]?.status).toBe("pending");
+  });
+
+  it("ohne Session 401 — Default-Deny greift auch für die neuen Pfade", async () => {
+    const f = makeApp({ emailMode: "sent" });
+    expect((await mine(f, HOST_A)).status).toBe(401);
+    expect((await claim(f, HOST_A)).status).toBe(401);
   });
 });

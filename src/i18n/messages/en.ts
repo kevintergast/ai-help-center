@@ -1246,13 +1246,35 @@ export const en: Record<MessageKey, string> = {
   "account.mfa.manage": "Manage two-factor",
   "account.mfa.lockedTeam":
     "Switching it off would lock you out of the admin area. Talk to the owner if you want to give up your role.",
+  "account.invite.heading": "You have been invited to the team",
+  "account.invite.body":
+    "There is an invitation for this address as {role}. Accept it to receive the role.",
+  "account.invite.accept": "Accept invitation",
+  "account.invite.cancel": "Not now",
+  "account.invite.mfaHeading": "One more step: two-factor sign-in",
+  "account.invite.mfaBadge": "still open",
+  "account.invite.mfaBody":
+    "The {role} role is reserved for you and takes effect as soon as your two-factor sign-in is set up. Without it the admin area stays closed.",
+  "account.invite.mfaSetUp": "Set up now",
+  "account.invite.later": "Later",
+  "account.invite.doneHeading": "Invitation accepted",
+  "account.invite.doneBody":
+    "You now have the {role} role. Reload the page if the admin area has not appeared yet.",
+  "account.invite.error.expired":
+    "This invitation has expired. Ask your team to invite you again.",
+  "account.invite.error.mismatch":
+    "Your email address must be confirmed and match the invitation.",
+  "account.invite.error.alreadyMember": "You already have this role.",
+  "account.invite.error.conflict":
+    "The invitation is no longer valid. Ask your team to invite you again.",
+  "account.invite.error.generic": "That did not work. Please try again.",
   "hc.account.settings": "My account",
   "admin.nav.team": "Team & roles",
   "admin.team.title": "Team & roles",
   "admin.team.subtitle": "Who may manage this help centre — and with which rights.",
   "admin.team.inviteHeading": "Invite someone",
   "admin.team.inviteHintOwner":
-    "The invitation goes out by email and expires after seven days. A team role only takes effect once the invited person has set up two-factor sign-in.",
+    "The invitation goes out by email and expires after 48 hours. A team role only takes effect once the invited person has set up two-factor sign-in.",
   "admin.team.inviteHintAdmin":
     "As an admin you can grant editorial access. Inviting further admins is reserved for the owner.",
   "admin.team.email": "Email address",
@@ -1283,6 +1305,10 @@ export const en: Record<MessageKey, string> = {
   "admin.team.error.pending": "An invitation for this address is already open.",
   "admin.team.error.alreadyMember": "This person is already on the team.",
   "admin.team.error.generic": "That did not work. Please try again.",
+  "admin.team.error.notPending":
+    "This invitation is no longer open — it has already been accepted or revoked.",
+  "admin.team.error.notFound": "This invitation no longer exists.",
+  "admin.team.inviteExpired": "expired",
   "admin.nav.apiKeys": "Access keys",
   "admin.apiKeys.title": "Access keys",
   "admin.apiKeys.subtitle":

@@ -21,10 +21,23 @@
 export type InvitationRole = "content" | "admin";
 export type InvitationStatus = "pending" | "accepted" | "revoked" | "expired";
 
-/** Ablauf je Zielrolle (Design §c.4.1: kurz; admin kürzer). Sekunden. */
+/**
+ * Ablauf je Zielrolle. Sekunden.
+ *
+ * Ursprünglich kurz und je Rolle gestaffelt (24 h / admin 12 h, Design §c.4.1).
+ * In der Praxis war das zu knapp: Eine abends verschickte Admin-Einladung war
+ * am nächsten Morgen tot, und der Eingeladene stand ohne Weg da. Jetzt 48 h für
+ * beide Rollen — lang genug für eine Nacht und einen Arbeitstag, kurz genug,
+ * dass ein abgefangener Link nicht wochenlang einlösbar bleibt. Dass beide
+ * Rollen dieselbe Frist haben, ist Absicht: Die Oberfläche kann so EINE ehrliche
+ * Zahl nennen, statt zwei, die niemand auseinanderhält.
+ *
+ * Die eigentliche Identitätsbindung ist ohnehin nicht die Frist, sondern der
+ * Gleichstand mit der BESTÄTIGTEN E-Mail-Adresse beim Annehmen (A-5).
+ */
 export const INVITATION_TTL_SEC: Readonly<Record<InvitationRole, number>> = {
-  content: 24 * 60 * 60,
-  admin: 12 * 60 * 60,
+  content: 48 * 60 * 60,
+  admin: 48 * 60 * 60,
 };
 
 export interface InvitationRecord {
@@ -66,7 +79,13 @@ export interface InvitationRepository {
   findByTokenHash(tenantId: string, tokenHash: string): Promise<InvitationRecord | null>;
   /** pending → accepted (+ accepted_by). false = war nicht (mehr) pending. */
   markAccepted(tenantId: string, id: string, acceptedBy: string): Promise<boolean>;
-  /** pending → revoked. false = war nicht (mehr) pending. */
+  /**
+   * pending|expired → revoked. false = war schon accepted oder revoked.
+   *
+   * ABGELAUFENE schließt mit ein: Sonst klebt eine tote Einladung für immer in
+   * der Liste und jeder Zurückziehen-Versuch scheitert — genau der Fall, der
+   * das hier ausgelöst hat.
+   */
   markRevoked(tenantId: string, id: string): Promise<boolean>;
   /** pending → expired (Ablauf beim Accept-Versuch persistieren). */
   markExpired(tenantId: string, id: string): Promise<boolean>;
@@ -187,7 +206,7 @@ export class D1InvitationRepository implements InvitationRepository {
     const res = await this.db
       .prepare(
         `UPDATE auth_invitation SET status = 'revoked'
-          WHERE tenant_id = ? AND id = ? AND status = 'pending'`,
+          WHERE tenant_id = ? AND id = ? AND status IN ('pending','expired')`,
       )
       .bind(tenantId, id)
       .run();
