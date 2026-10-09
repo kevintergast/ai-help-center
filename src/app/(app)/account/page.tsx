@@ -5,6 +5,7 @@ import { getCurrentTenant } from "@/lib/tenant/current";
 import { readPageViewer } from "@/server/auth/page-guard";
 import { getT } from "@/i18n/t";
 import { AccountPanel } from "@/components/account/account-panel";
+import { PendingInvite } from "@/components/account/pending-invite";
 import { ArrowLeftIcon } from "@/components/ui/icons";
 
 /**
@@ -38,6 +39,14 @@ export default async function AccountPage() {
         <h1 className="mb-6 mt-4 text-[30px] font-semibold leading-tight tracking-[-0.6px]">
           {t("account.title")}
         </h1>
+        {/* Offene Einladung zuerst: Sie ist der Grund, warum jemand ohne
+            Mail-Link hier landet — und zeitlich befristet. */}
+        <div className="mb-6">
+          <PendingInvite
+            locale={tenant.defaultLocale}
+            twoFactorEnabled={viewer.twoFactorEnabled === true}
+          />
+        </div>
         <AccountPanel
           locale={tenant.defaultLocale}
           name={viewer.name}

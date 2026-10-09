@@ -26,6 +26,28 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.9.1] – 2026-10-09
+
+_Fehlerbehebungen rund um Einladungen plus ein zweiter Annahme-Weg im Konto — eine bestehende Aktion wird erreichbarer, keine neue Fähigkeit._
+
+### Hinzugefügt
+- **auth:** offene Einladung unter „Mein Konto" annehmen — `GET /invitations/mine`
+  und `POST /invitations/claim`, beide über denselben Einlöse-Pfad wie der
+  Mail-Link; danach führt die Karte zum Zwei-Faktor-Schritt (228df2c)
+
+### Behoben
+- **auth:** abgelaufene Einladungen ließen sich nicht zurückziehen — nach dem
+  Klick auf den toten Link stand die Zeile auf `expired`, `markRevoked` kannte
+  nur `pending` (228df2c)
+- **auth:** die Einladungsliste zeigte jede jemals erstellte Einladung als
+  „offen", auch angenommene und zurückgezogene (228df2c)
+- **auth:** `invitation_not_pending`/`invitation_not_found`/`role_not_allowed`
+  hatten keine Texte und landeten alle in der Sammelmeldung (228df2c)
+
+### Geändert
+- **auth:** Einladungs-Frist einheitlich 48 h (vorher 24 h, Admin 12 h);
+  Oberfläche und Artikel behaupteten sieben Tage (228df2c)
+
 ## [0.9.0] – 2026-10-09
 
 _Team- und Konto-Verwaltung sind eine neue Fähigkeit, kein Feinschliff: Teammitglieder einladen und Rollen vergeben war ohne Fläche gar nicht möglich, ein eigenes Konto konnte niemand verwalten._

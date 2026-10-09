@@ -47,6 +47,7 @@ interface Invitation {
   id: string;
   email: string;
   role: string;
+  status: "pending" | "accepted" | "revoked" | "expired";
   expiresAt: number;
 }
 
@@ -65,6 +66,11 @@ const ERROR_KEYS: Record<string, MessageKey> = {
   invalid_email: "admin.team.error.email",
   invitation_pending: "admin.team.error.pending",
   already_member: "admin.team.error.alreadyMember",
+  // Diese drei fehlten: Jeder Zurückziehen-Fehler lief in die generische
+  // Meldung, und man sah nie, WORAN es lag.
+  invitation_not_pending: "admin.team.error.notPending",
+  invitation_not_found: "admin.team.error.notFound",
+  role_not_allowed: "admin.team.error.rank",
 };
 
 const RANKS: Record<string, number> = { user: 0, content: 1, admin: 2, owner: 3 };
@@ -92,6 +98,20 @@ export function TeamManager({ locale, viewerRole, viewerEmail }: {
   /** Vergebbar ist nur, was STRIKT unter der eigenen Rolle liegt (wie im Server). */
   const assignable = (["content", "admin"] as const).filter(
     (r) => RANKS[viewerRole] > RANKS[r],
+  );
+
+  /** Abgelaufen — auch wenn die Zeile noch `pending` sagt (Ablauf wird erst
+   *  beim Annahme-Versuch persistiert, nicht von einem Aufräum-Lauf). */
+  const isDead = (inv: Invitation) =>
+    inv.status === "expired" || inv.expiresAt * 1000 <= Date.now();
+
+  /**
+   * Die API liefert ALLE Einladungen, auch angenommene und zurückgezogene.
+   * Unter „Offene Einladungen" gehören nur die, die noch eine Handlung
+   * brauchen: offene und abgelaufene (letztere zum Wegräumen).
+   */
+  const openInvites = invites.filter(
+    (inv) => inv.status === "pending" || inv.status === "expired",
   );
 
   const load = useCallback(async () => {
@@ -190,14 +210,17 @@ export function TeamManager({ locale, viewerRole, viewerEmail }: {
       </div>
 
       {/* ——— Offene Einladungen ——— */}
-      {invites.length > 0 ? (
+      {openInvites.length > 0 ? (
         <div className="flex flex-col gap-2 border-t border-hairline pt-5">
           <h3 className="text-sm font-medium">{t("admin.team.pendingHeading")}</h3>
           <ul className="flex flex-col gap-2">
-            {invites.map((inv) => (
+            {openInvites.map((inv) => (
               <li key={inv.id} className="flex flex-wrap items-center gap-3 text-sm">
                 <span className="text-ink">{inv.email}</span>
                 <Badge tone="neutral">{t(ROLE_LABELS[inv.role] ?? "admin.team.role.content")}</Badge>
+                {/* Abgelaufene bleiben sichtbar, aber als das, was sie sind —
+                    sonst wartet man auf eine Annahme, die nie kommt. */}
+                {isDead(inv) ? <Badge tone="warn">{t("admin.team.inviteExpired")}</Badge> : null}
                 <Button
                   variant="ghost"
                   size="sm"

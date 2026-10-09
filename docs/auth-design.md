@@ -189,7 +189,7 @@ export function requireFreshTotp(session, maxAgeSec = 300) {
 - **E-Mail-Kollision (A-4):** tenant-scoped `findUserByEmail` **vor** jedem Insert; Kollision Social↔Passwort → deterministisch `account_not_linked` (sauberer 4xx, „mit ursprünglicher Methode anmelden"), **nie** Auto-Link, **nie** zweite Zeile. Integrationstests gegen die installierte better-auth-Version verpflichtend.
 
 ### 4. Einladung → Team + MFA-Gate (`invitations.ts`)
-1. **CREATE:** Rollen-Deckel: `rank(inviter.role)` MUSS **strikt >** `rank(invite.role)`; `admin` darf max. `content` einladen; `owner` als Invite-Rolle **verboten** (DB-CHECK + App). Partial-Unique `uq_invitation_pending` = max. 1 offene je (Instanz, kanonisierte E-Mail). Ablauf kurz (24 h; admin kürzer). E-Mail kanonisiert gespeichert.
+1. **CREATE:** Rollen-Deckel: `rank(inviter.role)` MUSS **strikt >** `rank(invite.role)`; `admin` darf max. `content` einladen; `owner` als Invite-Rolle **verboten** (DB-CHECK + App). Partial-Unique `uq_invitation_pending` = max. 1 offene je (Instanz, kanonisierte E-Mail). Ablauf 48 h für beide Rollen (vorher 24 h / admin 12 h — zu knapp: eine abends verschickte Admin-Einladung war morgens tot; die Identitätsbindung leistet ohnehin der Gleichstand mit der bestätigten Adresse, nicht die Frist). E-Mail kanonisiert gespeichert.
 2. Mail-Link `…/invite/accept?token=<secret>` (auf **kanonischem Tenant-Host**, nie zentraler/Fallback-Host).
 3. **ACCEPT (serverseitig, tenant-scoped, re-validiert):**
    - Lookup per **`(tenant_id, token_hash)`** (Composite), `status='pending'`, nicht abgelaufen. Nach Fetch `assert(row.tenant_id === currentTenantId())` (T-4).
