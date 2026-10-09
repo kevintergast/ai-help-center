@@ -24,6 +24,7 @@ const RELEASE_0_6_0 = 1789984800; // 2026-09-21
 const RELEASE_0_7_0 = 1790071200; // 2026-09-22
 const RELEASE_0_8_0 = 1790100000; // 2026-09-22
 const RELEASE_0_9_0 = 1791547200; // 2026-10-09
+const RELEASE_0_9_1 = 1791565200; // 2026-10-09
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -646,6 +647,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Einladungen: annehmen im Konto, 48 Stunden Zeit",
+    description:
+      "Der Link in der Einladungs-Mail war bisher der einzige Weg ins Team — und er existiert nur dort, lässt sich also nicht erneut verschicken. Wer die Mail nicht fand, kam nicht weiter. Ab sofort erscheint eine offene Einladung von selbst unter „Mein Konto“ und lässt sich dort annehmen. Direkt danach führt dieselbe Karte zur Zwei-Faktor-Anmeldung, denn ohne sie bleibt die Rolle vorgemerkt statt wirksam — das war vorher der Punkt, an dem Eingeladene dachten, es sei etwas kaputt. Die Frist ist jetzt einheitlich 48 Stunden statt 24 (Admin: 12); eine abends verschickte Einladung war morgens tot. Und für Admins: Abgelaufene Einladungen lassen sich endlich zurückziehen, sie sind in der Liste als abgelaufen erkennbar, und angenommene oder zurückgezogene stehen nicht mehr fälschlich unter „offen“.",
+    at: RELEASE_0_9_1,
+    version: "0.9.1",
+    level: "patch",
+  },
   {
     title: "Dein Team verwalten — und jeder sein eigenes Konto",
     description:
