@@ -26,6 +26,22 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.9.0] – 2026-10-09
+
+_Team- und Konto-Verwaltung sind eine neue Fähigkeit, kein Feinschliff: Teammitglieder einladen und Rollen vergeben war ohne Fläche gar nicht möglich, ein eigenes Konto konnte niemand verwalten._
+
+### Hinzugefügt
+- **auth:** Team-Seite (einladen, Rollen ändern, entfernen; Inhaber und man
+  selbst sind geschützt) und Konto-Seite (Name, Passwort, Zwei-Faktor) — die
+  APIs gab es, die Flächen nicht (5187b12)
+- **hc:** Text im KI-Eingabefeld je Instanz pflegbar (Migration 0049) (be078be)
+- **hc:** Buchungs-Karte auf der Startseite wahlweise über die volle Breite (fb8f258)
+
+### Behoben
+- **hc:** Eingabeleiste am unteren Rand lief über die volle Breite statt auf der
+  Spalte von Startansicht und Fuß (0980c18)
+- **hc:** Fuß ohne Trennlinie und auf der Breite der Startansicht (17589ca)
+
 ## [0.8.2] – 2026-09-25
 
 _Darstellungsfehler: Die Buchungs-Karte im Artikel nahm die Höhe der ganzen Spalte ein._
