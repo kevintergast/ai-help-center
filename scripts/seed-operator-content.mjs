@@ -527,11 +527,31 @@ const ARTICLES = [
     icon: "code",
     title: "Eigenen KI-Client verbinden (MCP)",
     category: "Inhalte pflegen",
-    min: 4,
+    min: 6,
     body: [
       "Du kannst dein Hilfezentrum an deinen eigenen KI-Client anbinden — Claude Code, Claude Desktop, Cursor oder einen selbst gebauten Agenten. Danach pflegst du Artikel im Gespräch: »Lies unser Changelog und leg mir daraus Entwürfe an« oder »Übernimm unsere alte Dokumentation von dieser Adresse«. Die Schnittstelle dafür heißt MCP (Model Context Protocol).",
       "Der entscheidende Punkt: Die KI-Leistung erbringt DEIN Client in deinem eigenen KI-Abo. Bei uns kommen nur fertige, geprüfte Schreibbefehle an — Schreiben über MCP verbraucht deshalb keine Credits.",
-      "So verbindest du: Gehe im Verwaltungsbereich auf »Zugriffs-Schlüssel«. Dort stehen deine MCP-Adresse und ein fertiger Befehl zum Kopieren. Lege einen Schlüssel an, setze ihn in den Befehl ein — fertig. Jedes Hilfezentrum hat seine eigene Adresse; ein Schlüssel gilt immer nur für genau dieses eine.",
+      "## So verbindest du deinen Client",
+      "Erstens: Gehe im Verwaltungsbereich auf »Zugriffs-Schlüssel« und lege einen an — Name vergeben, Rechte ankreuzen, Laufzeit wählen (30, 90 oder 365 Tage; voreingestellt 90).",
+      "Zweitens: Der Schlüssel erscheint GENAU EINMAL, direkt nach dem Anlegen. Kopiere ihn sofort. Danach ist er nicht mehr einsehbar — ist er weg, legst du einen neuen an.",
+      "Drittens: Trage in deinem KI-Client zwei Dinge ein — die Adresse deines Hilfezentrums und den Schlüssel als Kopfzeile. Beides steht fertig auf derselben Seite. Die Adresse hat immer diese Form:",
+      { type: "text", variant: "code", text: "https://DEINE-SUBDOMAIN.hallofhelp.com/api/v1/mcp" },
+      "Der Schlüssel gehört in die Kopfzeile »Authorization«, mit dem Wort Bearer davor:",
+      { type: "text", variant: "code", text: "Authorization: Bearer DEIN-SCHLUESSEL" },
+      "Nutzt du Claude Code, genügt ein einziger Befehl im Terminal — er setzt Adresse und Kopfzeile in einem Rutsch:",
+      {
+        type: "text",
+        variant: "code",
+        text:
+          'claude mcp add --transport http hallofhelp https://DEINE-SUBDOMAIN.hallofhelp.com/api/v1/mcp --header "Authorization: Bearer DEIN-SCHLUESSEL"',
+      },
+      {
+        type: "text",
+        variant: "warning",
+        text:
+          "Ein Schlüssel gilt NUR für das Hilfezentrum, in dem du ihn angelegt hast — er wird zusammen mit der Instanz nachgeschlagen. Zeigt dein Client auf eine andere Adresse, ist der Schlüssel dort schlicht unbekannt und du bekommst 401.",
+      },
+      "Bekommst du 401, geh diese drei Punkte durch: Gehören Adresse und Schlüssel zur selben Instanz? Ist der Schlüssel noch gültig und nicht widerrufen (das steht in der Liste)? Und hast du den Client nach dem Ändern der Konfiguration neu gestartet? Die meisten Clients bauen die Verbindung nur beim Start auf — ein frisch eingetragener Schlüssel wirkt dort erst nach einem Neustart.",
       "Der Schlüssel entscheidet, was die KI darf. Beim Anlegen wählst du die Rechte einzeln aus, jeweils mit Klartext daneben, was sie bedeuten. Voreingestellt ist bewusst zahm: lesen und Entwürfe schreiben. Alles, was nach außen wirkt, musst du aktiv einschalten.",
       {
         type: "accordion",
