@@ -9,6 +9,7 @@ import { getT } from "@/i18n/t";
 import type { Article, ArticleSummary, AskAnswer, HelpCenterData } from "@/lib/content/types";
 import type { EntryCard } from "@/lib/content/entry-cards";
 import { EntryCards } from "./entry-cards";
+import { AnswerBody } from "./answer-body";
 import { PENDING_ASK_KEY, OPEN_ANSWER_KEY } from "@/lib/content/handoff";
 import {
   deleteSavedFromAccount,
@@ -136,6 +137,7 @@ export function HelpCenter({
       answer: {
         question: s.question,
         body: s.body,
+        ...(s.parts ? { parts: s.parts } : {}),
         citations: s.citations,
         grounded: s.grounded,
         sourceRefs: s.sourceRefs,
@@ -341,7 +343,8 @@ function ArticleMiniList({
   extras = [],
   onOpen,
 }: {
-  heading: ReactNode;
+  /** Fehlt = der Aufrufer überschreibt bereits (z. B. eingeklappte Quellen). */
+  heading?: ReactNode;
   items: ArticleSummary[];
   /** Nicht-klickbare Zusatz-Quellen (Roadmap/Changelog) mit Art-Label rechts. */
   extras?: { id: string; title: string; kindLabel: string }[];
@@ -349,8 +352,10 @@ function ArticleMiniList({
 }) {
   if (items.length === 0 && extras.length === 0) return null;
   return (
-    <section className="mt-10">
-      <h2 className="mb-3 text-sm uppercase tracking-[0.08em] text-ink-muted">{heading}</h2>
+    <section className={heading ? "mt-10" : undefined}>
+      {heading ? (
+        <h2 className="mb-3 text-sm uppercase tracking-[0.08em] text-ink-muted">{heading}</h2>
+      ) : null}
       <ul className="flex flex-col gap-2">
         {items.map((a) => (
           <li key={a.id}>
@@ -474,11 +479,13 @@ function AnswerView({
             <UnansweredReport locale={locale} question={answer.question} />
           </>
         ) : (
-          answer.body.map((p, i) => (
-            <p key={i} className={i > 0 ? "mt-3" : undefined}>
-              {p}
-            </p>
-          ))
+          <AnswerBody
+            locale={locale}
+            parts={answer.parts}
+            body={answer.body}
+            citations={answer.citations}
+            onOpen={onOpen}
+          />
         )}
         {answer.grounded ? (
           <p className="mt-4 flex items-center gap-2 text-sm text-ink-muted">
@@ -499,12 +506,18 @@ function AnswerView({
           </>
         )}
       </p>
-      <ArticleMiniList
-        heading={t("hc.sourcesHeading")}
-        items={sources}
-        extras={auxSources}
-        onOpen={onOpen}
-      />
+      {/* Die Quellenliste ist seit den Belegen am Baustein nur noch
+          Nachschlagewerk — eingeklappt statt als zweite Überschrift. */}
+      {sources.length + auxSources.length > 0 ? (
+        <details className="mt-6 border-t border-hairline pt-4">
+          <summary className="cursor-pointer text-xs text-ink-muted hover:text-ink">
+            {t("hc.sourcesHeading")} ({sources.length + auxSources.length})
+          </summary>
+          <div className="mt-2">
+            <ArticleMiniList items={sources} extras={auxSources} onOpen={onOpen} />
+          </div>
+        </details>
+      ) : null}
       <div className="mt-8">
         <FeedbackBar
           labels={{

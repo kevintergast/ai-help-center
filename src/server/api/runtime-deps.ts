@@ -483,8 +483,33 @@ async function getAskDepsRuntime(): Promise<AskRuntime | null> {
           : Promise.resolve({ results: [] as { id: string; title: string; description: string }[] }),
       ]);
 
+      // Bilder mit Id durchreichen: `toIndexable` faltet Beschreibungen in den
+      // Text (gut fürs Finden), verliert dabei aber die Id — und ohne die
+      // kann die Antwort kein Bild anzeigen. Vormerkungen bleiben draußen,
+      // sie beschreiben ein Bild, das es noch nicht gibt.
+      const imagesOf = (raw: string | undefined) => {
+        if (!raw) return [];
+        try {
+          const parsed = JSON.parse(raw) as unknown;
+          if (!Array.isArray(parsed)) return [];
+          return parsed.flatMap((img) => {
+            const i = img as { id?: unknown; description?: unknown; pending?: unknown };
+            if (i?.pending === true) return [];
+            if (typeof i?.id !== "string" || typeof i?.description !== "string") return [];
+            if (i.description.trim().length === 0) return [];
+            return [{ id: i.id, description: i.description.trim() }];
+          });
+        } catch {
+          return [];
+        }
+      };
+
       return [
-        ...articles.results.map((r) => ({ ...toIndexable(r), kind: "article" as const })),
+        ...articles.results.map((r) => ({
+          ...toIndexable(r),
+          kind: "article" as const,
+          images: imagesOf((r as { images_json?: string }).images_json),
+        })),
         ...roadmap.results.map((r) => ({ ...roadmapDoc(r), kind: "roadmap" as const })),
         ...changelog.results.map((r) => ({ ...changelogDoc(r), kind: "changelog" as const })),
       ];

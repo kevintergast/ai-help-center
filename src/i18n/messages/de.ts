@@ -70,6 +70,8 @@ export const de = {
   "hc.answerHeading": "KI-Antwort",
   "hc.grounded": "Geerdet · {count} Quellen",
   "hc.answer.loading": "Deine Antwort wird aus den Hilfeartikeln zusammengestellt …",
+  "hc.answer.step": "Schritt {n}:",
+  "hc.answer.sourceOf": "Quelle: {title}",
   "hc.answer.noSources":
     "Dazu habe ich in den Hilfeartikeln keine belastbare Antwort gefunden. Formuliere die Frage anders — oder stöbere links in den Artikeln.",
   "hc.answer.error":
