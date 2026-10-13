@@ -69,10 +69,17 @@ export function buildAskMessages(question: string, chunks: ContextChunk[]): Chat
         "Antworte als JSON, ohne Text davor oder dahinter:\n" +
         '{"blocks":[{"type":"text","text":"…","source":1}]}\n\n' +
         "Regeln für die Bausteine:\n" +
-        '- "text": ein kurzer Absatz. "step": EIN Schritt einer Abfolge. ' +
-        "Beschreibt die Antwort einen Ablauf, nimm Schritte statt Absätze — " +
-        "ein Schritt pro Baustein, in der richtigen Reihenfolge. Nummeriere " +
-        "NICHT selbst, das macht die Anzeige.\n" +
+        '- "text": ein kurzer Absatz. "step": EIN Schritt einer Abfolge.\n' +
+        "- WANN SCHRITTE: Sobald die Antwort beschreibt, was man NACHEINANDER " +
+        'tut, nimm "step" — auch wenn die Frage das Wort Schritt nicht ' +
+        'enthält. Fragen der Form „Wie mache ich X?" sind fast immer ein ' +
+        "Ablauf. Ein Schritt pro Baustein, in der richtigen Reihenfolge, und " +
+        "nummeriere NICHT selbst — das macht die Anzeige. Nur was wirklich " +
+        'keine Abfolge ist (eine Erklärung, eine Einordnung), bleibt "text".\n' +
+        '  Beispiel für „Wie lege ich ein Konto an?“:\n' +
+        '  {"blocks":[{"type":"step","text":"Öffne die Registrierung und gib ' +
+        'deine Adresse ein.","source":1},{"type":"step","text":"Bestätige die ' +
+        'E-Mail über den Link.","source":1}]}\n' +
         '- "source" ist die Nummer der Quelle, aus der dieser Baustein stammt. ' +
         "Jeder Baustein braucht genau eine. Keine Quellennummern im Text.\n" +
         '- "image": nur wenn ein Bild den Schritt wirklich zeigt. Dann ' +

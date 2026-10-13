@@ -40,6 +40,18 @@ describe("buildAskMessages", () => {
     expect(user.content).not.toContain("img-a");
   });
 
+  it("weist Schritte auch ohne das Wort Schritt an und zeigt ein Beispiel", () => {
+    // Live-Fund auf Staging: Auf „Wie erstelle ich mein erstes Hilfezentrum?"
+    // kamen Absaetze statt Schritte, obwohl die Antwort ein Ablauf war. Das
+    // Modell hielt sich an die abstrakte Regel nicht — mit Beispiel schon.
+    const [system] = buildAskMessages("Frage", [
+      { index: 1, articleTitle: "A", text: "Text" },
+    ]);
+    expect(system.content).toContain("NACHEINANDER");
+    expect(system.content).toContain("Wie mache ich X?");
+    expect(system.content).toContain('"type":"step"');
+  });
+
   it("Quelle ohne Bilder bekommt keinen leeren Bilder-Block", () => {
     const [, user] = buildAskMessages("Frage", [
       { index: 1, articleTitle: "A", text: "Text" },
