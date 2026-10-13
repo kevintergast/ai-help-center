@@ -1,4 +1,4 @@
-import type { Citation, SourceRef } from "@/lib/content/types";
+import type { AnswerPart, Citation, SourceRef } from "@/lib/content/types";
 
 /**
  * GESPEICHERTE KI-ANTWORTEN IM KONTO (Migration 0017) — Architektur:
@@ -16,6 +16,8 @@ export interface SavedAnswerRecord {
   id: string;
   question: string;
   body: string[];
+  /** Bausteine der strukturierten Antwort (Migration 0050); fehlt bei alten Zeilen. */
+  parts?: AnswerPart[];
   citations: Citation[];
   sourceRefs: SourceRef[];
   grounded: boolean;
@@ -58,7 +60,62 @@ export function parseSavedAnswerInput(raw: unknown): SavedAnswerRecord | string 
     const cc = c as Record<string, unknown>;
     if (typeof cc?.id !== "string" || typeof cc?.title !== "string") return "invalid_citations";
     if (cc.id.length > 80 || cc.title.length > 300) return "invalid_citations";
-    citations.push({ id: cc.id, title: cc.title });
+    // `kind` und `slug` werden MITGENOMMEN (vorher verworfen): Ohne Slug gibt
+    // es keine Bild-Adresse, ohne kind kein Roadmap-/Changelog-Label — eine
+    // aus dem Konto geladene Antwort sähe sonst ärmer aus als dieselbe
+    // Antwort lokal. Beide bleiben eng begrenzt.
+    const kind = cc.kind;
+    if (kind !== undefined && kind !== "article" && kind !== "roadmap" && kind !== "changelog") {
+      return "invalid_citations";
+    }
+    const slug = cc.slug;
+    if (slug !== undefined && (typeof slug !== "string" || !/^[a-z0-9-]{1,120}$/.test(slug))) {
+      return "invalid_citations";
+    }
+    citations.push({
+      id: cc.id,
+      title: cc.title,
+      ...(kind ? { kind } : {}),
+      ...(typeof slug === "string" ? { slug } : {}),
+    });
+  }
+
+  // BAUSTEINE (Migration 0050). Optional — fehlt das Feld, bleibt es bei den
+  // Absätzen. Streng geprüft, weil das hier Client-Eingabe ist: Jede
+  // Quellen-Nummer muss auf eine vorhandene Zitation zeigen, sonst zeigte die
+  // Anzeige später einen Beleg, den es nicht gibt.
+  let parts: AnswerPart[] | undefined;
+  if (o.parts !== undefined) {
+    if (!Array.isArray(o.parts) || o.parts.length > MAX_BODY_PARAGRAPHS) return "invalid_parts";
+    const list: AnswerPart[] = [];
+    for (const raw of o.parts) {
+      const pp = raw as Record<string, unknown>;
+      const src = pp?.source;
+      if (src !== undefined) {
+        if (!Number.isInteger(src) || (src as number) < 0 || (src as number) >= citations.length) {
+          return "invalid_parts";
+        }
+      }
+      if (pp?.kind === "image") {
+        if (typeof pp.imageId !== "string" || !/^[A-Za-z0-9_-]{1,80}$/.test(pp.imageId)) {
+          return "invalid_parts";
+        }
+        if (typeof pp.alt !== "string" || pp.alt.length > 500) return "invalid_parts";
+        if (typeof src !== "number") return "invalid_parts";
+        list.push({ kind: "image", imageId: pp.imageId, alt: pp.alt, source: src });
+        continue;
+      }
+      if (pp?.kind !== "text" && pp?.kind !== "step") return "invalid_parts";
+      if (typeof pp.text !== "string" || pp.text.length === 0 || pp.text.length > MAX_BODY_CHARS_TOTAL) {
+        return "invalid_parts";
+      }
+      list.push({
+        kind: pp.kind,
+        text: pp.text,
+        ...(typeof src === "number" ? { source: src } : {}),
+      });
+    }
+    parts = list;
   }
 
   const refsRaw = Array.isArray(o.sourceRefs) ? o.sourceRefs : [];
@@ -98,6 +155,7 @@ export function parseSavedAnswerInput(raw: unknown): SavedAnswerRecord | string 
     id: o.id,
     question,
     body,
+    ...(parts ? { parts } : {}),
     citations,
     sourceRefs,
     grounded: o.grounded !== false,
@@ -122,6 +180,7 @@ interface Row {
   id: string;
   question: string;
   body_json: string;
+  parts_json: string | null;
   citations_json: string;
   source_refs_json: string;
   grounded: number;
@@ -143,7 +202,7 @@ export class D1SavedAnswersRepository implements SavedAnswersRepository {
   async listByUser(tenantId: string, userId: string): Promise<SavedAnswerRecord[]> {
     const rows = await this.db
       .prepare(
-        `SELECT id, question, body_json, citations_json, source_refs_json, grounded, saved_at
+        `SELECT id, question, body_json, parts_json, citations_json, source_refs_json, grounded, saved_at
            FROM saved_answers
           WHERE tenant_id = ? AND user_id = ?
           ORDER BY saved_at DESC
@@ -155,6 +214,7 @@ export class D1SavedAnswersRepository implements SavedAnswersRepository {
       id: r.id,
       question: r.question,
       body: parseArray<string>(r.body_json),
+      ...(r.parts_json ? { parts: parseArray<AnswerPart>(r.parts_json) } : {}),
       citations: parseArray<Citation>(r.citations_json),
       sourceRefs: parseArray<SourceRef>(r.source_refs_json),
       grounded: r.grounded === 1,
@@ -187,12 +247,13 @@ export class D1SavedAnswersRepository implements SavedAnswersRepository {
     await this.db
       .prepare(
         `INSERT INTO saved_answers
-           (tenant_id, user_id, id, question, body_json, citations_json, source_refs_json,
-            grounded, saved_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           (tenant_id, user_id, id, question, body_json, parts_json, citations_json,
+            source_refs_json, grounded, saved_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (tenant_id, user_id, id) DO UPDATE SET
            question = excluded.question,
            body_json = excluded.body_json,
+           parts_json = excluded.parts_json,
            citations_json = excluded.citations_json,
            source_refs_json = excluded.source_refs_json,
            grounded = excluded.grounded,
@@ -205,6 +266,7 @@ export class D1SavedAnswersRepository implements SavedAnswersRepository {
         record.id,
         record.question,
         JSON.stringify(record.body),
+        record.parts ? JSON.stringify(record.parts) : null,
         JSON.stringify(record.citations),
         JSON.stringify(record.sourceRefs),
         record.grounded ? 1 : 0,

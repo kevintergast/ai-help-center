@@ -25,6 +25,7 @@ const RELEASE_0_7_0 = 1790071200; // 2026-09-22
 const RELEASE_0_8_0 = 1790100000; // 2026-09-22
 const RELEASE_0_9_0 = 1791547200; // 2026-10-09
 const RELEASE_0_9_1 = 1791565200; // 2026-10-09
+const RELEASE_0_10_0 = 1791885600; // 2026-10-13
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -667,6 +668,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "KI-Antworten lesen sich wie eine Anleitung",
+    description:
+      "Bisher kam die Antwort der KI als Folge gleich aussehender Absätze, und welche Artikel sie benutzt hat, stand gesammelt ganz unten. Wer wissen wollte, worauf ein bestimmter Satz beruht, konnte es nicht herausfinden — und eine Anleitung las sich wie Fließtext. Ab sofort baut die KI ihre Antwort aus Bausteinen: Beschreibt sie einen Ablauf, bekommst du nummerierte Schritte statt eines Absatzblocks. Unter jedem Baustein steht klein der Artikel, aus dem er stammt, und ein Klick führt dorthin; die vollständige Quellenliste am Fuß ist eingeklappt, weil der Beleg jetzt dort steht, wo die Frage aufkommt. Neu ist außerdem, dass die KI BILDER aus deinen Artikeln einsetzen kann — dort, wo ein Bild den Schritt wirklich zeigt. Grundlage dafür sind die Bildbeschreibungen, die du ohnehin pflegst: Je genauer sie sind, desto besser trifft die KI die Auswahl. Gespeicherte Antworten behalten ihre Schritte und Bilder, auch geräteübergreifend im Konto.",
+    at: RELEASE_0_10_0,
+    version: "0.10.0",
+    level: "minor",
+  },
   {
     title: "Einladungen: annehmen im Konto, 48 Stunden Zeit",
     description:
