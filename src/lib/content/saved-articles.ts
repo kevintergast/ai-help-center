@@ -1,4 +1,4 @@
-import type { AskAnswer, Citation, SourceRef } from "./types";
+import type { AnswerPart, AskAnswer, Citation, SourceRef } from "./types";
 
 /*
   Lokale Persistenz generierter Artikel (KI-Antworten) — local-first.
@@ -16,6 +16,8 @@ export interface SavedArticle {
   id: string;
   question: string;
   body: string[];
+  /** Bausteine der strukturierten Antwort; fehlt bei älteren Einträgen. */
+  parts?: AnswerPart[];
   citations: Citation[];
   grounded: boolean;
   savedAt: number;
@@ -71,6 +73,7 @@ export function saveAnswer(answer: AskAnswer): SavedArticle {
     id: answerId(answer.question),
     question: answer.question,
     body: answer.body,
+    ...(answer.parts ? { parts: answer.parts } : {}),
     citations: answer.citations,
     grounded: answer.grounded,
     savedAt: Date.now(),

@@ -146,9 +146,35 @@ export interface SourceRef {
   kind?: "article" | "roadmap" | "changelog";
 }
 
+/**
+ * Ein Baustein der generierten Antwort. `source` ist der INDEX in `citations`
+ * derselben Antwort — damit hängt jede Aussage an ihrer Herkunft, statt dass
+ * unten nur eine Sammelliste steht.
+ *
+ * `step` statt `text` heißt: Teil einer Reihenfolge. Die Nummerierung macht
+ * die Anzeige, nicht das Modell — so kann es keine Lücken oder Dopplungen
+ * erfinden.
+ */
+export type AnswerPart =
+  | { kind: "text"; text: string; source?: number }
+  | { kind: "step"; text: string; source?: number }
+  | { kind: "image"; imageId: string; alt: string; source: number };
+
 export interface AskAnswer {
   question: string;
+  /**
+   * Absätze als reiner Text. BLEIBT: gespeicherte Antworten (localStorage +
+   * Konto-Sync) tragen genau diese Form, und alte Einträge müssen weiter
+   * lesbar sein. Bei strukturierten Antworten stehen hier die Texte der
+   * Bausteine — wer nur `body` kennt, sieht also weiterhin die ganze Antwort.
+   */
   body: string[];
+  /**
+   * Strukturierte Form (Schritte, Bilder, Quelle je Baustein). Fehlt bei
+   * älteren gespeicherten Antworten und wenn das Modell kein gültiges
+   * Format geliefert hat — dann rendert die Anzeige aus `body`.
+   */
+  parts?: AnswerPart[];
   citations: Citation[];
   grounded: boolean;
   /** Quell-Chunks der Generierung (leer bei grounded:false). */

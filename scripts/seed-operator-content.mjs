@@ -25,6 +25,7 @@ const RELEASE_0_7_0 = 1790071200; // 2026-09-22
 const RELEASE_0_8_0 = 1790100000; // 2026-09-22
 const RELEASE_0_9_0 = 1791547200; // 2026-10-09
 const RELEASE_0_9_1 = 1791565200; // 2026-10-09
+const RELEASE_0_10_0 = 1791885600; // 2026-10-13
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -527,11 +528,31 @@ const ARTICLES = [
     icon: "code",
     title: "Eigenen KI-Client verbinden (MCP)",
     category: "Inhalte pflegen",
-    min: 4,
+    min: 6,
     body: [
       "Du kannst dein Hilfezentrum an deinen eigenen KI-Client anbinden — Claude Code, Claude Desktop, Cursor oder einen selbst gebauten Agenten. Danach pflegst du Artikel im Gespräch: »Lies unser Changelog und leg mir daraus Entwürfe an« oder »Übernimm unsere alte Dokumentation von dieser Adresse«. Die Schnittstelle dafür heißt MCP (Model Context Protocol).",
       "Der entscheidende Punkt: Die KI-Leistung erbringt DEIN Client in deinem eigenen KI-Abo. Bei uns kommen nur fertige, geprüfte Schreibbefehle an — Schreiben über MCP verbraucht deshalb keine Credits.",
-      "So verbindest du: Gehe im Verwaltungsbereich auf »Zugriffs-Schlüssel«. Dort stehen deine MCP-Adresse und ein fertiger Befehl zum Kopieren. Lege einen Schlüssel an, setze ihn in den Befehl ein — fertig. Jedes Hilfezentrum hat seine eigene Adresse; ein Schlüssel gilt immer nur für genau dieses eine.",
+      "## So verbindest du deinen Client",
+      "Erstens: Gehe im Verwaltungsbereich auf »Zugriffs-Schlüssel« und lege einen an — Name vergeben, Rechte ankreuzen, Laufzeit wählen (30, 90 oder 365 Tage; voreingestellt 90).",
+      "Zweitens: Der Schlüssel erscheint GENAU EINMAL, direkt nach dem Anlegen. Kopiere ihn sofort. Danach ist er nicht mehr einsehbar — ist er weg, legst du einen neuen an.",
+      "Drittens: Trage in deinem KI-Client zwei Dinge ein — die Adresse deines Hilfezentrums und den Schlüssel als Kopfzeile. Beides steht fertig auf derselben Seite. Die Adresse hat immer diese Form:",
+      { type: "text", variant: "code", text: "https://DEINE-SUBDOMAIN.hallofhelp.com/api/v1/mcp" },
+      "Der Schlüssel gehört in die Kopfzeile »Authorization«, mit dem Wort Bearer davor:",
+      { type: "text", variant: "code", text: "Authorization: Bearer DEIN-SCHLUESSEL" },
+      "Nutzt du Claude Code, genügt ein einziger Befehl im Terminal — er setzt Adresse und Kopfzeile in einem Rutsch:",
+      {
+        type: "text",
+        variant: "code",
+        text:
+          'claude mcp add --transport http hallofhelp https://DEINE-SUBDOMAIN.hallofhelp.com/api/v1/mcp --header "Authorization: Bearer DEIN-SCHLUESSEL"',
+      },
+      {
+        type: "text",
+        variant: "warning",
+        text:
+          "Ein Schlüssel gilt NUR für das Hilfezentrum, in dem du ihn angelegt hast — er wird zusammen mit der Instanz nachgeschlagen. Zeigt dein Client auf eine andere Adresse, ist der Schlüssel dort schlicht unbekannt und du bekommst 401.",
+      },
+      "Bekommst du 401, geh diese drei Punkte durch: Gehören Adresse und Schlüssel zur selben Instanz? Ist der Schlüssel noch gültig und nicht widerrufen (das steht in der Liste)? Und hast du den Client nach dem Ändern der Konfiguration neu gestartet? Die meisten Clients bauen die Verbindung nur beim Start auf — ein frisch eingetragener Schlüssel wirkt dort erst nach einem Neustart.",
       "Der Schlüssel entscheidet, was die KI darf. Beim Anlegen wählst du die Rechte einzeln aus, jeweils mit Klartext daneben, was sie bedeuten. Voreingestellt ist bewusst zahm: lesen und Entwürfe schreiben. Alles, was nach außen wirkt, musst du aktiv einschalten.",
       {
         type: "accordion",
@@ -647,6 +668,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "KI-Antworten lesen sich wie eine Anleitung",
+    description:
+      "Bisher kam die Antwort der KI als Folge gleich aussehender Absätze, und welche Artikel sie benutzt hat, stand gesammelt ganz unten. Wer wissen wollte, worauf ein bestimmter Satz beruht, konnte es nicht herausfinden — und eine Anleitung las sich wie Fließtext. Ab sofort baut die KI ihre Antwort aus Bausteinen: Beschreibt sie einen Ablauf, bekommst du nummerierte Schritte statt eines Absatzblocks. Unter jedem Baustein steht klein der Artikel, aus dem er stammt, und ein Klick führt dorthin; die vollständige Quellenliste am Fuß ist eingeklappt, weil der Beleg jetzt dort steht, wo die Frage aufkommt. Neu ist außerdem, dass die KI BILDER aus deinen Artikeln einsetzen kann — dort, wo ein Bild den Schritt wirklich zeigt. Grundlage dafür sind die Bildbeschreibungen, die du ohnehin pflegst: Je genauer sie sind, desto besser trifft die KI die Auswahl. Gespeicherte Antworten behalten ihre Schritte und Bilder, auch geräteübergreifend im Konto.",
+    at: RELEASE_0_10_0,
+    version: "0.10.0",
+    level: "minor",
+  },
   {
     title: "Einladungen: annehmen im Konto, 48 Stunden Zeit",
     description:

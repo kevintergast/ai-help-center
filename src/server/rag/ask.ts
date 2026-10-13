@@ -3,7 +3,7 @@ import { readPlanState, type BillingRepository, type UsageActorType } from "@/se
 import type { UnansweredRepository } from "@/server/unanswered/store";
 import { buildChunks } from "@/server/search/chunking";
 import type { SourceKind } from "@/server/search/indexer";
-import { buildAskMessages, splitAnswerParagraphs, type ChatMessage } from "./generate";
+import { buildAskMessages, parseAnswer, type ChatMessage } from "./generate";
 import { assessGrounding, type RetrievalMatch } from "./grounding";
 
 /**
@@ -41,6 +41,12 @@ export interface SourceDoc {
   slug: string;
   title: string;
   body: string[];
+  /**
+   * Bilder des Artikels (ohne Vormerkungen). Das Modell darf sie in der
+   * Antwort einsetzen; die Anzeige baut die URL aus Slug + Id. Roadmap- und
+   * Changelog-Pseudo-Quellen haben keine.
+   */
+  images?: { id: string; description: string }[];
 }
 
 export interface AskActor {
@@ -171,22 +177,17 @@ export async function answerQuestion(deps: AskPipelineDeps, input: AskInput): Pr
   }
   if (context.length === 0) return { status: "ok", answer: noAnswer };
 
-  // 4) Generierung.
-  const messages = buildAskMessages(
-    input.question,
-    context.map((c, i) => ({ index: i + 1, articleTitle: c.doc.title, text: c.text })),
-  );
-  const body = splitAnswerParagraphs(await deps.generate(messages));
-  if (body.length === 0) return { status: "ok", answer: noAnswer };
-
-  // 5) Zitate (je Quelle einmal, in Treffer-Reihenfolge; kind steuert die
+  // 4) Zitate (je Quelle einmal, in Treffer-Reihenfolge; kind steuert die
   //    Darstellung im Client) + Staleness-Referenzen.
+  //
+  //    VOR der Generierung: Jeder Antwort-Baustein verweist über seinen Index
+  //    auf diese Liste, also muss sie stehen, bevor die Ausgabe zerlegt wird.
   const citations: AskAnswer["citations"] = [];
-  const cited = new Set<string>();
+  const cited = new Map<string, number>();
   const sourceRefs: SourceRef[] = [];
   for (const c of context) {
     if (!cited.has(c.doc.id)) {
-      cited.add(c.doc.id);
+      cited.set(c.doc.id, citations.length);
       citations.push({
         id: c.doc.id,
         title: c.doc.title,
@@ -202,6 +203,29 @@ export async function answerQuestion(deps: AskPipelineDeps, input: AskInput): Pr
       kind: c.doc.kind,
     });
   }
+
+  // 5) Generierung. Jede Quelle bekommt ihre Nummer im Prompt und ihre
+  //    Bilder; die Rückabbildung auf `citations` geht über die Doc-Id.
+  const specs = context.map((c, i) => ({
+    index: i + 1,
+    citationIndex: cited.get(c.doc.id) ?? 0,
+    images: (c.doc.images ?? []).map((img) => ({ id: img.id, description: img.description })),
+  }));
+  const { body, parts } = parseAnswer(
+    await deps.generate(
+      buildAskMessages(
+        input.question,
+        context.map((c, i) => ({
+          index: i + 1,
+          articleTitle: c.doc.title,
+          text: c.text,
+          images: specs[i].images,
+        })),
+      ),
+    ),
+    specs,
+  );
+  if (body.length === 0) return { status: "ok", answer: noAnswer };
 
   // 6) Verbuchen — NACH erfolgreicher Generierung (interne Nutzer: reduzierter
   //    Selbstkosten-Satz statt Endnutzer-Preis, s. pricing.creditsFor).
@@ -221,6 +245,13 @@ export async function answerQuestion(deps: AskPipelineDeps, input: AskInput): Pr
 
   return {
     status: "ok",
-    answer: { question: input.question, body, citations, grounded: true, sourceRefs },
+    answer: {
+      question: input.question,
+      body,
+      ...(parts ? { parts } : {}),
+      citations,
+      grounded: true,
+      sourceRefs,
+    },
   };
 }

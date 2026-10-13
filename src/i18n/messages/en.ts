@@ -72,6 +72,8 @@ export const en: Record<MessageKey, string> = {
   "hc.answerHeading": "AI answer",
   "hc.grounded": "Grounded · {count} sources",
   "hc.answer.loading": "Composing your answer from the help articles …",
+  "hc.answer.step": "Step {n}:",
+  "hc.answer.sourceOf": "Source: {title}",
   "hc.answer.noSources":
     "I couldn't find a reliable answer to this in the help articles. Try rephrasing — or browse the articles on the left.",
   "hc.answer.error": "The AI answer is currently unavailable. Please try again in a moment.",
