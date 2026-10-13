@@ -26,6 +26,13 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.10.1] – 2026-10-13
+
+_Prompt-Korrektur nach Live-Prüfung: Schritte erschienen nur, wenn die Frage das Wort enthielt — ein Beispiel im Prompt statt einer abstrakten Regel._
+
+### Behoben
+- **rag:** Schritte auch ohne das Stichwort in der Frage (ccbbef4)
+
 ## [0.10.0] – 2026-10-13
 
 _Die generierte Antwort ist keine Absatzfolge mehr, sondern eine belegte Anleitung: nummerierte Schritte, Quelle je Baustein und Bilder aus den Artikeln — dazu ein neues Antwortformat vom Modell bis in die Speicherung (Migration 0050)._
