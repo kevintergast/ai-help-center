@@ -26,6 +26,31 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.10.0] – 2026-10-13
+
+_Die generierte Antwort ist keine Absatzfolge mehr, sondern eine belegte Anleitung: nummerierte Schritte, Quelle je Baustein und Bilder aus den Artikeln — dazu ein neues Antwortformat vom Modell bis in die Speicherung (Migration 0050)._
+
+### Hinzugefügt
+- **hc:** generierte Antworten als Bausteine statt Fließtext — nummerierte
+  Schritte, je Baustein ein leiser Beleg, Quellenliste am Fuß eingeklappt
+  (2c64d64)
+- **hc:** das Modell darf Bilder der Quell-Artikel einsetzen; jede Quelle
+  bekommt ihre Bilder als Handle in den Prompt, die Anzeige baut die URL aus
+  Slug und Id wie die Artikelseite (2c64d64)
+- **answers:** gespeicherte Antworten behalten ihre Struktur, lokal und im
+  Konto (Migration 0050, additiv — alte Einträge rendern weiter als Absätze)
+  (2c64d64)
+
+### Geändert
+- **answers:** der Konto-Sync reicht `kind` und `slug` der Zitate durch
+  (vorher verworfen) — ohne Slug gäbe es keine Bild-Adresse; Bausteine werden
+  streng geprüft, jede Quellen-Nummer muss auf eine vorhandene Zitation
+  zeigen (2c64d64)
+- **rag:** `parseAnswer` prüft jeden Verweis gegen den echten Kontext —
+  erfundene Quellennummer kostet den Beleg, erfundenes Bild-Handle das Bild.
+  Ohne brauchbares JSON (fp8-fast liefert gelegentlich Zeichensalat) fällt
+  alles auf den bisherigen Absatz-Pfad zurück (2c64d64)
+
 ## [0.9.1] – 2026-10-09
 
 _Fehlerbehebungen rund um Einladungen plus ein zweiter Annahme-Weg im Konto — eine bestehende Aktion wird erreichbarer, keine neue Fähigkeit._
