@@ -12,6 +12,13 @@ const TENANT = "t_operator";
 const LOCALE = "de";
 // Feste Basis-Epoche (deterministisch, damit Re-Runs die Reihenfolge/Anlagezeit nicht verschieben).
 const BASE = 1783000000;
+// Zeitpunkt DIESES Seed-Laufs. Seit 0.11.0 liest die Sitemap (`lastmod`) und
+// das Artikel-Schema (`dateModified`) den Änderungszeitstempel — ein fester
+// Wert aus `BASE` würde Suchmaschinen erzählen, ein heute geänderter Artikel
+// sei Monate alt. Gesetzt wird er NUR, wo sich wirklich etwas geändert hat
+// (siehe ON CONFLICT unten); unveränderte Artikel behalten ihr Datum, sonst
+// sähe jeder Re-Lauf wie eine Rundum-Änderung aus.
+const NOW = Math.floor(Date.now() / 1000);
 // Release-Zeitpunkte (fest, damit Re-Runs nichts verschieben — aber mit dem
 // tatsächlichen Datum, sonst lesen Nutzer ein falsches „veröffentlicht am").
 const RELEASE_0_2_0 = 1787492800; // 2026-08-23
@@ -818,8 +825,8 @@ ARTICLES.forEach((a, i) => {
   const icon = a.icon ? `'${esc(a.icon)}'` : "NULL";
   out.push(
     `INSERT INTO articles (id,tenant_id,locale,slug,title,category,status,body_json,videos_json,related_ids_json,flag_json,icon,sort,reading_minutes,is_ai_generated,created_at,updated_at,published_at)\n` +
-      `VALUES ('${id}','${TENANT}','${LOCALE}','${esc(a.slug)}','${esc(a.title)}','${esc(a.category)}','published','${body}','[]','${related}',${flag},${icon},${i},${a.min || 1},0,${t},${t},${t})\n` +
-      `ON CONFLICT(tenant_id,id) DO UPDATE SET locale=excluded.locale,slug=excluded.slug,title=excluded.title,category=excluded.category,status='published',body_json=excluded.body_json,related_ids_json=excluded.related_ids_json,flag_json=excluded.flag_json,icon=excluded.icon,sort=excluded.sort,reading_minutes=excluded.reading_minutes,updated_at=excluded.updated_at,published_at=COALESCE(articles.published_at,excluded.published_at);`,
+      `VALUES ('${id}','${TENANT}','${LOCALE}','${esc(a.slug)}','${esc(a.title)}','${esc(a.category)}','published','${body}','[]','${related}',${flag},${icon},${i},${a.min || 1},0,${t},${NOW},${t})\n` +
+      `ON CONFLICT(tenant_id,id) DO UPDATE SET locale=excluded.locale,slug=excluded.slug,title=excluded.title,category=excluded.category,status='published',body_json=excluded.body_json,related_ids_json=excluded.related_ids_json,flag_json=excluded.flag_json,icon=excluded.icon,sort=excluded.sort,reading_minutes=excluded.reading_minutes,updated_at=CASE WHEN articles.body_json <> excluded.body_json OR articles.title <> excluded.title THEN ${NOW} ELSE articles.updated_at END,published_at=COALESCE(articles.published_at,excluded.published_at);`,
   );
 });
 
