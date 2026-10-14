@@ -808,6 +808,11 @@ export const de = {
   "admin.legal.error.tooLarge": "Der Text ist zu groß (max. 100 KB).",
 
   // Such-/KI-Index (Einstellungen)
+  "admin.settings.aiCrawlers.label": "KI-Suchmaschinen dürfen meine Inhalte nutzen",
+  "admin.settings.aiCrawlers.hint":
+    "Erlaubt ChatGPT, Claude, Perplexity und ähnlichen Diensten, deine Artikel zu lesen und zu zitieren. Das bringt Reichweite bei Leuten, die nicht mehr googeln. Aus: Diese Dienste werden in der robots.txt ausgeschlossen. Unabhängig von der Suchmaschinen-Indexierung darüber.",
+  "admin.settings.aiCrawlers.savedOn": "KI-Suchmaschinen dürfen deine Inhalte nutzen.",
+  "admin.settings.aiCrawlers.savedOff": "KI-Suchmaschinen sind ausgeschlossen.",
   "admin.settings.seo.title": "Suchmaschinen",
   "admin.settings.seo.label": "Suchmaschinen-Indexierung erlauben",
   "admin.settings.seo.hint":

@@ -19,7 +19,7 @@ const DAY = 86_400;
 
 function setup() {
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0047_unanswered_questions.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0051_ai_crawlers.sql", "0047_unanswered_questions.sql"]);
   sqlite.prepare(`DELETE FROM tenants`).run();
   sqlite.prepare(`INSERT INTO tenants (id, slug, name) VALUES ('t_a','a','A')`).run();
   sqlite.prepare(`INSERT INTO tenants (id, slug, name) VALUES ('t_b','b','B')`).run();

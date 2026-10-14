@@ -562,6 +562,7 @@ async function getSettingsDepsRuntime(): Promise<SettingsDeps | null> {
   const repo = new D1TenantRepository(db);
   return {
     setSeoIndexable: (tenantId, indexable) => repo.setSeoIndexable(tenantId, indexable),
+    setAiCrawlers: (tenantId, allowed) => repo.setAiCrawlers(tenantId, allowed),
     setSupportEmail: (tenantId, email) => repo.setSupportEmail(tenantId, email),
     setDefaultLocale: (tenantId, locale) => repo.setDefaultLocale(tenantId, locale),
     setShowHeaderName: (tenantId, show) => repo.setShowHeaderName(tenantId, show),

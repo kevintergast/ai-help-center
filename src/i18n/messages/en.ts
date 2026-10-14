@@ -805,6 +805,11 @@ export const en: Record<MessageKey, string> = {
   "admin.legal.error.tooLarge": "The text is too large (max. 100 KB).",
 
   // Search/AI index (settings)
+  "admin.settings.aiCrawlers.label": "Let AI search engines use my content",
+  "admin.settings.aiCrawlers.hint":
+    "Allows ChatGPT, Claude, Perplexity and similar services to read and cite your articles. That reaches people who no longer use a search engine. Off: these services are excluded in robots.txt. Independent of the search engine indexing above.",
+  "admin.settings.aiCrawlers.savedOn": "AI search engines may use your content.",
+  "admin.settings.aiCrawlers.savedOff": "AI search engines are excluded.",
   "admin.settings.seo.title": "Search engines",
   "admin.settings.seo.label": "Allow search engine indexing",
   "admin.settings.seo.hint":

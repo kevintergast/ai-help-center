@@ -55,6 +55,15 @@ export interface ArticleSummary {
   /** Vorformatiert, z. B. "vor 3 Tagen" — Formatierung ist später Server-/i18n-Sache. */
   updatedLabel: string;
   /**
+   * Letzte Änderung als Unix-Sekunden — die MASCHINENLESBARE Fassung von
+   * `updatedLabel`. Sitemap (`lastmod`) und JSON-LD (`dateModified`) brauchen
+   * ein echtes Datum; „vor 3 Tagen" lässt sich nicht zurückrechnen.
+   *
+   * Optional, weil Demo-/Testdaten ohne auskommen — der D1-Lesepfad setzt es
+   * IMMER. Fehlt es, lässt die Sitemap `lastmod` weg, statt etwas zu raten.
+   */
+  updatedAt?: number;
+  /**
    * Badge („Beta", „Wichtig") — hier UND auf `Article`, weil die Navigation
    * nur Kurzfassungen kennt. Ohne dieses Feld müsste die Leiste jeden Artikel
    * vollständig laden, um ein Wort anzuzeigen. Fehlend/null = kein Badge.

@@ -85,7 +85,7 @@ describe("D1UpdatesStore", () => {
   beforeEach(() => {
     sqlite = new BetterSqlite3(":memory:");
     applyMigrations(sqlite, [
-      "0001_tenants.sql",
+      "0001_tenants.sql", "0051_ai_crawlers.sql",
       "0005_content.sql",
       "0030_changelog_version.sql",
     ]);
