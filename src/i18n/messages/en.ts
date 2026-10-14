@@ -80,6 +80,7 @@ export const en: Record<MessageKey, string> = {
   "hc.answer.frozen":
     "AI generation is currently paused for this help center. The help articles on the left remain fully available.",
   "hc.answer.retry": "Try again",
+  "hc.aiGeneratedBadge": "Created by AI",
   "hc.aiGeneratedNote": "Assembled by the AI from your articles.",
   "hc.sourcesHeading": "Sources",
   "hc.feedbackQuestion": "Was this helpful?",

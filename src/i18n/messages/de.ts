@@ -79,6 +79,7 @@ export const de = {
   "hc.answer.frozen":
     "Die KI-Generierung ist für dieses Hilfezentrum derzeit pausiert. Die Hilfeartikel links bleiben voll verfügbar.",
   "hc.answer.retry": "Erneut versuchen",
+  "hc.aiGeneratedBadge": "Von der KI erstellt",
   "hc.aiGeneratedNote": "Von der KI aus deinen Artikeln zusammengestellt.",
   "hc.sourcesHeading": "Quellen",
   "hc.feedbackQuestion": "War das hilfreich?",
