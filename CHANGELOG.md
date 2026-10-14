@@ -26,6 +26,33 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.11.0] – 2026-10-14
+
+_Neue Fähigkeit: Instanzen entscheiden über KI-Suchmaschinen (Migration 0051, owner-only), dazu das fehlende SEO-Fundament — lastmod, Canonical, hreflang und Änderungsdatum im Schema._
+
+### Hinzugefügt
+- **seo:** KI-Crawler-Schalter je Instanz (Migration 0051, owner-only) — der
+  Default bleibt „erlaubt", die Entscheidung wird nur sichtbar; bewusst
+  unabhängig vom SEO-Opt-out (9711e52)
+- **seo:** `lastmod` in der Sitemap aus der echten letzten Änderung je
+  Artikel; die Startseite trägt die jüngste davon (9711e52)
+- **seo:** Canonical je Artikel und hreflang zwischen den Sprachfassungen —
+  letzteres nur, wenn es mehr als eine gibt (9711e52)
+- **seo:** `dateModified` im JSON-LD; `inLanguage` nimmt die Sprache des
+  ARTIKELS statt die der Instanz (9711e52)
+
+### Behoben
+- **hc:** rohes JSON stand als Artikeltext in Produktion — die Pipeline lief
+  mit dem 256-Token-Default, die JSON-Ausgabe brach ab, und der Prosa-
+  Rückfall zeigte den Rohtext (287d925)
+- **hc:** die KI-Antwort steckte in einem Kasten statt wie ein Artikel
+  auszusehen (287d925)
+
+### Geändert
+- **content:** `ArticleSummary`/`Article` tragen neben `updatedLabel` den
+  rohen Zeitstempel — aus „vor 3 Tagen" lässt sich kein Datum zurückrechnen
+  (9711e52)
+
 ## [0.10.1] – 2026-10-13
 
 _Prompt-Korrektur nach Live-Prüfung: Schritte erschienen nur, wenn die Frage das Wort enthielt — ein Beispiel im Prompt statt einer abstrakten Regel._

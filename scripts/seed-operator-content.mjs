@@ -26,6 +26,7 @@ const RELEASE_0_8_0 = 1790100000; // 2026-09-22
 const RELEASE_0_9_0 = 1791547200; // 2026-10-09
 const RELEASE_0_9_1 = 1791565200; // 2026-10-09
 const RELEASE_0_10_0 = 1791885600; // 2026-10-13
+const RELEASE_0_11_0 = 1791993600; // 2026-10-14
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -592,11 +593,17 @@ const ARTICLES = [
     slug: "suchmaschinen-sichtbarkeit",
     title: "Suchmaschinen & Sichtbarkeit",
     category: "Sichtbarkeit",
-    min: 2,
+    min: 4,
     body: [
       "Dein Hilfezentrum ist von Haus aus für Suchmaschinen optimiert: Jeder veröffentlichte Artikel hat eine eigene, servergerenderte Seite mit sauberen Meta-Daten, und deine Instanz liefert automatisch eine eigene Sitemap und robots.txt — du musst nichts einrichten.",
       "Neue Hilfezentren werden zusätzlich zentral bei Google angemeldet, damit sie auch ohne bestehende Verlinkung gefunden werden.",
       "Soll dein Hilfezentrum nicht öffentlich auffindbar sein — etwa für interne Dokumentation — schaltest du die Indexierung ab: entweder direkt beim Erstellen oder später als Owner in den Einstellungen unter »Suchmaschinen«. Bereits gelistete Seiten verschwinden dann nach dem nächsten Crawl.",
+      "## Pflege ruhig oft",
+      "Häufige Änderungen schaden deiner Sichtbarkeit NICHT — im Gegenteil. Suchmaschinen passen ihre Besuchsfrequenz an das an, was sie vorfinden; wer oft aktualisiert, wird öfter besucht. Deine Sitemap nennt zu jedem Artikel den Zeitpunkt der letzten Änderung, damit Crawler gezielt das Geänderte holen statt zu raten. Es gibt also keinen Grund, Änderungen zu sammeln und nur alle paar Wochen zu veröffentlichen.",
+      "Was zählt, ist Richtigkeit: Ein veralteter Artikel kostet dich mehr als zehn Aktualisierungen.",
+      "## KI-Suchmaschinen",
+      "Immer mehr Leute fragen ChatGPT, Claude oder Perplexity statt zu googeln. Damit diese Dienste dein Hilfezentrum zitieren können, müssen sie es lesen dürfen — das ist voreingestellt erlaubt. Unter »Einstellungen → Suchmaschinen« kannst du es als Owner abschalten; die normale Suchmaschinen-Indexierung bleibt davon unberührt, beides lässt sich getrennt entscheiden.",
+      "Drei Dinge helfen dabei, zitiert zu werden: Jeder Artikel trägt sein Änderungsdatum maschinenlesbar mit. Absätze, die für sich allein verständlich sind, lassen sich leichter übernehmen als solche, die erst mit drei Absätzen Vorlauf Sinn ergeben. Und gepflegte Bildbeschreibungen machen auch Bildinhalte auffindbar.",
     ],
     related: ["hilfezentrum-erstellen", "artikel-veroeffentlichen"],
   },
@@ -668,6 +675,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Besser gefunden werden — auch von KI-Suchmaschinen",
+    description:
+      "Zwei Sorgen nehmen wir dir ab. Erstens: Häufige Änderungen schaden deiner Sichtbarkeit nicht. Deine Sitemap nennt jetzt zu jedem Artikel den Zeitpunkt der letzten Änderung, damit Suchmaschinen gezielt das Geänderte holen — ein oft gepflegtes Hilfezentrum ist dadurch ein Vorteil, kein Risiko. Du musst Änderungen also nicht sammeln. Zweitens: Artikel tragen jetzt eine eindeutige Hauptadresse, und mehrsprachige Fassungen weisen aufeinander hin, statt miteinander zu konkurrieren. Dazu geht das Änderungsdatum maschinenlesbar mit — für Suchmaschinen wie für KI-Dienste der Unterschied zwischen „könnte veraltet sein“ und „ist aktuell“. Und neu unter „Einstellungen → Suchmaschinen“: Du entscheidest, ob ChatGPT, Claude, Perplexity und Co. deine Inhalte lesen und zitieren dürfen. Voreingestellt ist erlaubt — das war auch bisher so, jetzt ist es sichtbar und umkehrbar. Unabhängig von der normalen Indexierung, beides lässt sich getrennt beantworten.",
+    at: RELEASE_0_11_0,
+    version: "0.11.0",
+    level: "minor",
+  },
   {
     title: "KI-Antworten lesen sich wie eine Anleitung",
     description:
