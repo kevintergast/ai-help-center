@@ -121,14 +121,21 @@ export function splitAnswerParagraphs(raw: string): string[] {
     .slice(0, MAX_PARAGRAPHS);
 }
 
-/** Erstes zusammenhängendes JSON-Objekt aus der Modellausgabe schneiden. */
-function extractJsonObject(raw: string): string | null {
-  const start = raw.indexOf("{");
-  if (start < 0) return null;
+/**
+ * Alle VOLLSTÄNDIGEN `{…}`-Objekte ab `from` einsammeln.
+ *
+ * Bewusst objektweise statt „ein großes Objekt oder nichts": Reißt die
+ * Ausgabe am Token-Limit ab, sind die bis dahin geschriebenen Bausteine
+ * vollständig und brauchbar — nur der angefangene letzte fehlt. Vorher ging
+ * in dem Fall ALLES verloren und der Rohtext landete beim Leser.
+ */
+function completeObjects(raw: string, from: number): string[] {
+  const out: string[] = [];
   let depth = 0;
+  let start = -1;
   let inString = false;
   let escaped = false;
-  for (let i = start; i < raw.length; i++) {
+  for (let i = from; i < raw.length; i++) {
     const ch = raw[i];
     if (inString) {
       if (escaped) escaped = false;
@@ -137,10 +144,65 @@ function extractJsonObject(raw: string): string | null {
       continue;
     }
     if (ch === '"') inString = true;
-    else if (ch === "{") depth++;
-    else if (ch === "}" && --depth === 0) return raw.slice(start, i + 1);
+    else if (ch === "{") {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0 && start >= 0) {
+        out.push(raw.slice(start, i + 1));
+        start = -1;
+      }
+      if (depth < 0) break; // schließende Klammer des Umschlags
+    }
   }
-  return null;
+  return out;
+}
+
+/**
+ * Bausteine aus der Modellausgabe holen — erst der saubere Weg, dann die
+ * Rettung abgeschnittener Ausgaben.
+ */
+function extractBlocks(raw: string): unknown[] | null {
+  const marker = raw.indexOf('"blocks"');
+  if (marker < 0) return null;
+  const arrayStart = raw.indexOf("[", marker);
+  if (arrayStart < 0) return null;
+
+  // Sauberer Fall: das ganze Array steht da.
+  const whole = raw.slice(arrayStart);
+  const end = whole.lastIndexOf("]");
+  if (end > 0) {
+    try {
+      const parsed = JSON.parse(whole.slice(0, end + 1)) as unknown;
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      /* abgeschnitten oder verunglückt → objektweise retten */
+    }
+  }
+
+  const salvaged: unknown[] = [];
+  for (const obj of completeObjects(raw, arrayStart)) {
+    try {
+      salvaged.push(JSON.parse(obj));
+    } catch {
+      /* einzelnes kaputtes Objekt überspringen */
+    }
+  }
+  return salvaged.length > 0 ? salvaged : null;
+}
+
+/**
+ * Sieht der Rohtext nach UNSEREM Format aus?
+ *
+ * Entscheidend für den Rückfall: Rohes JSON darf NIE als Antwort erscheinen
+ * (Live-Fund 2026-10-14 — genau das stand in Produktion im Artikel). Lieber
+ * gar keine Antwort mit dem Angebot, sich zu melden, als eine Seite voller
+ * Feldnamen und Klammern.
+ */
+function looksLikeBlockJson(raw: string): boolean {
+  const head = raw.trimStart().slice(0, 400);
+  return head.startsWith("{") || head.includes('"blocks"') || head.includes('"type":"');
 }
 
 /** Text eines Bausteins säubern — dieselben Markdown-Reste wie im Prosa-Pfad. */
@@ -175,16 +237,8 @@ export function parseAnswer(
   raw: string,
   sources: AnswerSourceSpec[],
 ): { body: string[]; parts?: AnswerPart[] } {
-  const json = extractJsonObject(raw);
-  if (!json) return { body: splitAnswerParagraphs(raw) };
-
-  let blocks: unknown;
-  try {
-    blocks = (JSON.parse(json) as { blocks?: unknown }).blocks;
-  } catch {
-    return { body: splitAnswerParagraphs(raw) };
-  }
-  if (!Array.isArray(blocks)) return { body: splitAnswerParagraphs(raw) };
+  const blocks = extractBlocks(raw);
+  if (!blocks) return { body: proseFallback(raw) };
 
   const byIndex = new Map(sources.map((s) => [s.index, s]));
   const usedImages = new Set<string>();
@@ -224,7 +278,17 @@ export function parseAnswer(
 
   // Nur Bilder (oder nichts) ist keine Antwort — dann lieber der Prosa-Pfad.
   const body = parts.filter((p) => p.kind !== "image").map((p) => (p as { text: string }).text);
-  if (body.length === 0) return { body: splitAnswerParagraphs(raw) };
+  if (body.length === 0) return { body: proseFallback(raw) };
 
   return { body, parts };
+}
+
+/**
+ * Rückfall, wenn sich keine Bausteine lesen lassen: Prosa — ABER nur, wenn
+ * der Rohtext auch wirklich Prosa ist. Nach unserem Format aussehender Text
+ * wird verworfen; die Routen behandeln ein leeres `body` als „keine Antwort"
+ * und bieten dem Fragenden den Weg zum Support an.
+ */
+function proseFallback(raw: string): string[] {
+  return looksLikeBlockJson(raw) ? [] : splitAnswerParagraphs(raw);
 }

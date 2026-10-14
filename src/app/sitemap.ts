@@ -41,12 +41,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const repo = await getHelpCenterRepo(tenant);
   const articles = await repo.searchItems();
 
+  // `lastmod` aus der ECHTEN letzten Änderung. Ohne das Feld hat ein Crawler
+  // keinen Anhaltspunkt, was sich seit seinem letzten Besuch getan hat — er
+  // muss raten und besucht im Zweifel das Falsche. Mit dem Datum wird ein
+  // gepflegtes Hilfezentrum zum Vorteil statt zum Rauschen.
+  const lastOfAll = articles.reduce((max, a) => Math.max(max, a.updatedAt ?? 0), 0);
+
   return [
-    { url: `${base}/`, changeFrequency: "daily", priority: 1 },
+    {
+      url: `${base}/`,
+      changeFrequency: "daily" as const,
+      priority: 1,
+      // Die Startseite ist so aktuell wie der jüngste Artikel darunter.
+      ...(lastOfAll > 0 ? { lastModified: new Date(lastOfAll * 1000) } : {}),
+    },
     ...articles.map((a) => ({
       url: `${base}/${a.slug}`,
       changeFrequency: "weekly" as const,
       priority: 0.8,
+      ...(a.updatedAt ? { lastModified: new Date(a.updatedAt * 1000) } : {}),
     })),
   ];
 }

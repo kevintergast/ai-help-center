@@ -514,7 +514,11 @@ async function getAskDepsRuntime(): Promise<AskRuntime | null> {
         ...changelog.results.map((r) => ({ ...changelogDoc(r), kind: "changelog" as const })),
       ];
     },
-    generate: makeGatewayChat(env.AI),
+    // 1200 statt des Workers-AI-Defaults (256): Die Antwort kommt seit 0.10.0
+    // als JSON-Bausteine, und das Format kostet gut die Hälfte des Budgets an
+    // Klammern, Feldnamen und Quellen-Nummern. Mit 256 brach die Ausgabe
+    // mitten im Objekt ab — der Leser sah rohes JSON (Live-Fund 2026-10-14).
+    generate: makeGatewayChat(env.AI, { maxTokens: 1200 }),
     billing: new D1BillingRepository(db),
     // Unbeantwortete Fragen mitschreiben (0047).
     unanswered: new D1UnansweredRepository(db),
@@ -558,6 +562,7 @@ async function getSettingsDepsRuntime(): Promise<SettingsDeps | null> {
   const repo = new D1TenantRepository(db);
   return {
     setSeoIndexable: (tenantId, indexable) => repo.setSeoIndexable(tenantId, indexable),
+    setAiCrawlers: (tenantId, allowed) => repo.setAiCrawlers(tenantId, allowed),
     setSupportEmail: (tenantId, email) => repo.setSupportEmail(tenantId, email),
     setDefaultLocale: (tenantId, locale) => repo.setDefaultLocale(tenantId, locale),
     setShowHeaderName: (tenantId, show) => repo.setShowHeaderName(tenantId, show),

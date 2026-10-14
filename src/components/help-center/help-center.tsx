@@ -35,7 +35,6 @@ import { sendFeedback } from "./view-beacon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PromptBox } from "@/components/ui/prompt-box";
-import { AnswerBlock } from "@/components/ui/answer-block";
 import { FeedbackBar } from "@/components/ui/feedback-bar";
 import {
   ArrowLeftIcon,
@@ -451,49 +450,46 @@ function AnswerView({
           </div>
         </div>
       ) : null}
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-xs uppercase tracking-[0.08em] text-ink-muted">{t("hc.answerHeading")}</p>
-          <h1 className="mt-1.5 text-[26px] font-semibold leading-tight tracking-[-0.5px] [text-wrap:balance]">
-            {answer.question}
-          </h1>
-        </div>
+      {/* AUFBAU WIE EIN ARTIKEL (nicht wie eine Chat-Blase): Rubrik, Titel,
+          Meta-Zeile, Text. Der Kasten drumherum war der sichtbare Unterschied
+          zwischen „generiert" und „geschrieben" — und er stand dem Lesen im
+          Weg. Dass die Antwort von der KI stammt, sagt jetzt die Meta-Zeile:
+          einmal, ruhig, an derselben Stelle, an der ein Artikel seinen Status
+          zeigt. */}
+      <span className="mt-5 block text-xs uppercase tracking-[0.04em] text-brand">
+        {t("hc.answerHeading")}
+      </span>
+      <div className="mb-3 mt-1.5 flex items-start justify-between gap-4">
+        <h1 className="text-[30px] font-semibold leading-tight tracking-[-0.6px] [text-wrap:balance]">
+          {answer.question}
+        </h1>
         {answer.grounded ? <SaveToggle t={t} answer={answer} loggedIn={loggedIn} /> : null}
       </div>
-      <AnswerBlock
-        heading={t("hc.answerHeading")}
-        status={
-          answer.grounded ? (
-            <Badge tone="ok" dot>
-              {t("hc.grounded", { count: answer.citations.length })}
-            </Badge>
-          ) : undefined
-        }
-      >
-        {answer.body.length === 0 ? (
-          <>
-            <p className="text-ink-muted">{t("hc.answer.noSources")}</p>
-            {/* Angebot statt Sackgasse (0047): Wer keine Antwort bekommen hat,
-                soll sagen können, dass er eine braucht — sonst verlieren wir
-                genau die Information, die der Redaktion fehlt. */}
-            <UnansweredReport locale={locale} question={answer.question} />
-          </>
-        ) : (
-          <AnswerBody
-            locale={locale}
-            parts={answer.parts}
-            body={answer.body}
-            citations={answer.citations}
-            onOpen={onOpen}
-          />
-        )}
-        {answer.grounded ? (
-          <p className="mt-4 flex items-center gap-2 text-sm text-ink-muted">
-            <SparkleIcon width={15} height={15} className="text-brand" />
-            {t("hc.aiGeneratedNote")}
-          </p>
+      <div className="mb-6 flex flex-wrap items-center gap-3 text-sm text-ink-muted">
+        <Badge tone="brand" dot>
+          {t("hc.aiGeneratedBadge")}
+        </Badge>
+        {answer.grounded && answer.citations.length > 0 ? (
+          <span>{t("hc.grounded", { count: answer.citations.length })}</span>
         ) : null}
-      </AnswerBlock>
+      </div>
+      {answer.body.length === 0 ? (
+        <>
+          <p className="text-ink-muted">{t("hc.answer.noSources")}</p>
+          {/* Angebot statt Sackgasse (0047): Wer keine Antwort bekommen hat,
+              soll sagen können, dass er eine braucht — sonst verlieren wir
+              genau die Information, die der Redaktion fehlt. */}
+          <UnansweredReport locale={locale} question={answer.question} />
+        </>
+      ) : (
+        <AnswerBody
+          locale={locale}
+          parts={answer.parts}
+          body={answer.body}
+          citations={answer.citations}
+          onOpen={onOpen}
+        />
+      )}
       <p className="mt-3 flex flex-wrap items-center gap-x-1.5 text-xs text-ink-muted">
         {loggedIn ? (
           <span>{t("hc.savedAccountActive")}</span>

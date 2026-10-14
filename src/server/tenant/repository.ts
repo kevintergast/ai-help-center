@@ -22,6 +22,7 @@ interface TenantRow {
   color_accent: string;
   color_primary_fg: string;
   seo_indexable: number;
+  ai_crawlers: number;
   support_email: string | null;
   show_header_name: number;
   widget_on_site: number;
@@ -41,7 +42,7 @@ interface TenantRow {
 
 const COLS =
   "id, slug, name, custom_domain, default_locale, logo_url, logo_r2_key, logo_dark_r2_key, " +
-  "favicon_r2_key, branding_updated_at, color_primary, color_accent, color_primary_fg, seo_indexable, support_email, show_header_name, " +
+  "favicon_r2_key, branding_updated_at, color_primary, color_accent, color_primary_fg, seo_indexable, ai_crawlers, support_email, show_header_name, " +
   "widget_on_site, comprehension_mode, widget_variant, widget_label, " +
   "widget_icon_r2_key, widget_icon_open_r2_key, theme, meeting, prompt_placeholder, " +
   "footer_imprint, footer_privacy, footer_terms, footer_powered_by";
@@ -104,6 +105,7 @@ export function rowToTenant(r: TenantRow): Tenant {
       colorPrimaryFg: r.color_primary_fg,
     },
     seoIndexable: r.seo_indexable !== 0,
+    aiCrawlers: r.ai_crawlers !== 0,
     supportEmail: r.support_email,
     showHeaderName: r.show_header_name !== 0,
     widgetOnSite: r.widget_on_site !== 0,
@@ -168,6 +170,14 @@ export class D1TenantRepository {
     await this.db
       .prepare(`UPDATE tenants SET seo_indexable = ? WHERE id = ?`)
       .bind(indexable ? 1 : 0, tenantId)
+      .run();
+  }
+
+  /** KI-Crawler erlauben/sperren (Migration 0051, Settings-API — OWNER). */
+  async setAiCrawlers(tenantId: string, allowed: boolean): Promise<void> {
+    await this.db
+      .prepare(`UPDATE tenants SET ai_crawlers = ? WHERE id = ?`)
+      .bind(allowed ? 1 : 0, tenantId)
       .run();
   }
 

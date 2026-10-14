@@ -7,6 +7,7 @@ import { LegalDocsManager } from "@/components/admin/legal-docs-manager";
 import { MeetingManager } from "@/components/admin/meeting-manager";
 import { SearchIndexManager } from "@/components/admin/search-index-manager";
 import { SeoIndexingManager } from "@/components/admin/seo-indexing-manager";
+import { AiCrawlersManager } from "@/components/admin/ai-crawlers-manager";
 import { SupportEmailManager } from "@/components/admin/support-email-manager";
 import { ComprehensionToggle } from "@/components/admin/comprehension-toggle";
 import { WidgetAppearanceManager } from "@/components/admin/widget-appearance-manager";
@@ -104,6 +105,14 @@ export default async function AdminSettingsPage() {
             locale={tenant.defaultLocale}
             initialIndexable={tenant.seoIndexable !== false}
           />
+          {/* KI-Crawler (owner-only, Migration 0051) — bewusst DANEBEN, nicht
+              darunter: zwei getrennte Fragen, zwei getrennte Antworten. */}
+          <div className="mt-5 border-t border-hairline pt-5">
+            <AiCrawlersManager
+              locale={tenant.defaultLocale}
+              initialAllowed={tenant.aiCrawlers !== false}
+            />
+          </div>
         </SettingsCard>
 
         <SettingsCard title={t("admin.settings.widget.title")}>

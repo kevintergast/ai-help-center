@@ -34,7 +34,7 @@ type Row = Record<string, unknown>;
 function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
   const { settingsAvailable = true } = opts;
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql", "0045_theme_palette.sql", "0046_footer.sql", "0048_meeting_link.sql", "0049_prompt_placeholder.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0003_branding.sql", "0013_seo_indexable.sql", "0014_support_email.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql", "0045_theme_palette.sql", "0046_footer.sql", "0048_meeting_link.sql", "0049_prompt_placeholder.sql", "0051_ai_crawlers.sql"]);
   const repo = new D1TenantRepository(d1FromSqlite(sqlite));
 
   const authDb: Record<string, Row[]> = {
@@ -60,6 +60,7 @@ function makeFixture(opts: { settingsAvailable?: boolean } = {}) {
       settingsAvailable
         ? {
             setSeoIndexable: (tenantId, indexable) => repo.setSeoIndexable(tenantId, indexable),
+            setAiCrawlers: (tenantId, allowed) => repo.setAiCrawlers(tenantId, allowed),
             setSupportEmail: (tenantId, email) => repo.setSupportEmail(tenantId, email),
             setDefaultLocale: (tenantId, locale) => repo.setDefaultLocale(tenantId, locale),
             setShowHeaderName: (tenantId, show) => repo.setShowHeaderName(tenantId, show),
@@ -110,6 +111,17 @@ async function session(
     .map((c) => c.split(";")[0])
     .join("; ");
 }
+
+const putAiCrawlers = (f: Fixture, body: unknown, cookie?: string) =>
+  f.app.request("/api/v1/admin/settings/ai-crawlers", {
+    method: "PUT",
+    headers: {
+      host: HOST_DEMO,
+      "content-type": "application/json",
+      ...(cookie ? { cookie } : {}),
+    },
+    body: JSON.stringify(body),
+  });
 
 const putSeo = (f: Fixture, body: unknown, cookie?: string) =>
   f.app.request("/api/v1/admin/settings/seo", {
@@ -525,5 +537,58 @@ describe("PUT/DELETE /api/v1/admin/settings/meeting (0048)", () => {
         meeting: string | null;
       }).meeting,
     ).toBeNull();
+  });
+});
+
+/**
+ * KI-CRAWLER (Migration 0051). Der Schalter entscheidet, ob fremde Modelle
+ * die Inhalte lesen dürfen — dieselbe Gewichtsklasse wie der SEO-Opt-out,
+ * deshalb dasselbe Owner-Gate. Und er muss UNABHÄNGIG von `seo_indexable`
+ * sein: Wer bei Google gefunden werden will, aber nicht in Chatbots landen,
+ * darf nicht gezwungen sein, beides zusammen abzuschalten.
+ */
+describe("PUT /api/v1/admin/settings/ai-crawlers (Owner-Gate + Unabhängigkeit)", () => {
+  let f: Fixture;
+  beforeEach(() => {
+    f = makeFixture();
+  });
+
+  it("anonym → 401, admin → 403 (Instanz-Grundsatzentscheidung wie SEO)", async () => {
+    expect((await putAiCrawlers(f, { allowed: false })).status).toBe(401);
+    const cookie = await session(f, "admin@example.com", "admin");
+    expect((await putAiCrawlers(f, { allowed: false }, cookie)).status).toBe(403);
+    expect((await f.repo.getBySlug("demo"))?.aiCrawlers).not.toBe(false);
+  });
+
+  it("owner: sperrt und gibt wieder frei; Müll im Body → 400", async () => {
+    const cookie = await session(f, "owner@example.com", "owner");
+
+    const off = await putAiCrawlers(f, { allowed: false }, cookie);
+    expect(off.status).toBe(200);
+    expect((await f.repo.getBySlug("demo"))?.aiCrawlers).toBe(false);
+
+    expect((await putAiCrawlers(f, { allowed: "nein" }, cookie)).status).toBe(400);
+    // Der ungültige Versuch hat NICHTS verstellt.
+    expect((await f.repo.getBySlug("demo"))?.aiCrawlers).toBe(false);
+
+    const on = await putAiCrawlers(f, { allowed: true }, cookie);
+    expect(on.status).toBe(200);
+    expect((await f.repo.getBySlug("demo"))?.aiCrawlers).toBe(true);
+  });
+
+  it("KI-Sperre lässt die Suchmaschinen-Indexierung in Ruhe (und umgekehrt)", async () => {
+    const cookie = await session(f, "owner@example.com", "owner");
+
+    await putAiCrawlers(f, { allowed: false }, cookie);
+    const t1 = await f.repo.getBySlug("demo");
+    expect(t1?.aiCrawlers).toBe(false);
+    expect(t1?.seoIndexable).toBe(true);
+    // Die Instanz bleibt im zentralen Sitemap-Index — sie will ja gefunden werden.
+    expect(await f.repo.listSlugs()).toContain("demo");
+
+    await putSeo(f, { indexable: false }, cookie);
+    const t2 = await f.repo.getBySlug("demo");
+    expect(t2?.seoIndexable).toBe(false);
+    expect(t2?.aiCrawlers).toBe(false);
   });
 });
