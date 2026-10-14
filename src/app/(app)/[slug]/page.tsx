@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { blockTexts } from "@/lib/content/blocks";
 import { getCurrentTenant } from "@/lib/tenant/current";
@@ -36,16 +37,35 @@ export async function generateMetadata({
   const { slug } = await params;
   const loaded = await loadArticle(slug);
   if (!loaded) return {};
-  const { tenant, article } = loaded;
+  const { tenant, repo, article } = loaded;
   const description = (blockTexts(article.body)[0] ?? "").replace(/\s+/g, " ").trim().slice(0, 155);
+
+  // KANONISCHE ADRESSE + SPRACHFASSUNGEN.
+  //
+  // Ohne `canonical` entscheidet die Suchmaschine selbst, welche Variante
+  // einer Seite „die richtige" ist (mit Parametern, mit/ohne Slash). Und ohne
+  // hreflang konkurrieren die Übersetzungen eines Artikels MITEINANDER,
+  // statt sich gegenseitig zu stützen — jede Fassung ist für die
+  // Suchmaschine sonst nur eine weitere ähnliche Seite.
+  const host = (await headers()).get("host") ?? `${tenant.slug}.hallofhelp.com`;
+  const base = `https://${host}`;
+  const siblings = article.articleKey ? await repo.siblingsOf(article.articleKey) : [];
+  const languages: Record<string, string> = {};
+  for (const sib of siblings) languages[sib.locale] = `${base}/${sib.slug}`;
+
   return {
     title: `${article.title} · ${tenant.name}`,
     description: description || undefined,
+    alternates: {
+      canonical: `${base}/${article.slug}`,
+      ...(Object.keys(languages).length > 1 ? { languages } : {}),
+    },
     openGraph: {
       title: article.title,
       description: description || undefined,
       type: "article",
       siteName: tenant.name,
+      url: `${base}/${article.slug}`,
     },
   };
 }
@@ -80,9 +100,15 @@ export default async function ArticleRoute({
     headline: article.title,
     description,
     articleBody: article.body.join("\n\n"),
-    inLanguage: tenant.defaultLocale,
+    inLanguage: article.locale ?? tenant.defaultLocale,
     articleSection: article.category,
     publisher: { "@type": "Organization", name: tenant.name },
+    // Ein Datum macht aus „irgendein Text" eine datierbare Aussage — für
+    // Suchmaschinen wie für KI-Antwortmaschinen der Unterschied zwischen
+    // „könnte veraltet sein" und „ist von letzter Woche".
+    ...(article.updatedAt
+      ? { dateModified: new Date(article.updatedAt * 1000).toISOString() }
+      : {}),
   };
 
   return (

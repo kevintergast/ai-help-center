@@ -9,6 +9,7 @@ import type { ApiDeps, ApiEnv } from "./context";
  * INSTANZ-EINSTELLUNGEN:
  *
  *   PUT /api/v1/admin/settings/seo     { indexable: boolean }      — OWNER
+ *   PUT /api/v1/admin/settings/ai-crawlers { allowed: boolean }    — OWNER
  *   PUT /api/v1/admin/settings/support { email: string | null }    — admin
  *   PUT /api/v1/admin/settings/locale  { locale: "de" | "en" }     — OWNER
  *   PUT /api/v1/admin/settings/header-name    { show: boolean }   — admin
@@ -47,6 +48,28 @@ export function settingsAdminRouter(deps: ApiDeps) {
 
     await settings.setSeoIndexable(c.get("tenant").id, indexable);
     return c.json({ ok: true, indexable });
+  });
+
+  /**
+   * KI-Crawler (Migration 0051) — OWNER wie der SEO-Schalter: Ob fremde
+   * Modelle die Inhalte lesen dürfen, ist eine Instanz-Grundsatzentscheidung,
+   * keine operative Einstellung. BEWUSST unabhängig von `/seo`: beides lässt
+   * sich getrennt beantworten.
+   */
+  r.put("/ai-crawlers", requireOwner, async (c) => {
+    let allowed: unknown;
+    try {
+      allowed = ((await c.req.json()) as { allowed?: unknown }).allowed;
+    } catch {
+      return c.json({ error: "invalid_json" }, 400);
+    }
+    if (typeof allowed !== "boolean") return c.json({ error: "invalid_allowed" }, 400);
+
+    const settings = await deps.getSettingsDeps?.();
+    if (!settings) return c.json({ error: "settings_unavailable" }, 503);
+
+    await settings.setAiCrawlers(c.get("tenant").id, allowed);
+    return c.json({ ok: true, allowed });
   });
 
   r.put("/support", requireTeam("admin"), async (c) => {

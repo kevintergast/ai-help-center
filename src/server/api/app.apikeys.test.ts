@@ -29,7 +29,7 @@ const HOST_B = "tenant-b.hallofhelp.com";
 const MCP_PATH = "/api/v1/mcp";
 
 const MIGRATIONS = [
-  "0001_tenants.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql",
+  "0001_tenants.sql", "0051_ai_crawlers.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql",
   "0002_auth.sql",
   "0004_two_factor_plugin_columns.sql",
   "0027_api_keys.sql",

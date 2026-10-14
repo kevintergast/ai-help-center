@@ -1,0 +1,14 @@
+-- 0051 — Per-Instanz-Schalter „KI-Suchmaschinen dürfen meine Inhalte nutzen".
+--
+-- Bisher waren GPTBot & Co. IMPLIZIT erlaubt, weil robots.txt `User-agent: *`
+-- freigibt. Das ist als Default richtig (zitiert zu werden bringt Reichweite),
+-- war aber eine unsichtbare Entscheidung — und genau die wollen Kunden
+-- treffen, die ihre Inhalte nicht in fremden Modellen sehen wollen.
+--
+-- Forward-only, additiv. Default 1 = erlaubt: Für BESTEHENDE Instanzen
+-- ändert sich dadurch nichts, der Schalter macht den Status quo nur sichtbar.
+-- 0 = eigener Disallow-Block je KI-Crawler in robots.txt; die normale
+-- Suchmaschinen-Indexierung (seo_indexable) bleibt davon UNBERÜHRT — wer bei
+-- Google gefunden werden will, aber nicht in Chatbots landen, kann beides
+-- getrennt entscheiden.
+ALTER TABLE tenants ADD COLUMN ai_crawlers INTEGER NOT NULL DEFAULT 1;

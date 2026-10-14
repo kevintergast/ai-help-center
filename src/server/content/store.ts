@@ -321,6 +321,7 @@ function rowToArticle(row: ArticleRow, locale: string): Article {
     category: row.category,
     status: displayStatus(row.status, row.is_ai_generated),
     updatedLabel: relativeTimeLabel(row.updated_at, locale),
+    updatedAt: row.updated_at,
     readingMinutes: row.reading_minutes,
     body: parseArticleBody(parseJsonArray<unknown>(row.body_json)),
     flag: parseFlagJson(row.flag_json),
@@ -346,6 +347,7 @@ function rowToSummary(row: ArticleRow, locale: string): ArticleSummary {
     category: row.category,
     status: displayStatus(row.status, row.is_ai_generated),
     updatedLabel: relativeTimeLabel(row.updated_at, locale),
+    updatedAt: row.updated_at,
     // Die Navigation zeigt Badge UND Symbol — sie sieht NUR Kurzfassungen.
     flag: parseFlagJson(row.flag_json),
     icon: readArticleIcon(row.icon),
@@ -495,9 +497,9 @@ export class D1ContentRepository implements ContentStore {
       helpfulPct: null,
       usedIn: 0,
       updatedLabel: relativeTimeLabel(r.updated_at, locale),
+      updatedAt: r.updated_at,
       locale: r.locale,
       articleKey: r.article_key ?? r.id,
-      updatedAt: r.updated_at,
       flag: parseFlagJson(r.flag_json),
     }));
   }

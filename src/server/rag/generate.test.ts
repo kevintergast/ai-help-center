@@ -125,10 +125,38 @@ describe("parseAnswer", () => {
     expect(body).toEqual(["Erster Absatz.", "Zweiter Absatz."]);
   });
 
-  it("abgeschnittenes JSON (Token-Limit) fällt ebenfalls auf Absätze zurück", () => {
-    const { body, parts } = parseAnswer('{"blocks":[{"type":"text","text":"Angefangen', SOURCES);
-    expect(parts).toBeUndefined();
-    expect(body.length).toBeGreaterThan(0);
+  it("abgeschnittenes JSON: vollständige Bausteine werden GERETTET", () => {
+    // LIVE-FUND 2026-10-14: Mit dem 256-Token-Default brach die Ausgabe
+    // mitten im Objekt ab. Vorher ging dabei alles verloren UND der Rohtext
+    // landete im Artikel. Jetzt überlebt, was fertig geschrieben wurde.
+    const raw =
+      '{"blocks":[{"type":"step","text":"Erster Schritt.","source":1},' +
+      '{"type":"step","text":"Zweiter Schritt.","source":1},' +
+      '{"type":"step","text":"Dritter abgeschnitt';
+    const { body, parts } = parseAnswer(raw, SOURCES);
+    expect(body).toEqual(["Erster Schritt.", "Zweiter Schritt."]);
+    expect(parts).toHaveLength(2);
+  });
+
+  it("JSON-Rohtext erscheint NIEMALS als Antwort", () => {
+    // Genau der Produktionsfehler: Der Leser sah {"blocks":[{"type":"text"…
+    // als Artikeltext. Lieber keine Antwort — die Route bietet dann den
+    // Weg zum Support an.
+    for (const raw of [
+      '{"blocks":[{"type":"text","text":"Angefangen',
+      '{"blocks":',
+      '{"type":"text","text":"ohne Umschlag',
+    ]) {
+      const { body, parts } = parseAnswer(raw, SOURCES);
+      expect(parts).toBeUndefined();
+      expect(body).toEqual([]);
+      expect(JSON.stringify(body)).not.toContain("blocks");
+    }
+  });
+
+  it("echte Prosa bleibt Prosa (der Rückfall ist nicht pauschal leer)", () => {
+    const { body } = parseAnswer("Das geht so.\n\nUnd dann so.", SOURCES);
+    expect(body).toEqual(["Das geht so.", "Und dann so."]);
   });
 
   it("JSON mit Vorrede: das Objekt wird herausgeschnitten", () => {

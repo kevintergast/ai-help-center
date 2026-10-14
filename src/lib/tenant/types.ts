@@ -45,6 +45,15 @@ export interface Tenant {
    */
   seoIndexable?: boolean;
   /**
+   * Dürfen KI-Suchmaschinen (GPTBot, ClaudeBot, PerplexityBot, Google-Extended,
+   * CCBot) die Inhalte lesen? Migration 0051. FEHLEND/`undefined` = erlaubt —
+   * das war schon immer das Verhalten, der Schalter macht es nur sichtbar.
+   *
+   * BEWUSST getrennt von `seoIndexable`: „bei Google auffindbar" und „in
+   * Chatbots zitierbar" sind zwei verschiedene Entscheidungen.
+   */
+  aiCrawlers?: boolean;
+  /**
    * Support-E-Mail der Instanz (Migration 0014): Ziel der Ticket-Mails aus
    * dem Support-Flow. FEHLEND/null = nicht konfiguriert (Tickets landen nur
    * in der Admin-Inbox).

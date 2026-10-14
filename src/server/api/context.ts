@@ -203,6 +203,7 @@ export interface UpdatesDeps {
 
 export interface SettingsDeps {
   setSeoIndexable(tenantId: string, indexable: boolean): Promise<void>;
+  setAiCrawlers(tenantId: string, allowed: boolean): Promise<void>;
   setSupportEmail(tenantId: string, email: string | null): Promise<void>;
   setDefaultLocale(tenantId: string, locale: "de" | "en"): Promise<void>;
   setShowHeaderName(tenantId: string, show: boolean): Promise<void>;

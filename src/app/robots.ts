@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { OPERATOR_TENANT_ID } from "@/lib/tenant/resolve";
 import { getCurrentTenant } from "@/lib/tenant/current";
 import { getEnvSafe } from "@/server/api/runtime-deps";
+import { aiCrawlerRules } from "@/lib/seo/ai-crawlers";
 
 /**
  * PRO-TENANT robots.txt (SEO-Fundament, 2026-07-16): öffentliche Hilfe-Inhalte
@@ -47,8 +48,13 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
   const sitemaps = [`${base}/sitemap.xml`];
   if (tenant.id === OPERATOR_TENANT_ID) sitemaps.push(`${base}/sitemap-index.xml`);
 
+  // KI-CRAWLER (Migration 0051). Erlaubt ist der Default; die Regel-Erzeugung
+  // liegt in lib/seo/ai-crawlers.ts, damit sie prüfbar ist.
+  const aiRules = aiCrawlerRules(tenant.aiCrawlers);
+
   return {
     rules: [
+      ...aiRules,
       {
         userAgent: "*",
         allow: "/",
