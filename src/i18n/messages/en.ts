@@ -151,6 +151,13 @@ export const en: Record<MessageKey, string> = {
   "admin.nav.overview": "Overview",
   "admin.buildInfo": "Version {version} · {commit}",
   "admin.nav.articles": "Articles",
+  "admin.nav.destinations": "Destinations",
+  "admin.destinations.title": "Destinations",
+  "admin.destinations.subtitle":
+    "Every stored interface exactly once — with the articles that use it. Destinations are maintained inside the article; this page is here so a changed product address can be found everywhere at a glance.",
+  "admin.destinations.empty":
+    "No destinations yet. In the article editor, add the \u00bbDestination\u00ab block after a step — the AI will then hand out the way there in its answers.",
+  "admin.destinations.usedIn": "in {n} sections",
   "admin.nav.stats": "Statistics",
   "admin.nav.plan": "Plan & credits",
   "admin.nav.inbox": "Issues",
@@ -656,6 +663,13 @@ export const en: Record<MessageKey, string> = {
   "admin.stats.showInternal": "Show internal accounts",
   "admin.stats.internalNote":
     "Internal team activity is shown in the counts and never counts as active users. It costs no credits — except AI generations, which are charged at the internal at-cost rate.",
+  "admin.stats.topDestinations": "Most-clicked destinations",
+  "admin.stats.destinationsHint":
+    "Which parts of your interface does nobody find on their own? Counts clicks on destinations the AI handed out in its answers.",
+  "admin.stats.destinationsEmpty":
+    "No clicks yet. Add destinations to your articles — then the AI can hand out the way there and you will see what people look for.",
+  "admin.stats.destination": "Destination",
+  "admin.stats.clicks": "Clicks",
   "admin.stats.topSources": "Top sources (AI answers)",
   "admin.stats.citations": "Citations",
   "admin.stats.sourcesEmpty":

@@ -34,6 +34,7 @@ export default async function AdminStatsPage({
   const series = stats?.series ?? [];
   const topArticles = stats?.topArticles ?? [];
   const topSources = stats?.topSources ?? [];
+  const topDestinations = stats?.topDestinations ?? [];
   const feedback = stats?.feedback ?? { byArticle: {}, answers: { helpful: 0, unhelpful: 0 } };
   const answerVotes = feedback.answers.helpful + feedback.answers.unhelpful;
   const totalVotes =
@@ -100,6 +101,46 @@ export default async function AdminStatsPage({
                       <td className="py-2.5 pr-3 text-ink">{s.title}</td>
                       <td className="py-2.5 text-right tabular-nums text-ink-muted">
                         {nf.format(s.views)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {/* ZIEL-KLICKS (0052): Welche Stelle der eigenen Oberfläche findet
+            niemand allein? Die Liste steht bewusst neben den Quellen — beide
+            beantworten „woran hakt es", die eine im Text, die andere in der
+            Software. Leer heißt nicht „läuft gut", sondern meistens: Es sind
+            noch keine Ziele hinterlegt. Darum der Hinweis statt einer Null. */}
+        <section className="rounded-card border border-hairline bg-surface p-5">
+          <h2 className="mb-1 font-semibold tracking-[-0.3px]">
+            {t("admin.stats.topDestinations")}
+          </h2>
+          <p className="mb-4 text-xs text-ink-muted">{t("admin.stats.destinationsHint")}</p>
+          {topDestinations.length === 0 ? (
+            <p className="py-6 text-sm text-ink-muted">{t("admin.stats.destinationsEmpty")}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-hairline text-left text-xs uppercase tracking-[0.04em] text-ink-muted">
+                    <th className="py-2 pr-3 font-medium">{t("admin.stats.destination")}</th>
+                    <th className="py-2 text-right font-medium">{t("admin.stats.clicks")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topDestinations.map((d) => (
+                    <tr key={d.href} className="border-b border-hairline last:border-b-0">
+                      <td className="max-w-0 py-2.5 pr-3">
+                        <span className="block truncate text-ink" title={d.href}>
+                          {d.href}
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right tabular-nums text-ink-muted">
+                        {nf.format(d.clicks)}
                       </td>
                     </tr>
                   ))}

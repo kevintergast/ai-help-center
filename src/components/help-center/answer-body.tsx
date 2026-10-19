@@ -86,7 +86,9 @@ export function AnswerBody({
           // ein fremdes Produkt, und der Referrer verriete, aus welchem
           // Hilfeartikel jemand kommt.
           return (
-            <div key={i}>
+            // items-start + flex-col: Der Beleg gehört UNTER den Knopf. Als
+            // bloßes <div> stünde er daneben, weil beide inline sind.
+            <div key={i} className="flex flex-col items-start">
               <a
                 href={part.href}
                 target="_blank"

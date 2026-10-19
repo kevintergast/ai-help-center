@@ -150,6 +150,13 @@ export const de = {
   "admin.nav.overview": "Übersicht",
   "admin.buildInfo": "Version {version} · {commit}",
   "admin.nav.articles": "Artikel",
+  "admin.nav.destinations": "Ziele",
+  "admin.destinations.title": "Ziele",
+  "admin.destinations.subtitle":
+    "Jede hinterlegte Oberfläche genau einmal — mit den Artikeln, die sie verwenden. Gepflegt werden Ziele im Artikel selbst; diese Seite ist dafür da, bei einer geänderten Produkt-Adresse alle Stellen auf einen Blick zu finden.",
+  "admin.destinations.empty":
+    "Noch keine Ziele hinterlegt. Setze im Artikel-Editor hinter einen Schritt den Baustein »Ziel« — die KI gibt den Weg dorthin dann in ihren Antworten mit.",
+  "admin.destinations.usedIn": "in {n} Abschnitten",
   "admin.nav.stats": "Statistik",
   "admin.nav.plan": "Plan & Credits",
   "admin.nav.inbox": "Probleme",
@@ -659,6 +666,13 @@ export const de = {
   "admin.stats.showInternal": "Interne Accounts einblenden",
   "admin.stats.internalNote":
     "Interne Team-Aufrufe werden mit angezeigt und zählen nicht als aktive Nutzer. Sie kosten keine Credits — außer KI-Generierungen, die zum internen Selbstkostensatz zählen.",
+  "admin.stats.topDestinations": "Meistgeklickte Ziele",
+  "admin.stats.destinationsHint":
+    "Welche Stellen deiner Oberfläche findet niemand allein? Gezählt werden Klicks auf Ziele, die die KI in ihren Antworten mitgegeben hat.",
+  "admin.stats.destinationsEmpty":
+    "Noch keine Klicks. Hinterlege Ziele in deinen Artikeln — dann kann die KI den Weg mitgeben und du siehst hier, wonach gesucht wird.",
+  "admin.stats.destination": "Ziel",
+  "admin.stats.clicks": "Klicks",
   "admin.stats.topSources": "Häufigste Quellen (KI-Antworten)",
   "admin.stats.citations": "Zitate",
   "admin.stats.sourcesEmpty":
