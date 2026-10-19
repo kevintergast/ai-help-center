@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { Tenant } from "@/lib/tenant/types";
 import { buildAuth, tenantAuthOptions } from "@/server/auth/auth";
 import { applyMigrations, d1FromSqlite } from "@/server/auth/sqlite-test-support";
+import { articleDestinations, parseArticleBody } from "@/lib/content/blocks";
 import { D1BillingRepository } from "@/server/billing/store";
 import { makeVisitorIdCodec } from "@/server/security/visitor-id";
 import { buildApiApp } from "./app";
@@ -39,7 +40,7 @@ const denyAll: RateLimiterBinding = { limit: async () => ({ success: false }) };
 
 function makeFixture(opts: { deny?: ("ask" | "events" | "sensitive")[] } = {}) {
   const sqlite = new BetterSqlite3(":memory:");
-  applyMigrations(sqlite, ["0001_tenants.sql", "0051_ai_crawlers.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql", "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql", "0038_header_actions.sql", "0043_api_docs_to_header_action.sql", "0044_prompt_suggestions.sql", "0015_support_tickets.sql", "0039_comprehension_reports.sql", "0042_review_suggestion.sql", "0009_usage_billing.sql", "0011_usage_feedback_types.sql", "0016_usage_ai_source_type.sql", "0020_usage_ai_translation_type.sql", "0026_usage_ai_video_summary.sql", "0022_plan_custom_limits.sql"]);
+  applyMigrations(sqlite, ["0001_tenants.sql", "0051_ai_crawlers.sql", "0021_tenant_suspend.sql", "0023_logo_dark.sql", "0025_header_name.sql", "0028_widget_on_site.sql", "0031_favicon.sql", "0033_api_docs_url.sql", "0040_comprehension_mode.sql", "0041_widget_appearance.sql", "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql", "0038_header_actions.sql", "0043_api_docs_to_header_action.sql", "0044_prompt_suggestions.sql", "0015_support_tickets.sql", "0039_comprehension_reports.sql", "0042_review_suggestion.sql", "0009_usage_billing.sql", "0011_usage_feedback_types.sql", "0016_usage_ai_source_type.sql", "0020_usage_ai_translation_type.sql", "0026_usage_ai_video_summary.sql", "0022_plan_custom_limits.sql", "0052_destination_clicks.sql"]);
   sqlite
     .prepare(
       `INSERT INTO articles (id, tenant_id, slug, title, category, status)
@@ -78,6 +79,24 @@ function makeFixture(opts: { deny?: ("ask" | "events" | "sensitive")[] } = {}) {
       ask: deny.has("ask") ? denyAll : undefined,
       events: deny.has("events") ? denyAll : undefined,
       sensitive: deny.has("sensitive") ? denyAll : undefined,
+    },
+    isKnownDestination: async (tenantId: string, href: string) => {
+      const row = sqlite
+        .prepare(
+          `SELECT body_json FROM articles WHERE tenant_id = ? AND status = 'published'`,
+        )
+        .all(tenantId) as { body_json: string | null }[];
+      return row.some((r) => {
+        try {
+          const parsed = JSON.parse(r.body_json ?? "[]") as unknown;
+          return (
+            Array.isArray(parsed) &&
+            articleDestinations(parseArticleBody(parsed)).some((d) => d.href === href)
+          );
+        } catch {
+          return false;
+        }
+      });
     },
     visitorCodec: codec,
   };
@@ -217,5 +236,74 @@ describe("Cookiefreie Besucher-IDs am Beacon", () => {
       .prepare(`SELECT type, credits FROM usage_events WHERE tenant_id = 't_demo'`)
       .get();
     expect(row).toEqual({ type: "feedback_unhelpful", credits: 0 });
+  });
+});
+
+/**
+ * ZIEL-KLICKS (Migration 0052). Die Auswertung soll dem Kunden sagen, welche
+ * Stellen seiner Oberfläche niemand allein findet. Sie ist nur so viel wert
+ * wie die Schranke davor: Ließe der Endpunkt beliebige Adressen zu, könnte
+ * jeder die Liste mit Fremd-URLs volllaufen lassen — und der Kunde zöge
+ * Schlüsse aus Müll.
+ */
+describe("POST /api/v1/events/destination", () => {
+  function withDestination(f: ReturnType<typeof makeFixture>, href: string) {
+    f.sqlite
+      .prepare(`UPDATE articles SET body_json = ? WHERE tenant_id = 't_demo' AND id = 'a1'`)
+      .run(
+        JSON.stringify([
+          { type: "text", variant: "standard", text: "Schritt eins." },
+          { type: "destination", href, purpose: "Hier stellst du die Sprache ein." },
+        ]),
+      );
+  }
+  const clicks = (f: ReturnType<typeof makeFixture>) =>
+    (
+      f.sqlite.prepare(`SELECT href, clicks FROM destination_clicks`).all() as {
+        href: string;
+        clicks: number;
+      }[]
+    );
+
+  it("zählt ein hinterlegtes Ziel — und zwar aufaddiert", async () => {
+    const f = makeFixture();
+    withDestination(f, "https://app.example.com/sprache");
+
+    for (let i = 0; i < 3; i++) {
+      expect(
+        (await post(f, "/api/v1/events/destination", { href: "https://app.example.com/sprache" }))
+          .status,
+      ).toBe(204);
+    }
+    expect(clicks(f)).toEqual([{ href: "https://app.example.com/sprache", clicks: 3 }]);
+  });
+
+  it("eine NICHT hinterlegte Adresse wird still verworfen (204, aber nichts gezählt)", async () => {
+    const f = makeFixture();
+    withDestination(f, "https://app.example.com/sprache");
+
+    const res = await post(f, "/api/v1/events/destination", { href: "https://fremd.example/spam" });
+    // 204 wie bei /view und /feedback: kein Orakel darüber, was hinterlegt ist.
+    expect(res.status).toBe(204);
+    expect(clicks(f)).toEqual([]);
+  });
+
+  it("Müll im Body ändert nichts", async () => {
+    const f = makeFixture();
+    withDestination(f, "https://app.example.com/sprache");
+    for (const body of [{}, { href: 42 }, { href: "" }, { href: "x".repeat(3000) }]) {
+      expect((await post(f, "/api/v1/events/destination", body)).status).toBe(204);
+    }
+    expect(clicks(f)).toEqual([]);
+  });
+
+  it("greift unter dem events-Rate-Limit (429, nichts gezählt)", async () => {
+    const f = makeFixture({ deny: ["events"] });
+    withDestination(f, "https://app.example.com/sprache");
+    expect(
+      (await post(f, "/api/v1/events/destination", { href: "https://app.example.com/sprache" }))
+        .status,
+    ).toBe(429);
+    expect(clicks(f)).toEqual([]);
   });
 });

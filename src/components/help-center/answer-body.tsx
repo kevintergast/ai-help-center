@@ -24,6 +24,27 @@ import { DocIcon, ExternalLinkIcon } from "@/components/ui/icons";
  * schlichtere Anzeige ist besser als eine leere.
  */
 
+/**
+ * Klick auf ein Ziel melden. `keepalive`, weil der Browser im selben Moment
+ * die Seite verlässt — ein normaler fetch würde abgebrochen.
+ *
+ * Bewusst fire-and-forget: Scheitert die Meldung, hat der Leser trotzdem
+ * bekommen, was er wollte. Eine Zählung ist kein Grund, einen Klick
+ * aufzuhalten.
+ */
+function reportDestination(href: string): void {
+  try {
+    void fetch("/api/v1/events/destination", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ href }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
+}
+
 export function AnswerBody({
   locale,
   parts,
@@ -70,7 +91,7 @@ export function AnswerBody({
                 href={part.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                data-destination={part.href}
+                onClick={() => reportDestination(part.href)}
                 className="inline-flex items-center gap-1.5 rounded-std bg-[var(--btn-primary-bg)] px-3.5 py-2 text-sm text-[var(--btn-primary-fg)] shadow-inset transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focusglow"
               >
                 {part.label}
@@ -152,7 +173,7 @@ function Rich({ part }: { part: { text: string; segments?: AnswerSegment[] } }) 
             href={seg.href}
             target="_blank"
             rel="noopener noreferrer"
-            data-destination={seg.href}
+            onClick={() => reportDestination(seg.href!)}
             className="text-brand underline underline-offset-2 hover:no-underline"
           >
             {seg.text}

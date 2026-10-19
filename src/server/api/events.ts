@@ -138,6 +138,47 @@ export function eventsPublicRouter(deps: ApiDeps) {
    * Besucher+Ziel+Richtung im Store. Gleiche fire-and-forget-Semantik wie
    * /view (kein Existenz-Orakel).
    */
+  /**
+   * POST /events/destination {href}: Klick auf ein ZIEL aus einer KI-Antwort.
+   *
+   * PUBLIC und fire-and-forget wie /view und /feedback — es klicken anonyme
+   * Leser. 0 Credits, kein MAU: Das hier ist eine Erkenntnis für den Kunden
+   * („welche Stelle meiner Oberfläche findet niemand?"), keine Nutzung, die
+   * jemand bezahlt.
+   *
+   * Gezählt wird NUR eine Adresse, die in dieser Instanz auch wirklich als
+   * Ziel hinterlegt ist. Sonst könnte jeder beliebige URLs in die Auswertung
+   * schreiben und sie damit wertlos machen.
+   */
+  r.post("/destination", async (c) => {
+    const done = () => c.body(null, 204);
+
+    if (!(await allowRequest(deps.rateLimiters?.events, `ev:${c.get("tenant").id}:${clientIp(c)}`))) {
+      return rateLimited(c);
+    }
+
+    let href: unknown;
+    try {
+      href = ((await c.req.json()) as { href?: unknown }).href;
+    } catch {
+      return done();
+    }
+    if (typeof href !== "string" || href.length === 0 || href.length > 2048) return done();
+
+    const billing = await deps.getBillingDeps?.();
+    if (!billing) return done();
+
+    const known = await deps.isKnownDestination?.(c.get("tenant").id, href);
+    if (known !== true) return done();
+
+    await billing.repo.recordDestinationClick(
+      c.get("tenant").id,
+      href,
+      Math.floor(Date.now() / 1000),
+    );
+    return done();
+  });
+
   r.post("/feedback", async (c) => {
     const done = () => c.body(null, 204);
 

@@ -145,6 +145,14 @@ export interface BillingRepository {
    * lichter Slug wird still verworfen (kein Existenz-Orakel).
    */
   recordFeedback(input: RecordFeedbackInput): Promise<void>;
+  /** Klick auf ein ZIEL (Migration 0052) — je (Instanz, Ziel, Tag) gezählt. */
+  recordDestinationClick(tenantId: string, href: string, nowSec: number): Promise<void>;
+  /** Meistgeklickte Ziele der letzten `days` Tage. */
+  topDestinations(
+    tenantId: string,
+    days: number,
+    nowSec: number,
+  ): Promise<{ href: string; clicks: number }[]>;
   /**
    * KI-Generierungen eines Besuchers seit `sinceSec` (Tagesdeckel /ask —
    * Abuse-Härtung: begrenzt, was EIN Besucher an LLM-Kosten auslösen kann).
@@ -318,6 +326,34 @@ export class D1BillingRepository implements BillingRepository {
       );
     }
     return state;
+  }
+
+  async recordDestinationClick(tenantId: string, href: string, nowSec: number): Promise<void> {
+    const day = Math.floor(nowSec / 86400) * 86400;
+    await this.db
+      .prepare(
+        `INSERT INTO destination_clicks (tenant_id, href, day, clicks) VALUES (?, ?, ?, 1)
+           ON CONFLICT (tenant_id, href, day) DO UPDATE SET clicks = clicks + 1`,
+      )
+      .bind(tenantId, href, day)
+      .run();
+  }
+
+  async topDestinations(
+    tenantId: string,
+    days: number,
+    nowSec: number,
+  ): Promise<{ href: string; clicks: number }[]> {
+    const since = Math.floor(nowSec / 86400) * 86400 - days * 86400;
+    const { results } = await this.db
+      .prepare(
+        `SELECT href, SUM(clicks) AS clicks FROM destination_clicks
+          WHERE tenant_id = ? AND day >= ?
+          GROUP BY href ORDER BY clicks DESC LIMIT 50`,
+      )
+      .bind(tenantId, since)
+      .all<{ href: string; clicks: number }>();
+    return results.map((r) => ({ href: r.href, clicks: Number(r.clicks) }));
   }
 
   async recordFeedback(input: RecordFeedbackInput): Promise<void> {

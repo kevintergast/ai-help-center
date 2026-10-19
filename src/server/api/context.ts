@@ -168,6 +168,12 @@ export interface ApiDeps {
    * Signierte Besucher-IDs (Abuse-Härtung): fehlend ⇒ unsignierte IDs
    * (nur dev ohne AUTH_SECRET — dort gibt es kein Billing).
    */
+  /**
+   * Ist `href` in dieser Instanz als ZIEL hinterlegt? Grundlage der
+   * Klick-Zählung: Ohne diese Prüfung könnte jeder beliebige Adressen in die
+   * Auswertung schreiben und sie damit wertlos machen.
+   */
+  isKnownDestination?: (tenantId: string, href: string) => Promise<boolean>;
   visitorCodec?: VisitorIdCodec;
 }
 

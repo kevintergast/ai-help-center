@@ -1,3 +1,4 @@
+import { MIN_DESTINATION_PURPOSE } from "@/lib/content/blocks";
 import {
   MAX_BODY_BLOCKS,
   MAX_CATEGORY_LENGTH,
@@ -282,6 +283,17 @@ export const getContentConventions: McpTool = {
             type: "support",
             shape: { type: "support", text: "...", meetingId: "telefonanlage" },
             note: "A way out in the middle of an article: one button to the contact page, one to a booking calendar. Place it right AFTER a step people get stuck on (a complex integration, a setup that depends on a third party) — that is where the need is, not twenty paragraphs later. `text` is optional and should fit that step, e.g. \"Stuck on the connection? That is often down to the provider.\" `meetingId` picks one of the help center's booking calendars (read them with get_settings → meeting.links); null or an unknown id falls back to the general one. NEVER put addresses or URLs in this block — the targets come from the help center's central settings, so a changed support address does not mean editing a hundred articles. Use it sparingly: a help center where every section shouts for support reads like one that does not explain anything.",
+          },
+          {
+            type: "destination",
+            shape: {
+              type: "destination",
+              href: "https://app.example.com/settings/assistants",
+              purpose:
+                "This is where you set an assistant's name, company and industry, plus language and tone. Not for phone numbers \u2014 those live under \u00bbPhone numbers\u00ab.",
+            },
+            note:
+              "INVISIBLE in the article. It tells the AI WHERE a described step is actually carried out, so an answer can hand the reader the way there \u2014 as a button or as a link inside a sentence. `purpose` is NOT a link label: it answers \u00bbwhen does someone need this page?\u00ab and decides whether the AI picks the right destination; write what the page is for AND what it is not. At least " + String(MIN_DESTINATION_PURPOSE) + " characters. POSITION MATTERS: put the block directly AFTER the section it belongs to \u2014 search splits articles by length, not by headings, so the position is the only thing that ties a destination to a step. http(s) or an instance-internal path; never javascript:/data:. The reader never sees the URL in the article, and the AI can only reference it, never invent one.",
           },
         ],
       },
