@@ -171,6 +171,11 @@ export function SingleBlockView({ block, ctx }: { block: ArticleBlock; ctx: Bloc
     );
   }
 
+  // ZIEL: rendert bewusst NICHTS. Es ist Kontext für die KI, kein Inhalt
+  // für den Leser — sichtbar wird es erst, wenn die KI es in einer Antwort
+  // verwendet.
+  if (block.type === "destination") return null;
+
   if (block.type === "divider") {
     return <hr className="my-2 border-0 border-t border-hairline" />;
   }

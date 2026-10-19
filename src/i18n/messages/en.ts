@@ -949,6 +949,16 @@ export const en: Record<MessageKey, string> = {
   "editor.blocks.supportNoMeetings":
     "No booking link yet — the block then only shows the way to support. Add one under Settings → Booking links.",
   "editor.blocks.type.button": "Button",
+  "editor.blocks.type.destination": "Destination (hidden)",
+  "editor.blocks.destinationHref": "Address of the interface",
+  "editor.blocks.destinationHrefPlaceholder": "https://app.yourcompany.com/settings/assistants",
+  "editor.blocks.destinationPurpose": "When does someone need this page?",
+  "editor.blocks.destinationPurposePlaceholder":
+    "This is where you set an assistant's name, company and industry, plus language and tone. Not for phone numbers — those live under \u00bbPhone numbers\u00ab.",
+  "editor.blocks.destinationPurposeShort":
+    "Too brief. Describe what the page is for and what it is not — that decides whether the AI matches it correctly.",
+  "editor.blocks.destinationHint":
+    "Hidden in the article. The AI uses this destination in its answers — as a button or as a link within a sentence. Place it right after the section it belongs to.",
   "editor.blocks.type.divider": "Divider",
   "editor.blocks.type.file": "File",
   "editor.blocks.accordionTitle": "Section title",

@@ -64,6 +64,7 @@ import type {
   TeamDeps,
 } from "./context";
 import type { RateLimiterBinding, RateLimiters } from "./rate-limit";
+import { articleDestinations, parseArticleBody } from "@/lib/content/blocks";
 
 /**
  * ECHTE Runtime-Abhängigkeiten der API-App (Default-Instanz für die Next-Route).
@@ -487,6 +488,17 @@ async function getAskDepsRuntime(): Promise<AskRuntime | null> {
       // Text (gut fürs Finden), verliert dabei aber die Id — und ohne die
       // kann die Antwort kein Bild anzeigen. Vormerkungen bleiben draußen,
       // sie beschreiben ein Bild, das es noch nicht gibt.
+      // Ziele mit ihrer Absatz-Position (unsichtbare Oberflächen-Verweise).
+      const destinationsOf = (raw: string) => {
+        try {
+          const parsed = JSON.parse(raw) as unknown;
+          if (!Array.isArray(parsed)) return [];
+          return articleDestinations(parseArticleBody(parsed));
+        } catch {
+          return [];
+        }
+      };
+
       const imagesOf = (raw: string | undefined) => {
         if (!raw) return [];
         try {
@@ -509,6 +521,7 @@ async function getAskDepsRuntime(): Promise<AskRuntime | null> {
           ...toIndexable(r),
           kind: "article" as const,
           images: imagesOf((r as { images_json?: string }).images_json),
+          destinations: destinationsOf(r.body_json),
         })),
         ...roadmap.results.map((r) => ({ ...roadmapDoc(r), kind: "roadmap" as const })),
         ...changelog.results.map((r) => ({ ...changelogDoc(r), kind: "changelog" as const })),

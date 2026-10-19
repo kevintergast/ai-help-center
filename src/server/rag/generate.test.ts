@@ -19,8 +19,12 @@ const SOURCES = [
       { id: "img-a", description: "Der Schalter im Kopfbereich" },
       { id: "img-b", description: "Das geöffnete Menü" },
     ],
+    destinations: [
+      { href: "https://app.test/einstellungen", purpose: "Name und Sprache des Assistenten." },
+      { href: "https://app.test/rufnummern", purpose: "Rufnummern des Assistenten." },
+    ],
   },
-  { index: 2, citationIndex: 1, images: [] },
+  { index: 2, citationIndex: 1, images: [], destinations: [] },
 ];
 
 describe("buildAskMessages", () => {
@@ -199,5 +203,97 @@ describe("splitAnswerParagraphs (Prosa-Pfad bleibt)", () => {
       "Punkt eins",
       "Fett",
     ]);
+  });
+});
+
+/**
+ * ZIELE — unsichtbare Oberflächen-Verweise, die die KI in ihre Antwort
+ * einbauen darf.
+ *
+ * Der gefährliche Fall ist nicht ein fehlender Link, sondern ein FALSCHER:
+ * Ein erfundenes Handle oder eine selbst geschriebene Adresse würde Leser
+ * aus einem Hilfezentrum heraus auf eine beliebige Seite schicken. Deshalb
+ * darf nur durchkommen, was sich gegen den echten Kontext auflösen lässt.
+ */
+describe("parseAnswer — Ziele", () => {
+  it("Knopf: gültiges Handle wird zur echten Adresse", () => {
+    const raw = JSON.stringify({
+      blocks: [
+        { type: "step", text: "Öffne die Einstellungen.", source: 1 },
+        { type: "link", to: "Z1.1", label: "Einstellungen öffnen", source: 1 },
+      ],
+    });
+    const { parts, body } = parseAnswer(raw, SOURCES);
+    expect(parts?.[1]).toEqual({
+      kind: "link",
+      href: "https://app.test/einstellungen",
+      label: "Einstellungen öffnen",
+      source: 0,
+    });
+    // Ein Knopf ist kein Fließtext — er gehört nicht in `body`.
+    expect(body).toEqual(["Öffne die Einstellungen."]);
+  });
+
+  it("Link im Satz wird zu Segmenten; der reine Text bleibt vollständig", () => {
+    const raw = JSON.stringify({
+      blocks: [
+        {
+          type: "step",
+          text: "Öffne die [Assistenten-Einstellungen](Z1.1) und wähle die Sprache.",
+          source: 1,
+        },
+      ],
+    });
+    const { parts, body } = parseAnswer(raw, SOURCES);
+    expect(parts?.[0]).toMatchObject({
+      kind: "step",
+      text: "Öffne die Assistenten-Einstellungen und wähle die Sprache.",
+      segments: [
+        { text: "Öffne die " },
+        { text: "Assistenten-Einstellungen", href: "https://app.test/einstellungen" },
+        { text: " und wähle die Sprache." },
+      ],
+    });
+    // KOMPATIBILITÄT: `body` ist reiner Text ohne Klammer-Schreibweise.
+    expect(body[0]).not.toContain("[");
+    expect(body[0]).not.toContain("Z1.1");
+  });
+
+  it("erfundenes Handle: KEIN Link, aber auch keine Klammern beim Leser", () => {
+    const raw = JSON.stringify({
+      blocks: [
+        { type: "text", text: "Geh zur [Rechnungsseite](Z9.9).", source: 1 },
+        { type: "link", to: "Z9.9", label: "Rechnung öffnen", source: 1 },
+      ],
+    });
+    const { parts, body } = parseAnswer(raw, SOURCES);
+    // Der Knopf fällt weg …
+    expect(parts?.filter((p) => p.kind === "link")).toEqual([]);
+    // … und im Satz bleibt die Beschriftung als normaler Text stehen.
+    expect(body[0]).toBe("Geh zur Rechnungsseite.");
+    expect(parts?.[0]).not.toHaveProperty("segments");
+  });
+
+  it("das Modell darf keine eigene Adresse unterbringen", () => {
+    const raw = JSON.stringify({
+      blocks: [
+        { type: "text", text: "Siehe [hier](https://boese.test).", source: 1 },
+        { type: "link", to: "https://boese.test", label: "Hier klicken", source: 1 },
+      ],
+    });
+    const { parts, body } = parseAnswer(raw, SOURCES);
+    expect(parts?.filter((p) => p.kind === "link")).toEqual([]);
+    expect(JSON.stringify(parts)).not.toContain("boese.test");
+    // Auch als unklickbarer Text darf die fremde Adresse nicht stehen
+    // bleiben — übrig bleibt die Beschriftung, ohne Klammern.
+    expect(body[0]).toBe("Siehe hier.");
+  });
+
+  it("Ziele einer ANDEREN Quelle sind nicht erreichbar", () => {
+    const raw = JSON.stringify({
+      blocks: [{ type: "link", to: "Z2.1", label: "Öffnen", source: 2 }],
+    });
+    // Quelle 2 hat keine Ziele → kein Knopf, und damit auch keine Antwort.
+    expect(parseAnswer(raw, SOURCES).parts).toBeUndefined();
   });
 });

@@ -1,4 +1,4 @@
-import type { AnswerPart, Citation, SourceRef } from "@/lib/content/types";
+import type { AnswerPart, AnswerSegment, Citation, SourceRef } from "@/lib/content/types";
 
 /**
  * GESPEICHERTE KI-ANTWORTEN IM KONTO (Migration 0017) — Architektur:
@@ -105,13 +105,55 @@ export function parseSavedAnswerInput(raw: unknown): SavedAnswerRecord | string 
         list.push({ kind: "image", imageId: pp.imageId, alt: pp.alt, source: src });
         continue;
       }
+      if (pp?.kind === "link") {
+        // Ziel-Knopf. Die Adresse kommt aus dem Browser des Nutzers, also
+        // strikt: nur https, begrenzte Länge, Beschriftung vorhanden.
+        if (typeof pp.href !== "string" || !/^https?:\/\/[^\s]{1,2000}$/.test(pp.href)) {
+          return "invalid_parts";
+        }
+        if (typeof pp.label !== "string" || pp.label.length === 0 || pp.label.length > 80) {
+          return "invalid_parts";
+        }
+        list.push({
+          kind: "link",
+          href: pp.href,
+          label: pp.label,
+          ...(typeof src === "number" ? { source: src } : {}),
+        });
+        continue;
+      }
       if (pp?.kind !== "text" && pp?.kind !== "step") return "invalid_parts";
       if (typeof pp.text !== "string" || pp.text.length === 0 || pp.text.length > MAX_BODY_CHARS_TOTAL) {
         return "invalid_parts";
       }
+      // Segmente (Ziele mitten im Satz). Optional; ihre Texte müssen den
+      // reinen Text ERGEBEN, sonst könnte ein Client eine harmlose Fassung
+      // speichern und eine andere anzeigen.
+      let segments: AnswerSegment[] | undefined;
+      if (pp.segments !== undefined) {
+        if (!Array.isArray(pp.segments) || pp.segments.length > 40) return "invalid_parts";
+        const segs: AnswerSegment[] = [];
+        for (const rawSeg of pp.segments) {
+          const sg = rawSeg as Record<string, unknown>;
+          if (typeof sg?.text !== "string" || sg.text.length > MAX_BODY_CHARS_TOTAL) {
+            return "invalid_parts";
+          }
+          if (sg.href !== undefined) {
+            if (typeof sg.href !== "string" || !/^https?:\/\/[^\s]{1,2000}$/.test(sg.href)) {
+              return "invalid_parts";
+            }
+            segs.push({ text: sg.text, href: sg.href });
+          } else {
+            segs.push({ text: sg.text });
+          }
+        }
+        if (segs.map((x) => x.text).join("") !== pp.text) return "invalid_parts";
+        segments = segs;
+      }
       list.push({
         kind: pp.kind,
         text: pp.text,
+        ...(segments ? { segments } : {}),
         ...(typeof src === "number" ? { source: src } : {}),
       });
     }

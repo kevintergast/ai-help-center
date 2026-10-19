@@ -164,10 +164,36 @@ export interface SourceRef {
  * die Anzeige, nicht das Modell — so kann es keine Lücken oder Dopplungen
  * erfinden.
  */
+/**
+ * Ein Stück Baustein-Text. Mit `href` ist es ein Link mitten im Satz — das
+ * Ziel einer Oberfläche, auf der der Schritt ausgeführt wird.
+ */
+export interface AnswerSegment {
+  text: string;
+  href?: string;
+}
+
 export type AnswerPart =
-  | { kind: "text"; text: string; source?: number }
-  | { kind: "step"; text: string; source?: number }
-  | { kind: "image"; imageId: string; alt: string; source: number };
+  | {
+      kind: "text";
+      /**
+       * Reiner Text OHNE Link-Auszeichnung. Bleibt die maßgebliche Fassung:
+       * `body`, das Widget und gespeicherte Antworten älterer Stände lesen
+       * ihn. `segments` ist die reichere Form für die Anzeige.
+       */
+      text: string;
+      source?: number;
+      segments?: AnswerSegment[];
+    }
+  | { kind: "step"; text: string; source?: number; segments?: AnswerSegment[] }
+  | { kind: "image"; imageId: string; alt: string; source: number }
+  | {
+      /** Eigener Knopf hinter einem Schritt („Einstellungen öffnen"). */
+      kind: "link";
+      href: string;
+      label: string;
+      source?: number;
+    };
 
 export interface AskAnswer {
   question: string;

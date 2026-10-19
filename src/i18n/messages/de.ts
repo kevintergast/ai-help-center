@@ -952,6 +952,16 @@ export const de = {
   "editor.blocks.supportNoMeetings":
     "Noch kein Buchungslink gepflegt — der Baustein zeigt dann nur den Weg zum Support. Anlegen unter Einstellungen → Buchungslinks.",
   "editor.blocks.type.button": "Button",
+  "editor.blocks.type.destination": "Ziel (unsichtbar)",
+  "editor.blocks.destinationHref": "Adresse der Oberfläche",
+  "editor.blocks.destinationHrefPlaceholder": "https://app.deinefirma.de/einstellungen/assistenten",
+  "editor.blocks.destinationPurpose": "Wann braucht jemand diese Seite?",
+  "editor.blocks.destinationPurposePlaceholder":
+    "Hier legst du Name, Firma und Branche eines Assistenten fest, außerdem Sprache und Tonfall. Nicht für Rufnummern — die stehen unter »Rufnummern«.",
+  "editor.blocks.destinationPurposeShort":
+    "Zu knapp. Beschreibe, wofür die Seite da ist und wofür nicht — davon hängt ab, ob die KI sie richtig zuordnet.",
+  "editor.blocks.destinationHint":
+    "Im Artikel unsichtbar. Die KI nutzt dieses Ziel in ihren Antworten — als Knopf oder als Link im Satz. Setze es direkt hinter den Abschnitt, zu dem es gehört.",
   "editor.blocks.type.divider": "Trennlinie",
   "editor.blocks.type.file": "Datei",
   "editor.blocks.accordionTitle": "Titel des Abschnitts",
