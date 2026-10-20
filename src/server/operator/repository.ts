@@ -78,6 +78,18 @@ export interface HelpCenterSummary {
 }
 
 export interface OperatorRepository {
+  /**
+   * Gewähltes Standard-Hilfezentrum (Migration 0053) — null, wenn der Nutzer
+   * noch nicht gewählt hat oder die Wahl auf ein inzwischen gelöschtes
+   * Hilfezentrum zeigte.
+   */
+  getDefaultHelpCenter(operatorUserId: string): Promise<string | null>;
+  /**
+   * Wahl setzen. Gibt false zurück, wenn das Hilfezentrum dem Nutzer NICHT
+   * gehört — sonst könnte jemand eine fremde Instanz als sein Ziel setzen und
+   * bekäme von uns einen Link dorthin serviert.
+   */
+  setDefaultHelpCenter(operatorUserId: string, tenantId: string): Promise<boolean>;
   /** Ist der Slug bereits als Tenant vergeben? (Vor-Check für /subdomain-available.) */
   isSlugTaken(slug: string): Promise<boolean>;
   /**
@@ -284,6 +296,39 @@ export class D1OperatorRepository implements OperatorRepository {
         ? { secret: twoFactor.secret, backupCodes: twoFactor.backup_codes }
         : null,
     };
+  }
+
+  async getDefaultHelpCenter(operatorUserId: string): Promise<string | null> {
+    // JOIN gegen die Zugehörigkeit: Eine Wahl, deren Hilfezentrum nicht mehr
+    // existiert oder nicht mehr dem Nutzer gehört, zählt als „nicht gewählt".
+    const row = await this.db
+      .prepare(
+        `SELECT d.tenant_id FROM operator_default_help_center d
+           JOIN operator_help_centers h
+             ON h.tenant_id = d.tenant_id AND h.operator_user_id = d.operator_user_id
+          WHERE d.operator_user_id = ?`,
+      )
+      .bind(operatorUserId)
+      .first<{ tenant_id: string }>();
+    return row?.tenant_id ?? null;
+  }
+
+  async setDefaultHelpCenter(operatorUserId: string, tenantId: string): Promise<boolean> {
+    // Bedingtes INSERT: Die Zugehörigkeit wird in der Anweisung selbst
+    // geprüft, nicht davor — sonst klaffte zwischen Prüfung und Schreiben
+    // ein Fenster (TOCTOU).
+    const res = await this.db
+      .prepare(
+        `INSERT INTO operator_default_help_center (operator_user_id, tenant_id, updated_at)
+         SELECT ?, ?, unixepoch()
+          WHERE EXISTS (SELECT 1 FROM operator_help_centers
+                         WHERE operator_user_id = ? AND tenant_id = ?)
+         ON CONFLICT (operator_user_id) DO UPDATE SET
+           tenant_id = excluded.tenant_id, updated_at = excluded.updated_at`,
+      )
+      .bind(operatorUserId, tenantId, operatorUserId, tenantId)
+      .run();
+    return (res.meta.changes ?? 0) > 0;
   }
 
   async listByOperator(operatorUserId: string): Promise<HelpCenterSummary[]> {

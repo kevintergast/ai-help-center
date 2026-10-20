@@ -26,6 +26,51 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.13.0] – 2026-10-20
+
+_Interne Ziele der Operator-Instanz werden beim Klick auf das Hilfezentrum des Lesers aufgelöst — vorher führten sie ins Leere. Mit Wahl am Konto (Migration 0053), Kopf-Umschalter und eigenem Endpunkt._
+
+### Hinzugefügt
+- **hc:** interne Ziele der OPERATOR-Instanz werden beim Klick auf das
+  Hilfezentrum des Lesers aufgelöst. Vorher zeigten sie auf unseren eigenen
+  Verwaltungsbereich und endeten in 404 (db02302)
+- **hc:** vier Fälle — nicht angemeldet, kein Hilfezentrum, genau eines,
+  mehrere. Bei mehreren eine einmalige Wahl plus Umschalter im Kopf
+  (db02302)
+- **operator:** `PUT /operator/help-centers/default` und Migration 0053. Die
+  Wahl hängt am KONTO, nicht am Browser — „einmalig wählen" soll auch auf dem
+  zweiten Gerät gelten (db02302)
+
+### Geändert
+- **hc:** die Auflösung passiert beim KLICK, nicht beim Rendern. Ein Listener
+  deckt Knopf, Inline-Link und Überschriften-Symbol zugleich ab, funktioniert
+  in servergerendertem HTML, und ohne Klick steht nirgends ein falscher Link
+  (db02302)
+
+### Sicherheit
+- **operator:** die Zugehörigkeit eines Hilfezentrums prüft die Datenbank in
+  der Schreib-Anweisung selbst (kein TOCTOU). Eine fremde Instanz als eigenes
+  Ziel zu setzen würde sonst Links dorthin servieren; eine Wahl auf ein
+  gelöschtes Hilfezentrum zählt als keine Wahl (db02302)
+
+_Die 0.12.2-Commits erscheinen hier nicht noch einmal — sie stehen im eigenen
+Abschnitt darunter. 0.12.2 wurde nie getaggt, deshalb zählte der Generator sie
+mit._
+
+## [0.12.2] – 2026-10-20
+
+_Dogfooding vervollständigt: 48 Ziele über 29 Artikel statt 15 über 15 — jeder Abschnitt, der eine Handlung beschreibt, führt jetzt an die passende Stelle._
+
+### Wartung
+- **seed:** Ziele in ALLEN Operator-Artikeln — 48 statt 15, verteilt über 29
+  statt 15 Artikel. Der Fehler war die Granularität: Ein Artikel mit sechs
+  Abschnitten braucht sechs Ziele, nicht eines. In „Navigation & Einstieg"
+  führt der Abschnitt über die Reihenfolge an Navigation, der über
+  Artikel-Symbole an die Artikelliste, der über Pflege per KI an die
+  Zugriffs-Schlüssel (180b962)
+- **seed:** 15 davon zeigen zusätzlich das Symbol an der Überschrift — dort,
+  wo ein GANZER Abschnitt einer Oberfläche gewidmet ist (180b962)
+
 ## [0.12.1] – 2026-10-20
 
 _Zweite Verwendung einer Fähigkeit aus 0.12.0: Ein Ziel kann sein Symbol an der Überschrift zeigen. Dazu die Dogfooding-Korrektur — unsere eigenen Artikel nutzen die Ziele jetzt, und zwar an der richtigen Position._

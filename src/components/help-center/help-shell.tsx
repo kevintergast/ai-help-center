@@ -40,6 +40,8 @@ import { IconButton } from "@/components/ui/icon-button";
 import { SearchCombobox } from "@/components/ui/search-combobox";
 import { Accordion } from "@/components/ui/accordion";
 import { AccountMenu } from "@/components/account-menu";
+import { DestinationResolver } from "./destination-resolver";
+import { HelpCenterSwitcher } from "./help-center-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Emblem, LogoWithClaim } from "@/components/brand-mark";
 import {
@@ -417,11 +419,17 @@ export function HelpShell({
             );
           })}
 
+          {/* NUR Operator-Instanz: Auf welche eigene Instanz zeigen die Ziele
+              in diesen Artikeln gerade? Erscheint erst ab zwei Hilfezentren. */}
+          {isOperator ? <HelpCenterSwitcher locale={locale} /> : null}
           <ThemeToggle label={t("hc.themeToggle")} />
           {/* Konto — gemeinsames Menü mit dem Admin-Header (account-menu.tsx). */}
           <AccountMenu locale={locale} viewer={viewer} isOperator={isOperator} />
         </div>
       </header>
+      {/* Lenkt Klicks auf interne Ziele auf das Hilfezentrum DES LESERS um.
+          Rendert nichts, solange niemand klickt. */}
+      {isOperator ? <DestinationResolver locale={locale} /> : null}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar (immer sichtbar) */}

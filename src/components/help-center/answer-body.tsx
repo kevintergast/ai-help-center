@@ -93,6 +93,7 @@ export function AnswerBody({
                 href={part.href}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-destination={part.href}
                 onClick={() => reportDestination(part.href)}
                 className="inline-flex items-center gap-1.5 rounded-std bg-[var(--btn-primary-bg)] px-3.5 py-2 text-sm text-[var(--btn-primary-fg)] shadow-inset transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focusglow"
               >
@@ -175,6 +176,7 @@ function Rich({ part }: { part: { text: string; segments?: AnswerSegment[] } }) 
             href={seg.href}
             target="_blank"
             rel="noopener noreferrer"
+            data-destination={seg.href}
             onClick={() => reportDestination(seg.href!)}
             className="text-brand underline underline-offset-2 hover:no-underline"
           >
