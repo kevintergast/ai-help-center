@@ -27,6 +27,7 @@ const RELEASE_0_9_0 = 1791547200; // 2026-10-09
 const RELEASE_0_9_1 = 1791565200; // 2026-10-09
 const RELEASE_0_10_0 = 1791885600; // 2026-10-13
 const RELEASE_0_11_0 = 1791993600; // 2026-10-14
+const RELEASE_0_12_0 = 1792486800; // 2026-10-20
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -680,6 +681,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Die KI zeigt jetzt den Weg, nicht nur den Text",
+    description:
+      "Ein Hilfeartikel beschreibt einen Vorgang — ausgeführt wird er aber in deinem Produkt, deiner Verwaltung, einem Formular. Bisher endete die Anleitung mit „geh in die Einstellungen“, und dein Nutzer suchte den Weg selbst. Ab sofort hinterlegst du im Artikel-Editor hinter einem Abschnitt den Baustein „Ziel“: die Adresse der Oberfläche plus eine Beschreibung, wann jemand sie braucht. Im Artikel bleibt das unsichtbar. Sichtbar wird es in den Antworten der KI — als Knopf unter dem Schritt oder als Link mitten im Satz. Auf die Beschreibung kommt es an: Sie ist kein Linktext, sondern die Grundlage, auf der die KI entscheidet, ob das Ziel zur Frage passt. Schreibe also auch, wofür die Seite NICHT da ist. Zwei neue Flächen gehören dazu: Unter „Ziele“ siehst du jede Adresse genau einmal mit allen Artikeln, die sie verwenden — praktisch, wenn sich eine Produkt-Adresse ändert. Und unter „Statistik“ steht, welche Ziele tatsächlich geklickt werden: Das verrät dir, welche Stellen deiner Oberfläche niemand allein findet. Dein angebundener KI-Client kann Ziele ebenfalls pflegen.",
+    at: RELEASE_0_12_0,
+    version: "0.12.0",
+    level: "minor",
+  },
   {
     title: "Besser gefunden werden — auch von KI-Suchmaschinen",
     description:
