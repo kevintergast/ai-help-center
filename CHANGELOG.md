@@ -26,6 +26,20 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.12.2] – 2026-10-20
+
+_Dogfooding vervollständigt: 48 Ziele über 29 Artikel statt 15 über 15 — jeder Abschnitt, der eine Handlung beschreibt, führt jetzt an die passende Stelle._
+
+### Wartung
+- **seed:** Ziele in ALLEN Operator-Artikeln — 48 statt 15, verteilt über 29
+  statt 15 Artikel. Der Fehler war die Granularität: Ein Artikel mit sechs
+  Abschnitten braucht sechs Ziele, nicht eines. In „Navigation & Einstieg"
+  führt der Abschnitt über die Reihenfolge an Navigation, der über
+  Artikel-Symbole an die Artikelliste, der über Pflege per KI an die
+  Zugriffs-Schlüssel (180b962)
+- **seed:** 15 davon zeigen zusätzlich das Symbol an der Überschrift — dort,
+  wo ein GANZER Abschnitt einer Oberfläche gewidmet ist (180b962)
+
 ## [0.12.1] – 2026-10-20
 
 _Zweite Verwendung einer Fähigkeit aus 0.12.0: Ein Ziel kann sein Symbol an der Überschrift zeigen. Dazu die Dogfooding-Korrektur — unsere eigenen Artikel nutzen die Ziele jetzt, und zwar an der richtigen Position._
