@@ -56,6 +56,7 @@ const RELEASE_0_9_1 = 1791565200; // 2026-10-09
 const RELEASE_0_10_0 = 1791885600; // 2026-10-13
 const RELEASE_0_11_0 = 1791993600; // 2026-10-14
 const RELEASE_0_12_0 = 1792486800; // 2026-10-20
+const RELEASE_0_12_1 = 1792501200; // 2026-10-20
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -724,6 +725,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Ziele auch sichtbar: Symbol neben der Überschrift",
+    description:
+      "Ein hinterlegtes Ziel war bisher ausschließlich für die KI da. Jetzt kannst du es zusätzlich sichtbar machen: ein kleines „in neuem Tab öffnen“-Symbol neben der Überschrift, unter der das Ziel steht. Ein Schalter am Baustein genügt — es ist dieselbe Adresse, du pflegst sie also weiterhin nur an einer Stelle. Praktisch überall dort, wo ein ganzer Abschnitt sich auf eine Oberfläche bezieht und auch der Leser, der nicht fragt, direkt hinspringen können soll. Steht über dem Ziel keine Überschrift, bleibt es unsichtbar wie bisher.",
+    at: RELEASE_0_12_1,
+    version: "0.12.1",
+    level: "patch",
+  },
   {
     title: "Die KI zeigt jetzt den Weg, nicht nur den Text",
     description:
