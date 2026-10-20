@@ -97,3 +97,65 @@ describe("parseSavedAnswerInput — Zitate", () => {
     ).toBe("invalid_citations");
   });
 });
+
+/**
+ * Ziele in gespeicherten Antworten. Der gefährliche Fall: Ein Client
+ * speichert eine harmlos aussehende Textfassung und hängt daneben Segmente
+ * mit einer ganz anderen Adresse an — angezeigt würde dann etwas anderes
+ * als das, was `text` sagt.
+ */
+describe("parseSavedAnswerInput — Ziele", () => {
+  it("nimmt Knopf und Inline-Segmente an", () => {
+    const parsed = parseSavedAnswerInput({
+      ...BASE,
+      parts: [
+        {
+          kind: "step",
+          text: "Öffne die Einstellungen und speichere.",
+          segments: [
+            { text: "Öffne die " },
+            { text: "Einstellungen", href: "https://app.example.com/einstellungen" },
+            { text: " und speichere." },
+          ],
+          source: 0,
+        },
+        { kind: "link", href: "https://app.example.com/x", label: "Öffnen", source: 0 },
+      ],
+    });
+    if (typeof parsed === "string") throw new Error(parsed);
+    expect(parsed.parts).toHaveLength(2);
+  });
+
+  it("Segmente, die NICHT den Text ergeben → abgelehnt", () => {
+    expect(
+      parseSavedAnswerInput({
+        ...BASE,
+        parts: [
+          {
+            kind: "text",
+            text: "Harmlos.",
+            segments: [{ text: "Ganz etwas anderes", href: "https://app.example.com/x" }],
+            source: 0,
+          },
+        ],
+      }),
+    ).toBe("invalid_parts");
+  });
+
+  it("Skript-Schema in Segment oder Knopf → abgelehnt", () => {
+    expect(
+      parseSavedAnswerInput({
+        ...BASE,
+        parts: [{ kind: "link", href: "javascript:alert(1)", label: "X", source: 0 }],
+      }),
+    ).toBe("invalid_parts");
+    expect(
+      parseSavedAnswerInput({
+        ...BASE,
+        parts: [
+          { kind: "text", text: "A", segments: [{ text: "A", href: "javascript:x" }], source: 0 },
+        ],
+      }),
+    ).toBe("invalid_parts");
+  });
+});

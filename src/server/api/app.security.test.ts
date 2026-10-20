@@ -417,6 +417,12 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
     // Artikel, 0029). Gleiche Begründung wie bei Bildern: ein Download-Link
     // sendet keine Header. Dateien an Drafts bleiben fail-closed gesperrt,
     // ausgeliefert wird immer als attachment + nosniff (kein Render im Origin).
+    // 2026-10-19: + /events/destination (Klick auf ein ZIEL aus einer
+    // KI-Antwort). Dieselbe Klasse wie /view und /feedback: anonymer Leser,
+    // 0 Credits, kein MAU, IP-Rate-Limit. Zusätzliche Schranke: Gezählt wird
+    // nur eine Adresse, die in einem VERÖFFENTLICHTEN Artikel dieser Instanz
+    // als Ziel steht — sonst könnte jeder die Auswertung mit Fremd-URLs
+    // volllaufen lassen.
     expect(PUBLIC_ROUTES).toMatchInlineSnapshot(`
       {
         "exact": [
@@ -425,6 +431,7 @@ describe("(e) Default-Deny: Routen-Enumeration + PUBLIC-Allowlist", () => {
           "/api/v1/branding/logo",
           "/api/v1/events/view",
           "/api/v1/events/feedback",
+          "/api/v1/events/destination",
           "/api/v1/ask",
           "/api/v1/unanswered/report",
           "/api/v1/support/tickets",

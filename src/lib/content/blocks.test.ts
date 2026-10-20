@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyTranslatedTexts,
+  articleDestinations,
   blockTexts,
   extractTranslatableTexts,
   parseArticleBody,
@@ -324,5 +325,114 @@ describe("articleLinks — Verweis-Gitter", () => {
     expect(blocks).toEqual([
       { type: "articleLinks", items: [{ slug: "a", title: "Gut", description: "", tag: null }] },
     ]);
+  });
+});
+
+/**
+ * ZIELE (unsichtbare Oberflächen-Verweise).
+ *
+ * Der Baustein muss durch BEIDE Parser: den toleranten Lesepfad und den
+ * strikten Schreibpfad. Genau diese Doppelung hat 0.8.1 gekostet — der
+ * Support-Baustein war dokumentiert, wurde beim Speichern aber abgelehnt,
+ * weil nur der Lesepfad ihn kannte.
+ */
+describe("Ziel-Baustein (destination)", () => {
+  const ok = {
+    type: "destination",
+    href: "https://app.example.com/einstellungen",
+    purpose: "Hier legst du Name und Sprache des Assistenten fest.",
+  };
+
+  it("LESEPFAD nimmt ihn an", () => {
+    expect(parseArticleBody([ok])).toEqual([
+      { type: "destination", href: ok.href, purpose: ok.purpose },
+    ]);
+  });
+
+  it("SCHREIBPFAD nimmt ihn an (sonst: dokumentiert, aber nicht speicherbar)", () => {
+    const res = validateBodyInput([ok]);
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.value[0]).toEqual({ type: "destination", href: ok.href, purpose: ok.purpose });
+  });
+
+  it("Skript-Schema im Ziel wird abgelehnt (der Link landet in KI-Antworten)", () => {
+    for (const href of ["javascript:alert(1)", "data:text/html,x", "//fremd.example.com"]) {
+      const res = validateBodyInput([{ ...ok, href }]);
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.error).toBe("invalid_destination_href");
+    }
+  });
+
+  it("zu knappe Beschreibung wird abgelehnt — davon hängt die Trefferwahl ab", () => {
+    const res = validateBodyInput([{ ...ok, purpose: "Einstellungen" }]);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toBe("invalid_destination_purpose");
+  });
+
+  it("bleibt AUS dem Suchindex: weder Adresse noch Zweck werden Artikeltext", () => {
+    const texts = blockTexts(parseArticleBody([{ type: "text", variant: "standard", text: "Sichtbar." }, ok]));
+    expect(texts).toEqual(["Sichtbar."]);
+    // Sonst stünde die URL-Beschreibung als Meta-Description im Google-Snippet.
+    expect(texts.join(" ")).not.toContain("app.example.com");
+  });
+});
+
+/**
+ * Die Zuordnung Ziel → Absatz entscheidet, ob die KI das Ziel des RICHTIGEN
+ * Abschnitts anbietet. Läuft der Zeiger gegenüber `blockTexts` auseinander,
+ * schickt ein Artikel den Leser beim Schritt „Sprache einstellen" auf die
+ * Rechnungsseite — ohne dass irgendwo ein Fehler sichtbar wird.
+ */
+describe("articleDestinations (Position)", () => {
+  const dest = (n: string) => ({
+    type: "destination" as const,
+    href: `https://e.test/${n}`,
+    purpose: `Zweck ${n} mit ausreichend Text für die Prüfung.`,
+  });
+
+  it("ordnet jedes Ziel dem Absatz davor zu", () => {
+    const blocks = parseArticleBody([
+      { type: "text", variant: "standard", text: "Erster Absatz." },
+      dest("a"),
+      { type: "text", variant: "standard", text: "Zweiter Absatz." },
+      { type: "text", variant: "standard", text: "Dritter Absatz." },
+      dest("b"),
+    ]);
+    expect(articleDestinations(blocks)).toEqual([
+      { afterParagraph: 0, href: "https://e.test/a", purpose: expect.any(String) },
+      { afterParagraph: 2, href: "https://e.test/b", purpose: expect.any(String) },
+    ]);
+  });
+
+  it("Ziel ganz oben gilt für den ganzen Artikel (-1)", () => {
+    const blocks = parseArticleBody([dest("a"), { type: "text", variant: "standard", text: "X." }]);
+    expect(articleDestinations(blocks)[0].afterParagraph).toBe(-1);
+  });
+
+  it("Blöcke OHNE Text (Bild, Trenner) verschieben den Zeiger nicht", () => {
+    const blocks = parseArticleBody([
+      { type: "text", variant: "standard", text: "Eins." },
+      { type: "image", imageId: "i1" },
+      { type: "divider" },
+      dest("a"),
+    ]);
+    // Bild und Trenner stehen nicht in blockTexts → das Ziel gehört zu Absatz 0.
+    expect(blockTexts(blocks)).toEqual(["Eins."]);
+    expect(articleDestinations(blocks)[0].afterParagraph).toBe(0);
+  });
+
+  it("Karten-Gitter zählt je Karte einen Absatz (wie blockTexts)", () => {
+    const blocks = parseArticleBody([
+      {
+        type: "articleLinks",
+        items: [
+          { slug: "a", title: "A", description: "", tag: null },
+          { slug: "b", title: "B", description: "", tag: null },
+        ],
+      },
+      dest("a"),
+    ]);
+    expect(blockTexts(blocks)).toHaveLength(2);
+    expect(articleDestinations(blocks)[0].afterParagraph).toBe(1);
   });
 });

@@ -97,6 +97,12 @@ export interface StatsOverview {
   feedback: FeedbackStats;
   /** Meistzitierte Artikel in KI-Antworten (ai_source; ersetzt „Häufigste Fragen"). */
   topSources: TopArticleRow[];
+  /**
+   * Meistgeklickte ZIELE aus KI-Antworten (0052). Beantwortet eine Frage,
+   * die sonst niemand stellt: Welche Stellen der eigenen Oberfläche findet
+   * niemand allein?
+   */
+  topDestinations: { href: string; clicks: number }[];
 }
 
 const STATS_DAYS = 30;
@@ -116,18 +122,21 @@ export async function getStatsOverview(
   const nowSec = Math.floor(Date.now() / 1000);
 
   const window = { days: STATS_DAYS, excludeInternal: !opts.includeInternal, nowSec };
-  const [series, topArticles, total60, feedback, topSources] = await Promise.all([
+  const [series, topArticles, total60, feedback, topSources, topDestinations] = await Promise.all([
     repo.getDailyViews(tenant.id, window),
     repo.getTopArticles(tenant.id, window, 5),
     repo.getViewTotal(tenant.id, { ...window, days: STATS_DAYS * 2 }),
     repo.getFeedbackStats(tenant.id, window),
     repo.getTopSources(tenant.id, window, 5),
+    // Ziel-Klicks kennen kein „intern": Gezählt wird der Klick, nicht wer
+    // klickt — es gibt dort keine Besucher-Kennung zum Ausfiltern.
+    repo.topDestinations(tenant.id, STATS_DAYS, nowSec),
   ]);
   const totalViews = series.reduce((a, b) => a + b, 0);
   const prevTotal = total60 - totalViews;
   const deltaPct = prevTotal > 0 ? Math.round(((totalViews - prevTotal) / prevTotal) * 100) : null;
 
-  return { series, topArticles, totalViews, deltaPct, feedback, topSources };
+  return { series, topArticles, totalViews, deltaPct, feedback, topSources, topDestinations };
 }
 
 export interface AdminUsageKpis {

@@ -64,6 +64,7 @@ import type {
   TeamDeps,
 } from "./context";
 import type { RateLimiterBinding, RateLimiters } from "./rate-limit";
+import { articleDestinations, parseArticleBody } from "@/lib/content/blocks";
 
 /**
  * ECHTE Runtime-Abhängigkeiten der API-App (Default-Instanz für die Next-Route).
@@ -487,6 +488,17 @@ async function getAskDepsRuntime(): Promise<AskRuntime | null> {
       // Text (gut fürs Finden), verliert dabei aber die Id — und ohne die
       // kann die Antwort kein Bild anzeigen. Vormerkungen bleiben draußen,
       // sie beschreiben ein Bild, das es noch nicht gibt.
+      // Ziele mit ihrer Absatz-Position (unsichtbare Oberflächen-Verweise).
+      const destinationsOf = (raw: string) => {
+        try {
+          const parsed = JSON.parse(raw) as unknown;
+          if (!Array.isArray(parsed)) return [];
+          return articleDestinations(parseArticleBody(parsed));
+        } catch {
+          return [];
+        }
+      };
+
       const imagesOf = (raw: string | undefined) => {
         if (!raw) return [];
         try {
@@ -509,6 +521,7 @@ async function getAskDepsRuntime(): Promise<AskRuntime | null> {
           ...toIndexable(r),
           kind: "article" as const,
           images: imagesOf((r as { images_json?: string }).images_json),
+          destinations: destinationsOf(r.body_json),
         })),
         ...roadmap.results.map((r) => ({ ...roadmapDoc(r), kind: "roadmap" as const })),
         ...changelog.results.map((r) => ({ ...changelogDoc(r), kind: "changelog" as const })),
@@ -677,5 +690,36 @@ export const runtimeDeps: ApiDeps = {
   getApiKeyDeps: getApiKeyDepsRuntime,
   getConfirmations: getConfirmationsRuntime,
   rateLimiters: rateLimitersRuntime,
+  /**
+   * Zählt nur ZIELE, die wirklich in einem veröffentlichten Artikel dieser
+   * Instanz stehen. Geprüft wird gegen den Artikel-Körper, nicht gegen eine
+   * Liste — Ziele leben im Text, es gibt keine zweite Wahrheit.
+   */
+  isKnownDestination: async (tenantId: string, href: string) => {
+    const db = await getDbSafe();
+    if (!db) return false;
+    const { results } = await db
+      .prepare(
+        `SELECT body_json FROM articles
+          WHERE tenant_id = ? AND status = 'published' AND body_json LIKE ?
+          LIMIT 20`,
+      )
+      .bind(tenantId, `%${href}%`)
+      .all<{ body_json: string }>();
+    // LIKE ist nur der Vorfilter — entschieden wird über die echten Blöcke,
+    // sonst zählte auch eine Adresse, die bloß zufällig im Text vorkommt.
+    for (const r of results) {
+      try {
+        const parsed = JSON.parse(r.body_json) as unknown;
+        if (!Array.isArray(parsed)) continue;
+        if (articleDestinations(parseArticleBody(parsed)).some((d) => d.href === href)) {
+          return true;
+        }
+      } catch {
+        /* kaputter Körper zählt nicht */
+      }
+    }
+    return false;
+  },
   visitorCodec: visitorCodecRuntime,
 };

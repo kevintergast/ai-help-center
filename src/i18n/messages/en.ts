@@ -151,6 +151,13 @@ export const en: Record<MessageKey, string> = {
   "admin.nav.overview": "Overview",
   "admin.buildInfo": "Version {version} · {commit}",
   "admin.nav.articles": "Articles",
+  "admin.nav.destinations": "Destinations",
+  "admin.destinations.title": "Destinations",
+  "admin.destinations.subtitle":
+    "Every stored interface exactly once — with the articles that use it. Destinations are maintained inside the article; this page is here so a changed product address can be found everywhere at a glance.",
+  "admin.destinations.empty":
+    "No destinations yet. In the article editor, add the \u00bbDestination\u00ab block after a step — the AI will then hand out the way there in its answers.",
+  "admin.destinations.usedIn": "in {n} sections",
   "admin.nav.stats": "Statistics",
   "admin.nav.plan": "Plan & credits",
   "admin.nav.inbox": "Issues",
@@ -656,6 +663,13 @@ export const en: Record<MessageKey, string> = {
   "admin.stats.showInternal": "Show internal accounts",
   "admin.stats.internalNote":
     "Internal team activity is shown in the counts and never counts as active users. It costs no credits — except AI generations, which are charged at the internal at-cost rate.",
+  "admin.stats.topDestinations": "Most-clicked destinations",
+  "admin.stats.destinationsHint":
+    "Which parts of your interface does nobody find on their own? Counts clicks on destinations the AI handed out in its answers.",
+  "admin.stats.destinationsEmpty":
+    "No clicks yet. Add destinations to your articles — then the AI can hand out the way there and you will see what people look for.",
+  "admin.stats.destination": "Destination",
+  "admin.stats.clicks": "Clicks",
   "admin.stats.topSources": "Top sources (AI answers)",
   "admin.stats.citations": "Citations",
   "admin.stats.sourcesEmpty":
@@ -949,6 +963,16 @@ export const en: Record<MessageKey, string> = {
   "editor.blocks.supportNoMeetings":
     "No booking link yet — the block then only shows the way to support. Add one under Settings → Booking links.",
   "editor.blocks.type.button": "Button",
+  "editor.blocks.type.destination": "Destination (hidden)",
+  "editor.blocks.destinationHref": "Address of the interface",
+  "editor.blocks.destinationHrefPlaceholder": "https://app.yourcompany.com/settings/assistants",
+  "editor.blocks.destinationPurpose": "When does someone need this page?",
+  "editor.blocks.destinationPurposePlaceholder":
+    "This is where you set an assistant's name, company and industry, plus language and tone. Not for phone numbers — those live under \u00bbPhone numbers\u00ab.",
+  "editor.blocks.destinationPurposeShort":
+    "Too brief. Describe what the page is for and what it is not — that decides whether the AI matches it correctly.",
+  "editor.blocks.destinationHint":
+    "Hidden in the article. The AI uses this destination in its answers — as a button or as a link within a sentence. Place it right after the section it belongs to.",
   "editor.blocks.type.divider": "Divider",
   "editor.blocks.type.file": "File",
   "editor.blocks.accordionTitle": "Section title",

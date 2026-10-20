@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import type { ArticleBlock, ArticleLinkCard, TagColor, TextVariant } from "@/lib/content/blocks";
 import {
   isAllowedButtonHref,
+  MIN_DESTINATION_PURPOSE,
   MAX_LINK_CARDS,
   pipeToTable,
   tableToPipe,
@@ -86,6 +87,7 @@ type AddKind =
   | { kind: "table" }
   | { kind: "accordion" }
   | { kind: "button" }
+  | { kind: "destination" }
   | { kind: "divider" }
   | { kind: "support" }
   | { kind: "file" };
@@ -181,6 +183,8 @@ function blankBlock(pick: AddKind): ArticleBlock {
       return { type: "support", text: "", meetingId: null };
     case "button":
       return { type: "button", label: "", href: "" };
+    case "destination":
+      return { type: "destination", href: "", purpose: "" };
     case "divider":
       return { type: "divider" };
     case "file":
@@ -612,6 +616,7 @@ export function ArticleBlocksEditor({
     if (b.type === "accordion") return t("editor.blocks.type.accordion");
     if (b.type === "support") return t("editor.blocks.type.support");
     if (b.type === "button") return t("editor.blocks.type.button");
+    if (b.type === "destination") return t("editor.blocks.type.destination");
     if (b.type === "divider") return t("editor.blocks.type.divider");
     if (b.type === "file") return t("editor.blocks.type.file");
     if (b.type === "articleLinks") return t("editor.blocks.type.cardGrid");
@@ -645,6 +650,9 @@ export function ArticleBlocksEditor({
           </Button>
           <Button variant="cream" size="sm" onClick={() => pickAt(index, { kind: "button" })}>
             {t("editor.blocks.type.button")}
+          </Button>
+          <Button variant="cream" size="sm" onClick={() => pickAt(index, { kind: "destination" })}>
+            {t("editor.blocks.type.destination")}
           </Button>
           <Button variant="cream" size="sm" onClick={() => pickAt(index, { kind: "divider" })}>
             {t("editor.blocks.type.divider")}
@@ -828,6 +836,38 @@ export function ArticleBlocksEditor({
                         <p className="text-xs text-crit">{t("editor.blocks.buttonHrefInvalid")}</p>
                       ) : (
                         <p className="text-xs text-ink-muted">{t("editor.blocks.buttonHrefHint")}</p>
+                      )}
+                    </div>
+                  ) : b.type === "destination" ? (
+                    <div className="flex flex-col gap-2">
+                      <Input
+                        label={t("editor.blocks.destinationHref")}
+                        value={b.href}
+                        onChange={(e) => update(i, { ...b, href: e.target.value })}
+                        placeholder={t("editor.blocks.destinationHrefPlaceholder")}
+                      />
+                      {/* Das Feld fragt nach dem ANLASS, nicht nach einer
+                          Beschriftung. „Assistenten-Einstellungen" lässt die
+                          KI raten; „Hier legst du Name und Sprache fest,
+                          NICHT die Rufnummer" lässt sie treffen. */}
+                      <Textarea
+                        label={t("editor.blocks.destinationPurpose")}
+                        value={b.purpose}
+                        rows={3}
+                        onChange={(e) => update(i, { ...b, purpose: e.target.value })}
+                        placeholder={t("editor.blocks.destinationPurposePlaceholder")}
+                      />
+                      {b.href.trim().length > 0 && !isAllowedButtonHref(b.href) ? (
+                        <p className="text-xs text-crit">{t("editor.blocks.buttonHrefInvalid")}</p>
+                      ) : b.purpose.trim().length > 0 &&
+                        b.purpose.trim().length < MIN_DESTINATION_PURPOSE ? (
+                        <p className="text-xs text-crit">
+                          {t("editor.blocks.destinationPurposeShort")}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-ink-muted">
+                          {t("editor.blocks.destinationHint")}
+                        </p>
                       )}
                     </div>
                   ) : b.type === "divider" ? (

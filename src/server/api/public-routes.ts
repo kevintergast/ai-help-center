@@ -30,6 +30,8 @@ export const PUBLIC_ROUTES = {
   // anonyme Endnutzer. Missbrauchsschutz in Schichten: IP-Rate-Limit +
   // Besucher-Tagesdeckel + Grounding-Schwelle + Plan-Gate (api/ask.ts,
   // rate-limit.ts) + AI-Gateway (Spend-/Rate-Limit) + WAF.
+  // /events/destination: BEWUSST public — Klicks auf Ziele kommen von
+  // anonymen Lesern. Gezählt wird nur, was als Ziel hinterlegt ist.
   // /events/feedback: BEWUSST public — „War das hilfreich?" kommt von anonymen
   // Besuchern; wie /view fire-and-forget (204, kein Orakel), 0 Credits,
   // 24h-Dedup, IP-Rate-Limit.
@@ -62,6 +64,7 @@ export const PUBLIC_ROUTES = {
     "/api/v1/branding/logo",
     "/api/v1/events/view",
     "/api/v1/events/feedback",
+    "/api/v1/events/destination",
     "/api/v1/ask",
     "/api/v1/unanswered/report",
     "/api/v1/support/tickets",

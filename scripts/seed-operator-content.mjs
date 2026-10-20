@@ -34,6 +34,7 @@ const RELEASE_0_9_0 = 1791547200; // 2026-10-09
 const RELEASE_0_9_1 = 1791565200; // 2026-10-09
 const RELEASE_0_10_0 = 1791885600; // 2026-10-13
 const RELEASE_0_11_0 = 1791993600; // 2026-10-14
+const RELEASE_0_12_0 = 1792486800; // 2026-10-20
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -180,6 +181,11 @@ const ARTICLES = [
       "Artikel durchlaufen einen einfachen Lebenszyklus: Entwurf und veröffentlicht. Nur veröffentlichte Artikel sind für deine Nutzer im Hilfezentrum sichtbar.",
       "Im Verwaltungsbereich baust du Artikel aus BLÖCKEN: Textblöcke (auch als Info-, Warnungs-, Fehler-Hinweis oder Code), Bilder, Videos und »Artikel verlinken«-Karten mit eigenem Titel, Beschreibung und farbigem Tag. Die Reihenfolge der Blöcke ist die Reihenfolge im Artikel — per Pfeiltasten sortierst du um.",
       "Zusätzlich kannst du jedem Artikel ein Flag geben (z. B. »Beta« oder »Wichtig«) — ein farbiges Badge, das neben dem Status angezeigt wird.",
+      "## Ziele: die KI den Weg zeigen lassen",
+      "Ein Hilfeartikel beschreibt oft einen Vorgang, der woanders ausgeführt wird — in deinem Produkt, deiner Verwaltung, einem Formular. Mit dem Baustein »Ziel« hinterlegst du hinter einem Abschnitt die Adresse dieser Oberfläche samt einer Beschreibung. Im Artikel ist das Ziel UNSICHTBAR.",
+      "Sichtbar wird es in den Antworten der KI: Statt »öffne die Einstellungen« bekommt der Fragende den Weg mitgeliefert — als Knopf unter dem Schritt oder als Link mitten im Satz. Setze das Ziel direkt hinter den Abschnitt, zu dem es gehört; diese Position ordnet es dem Schritt zu.",
+      "Entscheidend ist die Beschreibung. Sie ist kein Linktext, sondern die Grundlage, auf der die KI entscheidet, ob dieses Ziel zur Frage passt. »Assistenten-Einstellungen« lässt sie raten. »Hier legst du Name, Firma und Branche fest, außerdem Sprache und Tonfall — nicht die Rufnummern« lässt sie treffen. Schreibe also auch, wofür die Seite NICHT da ist.",
+      "Unter »Ziele« im Verwaltungsbereich siehst du jede hinterlegte Adresse genau einmal, mit allen Artikeln, die sie verwenden — praktisch, wenn sich eine Produkt-Adresse ändert. Und unter »Statistik« steht, welche Ziele tatsächlich geklickt werden: Das verrät dir, welche Stellen deiner Oberfläche niemand allein findet.",
       "Für Feld- und Parameter-Übersichten gibt es den Tabellen-Block: Du tippst die Zeilen mit | als Spaltentrenner, die erste Zeile ist die Kopfzeile — angezeigt wird eine saubere Tabelle.",
       "Weitere Bausteine: »Aufklappbar« versteckt Details hinter einem Titel (gut für FAQ und Sonderfälle), »Button« setzt eine Handlungsaufforderung mit Ziel-Adresse, »Trennlinie« gliedert lange Artikel, und »Datei« hängt eine Vorlage zum Herunterladen an (PDF, CSV, TXT, DOCX, XLSX, PPTX bis 10 MB).",
       "Sollen am Ende eines Artikels mehrere Verweise nebeneinander stehen — »Weitere Features«, »Passende Integrationen« —, nimm das »Verweis-Gitter«: bis zu zwölf Karten, jede mit Ziel-Artikel, eigenem Titel, Beschreibung und optionalem Tag. Auf großen Bildschirmen stehen sie zweispaltig, auf dem Handy untereinander. Jede Karte wird einzeln indexiert, die KI kann also gezielt auf einen der verlinkten Artikel verweisen.",
@@ -682,6 +688,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Die KI zeigt jetzt den Weg, nicht nur den Text",
+    description:
+      "Ein Hilfeartikel beschreibt einen Vorgang — ausgeführt wird er aber in deinem Produkt, deiner Verwaltung, einem Formular. Bisher endete die Anleitung mit „geh in die Einstellungen“, und dein Nutzer suchte den Weg selbst. Ab sofort hinterlegst du im Artikel-Editor hinter einem Abschnitt den Baustein „Ziel“: die Adresse der Oberfläche plus eine Beschreibung, wann jemand sie braucht. Im Artikel bleibt das unsichtbar. Sichtbar wird es in den Antworten der KI — als Knopf unter dem Schritt oder als Link mitten im Satz. Auf die Beschreibung kommt es an: Sie ist kein Linktext, sondern die Grundlage, auf der die KI entscheidet, ob das Ziel zur Frage passt. Schreibe also auch, wofür die Seite NICHT da ist. Zwei neue Flächen gehören dazu: Unter „Ziele“ siehst du jede Adresse genau einmal mit allen Artikeln, die sie verwenden — praktisch, wenn sich eine Produkt-Adresse ändert. Und unter „Statistik“ steht, welche Ziele tatsächlich geklickt werden: Das verrät dir, welche Stellen deiner Oberfläche niemand allein findet. Dein angebundener KI-Client kann Ziele ebenfalls pflegen.",
+    at: RELEASE_0_12_0,
+    version: "0.12.0",
+    level: "minor",
+  },
   {
     title: "Besser gefunden werden — auch von KI-Suchmaschinen",
     description:
