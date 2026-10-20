@@ -26,6 +26,37 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.13.0] – 2026-10-20
+
+_Interne Ziele der Operator-Instanz werden beim Klick auf das Hilfezentrum des Lesers aufgelöst — vorher führten sie ins Leere. Mit Wahl am Konto (Migration 0053), Kopf-Umschalter und eigenem Endpunkt._
+
+### Hinzugefügt
+- **hc:** interne Ziele der OPERATOR-Instanz werden beim Klick auf das
+  Hilfezentrum des Lesers aufgelöst. Vorher zeigten sie auf unseren eigenen
+  Verwaltungsbereich und endeten in 404 (db02302)
+- **hc:** vier Fälle — nicht angemeldet, kein Hilfezentrum, genau eines,
+  mehrere. Bei mehreren eine einmalige Wahl plus Umschalter im Kopf
+  (db02302)
+- **operator:** `PUT /operator/help-centers/default` und Migration 0053. Die
+  Wahl hängt am KONTO, nicht am Browser — „einmalig wählen" soll auch auf dem
+  zweiten Gerät gelten (db02302)
+
+### Geändert
+- **hc:** die Auflösung passiert beim KLICK, nicht beim Rendern. Ein Listener
+  deckt Knopf, Inline-Link und Überschriften-Symbol zugleich ab, funktioniert
+  in servergerendertem HTML, und ohne Klick steht nirgends ein falscher Link
+  (db02302)
+
+### Sicherheit
+- **operator:** die Zugehörigkeit eines Hilfezentrums prüft die Datenbank in
+  der Schreib-Anweisung selbst (kein TOCTOU). Eine fremde Instanz als eigenes
+  Ziel zu setzen würde sonst Links dorthin servieren; eine Wahl auf ein
+  gelöschtes Hilfezentrum zählt als keine Wahl (db02302)
+
+_Die 0.12.2-Commits erscheinen hier nicht noch einmal — sie stehen im eigenen
+Abschnitt darunter. 0.12.2 wurde nie getaggt, deshalb zählte der Generator sie
+mit._
+
 ## [0.12.2] – 2026-10-20
 
 _Dogfooding vervollständigt: 48 Ziele über 29 Artikel statt 15 über 15 — jeder Abschnitt, der eine Handlung beschreibt, führt jetzt an die passende Stelle._

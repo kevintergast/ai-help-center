@@ -58,6 +58,7 @@ const RELEASE_0_11_0 = 1791993600; // 2026-10-14
 const RELEASE_0_12_0 = 1792486800; // 2026-10-20
 const RELEASE_0_12_1 = 1792501200; // 2026-10-20
 const RELEASE_0_12_2 = 1792508400; // 2026-10-20
+const RELEASE_0_13_0 = 1792515600; // 2026-10-20
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -759,6 +760,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Die Links in unseren Artikeln führen jetzt in DEIN Hilfezentrum",
+    description:
+      "Unsere Artikel beschreiben Handgriffe im Verwaltungsbereich und hinterlegen dafür Ziele. Bisher zeigten die auf unseren eigenen Bereich — wer darauf klickte, landete im Nichts. Ab sofort führt so ein Link dorthin, wo er hingehört: in dein Hilfezentrum. Bist du nicht angemeldet, fragen wir dich zuerst danach; hast du noch keines, bieten wir dir an, eines anzulegen. Hast du genau eines, geht es ohne Rückfrage direkt hin. Und wer mehrere betreibt, wählt einmal aus und kann oben im Kopf jederzeit wechseln — die Wahl hängt am Konto, gilt also auch auf dem nächsten Gerät. Das betrifft nur unser eigenes Hilfezentrum: Deines verweist auf deine festen Adressen, dort ändert sich nichts.",
+    at: RELEASE_0_13_0,
+    version: "0.13.0",
+    level: "minor",
+  },
   {
     title: "Jeder Abschnitt führt dich jetzt dorthin, wo es passiert",
     description:
