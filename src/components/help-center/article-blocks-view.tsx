@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ArticleBlock, ArticleLinkCard } from "@/lib/content/blocks";
-import { textToParagraphs } from "@/lib/content/headings";
+import { headingDestinations, textToParagraphs } from "@/lib/content/headings";
 import { formatFileSize } from "@/lib/content/file-size";
 import type { ArticleFile, ArticleImage, ArticleVideo } from "@/lib/content/types";
 import type { Locale } from "@/lib/tenant/types";
@@ -53,6 +53,9 @@ export interface BlockViewContext {
   srcFor: (imageId: string) => string;
   /** Überschriften-Anker („Abschnitt teilen") — nur öffentlich, nicht im Editor. */
   anchors?: { locale: Locale; taken: Set<string> };
+  /** Anker-Id → Ziel-Adresse (sichtbares Symbol an der Überschrift). */
+  headingLinks?: Map<string, string>;
+  headingLinkLabel?: string;
   /**
    * `false` = Artikel-Link-Cards rendern als NICHT-klickbare Attrappe.
    * Der Editor setzt das: ein Klick würde client-seitig wegnavigieren und
@@ -82,13 +85,23 @@ export function SingleBlockView({ block, ctx }: { block: ArticleBlock; ctx: Bloc
     if (block.variant === "standard") {
       return (
         <div className="flex flex-col gap-4">
-          <RichTextView body={textToParagraphs(block.text)} anchors={ctx.anchors} />
+          <RichTextView
+            body={textToParagraphs(block.text)}
+            anchors={ctx.anchors}
+            headingLinks={ctx.headingLinks}
+            headingLinkLabel={ctx.headingLinkLabel}
+          />
         </div>
       );
     }
     return (
       <div className={`flex flex-col gap-4 rounded-comfy border px-4 py-3 ${CALLOUT_STYLES[block.variant]}`}>
-        <RichTextView body={textToParagraphs(block.text)} anchors={ctx.anchors} />
+        <RichTextView
+            body={textToParagraphs(block.text)}
+            anchors={ctx.anchors}
+            headingLinks={ctx.headingLinks}
+            headingLinkLabel={ctx.headingLinkLabel}
+          />
       </div>
     );
   }
@@ -165,7 +178,12 @@ export function SingleBlockView({ block, ctx }: { block: ArticleBlock; ctx: Bloc
           {block.title}
         </summary>
         <div className="flex flex-col gap-4 border-t border-hairline px-4 py-3">
-          <RichTextView body={textToParagraphs(block.text)} anchors={ctx.anchors} />
+          <RichTextView
+            body={textToParagraphs(block.text)}
+            anchors={ctx.anchors}
+            headingLinks={ctx.headingLinks}
+            headingLinkLabel={ctx.headingLinkLabel}
+          />
         </div>
       </details>
     );
@@ -358,6 +376,7 @@ export function ArticleBlocksView({
   anchorLocale,
   locale,
   meeting = null,
+  headingLinkLabel,
 }: {
   blocks: ArticleBlock[];
   images: ArticleImage[];
@@ -381,6 +400,8 @@ export function ArticleBlocksView({
   anchorLocale?: Locale;
   /** Buchungslinks für den Support-Baustein (0048). */
   meeting?: MeetingConfig | null;
+  /** Beschriftung des Ziel-Symbols an Überschriften (i18n). */
+  headingLinkLabel?: string;
 }) {
   const ctx: BlockViewContext = {
     meeting,
@@ -396,6 +417,11 @@ export function ArticleBlocksView({
     linksActive,
     // Ein gemeinsames Set über ALLE Blöcke → artikelweit eindeutige Anker.
     anchors: anchorLocale ? { locale: anchorLocale, taken: new Set<string>() } : undefined,
+    // Sichtbare Ziele an Überschriften (0.12.0). EINMAL für den ganzen
+    // Artikel berechnet — dieselbe Traversierung wie die Anker-Ids, sonst
+    // hinge das Symbol an der falschen Überschrift.
+    headingLinks: headingDestinations(blocks),
+    headingLinkLabel: headingLinkLabel,
   };
   return (
     <div className="flex flex-col gap-4 text-[15px] leading-relaxed text-ink">

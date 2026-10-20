@@ -3,6 +3,7 @@ import { parseBlocks, type InlineNode } from "@/lib/content/rich-text";
 import { uniqueAnchorId } from "@/lib/content/heading-anchor";
 import { inlineText } from "@/lib/content/headings";
 import type { Locale } from "@/lib/tenant/types";
+import { ExternalLinkIcon } from "@/components/ui/icons";
 import { HeadingAnchor } from "./heading-anchor";
 
 /**
@@ -48,9 +49,33 @@ function renderInline(nodes: InlineNode[], keyPrefix = ""): ReactNode[] {
   });
 }
 
+/**
+ * „In neuem Tab öffnen" neben einer Überschrift — bewusst NUR ein Symbol.
+ *
+ * Eine Beschriftung würde mit der Überschrift konkurrieren; das Symbol ist
+ * die überall verstandene Abkürzung. `rel` ist Pflicht, weil die Adresse in
+ * ein fremdes Produkt zeigt.
+ */
+function HeadingDestination({ href, label }: { href: string; label?: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={label}
+      aria-label={label}
+      className="ml-2 inline-flex translate-y-[-1px] align-middle text-ink-muted transition-colors hover:text-brand"
+    >
+      <ExternalLinkIcon width={15} height={15} />
+    </a>
+  );
+}
+
 export function RichTextView({
   body,
   anchors,
+  headingLinks,
+  headingLinkLabel,
 }: {
   body: string[];
   /**
@@ -61,6 +86,15 @@ export function RichTextView({
    * eindeutige Anker bekommen (der Aufrufer gibt dasselbe Set durch).
    */
   anchors?: { locale: Locale; taken: Set<string> };
+  /**
+   * Anker-Id → Ziel-Adresse. Überschriften, die hier vorkommen, bekommen ein
+   * kleines „in neuem Tab öffnen"-Symbol. Die Zuordnung kommt von außen
+   * (headingDestinations), damit sie mit den Anker-Ids aus EINER Quelle
+   * stammt.
+   */
+  headingLinks?: Map<string, string>;
+  /** Titel-Attribut des Symbols (i18n; der Aufrufer kennt die Sprache). */
+  headingLinkLabel?: string;
 }) {
   const blocks = parseBlocks(body);
   return (
@@ -77,6 +111,9 @@ export function RichTextView({
                 className="group/heading mt-2 scroll-mt-24 text-xl font-semibold tracking-[-0.3px] text-ink"
               >
                 {renderInline(block.inline)}
+                {id && headingLinks?.has(id) ? (
+                  <HeadingDestination href={headingLinks.get(id)!} label={headingLinkLabel} />
+                ) : null}
                 {id && anchors ? <HeadingAnchor id={id} locale={anchors.locale} /> : null}
               </h2>
             );
@@ -90,6 +127,9 @@ export function RichTextView({
                 className="group/heading mt-1 scroll-mt-24 text-base font-semibold text-ink"
               >
                 {renderInline(block.inline)}
+                {id && headingLinks?.has(id) ? (
+                  <HeadingDestination href={headingLinks.get(id)!} label={headingLinkLabel} />
+                ) : null}
                 {id && anchors ? <HeadingAnchor id={id} locale={anchors.locale} /> : null}
               </h3>
             );

@@ -26,6 +26,32 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.12.1] – 2026-10-20
+
+_Zweite Verwendung einer Fähigkeit aus 0.12.0: Ein Ziel kann sein Symbol an der Überschrift zeigen. Dazu die Dogfooding-Korrektur — unsere eigenen Artikel nutzen die Ziele jetzt, und zwar an der richtigen Position._
+
+### Hinzugefügt
+- **hc:** `destination` kennt `onHeading` — zeigt zusätzlich ein
+  „in neuem Tab öffnen"-Symbol neben der Überschrift, unter der das Ziel
+  steht. Ein Schalter am bestehenden Baustein, kein zweiter Datentyp und
+  keine zweite Adresse (da66ff7)
+
+### Behoben
+- **seed:** unser eigenes Hilfezentrum beschrieb den Ziel-Baustein, ohne ihn
+  zu nutzen — null Ziele im Seed. Jetzt 15, in den Artikeln, die Handgriffe
+  im Verwaltungsbereich beschreiben (da66ff7)
+- **seed:** diese Ziele standen zuerst am ARTIKELENDE. Bei 10 von 15
+  Artikeln falsch — `ki-client-verbinden` zerfällt in 7 Chunks, ein Ziel
+  ganz unten erreicht nur den letzten. Jetzt hinter dem Absatz, zu dem sie
+  gehören (da66ff7)
+
+### Tests
+- **content:** die Zuordnung Ziel → Überschrift läuft über die ANKER-ID und
+  dieselbe Traversierung wie das Inhaltsverzeichnis; getestet inklusive
+  doppelter Überschriften. Getrennt hergeleitete Ids hießen: Symbol an der
+  falschen Überschrift, Leser klickt bei „Sprache" und landet in der
+  Rechnung (da66ff7)
+
 ## [0.12.0] – 2026-10-20
 
 _Neue Fähigkeit: Artikel-Abschnitte tragen unsichtbare Ziele, die die KI in ihren Antworten als Knopf oder Link im Satz mitgibt — samt Übersicht, Klick-Auswertung und MCP-Pflege._

@@ -198,6 +198,7 @@ export function ArticlePage({
               meeting={data.meeting}
               videoPlayLabel={t("hc.videoPlay")}
               fileDownloadLabel={t("hc.fileDownload")}
+              headingLinkLabel={t("hc.headingDestination")}
               locale={locale}
               anchorLocale={locale}
             />

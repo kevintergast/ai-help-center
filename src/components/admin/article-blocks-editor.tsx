@@ -36,6 +36,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import type { MeetingLink } from "@/lib/content/meeting";
 import { CloseIcon, PencilIcon } from "@/components/ui/icons";
 
@@ -856,6 +857,15 @@ export function ArticleBlocksEditor({
                         rows={3}
                         onChange={(e) => update(i, { ...b, purpose: e.target.value })}
                         placeholder={t("editor.blocks.destinationPurposePlaceholder")}
+                      />
+                      {/* Sichtbar machen: dieselbe Adresse, zweite Verwendung.
+                          Kein zweiter Baustein, der auseinanderlaufen könnte. */}
+                      <Switch
+                        checked={b.onHeading === true}
+                        onCheckedChange={(next) =>
+                          update(i, { ...b, ...(next ? { onHeading: true } : { onHeading: undefined }) })
+                        }
+                        label={t("editor.blocks.destinationOnHeading")}
                       />
                       {b.href.trim().length > 0 && !isAllowedButtonHref(b.href) ? (
                         <p className="text-xs text-crit">{t("editor.blocks.buttonHrefInvalid")}</p>
