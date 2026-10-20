@@ -995,6 +995,17 @@ export const en: Record<MessageKey, string> = {
   "editor.blocks.fileErrType": "This file type is not allowed.",
   "editor.blocks.fileErrTooMany": "This article already has the maximum number of files.",
   "editor.blocks.fileErrGeneric": "Upload failed — please try again.",
+  "hc.destination.loading": "One moment …",
+  "hc.destination.signInBody":
+    "This link leads into your own help center. Sign in so we know which one you mean.",
+  "hc.destination.signIn": "Sign in",
+  "hc.destination.createAccount": "Create account",
+  "hc.destination.noHelpCenterBody":
+    "You do not have a help center yet. Create one — these links will then take you straight to the right place inside it.",
+  "hc.destination.createHelpCenter": "Create help center",
+  "hc.destination.chooseBody": "Which of your help centers should this open?",
+  "hc.destination.chooseHint": "We remember your choice. You can switch any time in the header.",
+  "hc.switcher.title": "Switch which help center the links point to",
   "hc.headingDestination": "Open in a new tab",
   "hc.fileDownload": "Download",
   "editor.blocks.tableHint": "One line per table row, separate columns with |. The first line is the header.",

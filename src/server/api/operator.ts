@@ -231,8 +231,14 @@ export function operatorRouter(deps: ApiDeps) {
     const operator = await deps.getOperatorDeps?.();
     if (!operator) return c.json(OPERATOR_UNAVAILABLE, 503);
 
-    const helpCenters = await operator.repo.listByOperator(user.id);
+    const [helpCenters, chosen] = await Promise.all([
+      operator.repo.listByOperator(user.id),
+      operator.repo.getDefaultHelpCenter(user.id),
+    ]);
     return c.json({
+      // Welches Hilfezentrum meint dieser Leser? Bei genau einem ist die
+      // Frage beantwortet, ohne dass jemand wählen musste.
+      defaultTenantId: chosen ?? (helpCenters.length === 1 ? helpCenters[0].tenantId : null),
       helpCenters: helpCenters.map((h) => ({
         tenantId: h.tenantId,
         slug: h.slug,
@@ -242,6 +248,42 @@ export function operatorRouter(deps: ApiDeps) {
         helpCenterUrl: `https://${h.slug}.hallofhelp.com`,
       })),
     });
+  });
+
+  /**
+   * PUT /operator/help-centers/default {tenantId}
+   *
+   * Die einmalige Wahl, welches Hilfezentrum gemeint ist, wenn unsere
+   * Artikel auf `/admin/...` verweisen. Am KONTO gespeichert, nicht im
+   * Browser — sonst müsste der Nutzer auf jedem Gerät neu wählen.
+   *
+   * Die Zugehörigkeit prüft die Datenbank in der Schreib-Anweisung selbst:
+   * Sonst könnte jemand eine fremde Instanz als sein Ziel setzen und bekäme
+   * von uns einen Link dorthin serviert.
+   */
+  r.put("/help-centers/default", async (c) => {
+    const ctxErr = ensureOperatorContext(c);
+    if (ctxErr) return ctxErr;
+
+    const user = await readOperatorUser(c);
+    if (!user) return c.json(UNAUTHORIZED, 401);
+
+    let tenantId: unknown;
+    try {
+      tenantId = ((await c.req.json()) as { tenantId?: unknown }).tenantId;
+    } catch {
+      return c.json({ error: "invalid_json" }, 400);
+    }
+    if (typeof tenantId !== "string" || tenantId.length === 0 || tenantId.length > 80) {
+      return c.json({ error: "invalid_tenant" }, 400);
+    }
+
+    const operator = await deps.getOperatorDeps?.();
+    if (!operator) return c.json(OPERATOR_UNAVAILABLE, 503);
+
+    const ok = await operator.repo.setDefaultHelpCenter(user.id, tenantId);
+    if (!ok) return c.json({ error: "not_your_help_center" }, 403);
+    return c.json({ ok: true, tenantId });
   });
 
   return r;
