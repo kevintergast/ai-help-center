@@ -1,12 +1,14 @@
 import type { AdminArticleRow } from "@/lib/admin/types";
 import type { ArticleTranslationInfo } from "@/lib/content/types";
 import type { Article, HelpCenterData, HelpCenterRepository } from "@/lib/content/types";
+import type { ArticleBlock } from "@/lib/content/blocks";
 import type { Tenant } from "@/lib/tenant/types";
 import {
   SAMPLE_ARTICLES,
   groupByCategory,
   sampleHelpCenterRepo,
 } from "@/lib/content/fake-repo";
+import { articleDestinations } from "@/lib/content/blocks";
 import { D1BillingRepository } from "@/server/billing/store";
 import { getDbSafe } from "@/server/db/client";
 import { DEFAULT_LEGAL_FOOTER } from "@/lib/content/footer-links";
@@ -127,6 +129,57 @@ export async function listAdminArticleRows(tenant: Tenant): Promise<AdminArticle
     articleKey: a.id,
     updatedAt: 0,
   }));
+}
+
+/**
+ * ALLE Ziele der Instanz, nach Adresse gruppiert.
+ *
+ * Ziele werden bewusst INLINE am Abschnitt gepflegt — dort, wo der Schritt
+ * steht. Der Preis: Dieselbe Oberfläche taucht in vielen Artikeln auf, und
+ * ein Produkt-Relaunch hieße, sie überall zu suchen. Diese Ansicht ist die
+ * Gegenmaßnahme: ein Bildschirm, auf dem jede Adresse genau einmal steht,
+ * mit den Artikeln, die sie verwenden.
+ *
+ * Entwürfe sind mit drin — gerade sie will man vor dem Veröffentlichen noch
+ * geradeziehen.
+ */
+export async function listDestinations(
+  tenant: Tenant,
+): Promise<{ href: string; uses: { articleId: string; title: string; purpose: string }[] }[]> {
+  const db = await getDbSafe();
+  if (!db) return [];
+  const articles = await new D1ContentRepository(db).listForTransfer(tenant.id);
+
+  return groupDestinations(articles);
+}
+
+export interface DestinationGroup {
+  href: string;
+  uses: { articleId: string; title: string; purpose: string }[];
+}
+
+/**
+ * Gruppierung als REINE Funktion — die eigentliche Logik der Übersicht, und
+ * die Stelle, an der ein Fehler teuer wäre: Fällt eine Verwendung heraus,
+ * übersieht ein Relaunch genau die Stelle, die man sucht.
+ *
+ * Sortiert nach Häufigkeit, dann alphabetisch: Was oft verwendet wird, tut
+ * beim Ändern am meisten weh und gehört nach oben.
+ */
+export function groupDestinations(
+  articles: { id: string; title: string; body: ArticleBlock[] }[],
+): DestinationGroup[] {
+  const byHref = new Map<string, DestinationGroup["uses"]>();
+  for (const a of articles) {
+    for (const d of articleDestinations(a.body)) {
+      const list = byHref.get(d.href) ?? [];
+      list.push({ articleId: a.id, title: a.title, purpose: d.purpose });
+      byHref.set(d.href, list);
+    }
+  }
+  return [...byHref.entries()]
+    .map(([href, uses]) => ({ href, uses }))
+    .sort((x, y) => y.uses.length - x.uses.length || x.href.localeCompare(y.href));
 }
 
 /** Einen Artikel zur Bearbeitung laden (jeder Status; D1 oder Sample). */

@@ -47,6 +47,13 @@ export interface SourceDoc {
    * Changelog-Pseudo-Quellen haben keine.
    */
   images?: { id: string; description: string }[];
+  /**
+   * Ziele des Artikels MIT Position (`afterParagraph` = Index in `body`).
+   * Die Position entscheidet, welches Ziel zu welchem gefundenen Textblock
+   * gehört — ohne sie bekäme das Modell alle Ziele des Artikels vorgesetzt
+   * und ordnete sie raten zu.
+   */
+  destinations?: { afterParagraph: number; href: string; purpose: string }[];
 }
 
 export interface AskActor {
@@ -166,14 +173,29 @@ export async function answerQuestion(deps: AskPipelineDeps, input: AskInput): Pr
     (await deps.loadSources(input.tenantId, selectedHits)).map((d) => [d.id, d]),
   );
 
-  const context: { match: RetrievalMatch; doc: SourceDoc; text: string; hash: string }[] = [];
+  const context: {
+    match: RetrievalMatch;
+    doc: SourceDoc;
+    text: string;
+    hash: string;
+    /** Absatz-Spanne des Chunks — Grundlage der Ziel-Zuordnung. */
+    from: number;
+    to: number;
+  }[] = [];
   for (const match of grounding.selected) {
     const doc = docs.get(match.docId);
     if (!doc) continue; // nicht (mehr) vorhanden/veröffentlicht → Quelle entfällt
     const chunks = await buildChunks(doc);
     const chunk = chunks[match.chunkIndex];
     if (!chunk) continue; // Quelle wurde kürzer als der indexierte Stand
-    context.push({ match, doc, text: chunk.text, hash: chunk.hash });
+    context.push({
+      match,
+      doc,
+      text: chunk.text,
+      hash: chunk.hash,
+      from: chunk.from,
+      to: chunk.to,
+    });
   }
   if (context.length === 0) return { status: "ok", answer: noAnswer };
 
@@ -206,10 +228,21 @@ export async function answerQuestion(deps: AskPipelineDeps, input: AskInput): Pr
 
   // 5) Generierung. Jede Quelle bekommt ihre Nummer im Prompt und ihre
   //    Bilder; die Rückabbildung auf `citations` geht über die Doc-Id.
+  // Ziele je Quelle: nur die, die im GEFUNDENEN Abschnitt stehen (plus die
+  // des ganzen Artikels, afterParagraph -1). Ohne diese Eingrenzung bekäme
+  // das Modell alle Ziele eines langen Artikels vorgesetzt und ordnete sie
+  // dem falschen Schritt zu.
   const specs = context.map((c, i) => ({
     index: i + 1,
     citationIndex: cited.get(c.doc.id) ?? 0,
     images: (c.doc.images ?? []).map((img) => ({ id: img.id, description: img.description })),
+    destinations: (c.doc.destinations ?? [])
+      .filter(
+        (d) =>
+          d.afterParagraph < 0 ||
+          (d.afterParagraph >= c.from && d.afterParagraph <= c.to),
+      )
+      .map((d) => ({ href: d.href, purpose: d.purpose })),
   }));
   const { body, parts } = parseAnswer(
     await deps.generate(
@@ -220,6 +253,7 @@ export async function answerQuestion(deps: AskPipelineDeps, input: AskInput): Pr
           articleTitle: c.doc.title,
           text: c.text,
           images: specs[i].images,
+          destinations: specs[i].destinations,
         })),
       ),
     ),

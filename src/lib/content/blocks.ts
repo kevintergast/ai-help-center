@@ -75,6 +75,29 @@ export type ArticleBlock =
       label: string;
       href: string;
     }
+  | {
+      /**
+       * ZIEL (unsichtbar) — eine Oberfläche, auf der der beschriebene Schritt
+       * tatsächlich AUSGEFÜHRT wird.
+       *
+       * Rendert NICHTS. Der Zweck ist allein, dass die KI den Weg mitgeben
+       * kann: Statt „öffne die Einstellungen" bekommt der Leser den Knopf
+       * dorthin oder einen Link mitten im Satz.
+       *
+       * `purpose` ist kein Linktext, sondern Kontext für die Maschine — er
+       * beantwortet „WANN braucht jemand diese Seite?". Davon hängt ab, ob
+       * die KI das richtige Ziel wählt; eine Beschriftung wie
+       * „Einstellungen" lässt sie raten.
+       *
+       * Die POSITION im Körper ist bedeutungstragend: Sie ordnet das Ziel
+       * dem Abschnitt zu, hinter dem es steht. Die Suche zerlegt Artikel
+       * ohne Rücksicht auf Überschriften — nur über die Position lässt sich
+       * später sagen, welches Ziel zu welchem gefundenen Textblock gehört.
+       */
+      type: "destination";
+      href: string;
+      purpose: string;
+    }
   | { type: "divider" }
   | {
       /** DATEI-ANHANG (Vorlagen/Formulare) — Metadaten liegen in files_json. */
@@ -143,6 +166,8 @@ const MAX_CARD_DESCRIPTION = 300;
 /** Karten je Gitter. Mehr ist keine Navigation mehr, sondern eine Liste. */
 export const MAX_LINK_CARDS = 12;
 export const MAX_TAG_TEXT = 24;
+/** Mindestlänge der Ziel-Beschreibung — kürzer trägt keine Entscheidung. */
+export const MIN_DESTINATION_PURPOSE = 20;
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /**
@@ -223,6 +248,12 @@ export function parseArticleBody(raw: unknown): ArticleBlock[] {
             ? o.meetingId.trim().toLowerCase()
             : null,
       });
+    } else if (
+      o.type === "destination" &&
+      typeof o.href === "string" &&
+      typeof o.purpose === "string"
+    ) {
+      out.push({ type: "destination", href: o.href.trim(), purpose: o.purpose.trim() });
     } else if (o.type === "divider") {
       out.push({ type: "divider" });
     } else if (o.type === "file" && typeof o.fileId === "string") {
@@ -358,6 +389,20 @@ export function validateBodyInput(raw: unknown): { ok: true; value: ArticleBlock
         out.push({ type: "button", label, href: o.href.trim() });
         break;
       }
+      case "destination": {
+        if (typeof o.href !== "string" || !isAllowedButtonHref(o.href)) {
+          return { ok: false, error: "invalid_destination_href" };
+        }
+        const purpose = typeof o.purpose === "string" ? o.purpose.trim() : "";
+        // Untergrenze mit Absicht: Ein Dreiwortfetzen („Einstellungen auf")
+        // taugt nicht als Entscheidungsgrundlage für die KI, und ein leeres
+        // Feld wäre ein Ziel, das sie nie zuordnen kann.
+        if (purpose.length < MIN_DESTINATION_PURPOSE || purpose.length > MAX_TEXT_CHARS) {
+          return { ok: false, error: "invalid_destination_purpose" };
+        }
+        out.push({ type: "destination", href: o.href.trim(), purpose });
+        break;
+      }
       case "divider": {
         out.push({ type: "divider" });
         break;
@@ -437,6 +482,44 @@ export function serializeBody(blocks: ArticleBlock[]): unknown[] {
 function cardText(c: ArticleLinkCard): string {
   const desc = c.description.trim();
   return `→ ${c.title}${desc.length > 0 ? `: ${desc}` : ""}`;
+}
+
+/**
+ * Ziele eines Artikels MIT ihrer Position im Text.
+ *
+ * `afterParagraph` ist der Index in der Ausgabe von `blockTexts` — also der
+ * Absatz, HINTER dem das Ziel steht und zu dem es damit gehört. `-1` heißt:
+ * Es stand vor jedem Text und gilt für den ganzen Artikel.
+ *
+ * Warum nicht einfach der Block-Index: `blockTexts` überspringt Bilder,
+ * Videos, Trenner und die Ziele selbst. Block-Index und Absatz-Index laufen
+ * also auseinander, und die Suche kennt nur Absätze.
+ */
+export function articleDestinations(
+  blocks: ArticleBlock[],
+): { afterParagraph: number; href: string; purpose: string }[] {
+  const out: { afterParagraph: number; href: string; purpose: string }[] = [];
+  let paragraph = -1;
+  for (const b of blocks) {
+    if (b.type === "destination") {
+      out.push({ afterParagraph: paragraph, href: b.href, purpose: b.purpose });
+      continue;
+    }
+    // Jeder Block, der Text beisteuert, schiebt den Absatz-Zeiger weiter —
+    // exakt dieselbe Bedingung wie in `blockTexts`, sonst driften sie.
+    if (
+      (b.type === "text" && b.text.trim().length > 0) ||
+      b.type === "articleLink" ||
+      b.type === "accordion" ||
+      b.type === "button" ||
+      b.type === "table"
+    ) {
+      paragraph += 1;
+    } else if (b.type === "articleLinks") {
+      paragraph += b.items.length;
+    }
+  }
+  return out;
 }
 
 export function blockTexts(blocks: ArticleBlock[]): string[] {

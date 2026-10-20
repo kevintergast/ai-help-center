@@ -26,6 +26,38 @@ Alle nennenswerten Änderungen an HallofHelp — technische Sicht, nach
 
 _Noch keine Einträge._
 
+## [0.12.0] – 2026-10-20
+
+_Neue Fähigkeit: Artikel-Abschnitte tragen unsichtbare Ziele, die die KI in ihren Antworten als Knopf oder Link im Satz mitgibt — samt Übersicht, Klick-Auswertung und MCP-Pflege._
+
+### Hinzugefügt
+- **hc:** Baustein `destination` — Adresse plus Beschreibung hinter einem
+  Abschnitt, im Artikel unsichtbar. Das Modell sieht nur Handles (`Z1.2`) und
+  darf sie als Knopf ODER als Link im Satz setzen (4d0b6db)
+- **hc:** Chunking führt die Absatz-Spanne mit, damit ein Ziel dem GEFUNDENEN
+  Abschnitt zugeordnet werden kann — die Suche kennt keine Überschriften. Der
+  Chunk-Hash bleibt allein über den Text, Staleness ändert sich nicht (4d0b6db)
+- **hc:** Ziel-Klicks je (Instanz, Ziel, Tag), Migration 0052. Gezählt wird nur,
+  was in einem veröffentlichten Artikel als Ziel steht (233e5a0)
+- **admin:** Seite „Ziele" — jede Adresse einmal, mit den Artikeln, die sie
+  verwenden; dazu „Meistgeklickte Ziele" in der Statistik (789434d)
+- **mcp:** `get_content_conventions` beschreibt den Baustein, Clients können
+  ihn schreiben (233e5a0)
+
+### Geändert
+- **answers:** gespeicherte Antworten tragen Ziele mit; der Konto-Sync prüft,
+  dass die Segmente den reinen Text ERGEBEN — sonst ließe sich eine harmlose
+  Fassung speichern und eine andere anzeigen (4d0b6db)
+- **rag:** jede Markdown-Link-Schreibweise in der Modellausgabe wird
+  entschärft. Ohne gültiges Handle überlebt nur die Beschriftung, nie eine
+  fremde Adresse (4d0b6db)
+
+### Tests
+- **mcp:** Drift-Test — jede im Schema dokumentierte Block-Art muss der
+  strenge Schreibpfad annehmen. Am 25.09. war `support` nur im Lesepfad
+  ergänzt; 21 Artikel eines Kunden blieben unspeicherbar. Der Test fängt das
+  jetzt für jeden künftigen Block-Typ ab (233e5a0)
+
 ## [0.11.0] – 2026-10-14
 
 _Neue Fähigkeit: Instanzen entscheiden über KI-Suchmaschinen (Migration 0051, owner-only), dazu das fehlende SEO-Fundament — lastmod, Canonical, hreflang und Änderungsdatum im Schema._

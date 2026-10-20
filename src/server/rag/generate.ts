@@ -1,4 +1,4 @@
-import type { AnswerPart } from "@/lib/content/types";
+import type { AnswerPart, AnswerSegment } from "@/lib/content/types";
 
 /**
  * PROMPT-BAU + ANTWORT-PARSING für den dynamischen Hilfeartikel (RAG-Kern).
@@ -26,6 +26,12 @@ export interface SourceImage {
   description: string;
 }
 
+/** Ziel: Oberfläche, auf der der beschriebene Schritt ausgeführt wird. */
+export interface SourceDestination {
+  href: string;
+  purpose: string;
+}
+
 export interface ContextChunk {
   /** 1-basierte Quellen-Nummer im Prompt. */
   index: number;
@@ -33,6 +39,12 @@ export interface ContextChunk {
   text: string;
   /** Bilder dieser Quelle — das Modell darf sie über ihr Handle einsetzen. */
   images?: SourceImage[];
+  /**
+   * Ziele, die zu GENAU DIESEM Textblock gehören (plus die des ganzen
+   * Artikels). Das Modell bekommt nur Handles; eine URL darf es nie selbst
+   * schreiben — sonst schickt es Leser irgendwann auf erfundene Seiten.
+   */
+  destinations?: SourceDestination[];
 }
 
 export interface ChatMessage {
@@ -45,15 +57,24 @@ function imageHandle(sourceIndex: number, position: number): string {
   return `B${sourceIndex}.${position + 1}`;
 }
 
+/** Handle eines Ziels im Prompt: Z<Quelle>.<Position>, z. B. „Z2.1". */
+function destinationHandle(sourceIndex: number, position: number): string {
+  return `Z${sourceIndex}.${position + 1}`;
+}
+
 export function buildAskMessages(question: string, chunks: ContextChunk[]): ChatMessage[] {
   const sources = chunks
     .map((c) => {
       const imgs = (c.images ?? [])
         .map((img, i) => `  ${imageHandle(c.index, i)}: ${img.description}`)
         .join("\n");
+      const dests = (c.destinations ?? [])
+        .map((d, i) => `  ${destinationHandle(c.index, i)}: ${d.purpose}`)
+        .join("\n");
       return (
         `[Quelle ${c.index}] (Artikel: ${c.articleTitle})\n${c.text}` +
-        (imgs ? `\nVERFÜGBARE BILDER:\n${imgs}` : "")
+        (imgs ? `\nVERFÜGBARE BILDER:\n${imgs}` : "") +
+        (dests ? `\nVERFÜGBARE ZIELE:\n${dests}` : "")
       );
     })
     .join("\n\n---\n\n");
@@ -85,8 +106,19 @@ export function buildAskMessages(question: string, chunks: ContextChunk[]): Chat
         '- "image": nur wenn ein Bild den Schritt wirklich zeigt. Dann ' +
         '{"type":"image","image":"B1.2","source":1} mit einem Handle aus ' +
         "VERFÜGBARE BILDER. Erfinde keine Handles und wiederhole kein Bild.\n" +
+        "- ZIELE sind Oberflächen, auf denen der Schritt wirklich ausgeführt " +
+        "wird. Nenne sie NIE als Adresse, sondern über ihr Handle, und nur " +
+        "wenn VERFÜGBARE ZIELE eines anbietet, das zum Schritt passt. Zwei " +
+        "Arten, es zu nutzen:\n" +
+        '  a) Im Satz: schreibe [Beschriftung](Z1.1) mitten in den Text, ' +
+        'etwa „öffne die [Assistenten-Einstellungen](Z1.1) und …“.\n' +
+        '  b) Als eigener Knopf hinter dem Schritt: ' +
+        '{"type":"link","to":"Z1.1","label":"Einstellungen öffnen","source":1}\n' +
+        "  Nimm a), wenn der Weg Teil des Satzes ist; b), wenn der Schritt mit " +
+        "dem Öffnen der Seite endet. Höchstens ein Knopf je Schritt.\n" +
         "- Höchstens 8 Bausteine. Kein Markdown, keine Überschriften, keine " +
-        "Aufzählungszeichen — der Text eines Bausteins ist reiner Fließtext.",
+        "Aufzählungszeichen — der Text eines Bausteins ist reiner Fließtext " +
+        "(die Ziel-Schreibweise oben ist die EINZIGE Ausnahme).",
     },
     {
       role: "user",
@@ -221,6 +253,66 @@ export interface AnswerSourceSpec {
   /** Index derselben Quelle in `citations` der fertigen Antwort. */
   citationIndex: number;
   images: SourceImage[];
+  destinations: SourceDestination[];
+}
+
+/**
+ * Handle → Adresse. `Z<Quelle>.<Position>`; unbekannte Handles liefern
+ * `null` und werden vom Aufrufer verworfen — ein erfundenes Ziel darf nie
+ * als Link beim Leser landen.
+ */
+function resolveDestination(handle: string, sources: AnswerSourceSpec[]): string | null {
+  const m = /^Z(\d+)\.(\d+)$/.exec(handle.trim());
+  if (!m) return null;
+  const spec = sources.find((x) => x.index === Number(m[1]));
+  return spec?.destinations[Number(m[2]) - 1]?.href ?? null;
+}
+
+/**
+ * JEDE Link-Schreibweise im Satz — nicht nur unsere Handles.
+ *
+ * Absicht: Schreibt das Modell `[hier](https://irgendwo)`, soll weder die
+ * Adresse noch die Klammer-Schreibweise beim Leser landen. Aufgelöst wird
+ * nur ein Z-Handle; bei allem anderen bleibt die Beschriftung als normaler
+ * Text übrig. So kann das Modell auf keinem Weg eine eigene Adresse
+ * unterbringen, auch nicht als unklickbaren Text.
+ */
+const INLINE_LINK_RE = /\[([^\]\n]{1,80})\]\(([^)\s]{1,2048})\)/g;
+
+/**
+ * Text mit Inline-Zielen → Segmente plus reiner Text.
+ *
+ * Unbekanntes Handle ⇒ die Beschriftung bleibt als normaler Text stehen. So
+ * sieht der Leser nie eine Klammer-Schreibweise und nie einen toten Link —
+ * im schlechtesten Fall fehlt ihm nur der Sprung.
+ */
+function splitInlineLinks(
+  raw: string,
+  sources: AnswerSourceSpec[],
+): { text: string; segments?: AnswerSegment[] } {
+  INLINE_LINK_RE.lastIndex = 0;
+  const segments: AnswerSegment[] = [];
+  let plain = "";
+  let last = 0;
+  let linked = false;
+  for (let m = INLINE_LINK_RE.exec(raw); m !== null; m = INLINE_LINK_RE.exec(raw)) {
+    const before = raw.slice(last, m.index);
+    if (before) {
+      segments.push({ text: before });
+      plain += before;
+    }
+    const href = resolveDestination(m[2], sources);
+    segments.push(href ? { text: m[1], href } : { text: m[1] });
+    if (href) linked = true;
+    plain += m[1];
+    last = m.index + m[0].length;
+  }
+  const rest = raw.slice(last);
+  if (rest) {
+    segments.push({ text: rest });
+    plain += rest;
+  }
+  return linked ? { text: plain, segments } : { text: plain };
 }
 
 /**
@@ -267,17 +359,35 @@ export function parseAnswer(
       continue;
     }
 
-    const text = cleanText(o.text);
+    if (o.type === "link") {
+      // Knopf hinter dem Schritt. Ohne auflösbares Handle KEIN Knopf — das
+      // Modell darf keine Adresse erfinden.
+      const href = typeof o.to === "string" ? resolveDestination(o.to, sources) : null;
+      const label = cleanText(o.label);
+      if (!href || label.length === 0 || label.length > 80) continue;
+      parts.push({
+        kind: "link",
+        href,
+        label,
+        ...(spec ? { source: spec.citationIndex } : {}),
+      });
+      continue;
+    }
+
+    const { text, segments } = splitInlineLinks(cleanText(o.text), sources);
     if (text.length === 0) continue;
     parts.push({
       kind: o.type === "step" ? "step" : "text",
       text,
+      ...(segments ? { segments } : {}),
       ...(spec ? { source: spec.citationIndex } : {}),
     });
   }
 
   // Nur Bilder (oder nichts) ist keine Antwort — dann lieber der Prosa-Pfad.
-  const body = parts.filter((p) => p.kind !== "image").map((p) => (p as { text: string }).text);
+  const body = parts
+    .filter((p): p is Extract<AnswerPart, { text: string }> => p.kind === "text" || p.kind === "step")
+    .map((p) => p.text);
   if (body.length === 0) return { body: proseFallback(raw) };
 
   return { body, parts };

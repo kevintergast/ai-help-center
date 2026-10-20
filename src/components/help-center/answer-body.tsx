@@ -1,9 +1,9 @@
 "use client";
 
 import type { Locale } from "@/lib/tenant/types";
-import type { AnswerPart, Citation } from "@/lib/content/types";
+import type { AnswerPart, AnswerSegment, Citation } from "@/lib/content/types";
 import { getT } from "@/i18n/t";
-import { DocIcon } from "@/components/ui/icons";
+import { DocIcon, ExternalLinkIcon } from "@/components/ui/icons";
 
 /**
  * KÖRPER DES DYNAMISCHEN HILFEARTIKELS.
@@ -23,6 +23,27 @@ import { DocIcon } from "@/components/ui/icons";
  * trug) haben nur `body`. Die rendern wir unverändert als Absätze — eine
  * schlichtere Anzeige ist besser als eine leere.
  */
+
+/**
+ * Klick auf ein Ziel melden. `keepalive`, weil der Browser im selben Moment
+ * die Seite verlässt — ein normaler fetch würde abgebrochen.
+ *
+ * Bewusst fire-and-forget: Scheitert die Meldung, hat der Leser trotzdem
+ * bekommen, was er wollte. Eine Zählung ist kein Grund, einen Klick
+ * aufzuhalten.
+ */
+function reportDestination(href: string): void {
+  try {
+    void fetch("/api/v1/events/destination", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ href }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
+}
 
 export function AnswerBody({
   locale,
@@ -60,6 +81,29 @@ export function AnswerBody({
         const cite = part.source !== undefined ? citations[part.source] : undefined;
         const source = cite ? <SourceLink t={t} citation={cite} onOpen={onOpen} /> : null;
 
+        if (part.kind === "link") {
+          // ZIEL als eigener Knopf. `rel` ist Pflicht: Die Adresse zeigt in
+          // ein fremdes Produkt, und der Referrer verriete, aus welchem
+          // Hilfeartikel jemand kommt.
+          return (
+            // items-start + flex-col: Der Beleg gehört UNTER den Knopf. Als
+            // bloßes <div> stünde er daneben, weil beide inline sind.
+            <div key={i} className="flex flex-col items-start">
+              <a
+                href={part.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => reportDestination(part.href)}
+                className="inline-flex items-center gap-1.5 rounded-std bg-[var(--btn-primary-bg)] px-3.5 py-2 text-sm text-[var(--btn-primary-fg)] shadow-inset transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:shadow-focusglow"
+              >
+                {part.label}
+                <ExternalLinkIcon width={14} height={14} />
+              </a>
+              {source}
+            </div>
+          );
+        }
+
         if (part.kind === "image") {
           // Ohne Slug gibt es keine öffentliche Bild-Route — dann lieber
           // nichts zeigen als ein kaputtes Bild.
@@ -93,7 +137,7 @@ export function AnswerBody({
                 {/* Für Vorlese-Software ist die Ziffer oben dekorativ. */}
                 <p>
                   <span className="sr-only">{t("hc.answer.step", { n: String(step) })} </span>
-                  {part.text}
+                  <Rich part={part} />
                 </p>
                 {source}
               </div>
@@ -103,12 +147,44 @@ export function AnswerBody({
 
         return (
           <div key={i}>
-            <p>{part.text}</p>
+            <p>
+              <Rich part={part} />
+            </p>
             {source}
           </div>
         );
       })}
     </div>
+  );
+}
+
+/**
+ * Baustein-Text, bei Bedarf mit Zielen MITTEN IM SATZ.
+ *
+ * Ohne `segments` ist es schlichter Text — so bleiben ältere gespeicherte
+ * Antworten lesbar, die das Feld nicht kennen.
+ */
+function Rich({ part }: { part: { text: string; segments?: AnswerSegment[] } }) {
+  if (!part.segments) return <>{part.text}</>;
+  return (
+    <>
+      {part.segments.map((seg, i) =>
+        seg.href ? (
+          <a
+            key={i}
+            href={seg.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => reportDestination(seg.href!)}
+            className="text-brand underline underline-offset-2 hover:no-underline"
+          >
+            {seg.text}
+          </a>
+        ) : (
+          <span key={i}>{seg.text}</span>
+        ),
+      )}
+    </>
   );
 }
 

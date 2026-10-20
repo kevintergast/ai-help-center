@@ -12,6 +12,13 @@ const TENANT = "t_operator";
 const LOCALE = "de";
 // Feste Basis-Epoche (deterministisch, damit Re-Runs die Reihenfolge/Anlagezeit nicht verschieben).
 const BASE = 1783000000;
+// Zeitpunkt DIESES Seed-Laufs. Seit 0.11.0 liest die Sitemap (`lastmod`) und
+// das Artikel-Schema (`dateModified`) den Änderungszeitstempel — ein fester
+// Wert aus `BASE` würde Suchmaschinen erzählen, ein heute geänderter Artikel
+// sei Monate alt. Gesetzt wird er NUR, wo sich wirklich etwas geändert hat
+// (siehe ON CONFLICT unten); unveränderte Artikel behalten ihr Datum, sonst
+// sähe jeder Re-Lauf wie eine Rundum-Änderung aus.
+const NOW = Math.floor(Date.now() / 1000);
 // Release-Zeitpunkte (fest, damit Re-Runs nichts verschieben — aber mit dem
 // tatsächlichen Datum, sonst lesen Nutzer ein falsches „veröffentlicht am").
 const RELEASE_0_2_0 = 1787492800; // 2026-08-23
@@ -27,6 +34,7 @@ const RELEASE_0_9_0 = 1791547200; // 2026-10-09
 const RELEASE_0_9_1 = 1791565200; // 2026-10-09
 const RELEASE_0_10_0 = 1791885600; // 2026-10-13
 const RELEASE_0_11_0 = 1791993600; // 2026-10-14
+const RELEASE_0_12_0 = 1792486800; // 2026-10-20
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -173,6 +181,11 @@ const ARTICLES = [
       "Artikel durchlaufen einen einfachen Lebenszyklus: Entwurf und veröffentlicht. Nur veröffentlichte Artikel sind für deine Nutzer im Hilfezentrum sichtbar.",
       "Im Verwaltungsbereich baust du Artikel aus BLÖCKEN: Textblöcke (auch als Info-, Warnungs-, Fehler-Hinweis oder Code), Bilder, Videos und »Artikel verlinken«-Karten mit eigenem Titel, Beschreibung und farbigem Tag. Die Reihenfolge der Blöcke ist die Reihenfolge im Artikel — per Pfeiltasten sortierst du um.",
       "Zusätzlich kannst du jedem Artikel ein Flag geben (z. B. »Beta« oder »Wichtig«) — ein farbiges Badge, das neben dem Status angezeigt wird.",
+      "## Ziele: die KI den Weg zeigen lassen",
+      "Ein Hilfeartikel beschreibt oft einen Vorgang, der woanders ausgeführt wird — in deinem Produkt, deiner Verwaltung, einem Formular. Mit dem Baustein »Ziel« hinterlegst du hinter einem Abschnitt die Adresse dieser Oberfläche samt einer Beschreibung. Im Artikel ist das Ziel UNSICHTBAR.",
+      "Sichtbar wird es in den Antworten der KI: Statt »öffne die Einstellungen« bekommt der Fragende den Weg mitgeliefert — als Knopf unter dem Schritt oder als Link mitten im Satz. Setze das Ziel direkt hinter den Abschnitt, zu dem es gehört; diese Position ordnet es dem Schritt zu.",
+      "Entscheidend ist die Beschreibung. Sie ist kein Linktext, sondern die Grundlage, auf der die KI entscheidet, ob dieses Ziel zur Frage passt. »Assistenten-Einstellungen« lässt sie raten. »Hier legst du Name, Firma und Branche fest, außerdem Sprache und Tonfall — nicht die Rufnummern« lässt sie treffen. Schreibe also auch, wofür die Seite NICHT da ist.",
+      "Unter »Ziele« im Verwaltungsbereich siehst du jede hinterlegte Adresse genau einmal, mit allen Artikeln, die sie verwenden — praktisch, wenn sich eine Produkt-Adresse ändert. Und unter »Statistik« steht, welche Ziele tatsächlich geklickt werden: Das verrät dir, welche Stellen deiner Oberfläche niemand allein findet.",
       "Für Feld- und Parameter-Übersichten gibt es den Tabellen-Block: Du tippst die Zeilen mit | als Spaltentrenner, die erste Zeile ist die Kopfzeile — angezeigt wird eine saubere Tabelle.",
       "Weitere Bausteine: »Aufklappbar« versteckt Details hinter einem Titel (gut für FAQ und Sonderfälle), »Button« setzt eine Handlungsaufforderung mit Ziel-Adresse, »Trennlinie« gliedert lange Artikel, und »Datei« hängt eine Vorlage zum Herunterladen an (PDF, CSV, TXT, DOCX, XLSX, PPTX bis 10 MB).",
       "Sollen am Ende eines Artikels mehrere Verweise nebeneinander stehen — »Weitere Features«, »Passende Integrationen« —, nimm das »Verweis-Gitter«: bis zu zwölf Karten, jede mit Ziel-Artikel, eigenem Titel, Beschreibung und optionalem Tag. Auf großen Bildschirmen stehen sie zweispaltig, auf dem Handy untereinander. Jede Karte wird einzeln indexiert, die KI kann also gezielt auf einen der verlinkten Artikel verweisen.",
@@ -676,6 +689,14 @@ const ROADMAP = [
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
   {
+    title: "Die KI zeigt jetzt den Weg, nicht nur den Text",
+    description:
+      "Ein Hilfeartikel beschreibt einen Vorgang — ausgeführt wird er aber in deinem Produkt, deiner Verwaltung, einem Formular. Bisher endete die Anleitung mit „geh in die Einstellungen“, und dein Nutzer suchte den Weg selbst. Ab sofort hinterlegst du im Artikel-Editor hinter einem Abschnitt den Baustein „Ziel“: die Adresse der Oberfläche plus eine Beschreibung, wann jemand sie braucht. Im Artikel bleibt das unsichtbar. Sichtbar wird es in den Antworten der KI — als Knopf unter dem Schritt oder als Link mitten im Satz. Auf die Beschreibung kommt es an: Sie ist kein Linktext, sondern die Grundlage, auf der die KI entscheidet, ob das Ziel zur Frage passt. Schreibe also auch, wofür die Seite NICHT da ist. Zwei neue Flächen gehören dazu: Unter „Ziele“ siehst du jede Adresse genau einmal mit allen Artikeln, die sie verwenden — praktisch, wenn sich eine Produkt-Adresse ändert. Und unter „Statistik“ steht, welche Ziele tatsächlich geklickt werden: Das verrät dir, welche Stellen deiner Oberfläche niemand allein findet. Dein angebundener KI-Client kann Ziele ebenfalls pflegen.",
+    at: RELEASE_0_12_0,
+    version: "0.12.0",
+    level: "minor",
+  },
+  {
     title: "Besser gefunden werden — auch von KI-Suchmaschinen",
     description:
       "Zwei Sorgen nehmen wir dir ab. Erstens: Häufige Änderungen schaden deiner Sichtbarkeit nicht. Deine Sitemap nennt jetzt zu jedem Artikel den Zeitpunkt der letzten Änderung, damit Suchmaschinen gezielt das Geänderte holen — ein oft gepflegtes Hilfezentrum ist dadurch ein Vorteil, kein Risiko. Du musst Änderungen also nicht sammeln. Zweitens: Artikel tragen jetzt eine eindeutige Hauptadresse, und mehrsprachige Fassungen weisen aufeinander hin, statt miteinander zu konkurrieren. Dazu geht das Änderungsdatum maschinenlesbar mit — für Suchmaschinen wie für KI-Dienste der Unterschied zwischen „könnte veraltet sein“ und „ist aktuell“. Und neu unter „Einstellungen → Suchmaschinen“: Du entscheidest, ob ChatGPT, Claude, Perplexity und Co. deine Inhalte lesen und zitieren dürfen. Voreingestellt ist erlaubt — das war auch bisher so, jetzt ist es sichtbar und umkehrbar. Unabhängig von der normalen Indexierung, beides lässt sich getrennt beantworten.",
@@ -818,8 +839,8 @@ ARTICLES.forEach((a, i) => {
   const icon = a.icon ? `'${esc(a.icon)}'` : "NULL";
   out.push(
     `INSERT INTO articles (id,tenant_id,locale,slug,title,category,status,body_json,videos_json,related_ids_json,flag_json,icon,sort,reading_minutes,is_ai_generated,created_at,updated_at,published_at)\n` +
-      `VALUES ('${id}','${TENANT}','${LOCALE}','${esc(a.slug)}','${esc(a.title)}','${esc(a.category)}','published','${body}','[]','${related}',${flag},${icon},${i},${a.min || 1},0,${t},${t},${t})\n` +
-      `ON CONFLICT(tenant_id,id) DO UPDATE SET locale=excluded.locale,slug=excluded.slug,title=excluded.title,category=excluded.category,status='published',body_json=excluded.body_json,related_ids_json=excluded.related_ids_json,flag_json=excluded.flag_json,icon=excluded.icon,sort=excluded.sort,reading_minutes=excluded.reading_minutes,updated_at=excluded.updated_at,published_at=COALESCE(articles.published_at,excluded.published_at);`,
+      `VALUES ('${id}','${TENANT}','${LOCALE}','${esc(a.slug)}','${esc(a.title)}','${esc(a.category)}','published','${body}','[]','${related}',${flag},${icon},${i},${a.min || 1},0,${t},${NOW},${t})\n` +
+      `ON CONFLICT(tenant_id,id) DO UPDATE SET locale=excluded.locale,slug=excluded.slug,title=excluded.title,category=excluded.category,status='published',body_json=excluded.body_json,related_ids_json=excluded.related_ids_json,flag_json=excluded.flag_json,icon=excluded.icon,sort=excluded.sort,reading_minutes=excluded.reading_minutes,updated_at=CASE WHEN articles.body_json <> excluded.body_json OR articles.title <> excluded.title THEN ${NOW} ELSE articles.updated_at END,published_at=COALESCE(articles.published_at,excluded.published_at);`,
   );
 });
 

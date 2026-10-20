@@ -150,6 +150,13 @@ export const de = {
   "admin.nav.overview": "Übersicht",
   "admin.buildInfo": "Version {version} · {commit}",
   "admin.nav.articles": "Artikel",
+  "admin.nav.destinations": "Ziele",
+  "admin.destinations.title": "Ziele",
+  "admin.destinations.subtitle":
+    "Jede hinterlegte Oberfläche genau einmal — mit den Artikeln, die sie verwenden. Gepflegt werden Ziele im Artikel selbst; diese Seite ist dafür da, bei einer geänderten Produkt-Adresse alle Stellen auf einen Blick zu finden.",
+  "admin.destinations.empty":
+    "Noch keine Ziele hinterlegt. Setze im Artikel-Editor hinter einen Schritt den Baustein »Ziel« — die KI gibt den Weg dorthin dann in ihren Antworten mit.",
+  "admin.destinations.usedIn": "in {n} Abschnitten",
   "admin.nav.stats": "Statistik",
   "admin.nav.plan": "Plan & Credits",
   "admin.nav.inbox": "Probleme",
@@ -659,6 +666,13 @@ export const de = {
   "admin.stats.showInternal": "Interne Accounts einblenden",
   "admin.stats.internalNote":
     "Interne Team-Aufrufe werden mit angezeigt und zählen nicht als aktive Nutzer. Sie kosten keine Credits — außer KI-Generierungen, die zum internen Selbstkostensatz zählen.",
+  "admin.stats.topDestinations": "Meistgeklickte Ziele",
+  "admin.stats.destinationsHint":
+    "Welche Stellen deiner Oberfläche findet niemand allein? Gezählt werden Klicks auf Ziele, die die KI in ihren Antworten mitgegeben hat.",
+  "admin.stats.destinationsEmpty":
+    "Noch keine Klicks. Hinterlege Ziele in deinen Artikeln — dann kann die KI den Weg mitgeben und du siehst hier, wonach gesucht wird.",
+  "admin.stats.destination": "Ziel",
+  "admin.stats.clicks": "Klicks",
   "admin.stats.topSources": "Häufigste Quellen (KI-Antworten)",
   "admin.stats.citations": "Zitate",
   "admin.stats.sourcesEmpty":
@@ -952,6 +966,16 @@ export const de = {
   "editor.blocks.supportNoMeetings":
     "Noch kein Buchungslink gepflegt — der Baustein zeigt dann nur den Weg zum Support. Anlegen unter Einstellungen → Buchungslinks.",
   "editor.blocks.type.button": "Button",
+  "editor.blocks.type.destination": "Ziel (unsichtbar)",
+  "editor.blocks.destinationHref": "Adresse der Oberfläche",
+  "editor.blocks.destinationHrefPlaceholder": "https://app.deinefirma.de/einstellungen/assistenten",
+  "editor.blocks.destinationPurpose": "Wann braucht jemand diese Seite?",
+  "editor.blocks.destinationPurposePlaceholder":
+    "Hier legst du Name, Firma und Branche eines Assistenten fest, außerdem Sprache und Tonfall. Nicht für Rufnummern — die stehen unter »Rufnummern«.",
+  "editor.blocks.destinationPurposeShort":
+    "Zu knapp. Beschreibe, wofür die Seite da ist und wofür nicht — davon hängt ab, ob die KI sie richtig zuordnet.",
+  "editor.blocks.destinationHint":
+    "Im Artikel unsichtbar. Die KI nutzt dieses Ziel in ihren Antworten — als Knopf oder als Link im Satz. Setze es direkt hinter den Abschnitt, zu dem es gehört.",
   "editor.blocks.type.divider": "Trennlinie",
   "editor.blocks.type.file": "Datei",
   "editor.blocks.accordionTitle": "Titel des Abschnitts",
