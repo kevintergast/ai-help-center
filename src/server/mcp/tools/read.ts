@@ -291,9 +291,10 @@ export const getContentConventions: McpTool = {
               href: "https://app.example.com/settings/assistants",
               purpose:
                 "This is where you set an assistant's name, company and industry, plus language and tone. Not for phone numbers \u2014 those live under \u00bbPhone numbers\u00ab.",
+              onHeading: true,
             },
             note:
-              "INVISIBLE in the article. It tells the AI WHERE a described step is actually carried out, so an answer can hand the reader the way there \u2014 as a button or as a link inside a sentence. `purpose` is NOT a link label: it answers \u00bbwhen does someone need this page?\u00ab and decides whether the AI picks the right destination; write what the page is for AND what it is not. At least " + String(MIN_DESTINATION_PURPOSE) + " characters. POSITION MATTERS: put the block directly AFTER the section it belongs to \u2014 search splits articles by length, not by headings, so the position is the only thing that ties a destination to a step. http(s) or an instance-internal path; never javascript:/data:. The reader never sees the URL in the article, and the AI can only reference it, never invent one.",
+              "INVISIBLE in the article. It tells the AI WHERE a described step is actually carried out, so an answer can hand the reader the way there \u2014 as a button or as a link inside a sentence. `purpose` is NOT a link label: it answers \u00bbwhen does someone need this page?\u00ab and decides whether the AI picks the right destination; write what the page is for AND what it is not. At least " + String(MIN_DESTINATION_PURPOSE) + " characters. POSITION MATTERS: put the block directly AFTER the section it belongs to \u2014 search splits articles by length, not by headings, so the position is the only thing that ties a destination to a step. http(s) or an instance-internal path; never javascript:/data:. The reader never sees the URL in the article, and the AI can only reference it, never invent one. OPTIONAL `onHeading: true` ALSO shows a small \u00bbopen in new tab\u00ab icon next to the heading ABOVE this block \u2014 same address, second use. Without a heading above it there is nothing to attach the icon to and it stays invisible.",
           },
         ],
       },

@@ -974,6 +974,7 @@ export const de = {
     "Hier legst du Name, Firma und Branche eines Assistenten fest, außerdem Sprache und Tonfall. Nicht für Rufnummern — die stehen unter »Rufnummern«.",
   "editor.blocks.destinationPurposeShort":
     "Zu knapp. Beschreibe, wofür die Seite da ist und wofür nicht — davon hängt ab, ob die KI sie richtig zuordnet.",
+  "editor.blocks.destinationOnHeading": "Symbol neben der Überschrift zeigen",
   "editor.blocks.destinationHint":
     "Im Artikel unsichtbar. Die KI nutzt dieses Ziel in ihren Antworten — als Knopf oder als Link im Satz. Setze es direkt hinter den Abschnitt, zu dem es gehört.",
   "editor.blocks.type.divider": "Trennlinie",
@@ -997,6 +998,7 @@ export const de = {
   "editor.blocks.fileErrType": "Dieser Dateityp ist nicht erlaubt.",
   "editor.blocks.fileErrTooMany": "Dieser Artikel hat schon die maximale Anzahl an Dateien.",
   "editor.blocks.fileErrGeneric": "Hochladen fehlgeschlagen — bitte erneut versuchen.",
+  "hc.headingDestination": "In neuem Tab öffnen",
   "hc.fileDownload": "Herunterladen",
   "editor.blocks.tableHint": "Eine Zeile pro Tabellenzeile, Spalten mit | trennen. Die erste Zeile ist die Kopfzeile.",
   "editor.blocks.variantLabel": "Textblock-Typ",
