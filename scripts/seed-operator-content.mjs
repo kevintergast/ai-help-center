@@ -19,6 +19,27 @@ const BASE = 1783000000;
 // (siehe ON CONFLICT unten); unveränderte Artikel behalten ihr Datum, sonst
 // sähe jeder Re-Lauf wie eine Rundum-Änderung aus.
 const NOW = Math.floor(Date.now() / 1000);
+
+/**
+ * ZIEL (unsichtbarer Oberflächen-Verweis, 0.12.0).
+ *
+ * DOGFOODING: Unsere Artikel beschreiben Handgriffe im Verwaltungsbereich —
+ * genau dort gehört der Weg hin, sonst dokumentieren wir eine Fähigkeit, die
+ * wir selbst nicht nutzen.
+ *
+ * INTERNE Pfade statt voller Adressen: Jede Instanz hat ihre eigene
+ * Subdomain, `/admin/...` führt den Leser in SEIN Hilfezentrum.
+ *
+ * Die POSITION ist bedeutungstragend — das Ziel steht hinter dem Absatz, zu
+ * dem es gehört, nicht am Artikelende. Die Suche zerlegt lange Artikel in
+ * mehrere Blöcke; ein Ziel ganz unten erreichte nur den letzten davon.
+ */
+const ziel = (href, purpose, onHeading) => ({
+  type: "destination",
+  href,
+  purpose,
+  ...(onHeading ? { onHeading: true } : {}),
+});
 // Release-Zeitpunkte (fest, damit Re-Runs nichts verschieben — aber mit dem
 // tatsächlichen Datum, sonst lesen Nutzer ein falsches „veröffentlicht am").
 const RELEASE_0_2_0 = 1787492800; // 2026-08-23
@@ -35,6 +56,7 @@ const RELEASE_0_9_1 = 1791565200; // 2026-10-09
 const RELEASE_0_10_0 = 1791885600; // 2026-10-13
 const RELEASE_0_11_0 = 1791993600; // 2026-10-14
 const RELEASE_0_12_0 = 1792486800; // 2026-10-20
+const RELEASE_0_12_1 = 1792501200; // 2026-10-20
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -120,6 +142,7 @@ const ARTICLES = [
     min: 2,
     body: [
       "Für Team-Rollen ist Zwei-Faktor-Authentifizierung Pflicht — sie schützt die Verwaltung deines Hilfezentrums zusätzlich zum Passwort.",
+      ziel("/account", "Die Konto-Seite zeigt den Stand der Zwei-Faktor-Anmeldung und führt zur Einrichtung mit Authenticator-App. Hier wird sie eingerichtet — wer sie braucht, entscheidet dagegen die Rolle."),
       "Administratoren und der Owner sichern ihr Konto mit einer Authenticator-App (TOTP, etwa 1Password, Google Authenticator oder Authy). Beim Einrichten scannst du einen QR-Code und bestätigst einmalig einen Code.",
       "Bewahre die angezeigten Backup-Codes sicher auf — mit ihnen kommst du auch dann hinein, wenn du keinen Zugriff auf die App hast.",
     ],
@@ -133,6 +156,7 @@ const ARTICLES = [
     min: 2,
     body: [
       "Unter »Mein Konto« pflegt jeder Angemeldete seine eigenen Daten — unabhängig davon, ob er eine Team-Rolle hat oder nur liest.",
+      ziel("/account", "Die eigene Konto-Seite: Anzeigename, Passwort und Zwei-Faktor-Anmeldung. Nicht für Rollen oder Teammitglieder — die stehen unter Team & Rollen."),
       "Anzeigename: So wirst du im Hilfezentrum und in der Mitgliederliste genannt. Du kannst ihn jederzeit ändern.",
       "Passwort: Zum Ändern gibst du dein aktuelles und dein neues Passwort ein (mindestens 10 Zeichen). Dabei werden alle ANDEREN Sitzungen beendet — wer dein altes Passwort kannte, ist damit ausgesperrt.",
       "Zwei-Faktor-Anmeldung: Der Status steht direkt daneben. Ist sie noch nicht eingerichtet, führt dich ein Knopf zur Einrichtung mit Authenticator-App.",
@@ -149,6 +173,7 @@ const ARTICLES = [
     min: 3,
     body: [
       "Dein Team verwaltest du im Verwaltungsbereich unter »Team & Rollen«. Dort lädst du ein, änderst Rollen und entfernst Mitglieder.",
+      ziel("/admin/team", "Team & Rollen: Mitglieder einladen, Rollen ändern, Mitglieder entfernen, offene Einladungen zurückziehen. Nicht für die eigenen Konto-Daten — die stehen unter Mein Konto."),
       "Zum Einladen trägst du die E-Mail-Adresse ein und wählst die Rolle. Als Besitzer kannst du auch Admins einladen; als Admin vergibst du Redaktions-Zugänge — weitere Admins bleiben dem Besitzer vorbehalten.",
       "Der Einladungslink geht per E-Mail, läuft nach 48 Stunden ab und ist fest an die Adresse und dieses Hilfezentrum gebunden — er lässt sich nicht weitergeben. Noch offene Einladungen stehen darunter und lassen sich einzeln zurückziehen; abgelaufene sind als solche markiert und lassen sich ebenfalls wegräumen.",
       "Zum Annehmen gibt es zwei Wege: den Link aus der E-Mail — oder, wer schon angemeldet ist, die eigene Seite »Mein Konto«. Dort erscheint eine offene Einladung von selbst. Das hilft, wenn die Mail nicht auffindbar ist; der Link darin lässt sich nämlich nicht erneut verschicken, weil er nur dort existiert.",
@@ -166,6 +191,7 @@ const ARTICLES = [
     min: 2,
     body: [
       "Es gibt vier Rollen mit aufsteigenden Rechten:",
+      ziel("/admin/team", "Team & Rollen zeigt zu jedem Mitglied die Rolle und ob die Zwei-Faktor-Anmeldung steht. Rollen werden hier vergeben; die Übergabe der Eigentümerschaft läuft dagegen nur über die API."),
       "• Nutzer: normale Leser des Hilfezentrums. • Redaktion (content): darf Artikel bearbeiten und veröffentlichen. • Admin: verwaltet zusätzlich Team, Einladungen und Einstellungen. • Besitzer (Owner): hat alle Rechte, inklusive Rechtstexte und der Übertragung der Eigentümerschaft.",
       "Pro Hilfezentrum gibt es genau einen Besitzer. Er kann die Eigentümerschaft an ein Mitglied mit der Rolle Admin oder Redaktion übergeben, sofern dessen Zwei-Faktor-Anmeldung eingerichtet ist; er selbst wird dabei zum Admin. Danach werden beide abgemeldet und müssen sich neu anmelden.",
       "Diese Übergabe läuft derzeit nur über die API — auf der Seite »Team & Rollen« gibt es dafür noch keinen Knopf, und ein angebundener KI-Client kann sie nicht auslösen.",
@@ -179,6 +205,7 @@ const ARTICLES = [
     min: 2,
     body: [
       "Artikel durchlaufen einen einfachen Lebenszyklus: Entwurf und veröffentlicht. Nur veröffentlichte Artikel sind für deine Nutzer im Hilfezentrum sichtbar.",
+      ziel("/admin/articles", "Die Artikelliste: anlegen, bearbeiten, veröffentlichen, zurück auf Entwurf setzen — von hier öffnest du auch den Artikel-Editor mit den Bausteinen. Nicht für die Reihenfolge in der linken Leiste, die steht unter Navigation."),
       "Im Verwaltungsbereich baust du Artikel aus BLÖCKEN: Textblöcke (auch als Info-, Warnungs-, Fehler-Hinweis oder Code), Bilder, Videos und »Artikel verlinken«-Karten mit eigenem Titel, Beschreibung und farbigem Tag. Die Reihenfolge der Blöcke ist die Reihenfolge im Artikel — per Pfeiltasten sortierst du um.",
       "Zusätzlich kannst du jedem Artikel ein Flag geben (z. B. »Beta« oder »Wichtig«) — ein farbiges Badge, das neben dem Status angezeigt wird.",
       "## Ziele: die KI den Weg zeigen lassen",
@@ -214,6 +241,7 @@ const ARTICLES = [
     body: [
       "Ein Hilfezentrum liest man in einer Reihenfolge — »Erste Schritte« gehört nach oben, Spezialfälle nach unten. Unter »Navigation« im Verwaltungsbereich legst du diese Reihenfolge fest und bestimmst, was Besucher auf der Startseite als Einstieg angeboten bekommen.",
       "## Reihenfolge der Artikel",
+      ziel("/admin/navigation", "Navigation & Einstieg: Reihenfolge der linken Leiste, Einstiegs-Karten unter der KI-Eingabe, Beispielfragen, Kontaktwege und die Fußzeile. Nicht für den Inhalt der Artikel selbst.", true),
       "Zieh Artikel mit der Maus an ihren Platz, oder setze den Fokus mit der Tabulatortaste auf einen Eintrag und verschiebe ihn mit Pfeil hoch und Pfeil runter. Beides funktioniert gleichwertig — die Tastaturbedienung ist kein Notbehelf.",
       "Kategorien verschiebst du als Ganzes: Der Kategoriename ist selbst ein Griff, ihn zu ziehen nimmt alle seine Artikel mit. Eine Kategorie hat keine eigene Position — sie steht dort, wo ihr erster Artikel steht. Deshalb genügt eine einzige Liste für beide Ebenen.",
       "Artikel bleiben beim Sortieren in ihrer Kategorie. Willst du einen Artikel in eine andere Kategorie verschieben, ändere die Kategorie im Artikel selbst — das ist eine inhaltliche Entscheidung und gehört in den Editor, nicht in die Sortierung.",
@@ -250,6 +278,7 @@ const ARTICLES = [
     min: 3,
     body: [
       "Deine Inhalte gehören dir: Über »Export« in der Artikel-Verwaltung lädst du jederzeit alle Artikel als JSON-Datei herunter — verlustfrei und in jede andere Instanz reimportierbar (kein Lock-in).",
+      ziel("/admin/articles", "Die Artikelliste trägt auch Import und Export: ganze Seiten von einer Adresse übernehmen oder den Bestand als Datei sichern."),
       "Für den Import gibt es zwei Formate: unsere JSON-Export-Datei (mehrere Artikel auf einmal) oder eine Markdown-Datei je Artikel. Der Import-Dialog erklärt beide Formate und bietet Beispieldateien zum Herunterladen — so siehst du genau, wie deine Datei aufgebaut sein muss.",
       "Markdown-Aufbau: optionaler Kopf zwischen ---‑Zeilen (slug, category, locale), dann # Titel, Absätze durch Leerzeilen. Zwischenüberschriften (##), Listen, **fett** und [Links] bleiben erhalten.",
       "Bilder reisen nicht als Datei mit. Stattdessen werden Bildverweise (im Markdown ![Beschreibung](bild.png), im JSON images-Einträge) als VORMERKUNG angelegt: Der Artikel-Editor zeigt dir, welche Bilder noch fehlen, übernimmt die Beschreibung und du lädst das Bild dort mit einem Klick nach.",
@@ -268,6 +297,7 @@ const ARTICLES = [
     min: 1,
     body: [
       "Das Favicon ist mehr als das Zeichen im Browser-Tab: Es erscheint auch unten im Fuß, vor den Rechtstexten und deinen eigenen Links. Dort ist der Platz ein kleines Quadrat — ein breites Logo würde darin untergehen, deshalb steht da bewusst das Favicon. Ohne eigenes Favicon bleibt die Zeile schlicht ohne Zeichen.",
+      ziel("/admin/design", "Farbwelt & Branding: Logo, Favicon, Farben für Hell und Dunkel sowie das Erscheinungsbild des Widget-Starters. Nicht für Texte oder Rechtstexte."),
       "In den Einstellungen lädst du dein Logo hoch (PNG, JPEG oder WebP, maximal 1 MB) und legst deine Primär- und Akzentfarbe fest — jede Karte speichert direkt beim Klick. Sobald du unter „Farbwelt“ eine eigene Farbwelt gespeichert hast, verschwinden die beiden Farbfelder hier und verweisen dorthin: Zwei Stellen für dieselbe Farbe wären eine Stelle zu viel.",
       "Optional hinterlegst du ein zweites Logo für den dunklen Modus: Besucher mit Dark Mode sehen dann automatisch die passende Variante. Ohne dunkles Logo wird überall das helle gezeigt.",
       "Das Favicon — das kleine Bild im Browser-Tab und in Lesezeichen — übernimmt automatisch dein helles Logo, sobald du eines hochgeladen hast. Du musst dafür nichts tun. Weil ein breites Logo im Tab winzig wird, kannst du zusätzlich ein eigenes Favicon hinterlegen: ein quadratisches Emblem, mindestens 64×64, als PNG, JPEG, WebP oder ICO. Es hat Vorrang vor dem Logo.",
@@ -284,6 +314,7 @@ const ARTICLES = [
     min: 3,
     body: [
       "Unter „Farbwelt“ im Verwaltungsbereich bestimmst du nicht nur Marken- und Akzentfarbe, sondern die gesamte Farbgebung des Hilfezentrums: Flächen, Text, Linien und die Statusfarben für Hinweis, Erfolg, Warnung und Fehler. Hell und Dunkel werden dabei getrennt gepflegt.",
+      ziel("/admin/design", "Farbwelt: die gesamte Farbgebung des Hilfezentrums für Hell und Dunkel, mit Kontrastprüfung daneben. Vier Angaben genügen, den Rest füllt der Generator."),
       "Der schnelle Weg ist der Generator. Du gibst vier Dinge an — Markenfarbe, Akzentfarbe, den Grundton der Grautöne (kühl, neutral oder warm) und ob die Flächen rein oder leicht getönt sein sollen. Ein Klick auf „Farbwelt erzeugen“ füllt daraus beide Modi vollständig aus. Der Dunkelmodus entsteht dabei nicht durch simples Umdrehen: Flächen werden dunkel, Schrift hell, und die Markenfarbe wird so weit aufgehellt, dass sie auf dunklem Grund noch trägt.",
       "Danach kannst du jeden Wert einzeln überschreiben. Die Felder stehen nach Gruppen sortiert; unter der Beschriftung siehst du jeweils den technischen Namen, falls du aus einem eigenen Design-System kommst. Wichtig: Eine Änderung im hellen Modus fasst den dunklen nicht an — wer beide will, pflegt beide.",
       "Rechts läuft die Kontrollspalte mit. Die Vorschau zeigt jede Änderung sofort an einem nachgebauten Artikel, darunter steht die Kontrastprüfung. Geprüft werden nur Paare, die im Hilfezentrum wirklich übereinanderliegen — gedämpfter Text auf der Inhaltsfläche etwa, oder Schrift auf der Markenfarbe. Fließtext braucht 4,5:1; darunter erscheint eine Warnung, auch am betroffenen Feld.",
@@ -301,6 +332,7 @@ const ARTICLES = [
     min: 3,
     body: [
       "Als Owner hinterlegst du Rechtstexte wie Impressum oder Datenschutzerklärung — entweder als Link auf eine bestehende Seite oder direkt als Text (Markdown), auch per Datei-Upload.",
+      ziel("/admin/settings", "Einstellungen: dort werden Impressum, Datenschutz und AGB gepflegt. Nur der Besitzer darf sie ändern."),
       "Die Texte sind öffentlich über feste Pfade erreichbar und werden je Hilfezentrum getrennt gespeichert.",
       "Welche davon unten im Fuß verlinkt werden, entscheidest du getrennt davon unter „Navigation & Einstieg“ → „Fuß des Hilfezentrums“. Alle drei sind von Anfang an angehakt; du kannst jeden einzeln abschalten.",
       "Nicht alle drei wiegen gleich schwer. Die Datenschutzerklärung gehört auf jedes Hilfezentrum: Sobald jemand es aufruft, werden personenbezogene Daten verarbeitet, und darüber muss informiert werden (Art. 13 DSGVO). Ein Impressum verlangen Deutschland, Österreich und die Schweiz von geschäftsmäßigen Angeboten — sitzt du woanders, kann der Punkt entfallen. AGB sind hier in aller Regel gar nicht nötig, weil im Hilfezentrum kein Vertrag zustande kommt; verlinke sie, wenn du sie aus anderem Grund zeigen willst.",
@@ -354,6 +386,7 @@ const ARTICLES = [
     min: 2,
     body: [
       "Die Nutzung deines Hilfezentrums wird in Credits gemessen: Ein Artikel-Aufruf durch Besucher kostet 1 Credit, eine KI-Antwort 20 Credits, eine KI-Übersetzung eines Artikels 50 Credits. Die Suche ist kostenlos. Artikel-Aufrufe durch dich und dein Team werden nie berechnet; KI-Antworten deines Teams zählen zu einem reduzierten internen Satz.",
+      ziel("/admin/plan", "Plan & Credits: aktueller Verbrauch, Limits und Tarif der Instanz. Nicht für Zahlungsdaten."),
       "Jeder Plan enthält ein monatliches Credit-Kontingent und eine Obergrenze aktiver Nutzer. Beides setzt sich am Monatsanfang automatisch zurück. Deinen aktuellen Verbrauch siehst du jederzeit im Admin-Bereich unter »Plan & Credits«. Für größere Anforderungen gibt es den Enterprise-Tarif — sprich dazu direkt mit unserem Vertrieb.",
       "Aktive Nutzer zählen wir ohne Cookie — dein Hilfezentrum braucht dafür also kein Einwilligungs-Banner. Aus Adresse und Browser deines Besuchers entsteht serverseitig ein Kürzel, das nur für diesen Monat und nur für dein Hilfezentrum gilt; weder Adresse noch Browser werden gespeichert, und über Monatsgrenzen hinweg lässt sich nichts zusammenführen. Damit niemand durch ein Browser-Update oder eine neue IPv6-Adresse doppelt zählt, fließen bewusst nur die stabilen Teile ein. Teilen sich viele Besucher einen Firmen-Anschluss mit gleichem Browser, zählen sie unter Umständen als einer — zu deinen Gunsten.",
       "Erreichst du ein Limit, läuft dein Hilfezentrum zunächst 30 Tage normal weiter — du siehst einen Hinweis mit Countdown. Erst danach pausieren KI-Antworten und Inhalts-Änderungen, bis du upgradest. Deine Artikel bleiben dabei durchgehend öffentlich sichtbar; es wird nichts gelöscht.",
@@ -367,6 +400,7 @@ const ARTICLES = [
     min: 2,
     body: [
       "Mit dem Widget holst du die KI-Hilfe deines Hilfezentrums direkt auf deine eigene Website: Unten rechts erscheint ein Hilfe-Button in deiner Markenfarbe; ein Klick öffnet den Chat, in dem Besucher Fragen stellen, Quellen-Artikel öffnen, Feedback geben und den Support erreichen.",
+      ziel("/admin/settings", "Einstellungen: dort steht das Script-Tag fürs Widget zum Kopieren, samt Schalter für das Widget im eigenen Hilfezentrum."),
       "Die Einbindung ist ein einziges Script-Tag: Du findest es im Verwaltungsbereich unter »Einstellungen → Widget für deine Website« zum Kopieren. Füge es in deine Website ein — fertig, es ist kein weiterer Code und keine Konfiguration nötig.",
       "Das Widget übernimmt Branding und Inhalte automatisch von deinem Hilfezentrum. Die Nutzung zählt auf die Credits und aktiven Nutzer deiner Instanz — genau wie das Hilfezentrum selbst.",
       "Mit dem Schalter »Widget auch im eigenen Hilfezentrum anzeigen« (gleiche Einstellungs-Karte) erscheint der Hilfe-Button zusätzlich auf den öffentlichen Seiten deines Hilfezentrums. Praktisch als zweiter Einstieg neben der Suche — und um selbst zu sehen, wie das Widget für deine Besucher aussieht. In diesem Hilfezentrum ist der Schalter aktiv: Der Button unten rechts ist genau das Widget, das du einbauen kannst.",
@@ -503,6 +537,7 @@ const ARTICLES = [
     min: 2,
     body: [
       "Unter jeder KI-Antwort — auch wenn die KI nichts Passendes gefunden hat — können Nutzer über »Etwas stimmt nicht?« ein Support-Anliegen einreichen: mit Beschreibung und optionaler E-Mail-Adresse für deine Rückmeldung.",
+      ziel("/admin/inbox", "Das Postfach: Support-Anfragen, markierte unklare Stellen aus Artikeln und unbeantwortete KI-Fragen — die Liste, die man abarbeitet."),
       "Jede Anfrage landet als Ticket in deiner Inbox im Verwaltungsbereich. Dort siehst du die ursprüngliche Frage an die KI als Kontext, markierst Tickets als erledigt oder löschst sie.",
       "Hinterlegst du in den Einstellungen eine Support-E-Mail-Adresse, bekommst du jedes Ticket zusätzlich per E-Mail zugestellt. Ohne Adresse sammelt die Inbox alle Anfragen — verloren geht nichts.",
     ],
@@ -547,6 +582,7 @@ const ARTICLES = [
       "Du kannst dein Hilfezentrum an deinen eigenen KI-Client anbinden — Claude Code, Claude Desktop, Cursor oder einen selbst gebauten Agenten. Danach pflegst du Artikel im Gespräch: »Lies unser Changelog und leg mir daraus Entwürfe an« oder »Übernimm unsere alte Dokumentation von dieser Adresse«. Die Schnittstelle dafür heißt MCP (Model Context Protocol).",
       "Der entscheidende Punkt: Die KI-Leistung erbringt DEIN Client in deinem eigenen KI-Abo. Bei uns kommen nur fertige, geprüfte Schreibbefehle an — Schreiben über MCP verbraucht deshalb keine Credits.",
       "## So verbindest du deinen Client",
+      ziel("/admin/api-keys", "Zugriffs-Schlüssel: hier legst du den Schlüssel für einen KI-Client an, wählst seine Rechte und findest die MCP-Adresse samt fertigem Befehl. Der Klartext-Schlüssel erscheint genau einmal.", true),
       "Erstens: Gehe im Verwaltungsbereich auf »Zugriffs-Schlüssel« und lege einen an — Name vergeben, Rechte ankreuzen, Laufzeit wählen (30, 90 oder 365 Tage; voreingestellt 90).",
       "Zweitens: Der Schlüssel erscheint GENAU EINMAL, direkt nach dem Anlegen. Kopiere ihn sofort. Danach ist er nicht mehr einsehbar — ist er weg, legst du einen neuen an.",
       "Drittens: Trage in deinem KI-Client zwei Dinge ein — die Adresse deines Hilfezentrums und den Schlüssel als Kopfzeile. Beides steht fertig auf derselben Seite. Die Adresse hat immer diese Form:",
@@ -611,6 +647,7 @@ const ARTICLES = [
       "Dein Hilfezentrum ist von Haus aus für Suchmaschinen optimiert: Jeder veröffentlichte Artikel hat eine eigene, servergerenderte Seite mit sauberen Meta-Daten, und deine Instanz liefert automatisch eine eigene Sitemap und robots.txt — du musst nichts einrichten.",
       "Neue Hilfezentren werden zusätzlich zentral bei Google angemeldet, damit sie auch ohne bestehende Verlinkung gefunden werden.",
       "Soll dein Hilfezentrum nicht öffentlich auffindbar sein — etwa für interne Dokumentation — schaltest du die Indexierung ab: entweder direkt beim Erstellen oder später als Owner in den Einstellungen unter »Suchmaschinen«. Bereits gelistete Seiten verschwinden dann nach dem nächsten Crawl.",
+      ziel("/admin/settings", "Einstellungen: dort steht der Schalter für die Suchmaschinen-Indexierung und daneben der für KI-Suchmaschinen — beide nur für den Besitzer."),
       "## Pflege ruhig oft",
       "Häufige Änderungen schaden deiner Sichtbarkeit NICHT — im Gegenteil. Suchmaschinen passen ihre Besuchsfrequenz an das an, was sie vorfinden; wer oft aktualisiert, wird öfter besucht. Deine Sitemap nennt zu jedem Artikel den Zeitpunkt der letzten Änderung, damit Crawler gezielt das Geänderte holen statt zu raten. Es gibt also keinen Grund, Änderungen zu sammeln und nur alle paar Wochen zu veröffentlichen.",
       "Was zählt, ist Richtigkeit: Ein veralteter Artikel kostet dich mehr als zehn Aktualisierungen.",
@@ -688,6 +725,14 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Ziele auch sichtbar: Symbol neben der Überschrift",
+    description:
+      "Ein hinterlegtes Ziel war bisher ausschließlich für die KI da. Jetzt kannst du es zusätzlich sichtbar machen: ein kleines „in neuem Tab öffnen“-Symbol neben der Überschrift, unter der das Ziel steht. Ein Schalter am Baustein genügt — es ist dieselbe Adresse, du pflegst sie also weiterhin nur an einer Stelle. Praktisch überall dort, wo ein ganzer Abschnitt sich auf eine Oberfläche bezieht und auch der Leser, der nicht fragt, direkt hinspringen können soll. Steht über dem Ziel keine Überschrift, bleibt es unsichtbar wie bisher.",
+    at: RELEASE_0_12_1,
+    version: "0.12.1",
+    level: "patch",
+  },
   {
     title: "Die KI zeigt jetzt den Weg, nicht nur den Text",
     description:

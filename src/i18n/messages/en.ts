@@ -971,6 +971,7 @@ export const en: Record<MessageKey, string> = {
     "This is where you set an assistant's name, company and industry, plus language and tone. Not for phone numbers — those live under \u00bbPhone numbers\u00ab.",
   "editor.blocks.destinationPurposeShort":
     "Too brief. Describe what the page is for and what it is not — that decides whether the AI matches it correctly.",
+  "editor.blocks.destinationOnHeading": "Show icon next to the heading",
   "editor.blocks.destinationHint":
     "Hidden in the article. The AI uses this destination in its answers — as a button or as a link within a sentence. Place it right after the section it belongs to.",
   "editor.blocks.type.divider": "Divider",
@@ -994,6 +995,7 @@ export const en: Record<MessageKey, string> = {
   "editor.blocks.fileErrType": "This file type is not allowed.",
   "editor.blocks.fileErrTooMany": "This article already has the maximum number of files.",
   "editor.blocks.fileErrGeneric": "Upload failed — please try again.",
+  "hc.headingDestination": "Open in a new tab",
   "hc.fileDownload": "Download",
   "editor.blocks.tableHint": "One line per table row, separate columns with |. The first line is the header.",
   "editor.blocks.variantLabel": "Text block type",

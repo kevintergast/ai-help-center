@@ -97,6 +97,18 @@ export type ArticleBlock =
       type: "destination";
       href: string;
       purpose: string;
+      /**
+       * Zusätzlich SICHTBAR machen: ein kleines „in neuem Tab öffnen"-Symbol
+       * neben der Überschrift, unter der dieses Ziel steht.
+       *
+       * Dieselbe Information, zwei Verwendungen — unsichtbar für die KI,
+       * sichtbar für den Leser, wenn es sich lohnt. Es braucht keinen zweiten
+       * Baustein und keine zweite Adresse, die auseinanderlaufen könnte.
+       *
+       * Ohne Überschrift darüber bleibt es unsichtbar: Es gibt dann nichts,
+       * woran das Symbol hängen könnte.
+       */
+      onHeading?: boolean;
     }
   | { type: "divider" }
   | {
@@ -253,7 +265,12 @@ export function parseArticleBody(raw: unknown): ArticleBlock[] {
       typeof o.href === "string" &&
       typeof o.purpose === "string"
     ) {
-      out.push({ type: "destination", href: o.href.trim(), purpose: o.purpose.trim() });
+      out.push({
+        type: "destination",
+        href: o.href.trim(),
+        purpose: o.purpose.trim(),
+        ...(o.onHeading === true ? { onHeading: true } : {}),
+      });
     } else if (o.type === "divider") {
       out.push({ type: "divider" });
     } else if (o.type === "file" && typeof o.fileId === "string") {
@@ -400,7 +417,12 @@ export function validateBodyInput(raw: unknown): { ok: true; value: ArticleBlock
         if (purpose.length < MIN_DESTINATION_PURPOSE || purpose.length > MAX_TEXT_CHARS) {
           return { ok: false, error: "invalid_destination_purpose" };
         }
-        out.push({ type: "destination", href: o.href.trim(), purpose });
+        out.push({
+          type: "destination",
+          href: o.href.trim(),
+          purpose,
+          ...(o.onHeading === true ? { onHeading: true } : {}),
+        });
         break;
       }
       case "divider": {
