@@ -998,6 +998,18 @@ export const de = {
   "editor.blocks.fileErrType": "Dieser Dateityp ist nicht erlaubt.",
   "editor.blocks.fileErrTooMany": "Dieser Artikel hat schon die maximale Anzahl an Dateien.",
   "editor.blocks.fileErrGeneric": "Hochladen fehlgeschlagen — bitte erneut versuchen.",
+  "hc.destination.loading": "Einen Moment …",
+  "hc.destination.signInBody":
+    "Dieser Link führt in dein eigenes Hilfezentrum. Melde dich an, damit wir wissen, welches gemeint ist.",
+  "hc.destination.signIn": "Anmelden",
+  "hc.destination.createAccount": "Konto erstellen",
+  "hc.destination.noHelpCenterBody":
+    "Du hast noch kein Hilfezentrum. Lege eines an — danach führen dich diese Links direkt an die passende Stelle darin.",
+  "hc.destination.createHelpCenter": "Hilfezentrum erstellen",
+  "hc.destination.chooseBody": "In welches deiner Hilfezentren soll es gehen?",
+  "hc.destination.chooseHint":
+    "Die Wahl merken wir uns. Oben im Kopf kannst du jederzeit wechseln.",
+  "hc.switcher.title": "Hilfezentrum wechseln, auf das die Links zeigen",
   "hc.headingDestination": "In neuem Tab öffnen",
   "hc.fileDownload": "Herunterladen",
   "editor.blocks.tableHint": "Eine Zeile pro Tabellenzeile, Spalten mit | trennen. Die erste Zeile ist die Kopfzeile.",

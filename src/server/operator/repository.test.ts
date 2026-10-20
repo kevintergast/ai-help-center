@@ -22,7 +22,7 @@ const MIGRATIONS = [
   "0003_branding.sql",
   "0004_two_factor_plugin_columns.sql",
   "0005_content.sql", "0030_changelog_version.sql", "0018_article_images.sql", "0029_article_files.sql", "0019_article_translations.sql", "0024_article_flag.sql", "0034_article_sort.sql", "0035_entry_cards.sql", "0036_article_icon.sql", "0037_contact_methods.sql", "0038_header_actions.sql", "0043_api_docs_to_header_action.sql", "0044_prompt_suggestions.sql", "0015_support_tickets.sql", "0039_comprehension_reports.sql", "0042_review_suggestion.sql",
-  "0006_operator.sql",
+  "0006_operator.sql", "0053_operator_default_help_center.sql",
   "0013_seo_indexable.sql",
 ] as const;
 
@@ -267,4 +267,59 @@ describe("D1OperatorRepository gegen die echten Migrationen (D1-Shim über bette
     expect(await repo.isSlugTaken("acme")).toBe(true);
     expect(await repo.isSlugTaken("app")).toBe(true);
   });
+
+  /**
+   * STANDARD-HILFEZENTRUM (0053). Die Zugehörigkeit wird in der
+   * SCHREIB-ANWEISUNG geprüft, nicht davor — sonst klaffte zwischen Prüfung
+   * und Schreiben ein Fenster, in dem sich die Zugehörigkeit ändern kann.
+   * Und ein Hilfezentrum, das nicht mehr dem Nutzer gehört, darf nicht
+   * weiterhin als sein Ziel gelten.
+   */
+  describe("Standard-Hilfezentrum", () => {
+    it("setzt nur, was dem Nutzer GEHÖRT — fremdes bleibt wirkungslos", async () => {
+      const repo = new D1OperatorRepository(d1);
+      await repo.createHelpCenter(makeInput({ slug: "eins", tenantId: "t_eins" }));
+      await repo.createHelpCenter(
+        makeInput({ slug: "zwei", tenantId: "t_zwei", operatorUserId: OP_B }),
+      );
+
+      expect(await repo.setDefaultHelpCenter(OP_A, "t_eins")).toBe(true);
+      expect(await repo.getDefaultHelpCenter(OP_A)).toBe("t_eins");
+
+      expect(await repo.setDefaultHelpCenter(OP_A, "t_zwei")).toBe(false);
+      expect(await repo.getDefaultHelpCenter(OP_A)).toBe("t_eins");
+
+      expect(await repo.setDefaultHelpCenter(OP_A, "t_gibtsnicht")).toBe(false);
+      expect(await repo.getDefaultHelpCenter(OP_A)).toBe("t_eins");
+    });
+
+    it("eine Wahl überschreibt die vorige (eine Zeile je Nutzer)", async () => {
+      const repo = new D1OperatorRepository(d1);
+      await repo.createHelpCenter(makeInput({ slug: "eins", tenantId: "t_eins" }));
+      await repo.createHelpCenter(makeInput({ slug: "zwei", tenantId: "t_zwei" }));
+
+      expect(await repo.setDefaultHelpCenter(OP_A, "t_eins")).toBe(true);
+      expect(await repo.setDefaultHelpCenter(OP_A, "t_zwei")).toBe(true);
+      expect(await repo.getDefaultHelpCenter(OP_A)).toBe("t_zwei");
+      const rows = db
+        .prepare("SELECT COUNT(*) AS n FROM operator_default_help_center WHERE operator_user_id = ?")
+        .get(OP_A) as { n: number };
+      expect(rows.n).toBe(1);
+    });
+
+    it("gelöschtes Hilfezentrum zählt als KEINE Wahl (statt ins Leere zu zeigen)", async () => {
+      const repo = new D1OperatorRepository(d1);
+      await repo.createHelpCenter(makeInput({ slug: "eins", tenantId: "t_eins" }));
+      expect(await repo.setDefaultHelpCenter(OP_A, "t_eins")).toBe(true);
+
+      db.prepare("DELETE FROM tenants WHERE id = ?").run("t_eins");
+      expect(await repo.getDefaultHelpCenter(OP_A)).toBeNull();
+    });
+
+    it("ohne jede Wahl: null", async () => {
+      const repo = new D1OperatorRepository(d1);
+      expect(await repo.getDefaultHelpCenter(OP_A)).toBeNull();
+    });
+  });
+
 });

@@ -91,6 +91,23 @@ class FakeOperatorRepo implements OperatorRepository {
     this.created.push(input);
     return "created";
   }
+  readonly defaults = new Map<string, string>();
+
+  async getDefaultHelpCenter(operatorUserId: string): Promise<string | null> {
+    const chosen = this.defaults.get(operatorUserId);
+    if (!chosen) return null;
+    // Wie in D1: eine Wahl auf ein nicht (mehr) eigenes Hilfezentrum zählt nicht.
+    const owns = (await this.listByOperator(operatorUserId)).some((h) => h.tenantId === chosen);
+    return owns ? chosen : null;
+  }
+
+  async setDefaultHelpCenter(operatorUserId: string, tenantId: string): Promise<boolean> {
+    const owns = (await this.listByOperator(operatorUserId)).some((h) => h.tenantId === tenantId);
+    if (!owns) return false;
+    this.defaults.set(operatorUserId, tenantId);
+    return true;
+  }
+
   async listByOperator(operatorUserId: string): Promise<HelpCenterSummary[]> {
     return this.created
       .filter((c) => c.operatorUserId === operatorUserId)
@@ -468,5 +485,84 @@ describe("POST /api/v1/operator/help-centers — Turnstile-Gate (Infra-Plan Schr
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual({ error: "captcha_unavailable" });
     expect(f.setupCalls).toHaveLength(0);
+  });
+});
+
+/**
+ * STANDARD-HILFEZENTRUM (Migration 0053).
+ *
+ * Unsere eigenen Artikel verweisen auf `/admin/...`; gemeint ist das
+ * Hilfezentrum DES LESERS. Wer mehrere hat, wählt einmal — und diese Wahl
+ * entscheidet, wohin wir ihn schicken.
+ *
+ * Genau deshalb ist die Zugehörigkeit hier eine Sicherheitseigenschaft und
+ * keine Bequemlichkeit: Könnte jemand eine FREMDE Instanz als sein Ziel
+ * setzen, bekäme er von uns anschließend Links dorthin serviert.
+ */
+describe("PUT /api/v1/operator/help-centers/default", () => {
+  const setDefault = (f: ReturnType<typeof makeApp>, cookie: string, tenantId: unknown) =>
+    f.app.request("/api/v1/operator/help-centers/default", {
+      method: "PUT",
+      headers: { host: OPERATOR_HOST, "content-type": "application/json", cookie },
+      body: JSON.stringify({ tenantId }),
+    });
+  const list = async (f: ReturnType<typeof makeApp>, cookie: string) =>
+    (await (
+      await f.app.request("/api/v1/operator/help-centers", {
+        headers: { host: OPERATOR_HOST, cookie },
+      })
+    ).json()) as { defaultTenantId: string | null; helpCenters: { tenantId: string; slug: string }[] };
+
+  it("genau EIN Hilfezentrum: die Frage beantwortet sich ohne Wahl", async () => {
+    const f = makeApp();
+    const a = await operatorSession(f, OPERATOR_HOST, "a@example.com");
+    expect((await create(f, a.cookie, { ...validBody, slug: "acme" })).status).toBe(201);
+
+    const res = await list(f, a.cookie);
+    expect(res.helpCenters).toHaveLength(1);
+    expect(res.defaultTenantId).toBe(res.helpCenters[0].tenantId);
+  });
+
+  it("mehrere: erst keine Wahl, nach dem Setzen bleibt sie stehen", async () => {
+    const f = makeApp();
+    const a = await operatorSession(f, OPERATOR_HOST, "a@example.com");
+    await create(f, a.cookie, { ...validBody, slug: "acme" });
+    await create(f, a.cookie, { ...validBody, slug: "beta" });
+
+    expect((await list(f, a.cookie)).defaultTenantId).toBeNull();
+
+    const beta = (await list(f, a.cookie)).helpCenters.find((h) => h.slug === "beta")!;
+    expect((await setDefault(f, a.cookie, beta.tenantId)).status).toBe(200);
+    expect((await list(f, a.cookie)).defaultTenantId).toBe(beta.tenantId);
+  });
+
+  it("FREMDES Hilfezentrum → 403, und nichts wird gesetzt", async () => {
+    const f = makeApp();
+    const a = await operatorSession(f, OPERATOR_HOST, "a@example.com");
+    const b = await operatorSession(f, OPERATOR_HOST, "b@example.com");
+    await create(f, a.cookie, { ...validBody, slug: "acme" });
+    await create(f, b.cookie, { ...validBody, slug: "gamma" });
+
+    const fremd = (await list(f, b.cookie)).helpCenters[0];
+    expect((await setDefault(f, a.cookie, fremd.tenantId)).status).toBe(403);
+    // A behält sein eigenes (einziges) Hilfezentrum als Ziel.
+    const after = await list(f, a.cookie);
+    expect(after.defaultTenantId).toBe(after.helpCenters[0].tenantId);
+    expect(after.helpCenters.map((h) => h.slug)).toEqual(["acme"]);
+  });
+
+  it("anonym → 401; Müll im Body → 400", async () => {
+    const f = makeApp();
+    const a = await operatorSession(f, OPERATOR_HOST, "a@example.com");
+    await create(f, a.cookie, { ...validBody, slug: "acme" });
+
+    const anon = await f.app.request("/api/v1/operator/help-centers/default", {
+      method: "PUT",
+      headers: { host: OPERATOR_HOST, "content-type": "application/json" },
+      body: JSON.stringify({ tenantId: "t_x" }),
+    });
+    expect(anon.status).toBe(401);
+    expect((await setDefault(f, a.cookie, 42)).status).toBe(400);
+    expect((await setDefault(f, a.cookie, "")).status).toBe(400);
   });
 });

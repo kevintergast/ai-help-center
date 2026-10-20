@@ -57,6 +57,8 @@ const RELEASE_0_10_0 = 1791885600; // 2026-10-13
 const RELEASE_0_11_0 = 1791993600; // 2026-10-14
 const RELEASE_0_12_0 = 1792486800; // 2026-10-20
 const RELEASE_0_12_1 = 1792501200; // 2026-10-20
+const RELEASE_0_12_2 = 1792508400; // 2026-10-20
+const RELEASE_0_13_0 = 1792515600; // 2026-10-20
 
 /** Artikel: nur real funktionierende Fähigkeiten. body = Absatz-Array. related = Slugs. */
 const ARTICLES = [
@@ -68,8 +70,10 @@ const ARTICLES = [
     min: 2,
     body: [
       "HallofHelp ist ein White-Label-Hilfezentrum: Du richtest unter deiner eigenen Subdomain ein Hilfezentrum ein, versiehst es mit deinem Logo und deinen Farben und füllst es mit Artikeln.",
+      ziel("/admin", "Der Verwaltungsbereich: Einstieg zu Artikeln, Branding, Team und Einstellungen deines Hilfezentrums."),
       "Deine Nutzer öffnen das Hilfezentrum, stöbern nach Kategorien und durchsuchen die Artikel. Auf der Startseite empfängt sie ein KI-Eingabefeld — darunter kannst du Einstiegs-Karten zeigen, die auf deine wichtigsten Artikel führen. Die Reihenfolge der Leiste links bestimmst du selbst. Zusätzlich kannst du eine Roadmap und einen Changelog pflegen, um Geplantes und Neuerungen transparent zu machen.",
       "Die Roadmap kennt vier Zustände: »Angefragt« für Kundenwünsche, die du gesammelt, aber noch nicht zugesagt hast, dann »Geplant«, »In Arbeit« und »Geliefert«. Der Unterschied zwischen angefragt und geplant ist wichtig — er entscheidet, ob ein Eintrag eine Sammlung oder ein Versprechen ist.",
+      ziel("/admin/updates", "Updates: hier pflegst du Roadmap und Changelog deines Hilfezentrums. Nicht für Artikel — die stehen unter Artikel."),
       "Jedes Hilfezentrum ist strikt getrennt: eigene Subdomain, eigene Inhalte, eigenes Team und eigene Zugriffsrechte. Kein Kunde sieht die Daten eines anderen.",
       "Dieses Hilfezentrum, das du gerade liest, ist selbst mit HallofHelp gebaut — es ist unser lebendes Beispiel dafür, wie das Produkt genutzt wird.",
     ],
@@ -82,6 +86,7 @@ const ARTICLES = [
     min: 2,
     body: [
       "Registriere dich auf app.hallofhelp.com und bestätige deine E-Mail-Adresse. Danach hast du Zugang zur Konsole.",
+      ziel("https://app.hallofhelp.com/console", "Die HallofHelp-Konsole: Hier legst du ein neues Hilfezentrum an und siehst deine bestehenden. Nicht zu verwechseln mit dem Verwaltungsbereich EINES Hilfezentrums."),
       "Wähle in der Konsole »Hilfezentrum erstellen« und lege eine Subdomain fest (zum Beispiel deinefirma.hallofhelp.com). Ist der Name frei, wird dein Hilfezentrum angelegt.",
       "HallofHelp richtet automatisch dein Owner-Konto im neuen Hilfezentrum ein und schickt dir eine E-Mail, über die du Passwort und Zwei-Faktor-Authentifizierung festlegst.",
       "Anschließend kannst du Branding, Team und Artikel deines Hilfezentrums pflegen.",
@@ -106,6 +111,7 @@ const ARTICLES = [
       "## Frage-Vorschläge",
       "Unter der KI-Eingabe kannst du bis zu vier Beispielfragen zeigen. Sie sind das Erste, was jemand liest, der noch nicht weiß, was er fragen soll — und damit eine Aussage darüber, wofür dein Hilfezentrum da ist.",
       "Gepflegt werden sie unter »Navigation«. Schreib sie so, wie ein Leser fragen würde, und nur das, was dein Hilfezentrum wirklich beantworten kann. Keine Vorschläge ist auch in Ordnung: Dann steht die Eingabe schlicht da.",
+      ziel("/admin/navigation", "Navigation & Einstieg: dort stehen die Beispielfragen unter der KI-Eingabe, dazu Reihenfolge, Einstiegs-Karten und Fußzeile.", true),
     ],
     related: ["ki-antworten", "navigation-und-einstieg"],
   },
@@ -116,6 +122,7 @@ const ARTICLES = [
     min: 1,
     body: [
       "Registriere dich mit deiner E-Mail-Adresse und einem Passwort (mindestens 10 Zeichen).",
+      ziel("/signup", "Die Registrierung: Konto mit E-Mail und Passwort anlegen. Danach folgt die Bestätigungs-Mail."),
       "Wir senden dir eine Bestätigungs-E-Mail. Erst nach dem Klick auf den Bestätigungslink ist dein Konto aktiv und du kannst dich anmelden.",
       "Kommt keine E-Mail an, prüfe bitte deinen Spam-Ordner. Der Bestätigungslink ist zeitlich begrenzt gültig.",
     ],
@@ -129,6 +136,7 @@ const ARTICLES = [
     min: 1,
     body: [
       "Hast du dein Passwort vergessen, gib auf der Seite »Passwort vergessen« deine E-Mail-Adresse ein. Wir senden dir einen zeitlich begrenzten Link.",
+      ziel("/forgot-password", "Passwort vergessen: Adresse eintragen und einen zeitlich begrenzten Link anfordern. Nicht für das Ändern eines bekannten Passworts — das geht unter Mein Konto."),
       "Über den Link legst du ein neues Passwort fest (mindestens 10 Zeichen).",
       "Aus Sicherheitsgründen bestätigen wir nicht, ob zu einer E-Mail ein Konto existiert — sieh in jedem Fall in deinem Postfach nach.",
     ],
@@ -177,6 +185,7 @@ const ARTICLES = [
       "Zum Einladen trägst du die E-Mail-Adresse ein und wählst die Rolle. Als Besitzer kannst du auch Admins einladen; als Admin vergibst du Redaktions-Zugänge — weitere Admins bleiben dem Besitzer vorbehalten.",
       "Der Einladungslink geht per E-Mail, läuft nach 48 Stunden ab und ist fest an die Adresse und dieses Hilfezentrum gebunden — er lässt sich nicht weitergeben. Noch offene Einladungen stehen darunter und lassen sich einzeln zurückziehen; abgelaufene sind als solche markiert und lassen sich ebenfalls wegräumen.",
       "Zum Annehmen gibt es zwei Wege: den Link aus der E-Mail — oder, wer schon angemeldet ist, die eigene Seite »Mein Konto«. Dort erscheint eine offene Einladung von selbst. Das hilft, wenn die Mail nicht auffindbar ist; der Link darin lässt sich nämlich nicht erneut verschicken, weil er nur dort existiert.",
+      ziel("/account", "Mein Konto: dort erscheint eine offene Team-Einladung und lässt sich annehmen — der Mail-Link ist nicht der einzige Weg."),
       "Ist die Frist verstrichen, hilft kein Weg mehr — dann lade die Person einfach neu ein.",
       "In der Mitgliederliste siehst du zu jedem Eintrag Name und Adresse, die Rolle und ob die Zwei-Faktor-Anmeldung steht. Über die Knöpfe daneben änderst du die Rolle oder entfernst jemanden.",
       "Eine HÖHERE Rolle wird nicht sofort wirksam: Sie wird geparkt und greift erst, wenn die Person die Zwei-Faktor-Anmeldung eingerichtet hat. Bis dahin steht in der Liste »… ab Zwei-Faktor«. Ein Abstufen auf »Nutzer« wirkt dagegen sofort.",
@@ -213,6 +222,7 @@ const ARTICLES = [
       "Sichtbar wird es in den Antworten der KI: Statt »öffne die Einstellungen« bekommt der Fragende den Weg mitgeliefert — als Knopf unter dem Schritt oder als Link mitten im Satz. Setze das Ziel direkt hinter den Abschnitt, zu dem es gehört; diese Position ordnet es dem Schritt zu.",
       "Entscheidend ist die Beschreibung. Sie ist kein Linktext, sondern die Grundlage, auf der die KI entscheidet, ob dieses Ziel zur Frage passt. »Assistenten-Einstellungen« lässt sie raten. »Hier legst du Name, Firma und Branche fest, außerdem Sprache und Tonfall — nicht die Rufnummern« lässt sie treffen. Schreibe also auch, wofür die Seite NICHT da ist.",
       "Unter »Ziele« im Verwaltungsbereich siehst du jede hinterlegte Adresse genau einmal, mit allen Artikeln, die sie verwenden — praktisch, wenn sich eine Produkt-Adresse ändert. Und unter »Statistik« steht, welche Ziele tatsächlich geklickt werden: Das verrät dir, welche Stellen deiner Oberfläche niemand allein findet.",
+      ziel("/admin/destinations", "Ziele: jede hinterlegte Oberfläche genau einmal, mit allen Artikeln, die sie verwenden. Nützlich, wenn sich eine Produkt-Adresse ändert.", true),
       "Für Feld- und Parameter-Übersichten gibt es den Tabellen-Block: Du tippst die Zeilen mit | als Spaltentrenner, die erste Zeile ist die Kopfzeile — angezeigt wird eine saubere Tabelle.",
       "Weitere Bausteine: »Aufklappbar« versteckt Details hinter einem Titel (gut für FAQ und Sonderfälle), »Button« setzt eine Handlungsaufforderung mit Ziel-Adresse, »Trennlinie« gliedert lange Artikel, und »Datei« hängt eine Vorlage zum Herunterladen an (PDF, CSV, TXT, DOCX, XLSX, PPTX bis 10 MB).",
       "Sollen am Ende eines Artikels mehrere Verweise nebeneinander stehen — »Weitere Features«, »Passende Integrationen« —, nimm das »Verweis-Gitter«: bis zu zwölf Karten, jede mit Ziel-Artikel, eigenem Titel, Beschreibung und optionalem Tag. Auf großen Bildschirmen stehen sie zweispaltig, auf dem Handy untereinander. Jede Karte wird einzeln indexiert, die KI kann also gezielt auf einen der verlinkten Artikel verweisen.",
@@ -248,9 +258,11 @@ const ARTICLES = [
       "Entwürfe stehen mit in der Liste, erscheinen im Hilfezentrum aber erst nach dem Veröffentlichen. Das ist Absicht: So bestimmst du den Platz eines Artikels schon vorher, statt ihn nach dem Veröffentlichen an zufälliger Stelle wiederzufinden.",
       "## Text im Eingabefeld",
       "Im leeren KI-Eingabefeld steht ein grauer Satz. Standardmäßig ist das ein allgemeiner Hinweis; unter „Navigation & Einstieg“ → „Frage-Vorschläge“ kannst du ihn durch deinen eigenen ersetzen — etwa „Wie konfiguriere ich …“. Das ist die wirksamste Zeile der Startseite: Sie sagt dem Besucher, WELCHE Art Frage hier weiterhilft, und führt ihn näher an etwas Beantwortbares als eine allgemeine Aufforderung.",
+      ziel("/admin/navigation", "Navigation & Einstieg: dort änderst du den grauen Text im KI-Eingabefeld. Höchstens 80 Zeichen.", true),
       "Höchstens 80 Zeichen — der Satz steht IM Feld und würde sonst auf schmalen Schirmen abgeschnitten. Leer lassen stellt den Standardtext wieder her.",
       "## Einstiegs-Karten auf der Startseite",
       "Unter der KI-Eingabe kannst du bis zu sechs Karten anzeigen — der gesetzte erste Schritt für alle, die noch nicht wissen, wonach sie fragen sollen. Jede Karte hat einen Titel, wahlweise eine kurze Beschreibung und ein Ziel.",
+      ziel("/admin/navigation", "Navigation & Einstieg, Abschnitt Einstiegs-Karten: bis zu sechs Karten unter der KI-Eingabe, Ziel je Karte wählbar.", true),
       "Vier Ziele stehen zur Wahl: ein veröffentlichter Artikel, die Roadmap, der Changelog oder eine externe https-Adresse (etwa deine Statusseite oder Community). Externe Karten öffnen in einem neuen Tab und sind mit einem Symbol gekennzeichnet.",
       "Als Artikel-Ziel stehen nur VERÖFFENTLICHTE Artikel zur Auswahl. Eine Karte, die auf einen Entwurf zeigt, wäre für jeden Besucher ein toter Link.",
       {
@@ -262,12 +274,15 @@ const ARTICLES = [
       "## Symbol je Artikel",
       "Vor jedem Artikel kann ein Symbol stehen — oder keins, und keins ist der Standard. Das ist Absicht: Ein Zeichen, das vor jeder Zeile gleich aussieht, trägt keine Information und kostet nur Platz.",
       "Im Editor wählst du unter »Symbol in der Navigation« aus einem festen Satz. Alle Symbole stammen aus derselben Familie, damit die Leiste ruhig bleibt. Setze eines nur dort, wo es beim Überfliegen wirklich hilft — etwa ein Schlüssel bei »Passwort zurücksetzen«.",
+      ziel("/admin/articles", "Die Artikelliste: von hier öffnest du den Editor, in dem das Symbol je Artikel gewählt wird. Nicht für die Reihenfolge — die steht unter Navigation.", true),
       "Hat kein Artikel ein Symbol, fällt die Spalte ganz weg und die Titel stehen bündig links. Sobald ein Artikel eines hat, wird die Spalte für alle freigehalten, damit die Titel nicht versetzt stehen.",
       "## Beta-Kennzeichnung in der Leiste",
       "Beschreibt ein Artikel eine Funktion, die noch in der Beta ist, gib ihm im Editor ein Flag mit dem Text »Beta«. Das Badge erscheint dann NEBEN dem Artikel in der linken Leiste — nicht erst im Artikel selbst.",
+      ziel("/admin/articles", "Die Artikelliste: im Editor vergibst du das Flag wie »Beta«, das schon in der Navigation erscheint.", true),
       "Damit sieht ein Leser schon vor dem Klick, worauf er sich einlässt. Für die Farbe stehen sechs Töne zur Wahl. Für »Beta« nimm »Blau (Hinweis)«: Es sagt »hier ist noch Bewegung drin«, ohne zu warnen. Gelb hebst du dir für echte Vorsicht auf.",
       "## Alles davon per KI",
       "Reihenfolge, Karten und Flags lassen sich auch über einen angebundenen KI-Client setzen. Siehe »Eigenen KI-Client verbinden (MCP)«.",
+      ziel("/admin/api-keys", "Zugriffs-Schlüssel: Schlüssel für einen KI-Client anlegen und seine Rechte wählen. Ohne passendes Recht kann er Navigation und Karten nicht setzen.", true),
     ],
     related: ["artikel-veroeffentlichen", "ki-client-verbinden"],
   },
@@ -285,6 +300,7 @@ const ARTICLES = [
       "Am schnellsten geht der Umzug von einer bestehenden Hilfe-Seite: Gib im Import-Dialog unter »Von einer Website importieren« die Adressen der Artikel an (eine pro Zeile). Wir holen Titel, Text, Überschriften, Listen, Bilder und YouTube-Videos in der Original-Reihenfolge — Bilder werden mit ihrem Alternativtext als Beschreibung in dein Hilfezentrum kopiert. Voraussetzung: Die Seite liefert ihren Inhalt im HTML (bei rein per JavaScript aufgebauten Seiten bleibt der Datei-Import).",
       "Wichtig: Importiere nur Inhalte, die dir gehören oder für die du die Rechte hast. Video-Beschreibungen setzt du danach im Editor über »Inhalt automatisch erfassen«.",
       "Für größere Umzüge gibt es einen dritten Weg: Verbinde deinen eigenen KI-Client per MCP und lass ihn die Seiten übernehmen. Der Vorteil gegenüber dem Dialog ist die Nacharbeit — dein KI-Client kann jedes übernommene Bild ansehen und daraus eine echte Beschreibung schreiben, statt nur den Alternativtext der alten Seite zu übernehmen. Wie das geht, steht unter »Eigenen KI-Client verbinden (MCP)«.",
+      ziel("/admin/api-keys", "Zugriffs-Schlüssel: Schlüssel und MCP-Adresse für einen KI-Client, der größere Umzüge Artikel für Artikel übernimmt."),
       "Übernommen werden auch Tabellen und Hinweisboxen: Tabellen werden zu Tabellen-Blöcken, farbige Hinweise zu Info-, Warnungs- oder Fehler-Blöcken.",
       "Importierte neue Artikel starten immer als Entwurf — veröffentlicht wird bewusst von Hand. Existiert ein Artikel mit gleichem Slug bereits, wird sein Inhalt aktualisiert; sein Status bleibt unverändert.",
     ],
@@ -304,6 +320,7 @@ const ARTICLES = [
       "Steckt dein Schriftzug bereits im Logo, kannst du die Anzeige des Instanznamens im Header abschalten (Schalter in den Branding-Einstellungen). Ohne Logo wird der Name immer angezeigt.",
       "Das Branding wird sofort im gesamten Hilfezentrum angewendet — ohne eine Zeile Code. So erscheint dein Hilfezentrum vollständig in deinem eigenen Look (White-Label).",
       "Ebenfalls in den Einstellungen: die Standardsprache deines Hilfezentrums (Deutsch oder Englisch) — sie kann nur der Besitzer ändern.",
+      ziel("/admin/settings", "Einstellungen: Standardsprache des Hilfezentrums, Support-Adresse, Widget-Snippet und die Rechtstexte."),
     ],
     related: ["hilfezentrum-erstellen"],
   },
@@ -321,6 +338,7 @@ const ARTICLES = [
       "Diese Warnungen halten dich nicht auf. Es gibt Fälle, in denen eine Marke eine bestimmte Farbe verlangt, und eine Sperre würde nur zu Umwegen führen. Der Generator dagegen hält die Schwelle immer ein: Gibst du eine sehr helle Markenfarbe an, dunkelt er sie farbtontreu ab, bis sie als Linkfarbe lesbar ist. Willst du genau deinen Ton, setzt du ihn danach von Hand zurück — die Warnung bleibt dann stehen, und das ist der ehrliche Zustand.",
       "Gespeichert wird für die ganze Instanz: Jeder Seitenaufruf ab diesem Moment kommt in den neuen Farben — auch der erste Aufbau, es blitzt also nichts in den alten Farben auf. Wer die Seite gerade offen hat, sieht die Änderung beim nächsten Laden. Marken- und Akzentfarbe aus dem hellen Satz werden zugleich als Marken-Identität der Instanz gesichert: Das Widget auf deiner eigenen Seite kennt den Modus des Besuchers nicht und braucht einen festen Wert.",
       "Auch dein verbundener KI-Client kann die Farbwelt setzen, wenn sein Zugriffs-Schlüssel Einstellungen schreiben darf. Er bekommt dabei bewusst nicht alle 48 Farbwerte vorgelegt, sondern dieselben vier Angaben wie der Generator — sonst würde er sie erfinden, und niemand hätte das Ergebnis geprüft, bevor es auf deiner Seite steht. Einzelne Ausnahmen kann er trotzdem benennen, und die Antwort nennt ihm jede Stelle, an der das den Kontrast unterschreitet.",
+      ziel("/admin/api-keys", "Zugriffs-Schlüssel: dort braucht der KI-Client das Recht für Einstellungen, um die Farbwelt setzen zu dürfen."),
       "„Auf Standard zurücksetzen“ entfernt die eigene Farbwelt wieder. Das Hilfezentrum zeigt dann die Standardfarben, überschrieben von deiner Marken- und Akzentfarbe — der Zustand vor dem ersten Speichern.",
     ],
     related: ["branding-anpassen", "widget-einbinden"],
@@ -335,6 +353,7 @@ const ARTICLES = [
       ziel("/admin/settings", "Einstellungen: dort werden Impressum, Datenschutz und AGB gepflegt. Nur der Besitzer darf sie ändern."),
       "Die Texte sind öffentlich über feste Pfade erreichbar und werden je Hilfezentrum getrennt gespeichert.",
       "Welche davon unten im Fuß verlinkt werden, entscheidest du getrennt davon unter „Navigation & Einstieg“ → „Fuß des Hilfezentrums“. Alle drei sind von Anfang an angehakt; du kannst jeden einzeln abschalten.",
+      ziel("/admin/navigation", "Navigation & Einstieg: dort entscheidest du, welche Rechtstexte unten im Fuß verlinkt sind. Die Texte selbst stehen in den Einstellungen."),
       "Nicht alle drei wiegen gleich schwer. Die Datenschutzerklärung gehört auf jedes Hilfezentrum: Sobald jemand es aufruft, werden personenbezogene Daten verarbeitet, und darüber muss informiert werden (Art. 13 DSGVO). Ein Impressum verlangen Deutschland, Österreich und die Schweiz von geschäftsmäßigen Angeboten — sitzt du woanders, kann der Punkt entfallen. AGB sind hier in aller Regel gar nicht nötig, weil im Hilfezentrum kein Vertrag zustande kommt; verlinke sie, wenn du sie aus anderem Grund zeigen willst.",
       "## Was in deine Datenschutzerklärung gehört",
       "Für die Besucher deines Hilfezentrums bist du der Verantwortliche, wir verarbeiten in deinem Auftrag. Deshalb musst du in deiner Erklärung beschreiben, was hier passiert. Das ist wenig: Beim Aufruf fallen die üblichen Server-Daten an (Adresse, Browser, Zeitpunkt, aufgerufene Seite). Für die Statistik und die Nutzerzahl bilden wir daraus serverseitig ein Kürzel, das nur für den laufenden Monat und nur für deine Instanz gilt — Adresse und Browser selbst werden dafür nicht gespeichert.",
@@ -352,6 +371,7 @@ const ARTICLES = [
     min: 1,
     body: [
       "Die schmale Zeile ganz unten im Hilfezentrum pflegst du unter „Navigation & Einstieg“ → „Fuß des Hilfezentrums“. Dort legst du fest, welche der drei Rechtstexte verlinkt werden — und was sonst noch danebensteht.",
+      ziel("/admin/navigation", "Navigation & Einstieg: dort sitzt die Fußzeile mit Rechtstext-Schaltern, eigenen Links und dem Powered-by-Hinweis."),
       "Bis zu fünf eigene Links kommen dazu: Beschriftung und Ziel, mehr braucht es nicht. Typisch sind eine Status-Seite, die Hauptwebsite, eine Erklärung zur Barrierefreiheit oder ein Sicherheitskontakt. Externe Ziele müssen mit https:// beginnen und öffnen in einem neuen Tab; interne Pfade wie /contact sind ebenfalls erlaubt.",
       "Der Fuß ist bewusst eine Zeile und kein zweites Menü. Für die eine Handlung, die überall erreichbar sein soll — Termin buchen, Demo anfragen — sind die Aktions-Knöpfe im Kopf der richtige Ort.",
       "Ein abgeschalteter Rechtstext verschwindet aus dem Fuß; seine Seite bleibt unter ihrem festen Pfad erreichbar, falls du sie anderswo verlinkst.",
@@ -372,6 +392,7 @@ const ARTICLES = [
       "## Wenn die KI nichts findet",
       "Findet die KI keine belastbare Antwort, sagt sie das — und bietet dem Nutzer an, die Frage zu melden: »Ich brauche dazu eine Antwort«. Er kann freiwillig eine E-Mail-Adresse hinterlassen.",
       "Jede unbeantwortete Frage landet unter »Statistik« in der Liste »Unbeantwortete Fragen«, nach Häufigkeit sortiert und mit Kennzeichnung, wenn jemand aktiv um eine Antwort gebeten hat. Das ist deine Schreib-Warteschlange: Was dort oft steht, fehlt als Artikel. Die Einträge werden nach 90 Tagen automatisch gelöscht.",
+      ziel("/admin/stats", "Statistik: Aufrufe, meistzitierte Artikel, meistgeklickte Ziele und die Liste der unbeantworteten Fragen — deine Schreib-Warteschlange."),
       "Ein Hinweis zur Formulierung deiner Artikel: Die KI findet nur, was in deinen Worten steht. Fragen Kunden nach einem Gerät oder einem Fremdprodukt, das in keinem Artikel vorkommt, gibt es keinen Treffer — auch wenn du eigentlich einen Artikel hast, der zuständig wäre. Nimm die Begriffe deiner Kunden in den Text auf, nicht nur deine eigenen.",
       "Nutzer können generierte Antworten auf ihrem Gerät speichern und später wieder öffnen. Beantwortet wird in der Sprache, in der die Frage gestellt wurde.",
       "Neue oder geänderte Artikel stehen der KI kurz nach dem Veröffentlichen zur Verfügung — der Suchindex aktualisiert sich automatisch. In der Statistik zeigt dir »Häufigste Quellen«, welche Artikel deine KI-Antworten am meisten speisen.",
@@ -416,6 +437,7 @@ const ARTICLES = [
     body: [
       "Wenn weder die Artikel noch die KI-Antwort weiterhelfen, brauchen deine Nutzer einen Ausweg. Dafür gibt es eine Kontaktseite mit den Wegen, die DU anbietest — und einen Eintrag »Kontakt« ganz unten in der Navigation.",
       "Eingerichtet wird sie unter »Navigation« im Verwaltungsbereich, Abschnitt »Kontaktwege«. Jeder Weg ist eine Karte; bis zu sechs sind möglich.",
+      ziel("/admin/navigation", "Navigation & Einstieg, Abschnitt Kontaktwege: E-Mail, Telefon und Kontaktformular der Kontaktseite."),
       "## Die drei Arten",
       "**E-Mail:** Adresse eintragen. Die Karte wird zum Klickziel, das beim Nutzer das Mailprogramm öffnet.",
       "**Telefon:** Rufnummer eintragen. Auf dem Handy wählt ein Tippen direkt. Schreibweise ist frei — »+49 30 123456« und »(030) 123-456« sind beide in Ordnung.",
@@ -430,6 +452,7 @@ const ARTICLES = [
       "Änderungen sind sofort öffentlich; einen Entwurfszustand gibt es hier nicht.",
       "## Per KI-Client pflegen",
       "Die Kontaktwege lassen sich auch über einen angebundenen KI-Client pflegen — lesen und setzen. Gesetzt wird dabei immer der GANZE Satz: Was die KI übergibt, ersetzt den bisherigen Stand, und eine leere Liste entfernt Seite und Navigations-Eintrag wieder. Welche Werkzeuge es dafür gibt, liest dein Client selbst aus dem Hilfezentrum aus; du musst ihm nichts davon nennen.",
+      ziel("/admin/api-keys", "Zugriffs-Schlüssel: dort braucht der KI-Client das Recht, Kontaktwege zu setzen — sie sind sofort öffentlich.", true),
       "Weil die Wege sofort öffentlich sind, hängt das Schreiben am Recht »Changelog und Roadmap pflegen«, nicht am reinen Schreibrecht für Artikel. Siehe »Eigenen KI-Client verbinden (MCP)«.",
     ],
     related: ["navigation-und-einstieg", "support-tickets", "termin-buchen-anbieten"],
@@ -442,6 +465,7 @@ const ARTICLES = [
     min: 4,
     body: [
       "Manche Anliegen klärt kein Artikel, sondern ein Gespräch. Unter „Einstellungen → Buchungslinks“ hinterlegst du die Adresse deines Buchungskalenders — cal.com, Calendly, Microsoft Bookings, was du nutzt. Dazu eine Überschrift („Noch Fragen?“), die Beschriftung des Knopfes („Termin buchen“) und optional eine kurze Zeile darunter („15 Minuten, unverbindlich“).",
+      ziel("/admin/settings", "Einstellungen, Abschnitt Buchungslinks: Kalender hinterlegen und entscheiden, an welchen vier Plätzen der Termin erscheint."),
       "Die Adresse muss mit https:// beginnen. Ein interner Pfad wird nicht angenommen: Ein Buchungskalender liegt immer woanders, und ein toter Link fiele ausgerechnet dort auf, wo jemand schon nicht weiterkommt.",
       "## Vier Plätze, einzeln schaltbar",
       "Du pflegst den Link EINMAL und entscheidest darunter, wo er erscheint. Alle vier stehen anfangs auf aus:",
@@ -467,6 +491,7 @@ const ARTICLES = [
       "Die vier automatischen Plätze zeigen immer DENSELBEN Kalender — den, den du als allgemeinen auswählst. Die speziellen setzt du gezielt dort ein, wo sie hingehören: als Support-Baustein im Artikel.",
       "## Der Support-Baustein",
       "Im Artikel-Editor findest du unter den Bausteinen „Support-Baustein“. Er zeigt zwei Auswege: einen Knopf zur Kontaktseite und einen zum Termin. Dazu kannst du einen kurzen Text schreiben, der zum ABSCHNITT passt — „Klappt die Anbindung nicht? Das hängt oft am Anbieter.“",
+      ziel("/admin/articles", "Die Artikelliste: von hier öffnest du den Editor mit dem Support-Baustein, den du hinter einen kniffligen Schritt setzt.", true),
       "Setze ihn direkt NACH einem Schritt, an dem Leser hängenbleiben, nicht ans Ende. Nach einer komplexen Integration ist die Hürde genau dort, nicht zwanzig Absätze später. Die allgemeine Hilfe am Artikelende bleibt davon unberührt und erscheint weiterhin automatisch.",
       "Wichtig: Der Baustein enthält KEINE Adressen. Er verweist auf deine zentral gepflegten Kontaktwege und Kalender. Ändert sich deine Support-Adresse, änderst du sie an einer Stelle — nicht in hundert Artikeln.",
       "Sparsam einsetzen. Ein Hilfezentrum, in dem jeder Abschnitt nach Support ruft, liest sich wie eines, das nichts erklärt.",
@@ -482,6 +507,7 @@ const ARTICLES = [
     min: 3,
     body: [
       "Zwei Flächen tragen deine Handschrift nach außen: die Knöpfe oben im Kopf des Hilfezentrums und der Starter des Widgets auf deiner Website. Beide nutzen dieselben vier Varianten — einmal verstanden, überall gültig.",
+      ziel("/admin/navigation", "Navigation & Einstieg: dort legst du die bis zu drei Knöpfe oben im Kopf an — Beschriftung, Symbol, Variante und Ziel."),
       "## Die vier Varianten",
       "**Ghost:** nur Text, kein Rahmen, keine Fläche. Für Nebensächliches. **Outlined:** Rahmen, durchsichtige Fläche. Der ruhige Standard. **Filled:** kräftige Fläche in Textfarbe, höchster Kontrast. **Colored:** Fläche in DEINER Markenfarbe.",
       "Eine freie Farbe gibt es bewusst nicht. »Colored« nimmt die Farbe, die du im Branding gesetzt hast — die ist bereits auf Lesbarkeit geprüft. Ein zusätzlicher Farbwähler könnte einen Knopf erzeugen, dessen Schrift auf der eigenen Fläche verschwindet.",
@@ -491,6 +517,7 @@ const ARTICLES = [
       "Die Vorschau in der Pflegeoberfläche zeigt den Knopf so, wie er später aussieht — das sagt mehr als der Name der Variante.",
       "## Widget gestalten",
       "In den Einstellungen wählst du dieselben vier Varianten für den Starter, dazu eine eigene Beschriftung. Ohne Beschriftung bleibt er ein runder Knopf, mit wird eine Pille daraus.",
+      ziel("/admin/settings", "Einstellungen: Erscheinungsbild des Widget-Starters — Variante, Beschriftung und eigene Symbole.", true),
       "Beides — die Kopf-Knöpfe und Variante samt Beschriftung des Widgets — lässt sich auch über einen angebundenen KI-Client setzen. Die Symbole bleiben bewusst bei dir: Das sind Bilddateien, die du hochlädst.",
       "Für den geschlossenen und den geöffneten Zustand kannst du je ein eigenes Symbol hochladen. Im Kopf des Widgets erscheint automatisch dein Logo.",
       {
@@ -514,10 +541,12 @@ const ARTICLES = [
       "## Was du davon hast",
       "Der Hinweis kommt MIT der Stelle bei dir an: Du siehst, welcher Artikel gemeint ist und welchen Absatz der Leser angeklickt hat, samt dem Text dieser Stelle. »Irgendwo in der Mitte war etwas seltsam« hilft niemandem — das hier schon.",
       "Die Hinweise landen im selben Postfach wie die Support-Anfragen, unter »Probleme«, dort gekennzeichnet als »Artikel unklar«.",
+      ziel("/admin/inbox", "Das Postfach: Support-Anfragen, markierte unklare Stellen mit dem angeklickten Zitat und unbeantwortete KI-Fragen."),
       "## Abgrenzung zu »Etwas stimmt nicht?«",
       "»Etwas stimmt nicht?« steht unter einer KI-ANTWORT und meldet, dass die Antwort nicht taugte. »Ich verstehe etwas nicht« steht am ARTIKEL und meldet eine Stelle im Text. Anderer Anlass, anderer Kontext — aber dasselbe Postfach, damit du nur einen Ort im Blick behalten musst.",
       "## Abschalten",
       "Unter »Einstellungen« kannst du den Modus ausschalten. Standardmäßig ist er an. Aus heißt wirklich aus: Der Knopf verschwindet, und auch ein direkter Aufruf der Schnittstelle wird abgewiesen.",
+      ziel("/admin/settings", "Einstellungen: dort schaltest du den Modus »Ich verstehe etwas nicht« ab. Standardmäßig ist er an.", true),
       "## Wenn eine KI etwas meldet",
       "Auch ein angebundener KI-Client kann eine unklare oder widersprüchliche Stelle melden, während er deine Artikel liest. Solche Meldungen erscheinen im Postfach als »KI-Hinweis« — getrennt von den Hinweisen echter Leser.",
       "Diese Trennung ist wichtig: Ein Mensch, der meldet, dass er nicht weiterkommt, ist selten und wertvoll. Eine Maschine kann davon beliebig viele erzeugen. Lägen beide im selben Topf, würde das seltene Signal darin untergehen.",
@@ -540,6 +569,7 @@ const ARTICLES = [
       ziel("/admin/inbox", "Das Postfach: Support-Anfragen, markierte unklare Stellen aus Artikeln und unbeantwortete KI-Fragen — die Liste, die man abarbeitet."),
       "Jede Anfrage landet als Ticket in deiner Inbox im Verwaltungsbereich. Dort siehst du die ursprüngliche Frage an die KI als Kontext, markierst Tickets als erledigt oder löschst sie.",
       "Hinterlegst du in den Einstellungen eine Support-E-Mail-Adresse, bekommst du jedes Ticket zusätzlich per E-Mail zugestellt. Ohne Adresse sammelt die Inbox alle Anfragen — verloren geht nichts.",
+      ziel("/admin/settings", "Einstellungen: dort trägst du die Support-Adresse ein, an die jedes Ticket zusätzlich per Mail geht."),
     ],
     related: ["ki-antworten"],
   },
@@ -551,6 +581,7 @@ const ARTICLES = [
     body: [
       "Jeder Artikel kann in mehreren Sprachen existieren — als verbundenes Set: Jede Sprachfassung hat ihren eigenen Link, ihren eigenen Entwurfs-/Veröffentlicht-Status und erscheint im Hilfezentrum in der passenden Sprache. Besucher wechseln auf der Artikelseite per Klick zwischen den verfügbaren Sprachen.",
       "Im Artikel-Editor findest du den Abschnitt »Übersetzungen«. Dort legst du eine fehlende Sprachfassung an: entweder manuell (der Originaltext wird als Startpunkt kopiert) oder per KI-Übersetzung — sie überträgt Titel, Text samt Formatierung, Links und Bild-Beschreibungen und kopiert die Bilder mit. Eine KI-Übersetzung kostet 50 Credits und wird nur bei Erfolg berechnet.",
+      ziel("/admin/articles", "Die Artikelliste: von hier öffnest du den Editor, in dem der Abschnitt Übersetzungen sitzt. Übersetzungen starten immer als Entwurf."),
       "Übersetzungen starten immer als Entwurf: Du prüfst den Text und veröffentlichst ihn bewusst. Die KI-Antworten nutzen automatisch die Sprachfassung, die zur Sprache der Frage passt.",
       "In der Artikel-Liste erscheint ein Set als EIN Eintrag: Die Zeile gehört dem Original, weitere Sprachen hängen als Kürzel daran — ein Klick auf »EN« öffnet die englische Fassung. Auch im Editor wechselst du oben per Sprach-Kürzel zwischen den Fassungen.",
       "Änderst du das Original, nachdem übersetzt wurde, markieren Liste und Editor die Übersetzung als möglicherweise veraltet — so übersiehst du keine nachzuziehende Übersetzung. Übersetzen und Wechseln sind erst möglich, wenn der aktuelle Stand veröffentlicht ist (ungespeicherte Änderungen gehen so nie verloren).",
@@ -564,6 +595,7 @@ const ARTICLES = [
     min: 1,
     body: [
       "Binde YouTube-Videos direkt im Artikel ein: Füge einen Video-Block hinzu und trage dort den YouTube-Link, Titel und Beschreibung ein. Der Block zeigt das Video sofort so, wie es später im Artikel erscheint — abgespielt wird erst nach einem Klick (datensparsamer YouTube-Modus).",
+      ziel("/admin/articles", "Die Artikelliste: von hier öffnest du den Editor mit dem Video-Block. Die Beschreibung ist dort Pflicht."),
       "Die Beschreibung ist Pflicht — sie dient als Alternativtext und fließt als Kontext in die KI-Antworten ein: Die KI kann so auch auf Inhalte verweisen, die im Video erklärt werden.",
       "Damit die Beschreibung dafür aussagekräftig genug ist, gibt es »Inhalt automatisch erfassen« (20 Credits): Der Titel wird direkt von YouTube geholt, und aus dem Transkript des Videos erstellt die KI Titel und Beschreibung. YouTube erlaubt keinen automatischen Transkript-Abruf — der Editor zeigt deshalb ein Feld, in das du das Transkript einfügst (auf YouTube unter dem Video: »…« → »Transkript anzeigen« → kopieren). Ohne Transkript wird bewusst KEINE Beschreibung erfunden und nichts berechnet.",
       "Bei Bildern bleibt die Beschreibung Handarbeit: Dort muss stehen, was hervorgehoben ist oder wohin geklickt wird — das steht in keinem Transkript.",
@@ -617,6 +649,7 @@ const ARTICLES = [
       "Bei Kontaktwegen gilt eine Regel, die keine Technik erzwingen kann: Trage nur Adressen und Rufnummern ein, die du der KI wirklich genannt hast. Eine falsche Support-Adresse steht ausgerechnet dort, wo jemand landet, der schon nicht weiterkommt.",
       "## Nutzerhinweise von der KI abarbeiten lassen",
       "Mit dem Recht »Nutzerhinweise lesen« sieht dein KI-Client dein Postfach: Support-Anfragen, markierte unklare Stellen aus Artikeln und die unbeantworteten KI-Fragen. Das ist die eigentliche Schleife — der Client liest, was Leser nicht verstanden haben, korrigiert den Artikel, veröffentlicht ihn und schließt den Hinweis mit dem Recht »Nutzerhinweise bearbeiten« ab.",
+      ziel("/admin/inbox", "Das Postfach: dieselben Einträge, die ein KI-Client über MCP liest — Support-Anfragen, unklare Stellen, unbeantwortete Fragen.", true),
       "Bei einer markierten Stelle bekommt er den Artikel UND das angeklickte Zitat mitgeliefert. Er weiß also genau, welcher Absatz gemeint war, statt raten zu müssen.",
       "Zwei Dinge dabei im Blick behalten: Diese Einträge enthalten personenbezogene Daten deiner Endnutzer — freien Text und teils E-Mail-Adressen. Das Recht ist deshalb eigens als solches gekennzeichnet, und du entscheidest bewusst, ob dein KI-Anbieter das sehen soll. Und: Der Text stammt von Fremden, nicht von dir. Er wird der KI ausdrücklich als Fremdinhalt übergeben, damit eine als Anweisung getarnte Nachricht im Ticket die KI nicht steuern kann.",
       "Schließe einen Hinweis erst, wenn das Problem wirklich behoben ist — nicht schon, wenn er gelesen wurde. Löschen geht auch, verlangt aber dieselbe zweistufige Bestätigung wie das Löschen eines Artikels.",
@@ -631,6 +664,7 @@ const ARTICLES = [
     min: 2,
     body: [
       "Hast du eine eigene API, kannst du deine Entwickler-Dokumentation aus dem Hilfezentrum heraus verlinken — als Aktions-Knopf im Kopf. Es gibt dafür keinen Sonderweg mehr: Du legst ihn unter »Navigation« an wie jeden anderen Knopf, mit Beschriftung, Symbol und Variante deiner Wahl.",
+      ziel("/admin/navigation", "Navigation & Einstieg: dort legst du die Kopf-Knöpfe an — auch den Link auf deine API-Dokumentation."),
       "Nimm als Symbol »Code« und als Ziel deine https-Adresse; der Knopf öffnet automatisch in einem neuen Tab, weil das Ziel nach außen führt. Auf schmalen Bildschirmen bleibt nur das Symbol stehen. Entfernen heißt: Knopf löschen.",
       "Erlaubt sind ausschließlich vollständige https-Adressen. Der Grund: Dieser Link steht dauerhaft in der Navigation jedes Besuchers — dort gehört nichts hin, was unverschlüsselt lädt oder Skripte ausführen könnte.",
       "Warum wir deine API-Referenz nicht bei uns darstellen: Sie wird aus deinem Spec erzeugt und ändert sich mit jedem Release. Eine Kopie in deinem Hilfezentrum wäre nach deinem nächsten Deploy falsch. Deine Doku bleibt deshalb da, wo sie gepflegt wird — das Hilfezentrum führt nur hin.",
@@ -653,6 +687,7 @@ const ARTICLES = [
       "Was zählt, ist Richtigkeit: Ein veralteter Artikel kostet dich mehr als zehn Aktualisierungen.",
       "## KI-Suchmaschinen",
       "Immer mehr Leute fragen ChatGPT, Claude oder Perplexity statt zu googeln. Damit diese Dienste dein Hilfezentrum zitieren können, müssen sie es lesen dürfen — das ist voreingestellt erlaubt. Unter »Einstellungen → Suchmaschinen« kannst du es als Owner abschalten; die normale Suchmaschinen-Indexierung bleibt davon unberührt, beides lässt sich getrennt entscheiden.",
+      ziel("/admin/settings", "Einstellungen: dort steht der Schalter, ob KI-Suchmaschinen deine Inhalte lesen dürfen — unabhängig von der normalen Indexierung.", true),
       "Drei Dinge helfen dabei, zitiert zu werden: Jeder Artikel trägt sein Änderungsdatum maschinenlesbar mit. Absätze, die für sich allein verständlich sind, lassen sich leichter übernehmen als solche, die erst mit drei Absätzen Vorlauf Sinn ergeben. Und gepflegte Bildbeschreibungen machen auch Bildinhalte auffindbar.",
     ],
     related: ["hilfezentrum-erstellen", "artikel-veroeffentlichen"],
@@ -725,6 +760,22 @@ const ROADMAP = [
 // `version`/`level` sind optional; für UNSERE Instanz gilt: jedes Minor-Release
 // bekommt hier einen Eintrag mit Versionsnummer (docs/versioning.md).
 const CHANGELOG = [
+  {
+    title: "Die Links in unseren Artikeln führen jetzt in DEIN Hilfezentrum",
+    description:
+      "Unsere Artikel beschreiben Handgriffe im Verwaltungsbereich und hinterlegen dafür Ziele. Bisher zeigten die auf unseren eigenen Bereich — wer darauf klickte, landete im Nichts. Ab sofort führt so ein Link dorthin, wo er hingehört: in dein Hilfezentrum. Bist du nicht angemeldet, fragen wir dich zuerst danach; hast du noch keines, bieten wir dir an, eines anzulegen. Hast du genau eines, geht es ohne Rückfrage direkt hin. Und wer mehrere betreibt, wählt einmal aus und kann oben im Kopf jederzeit wechseln — die Wahl hängt am Konto, gilt also auch auf dem nächsten Gerät. Das betrifft nur unser eigenes Hilfezentrum: Deines verweist auf deine festen Adressen, dort ändert sich nichts.",
+    at: RELEASE_0_13_0,
+    version: "0.13.0",
+    level: "minor",
+  },
+  {
+    title: "Jeder Abschnitt führt dich jetzt dorthin, wo es passiert",
+    description:
+      "Unsere eigenen Hilfeartikel nutzen jetzt durchgängig, was HallofHelp kann: 48 hinterlegte Ziele über 29 Artikel. Überall, wo ein Artikel sagt „das stellst du unter X ein“, bekommst du den Weg dorthin — von der KI in ihrer Antwort, und bei ganzen Abschnitten zusätzlich als kleines Symbol neben der Überschrift. Artikel mit mehreren Abschnitten führen dabei an unterschiedliche Stellen: Der Abschnitt über die Reihenfolge zeigt auf Navigation, der über Artikel-Symbole auf die Artikelliste, der über Pflege per KI auf die Zugriffs-Schlüssel. Das ist zugleich unser Beispiel dafür, wie du es in deinem eigenen Hilfezentrum machen kannst.",
+    at: RELEASE_0_12_2,
+    version: "0.12.2",
+    level: "patch",
+  },
   {
     title: "Ziele auch sichtbar: Symbol neben der Überschrift",
     description:

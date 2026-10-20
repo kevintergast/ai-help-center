@@ -60,6 +60,7 @@ function HeadingDestination({ href, label }: { href: string; label?: string }) {
   return (
     <a
       href={href}
+      data-destination={href}
       target="_blank"
       rel="noopener noreferrer"
       title={label}
